@@ -87,11 +87,12 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
     const imageOptions = useMemo(() => {
         const options = new Map<string, string>();
         projectImages.forEach(img => {
-            if (img.isInProject) {
-                const meta = imageMetadata.get(img.projectFilePath || '');
-                const renpyName = meta?.renpyName || img.fileName.split('.').slice(0, -1).join('.');
-                options.set(renpyName, renpyName);
-            }
+            if (!img.isInProject) return;
+            const normalizedPath = (img.projectFilePath || img.filePath).replace(/\\/g, '/');
+            if (normalizedPath.includes('/gui/')) return;
+            const meta = imageMetadata.get(img.projectFilePath || '');
+            const renpyName = meta?.renpyName || img.fileName.split('.').slice(0, -1).join('.');
+            options.set(renpyName, renpyName);
         });
         return Array.from(options.keys()).sort();
     }, [projectImages, imageMetadata]);
