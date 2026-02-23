@@ -2051,11 +2051,31 @@ const App: React.FC = () => {
   }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId]);
 
   const handleCloseSecondaryPane = useCallback(() => {
+    // Merge secondary tabs into primary (skip any already present) so nothing is lost
+    if (secondaryOpenTabs.length > 0) {
+      setOpenTabs(prev => {
+        const existingIds = new Set(prev.map(t => t.id));
+        const toAdd = secondaryOpenTabs.filter(t => !existingIds.has(t.id));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+      });
+    }
     setSecondaryOpenTabs([]);
     setSecondaryActiveTabId('');
     setSplitLayout('none');
     setActivePaneId('primary');
-  }, []);
+  }, [secondaryOpenTabs]);
+
+  const handleClosePrimaryPane = useCallback(() => {
+    // Promote secondary pane to primary; append any unique primary tabs after it
+    const existingIds = new Set(secondaryOpenTabs.map(t => t.id));
+    const uniquePrimaryTabs = openTabs.filter(t => !existingIds.has(t.id));
+    setOpenTabs([...secondaryOpenTabs, ...uniquePrimaryTabs]);
+    setActiveTabId(secondaryActiveTabId || secondaryOpenTabs[0]?.id || 'canvas');
+    setSecondaryOpenTabs([]);
+    setSecondaryActiveTabId('');
+    setSplitLayout('none');
+    setActivePaneId('primary');
+  }, [openTabs, secondaryOpenTabs, secondaryActiveTabId]);
 
   const handleCenterOnBlock = useCallback((target: string) => {
       let blockId = target;
@@ -2729,10 +2749,18 @@ const App: React.FC = () => {
             </button>
           </>
         )}
+        {paneId === 'primary' && splitLayout !== 'none' && (
+          <>
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
+            <button onClick={handleClosePrimaryPane} title="Close Pane (moves tabs to other pane)" className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+            </button>
+          </>
+        )}
         {paneId === 'secondary' && (
           <>
             <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
-            <button onClick={handleCloseSecondaryPane} title="Close Pane" className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <button onClick={handleCloseSecondaryPane} title="Close Pane (moves tabs to other pane)" className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
           </>
