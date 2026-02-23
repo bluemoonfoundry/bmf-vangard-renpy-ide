@@ -68,4 +68,4 @@ All notable changes to Vangard Ren'Py IDE are documented here.
 
 ## [v0.5.0-beta] — prior release
 
-The v0.5.0 beta introduced the Screen Editor visual designer, configurable UI themes, an Audio Manager with waveform preview, expanded Ren'Py analysis (screens, transforms, styles), and drag-and-drop asset import.
+The v0.5.0 beta introduced the Scene Editor visual designer, configurable UI themes, an Audio Manager with waveform preview, expanded Ren'Py analysis (screens, transforms, styles), and drag-and-drop asset import.
