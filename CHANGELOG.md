@@ -4,7 +4,7 @@ All notable changes to Vangard Ren'Py IDE are documented here.
 
 ---
 
-## [v0.7.0] — Public Beta 4
+## [v0.7.0] — Public Beta 4 (Not Yet Released)
 
 ### New Features
 
