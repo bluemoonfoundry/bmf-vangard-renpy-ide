@@ -347,6 +347,7 @@ export interface Link {
   sourceId: string;
   targetId: string;
   targetLabel: string;
+  type?: 'jump' | 'call';
 }
 
 /**

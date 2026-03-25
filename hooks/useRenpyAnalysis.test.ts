@@ -96,7 +96,7 @@ describe('performRenpyAnalysis — Jumps & Calls', () => {
     ];
     const result = performRenpyAnalysis(blocks);
     expect(result.links).toHaveLength(1);
-    expect(result.links[0]).toEqual({ sourceId: 'b1', targetId: 'b2', targetLabel: 'chapter1' });
+    expect(result.links[0]).toEqual({ sourceId: 'b1', targetId: 'b2', targetLabel: 'chapter1', type: 'jump' });
   });
 
   it('does not create a link for a jump within the same block', () => {

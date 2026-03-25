@@ -47,6 +47,7 @@ interface StoryCanvasProps {
   onTransformChange: React.Dispatch<React.SetStateAction<{ x: number, y: number, scale: number }>>;
   onCreateBlock?: (type: BlockType, position: Position) => void;
   onAddStickyNote?: (position: Position) => void;
+  onOpenRouteCanvas?: () => void;
   mouseGestures?: MouseGestureSettings;
 }
 
@@ -102,19 +103,24 @@ const getOptimalPath = (
     return `M${p1.x},${p1.y} Q${controlX},${controlY} ${p2.x},${p2.y}`;
 };
 
-const Arrow = forwardRef<SVGGElement, { 
+const Arrow = forwardRef<SVGGElement, {
   pathData: string;
   isDimmed: boolean;
   onHighlight: (startNodeId: string) => void;
   targetId: string;
-}>(({ pathData, isDimmed, onHighlight, targetId }, ref) => {
+  linkType?: 'jump' | 'call';
+}>(({ pathData, isDimmed, onHighlight, targetId, linkType }, ref) => {
     const handlePointerDown = (e: React.PointerEvent) => {
         e.stopPropagation();
         onHighlight(targetId);
     };
 
+    // For call arrows, parse the source attachment point from the M command
+    const mMatch = linkType === 'call' ? pathData.match(/^M([-\d.]+),([-\d.]+)/) : null;
+    const callCirclePos = mMatch ? { x: parseFloat(mMatch[1]), y: parseFloat(mMatch[2]) } : null;
+
     return (
-        <g 
+        <g
           ref={ref}
           className={`arrow-interaction-group transition-opacity duration-300 ${isDimmed ? 'opacity-20' : 'opacity-100'} pointer-events-auto`}
           onPointerDown={handlePointerDown}
@@ -134,6 +140,17 @@ const Arrow = forwardRef<SVGGElement, {
               markerEnd="url(#arrowhead)"
               className="pointer-events-none"
           />
+          {callCirclePos && (
+            <circle
+              cx={callCirclePos.x}
+              cy={callCirclePos.y}
+              r={5}
+              fill="none"
+              stroke="#4f46e5"
+              strokeWidth={2.5}
+              className="pointer-events-none"
+            />
+          )}
         </g>
     );
 });
@@ -193,11 +210,13 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds, 
     findUsagesHighlightIds, clearFindUsages, dirtyBlockIds, 
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds, 
-    transform, onTransformChange, onCreateBlock, onAddStickyNote, mouseGestures
+    transform, onTransformChange, onCreateBlock, onAddStickyNote, onOpenRouteCanvas, mouseGestures
 }) => {
   const [rubberBandRect, setRubberBandRect] = useState<Rect | null>(null);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldPos: Position } | null>(null);
+  const [characterTagFilter, setCharacterTagFilter] = useState<string>('');
+  const [showLegend, setShowLegend] = useState(false);
   
   // Refs for Imperative DOM updates
   const blockRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -556,6 +575,15 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
                                 paths[0].setAttribute('d', newPath);
                                 paths[1].setAttribute('d', newPath);
                             }
+                            // Update call circle position if present
+                            const circle = gEl.querySelector('circle');
+                            if (circle) {
+                                const mMatch = newPath.match(/^M([-\d.]+),([-\d.]+)/);
+                                if (mMatch) {
+                                    circle.setAttribute('cx', mMatch[1]);
+                                    circle.setAttribute('cy', mMatch[2]);
+                                }
+                            }
                         }
                     }
                 });
@@ -763,6 +791,52 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
 
   const visibleBlockIds = useMemo(() => new Set(visibleBlocks.map(b => b.id)), [visibleBlocks]);
 
+  // Characters available for the filter dropdown (sorted by name)
+  const availableCharacters = useMemo(() => {
+    const chars: { tag: string; name: string }[] = [];
+    analysisResult.characters.forEach((char, tag) => {
+      chars.push({ tag, name: char.name || tag });
+    });
+    return chars.sort((a, b) => a.name.localeCompare(b.name));
+  }, [analysisResult.characters]);
+
+  // Block IDs that contain dialogue for the selected character (null = no filter)
+  const characterFilterBlockIds = useMemo((): Set<string> | null => {
+    if (!characterTagFilter) return null;
+    const ids = new Set<string>();
+    analysisResult.dialogueLines.forEach((lines, blockId) => {
+      if (lines.some(l => l.tag === characterTagFilter)) ids.add(blockId);
+    });
+    return ids;
+  }, [characterTagFilter, analysisResult.dialogueLines]);
+
+  const fitToScreen = useCallback(() => {
+    if (visibleBlocks.length === 0 || !canvasRef.current) return;
+    const { width: cw, height: ch } = canvasRef.current.getBoundingClientRect();
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    visibleBlocks.forEach(b => {
+      minX = Math.min(minX, b.position.x);
+      minY = Math.min(minY, b.position.y);
+      maxX = Math.max(maxX, b.position.x + b.width);
+      maxY = Math.max(maxY, b.position.y + b.height);
+    });
+    const PAD = 80;
+    const scale = Math.min((cw - PAD * 2) / (maxX - minX), (ch - PAD * 2) / (maxY - minY), 2);
+    const tx = (cw - (maxX - minX) * scale) / 2 - minX * scale;
+    const ty = (ch - (maxY - minY) * scale) / 2 - minY * scale;
+    onTransformChange({ x: tx, y: ty, scale });
+  }, [visibleBlocks, onTransformChange]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'f' || e.key === 'F') fitToScreen();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fitToScreen]);
+
   const visibleLinks = useMemo(() => {
       return analysisResult.links.filter(link => 
           visibleBlockIds.has(link.sourceId) && visibleBlockIds.has(link.targetId)
@@ -860,6 +934,25 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
                 <input type="checkbox" checked={canvasFilters.minimap} onChange={e => setCanvasFilters(f => ({ ...f, minimap: e.target.checked }))} className="h-4 w-4 rounded" style={{ accentColor: 'rgb(107 114 128)' }} />
                 <span>Minimap</span>
             </label>
+            {availableCharacters.length > 0 && (
+              <>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-primary px-1">Character</span>
+                  <select
+                    className="text-xs bg-secondary border border-primary rounded px-1.5 py-1 text-primary cursor-pointer"
+                    value={characterTagFilter}
+                    onChange={e => setCharacterTagFilter(e.target.value)}
+                    onPointerDown={e => e.stopPropagation()}
+                  >
+                    <option value="">All characters</option>
+                    {availableCharacters.map(c => (
+                      <option key={c.tag} value={c.tag}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
         </div>
 
       <div
@@ -907,16 +1000,17 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               const linkKey = `${link.sourceId}-${link.targetId}`;
 
               return (
-                <Arrow 
-                    key={linkKey} 
+                <Arrow
+                    key={linkKey}
                     ref={(el) => {
                         if (el) arrowRefs.current.set(linkKey, el);
                         else arrowRefs.current.delete(linkKey);
                     }}
-                    pathData={pathData} 
-                    isDimmed={isDimmed} 
+                    pathData={pathData}
+                    isDimmed={isDimmed}
                     onHighlight={handleHighlightPath}
                     targetId={link.targetId}
+                    linkType={link.type}
                 />
               );
             })}
@@ -944,8 +1038,9 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
         })}
 
         {visibleBlocks.map((block) => {
-          const isDimmed = (highlightedPath !== null && !highlightedPath.has(block.id)) || 
-                          (findUsagesHighlightIds !== null && !findUsagesHighlightIds.has(block.id));
+          const isDimmed = (highlightedPath !== null && !highlightedPath.has(block.id)) ||
+                          (findUsagesHighlightIds !== null && !findUsagesHighlightIds.has(block.id)) ||
+                          (characterFilterBlockIds !== null && !characterFilterBlockIds.has(block.id));
           const isUsageHighlighted = findUsagesHighlightIds?.has(block.id) ?? false;
           const isHoverHighlighted = hoverHighlightIds?.has(block.id) ?? false;
           const isScreenBlock = analysisResult.screenOnlyBlockIds.has(block.id);
@@ -962,6 +1057,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               updateBlock={updateBlock}
               deleteBlock={deleteBlock}
               onOpenEditor={onOpenEditor}
+              onOpenRouteCanvas={onOpenRouteCanvas}
               isSelected={selectedBlockIds.includes(block.id)}
               isDragging={isDraggingSelection && selectedBlockIds.includes(block.id)}
               isRoot={analysisResult.rootBlockIds.has(block.id)}
@@ -1001,6 +1097,79 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
           onTransformChange={onTransformChange}
         />
       )}
+
+      <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2" onPointerDown={e => e.stopPropagation()}>
+        <button
+          onClick={fitToScreen}
+          title="Fit all blocks to screen (F)"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-medium text-gray-700 dark:text-gray-200 shadow hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 01-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          Fit
+        </button>
+
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow overflow-hidden">
+          <button
+            onClick={() => setShowLegend(v => !v)}
+            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform ${showLegend ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+            Legend
+          </button>
+          {showLegend && (
+            <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 min-w-[160px]">
+              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Arrows</div>
+              <div className="flex items-center gap-2">
+                <svg width="28" height="10" className="shrink-0">
+                  <path d="M0,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+                  <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
+                </svg>
+                Jump
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="28" height="10" className="shrink-0">
+                  <circle cx="4" cy="5" r="3" fill="none" stroke="#4f46e5" strokeWidth="2" />
+                  <path d="M8,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+                  <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
+                </svg>
+                Call (returns)
+              </div>
+              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Roles</div>
+              <div className="flex items-center gap-2">
+                <span className="w-10 h-4 shrink-0 rounded border-2 border-green-400 bg-green-50 dark:bg-green-900/20 inline-block" />
+                Story start
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-10 h-4 shrink-0 rounded border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-900/20 inline-block" />
+                Story end
+              </div>
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M15 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 9V4zM5 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 005 9V4z" opacity=".5"/><path d="M15 11a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 16v-5z" />
+                </svg>
+                Branching
+              </div>
+              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Types</div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 shrink-0 rounded border-2 border-gray-300 bg-white dark:bg-gray-800 inline-block" />
+                Story
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 shrink-0 rounded border-2 border-teal-400 bg-teal-50 dark:bg-teal-900/20 inline-block" />
+                Screen
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 shrink-0 rounded border-2 border-red-400 bg-red-50 dark:bg-red-900/20 inline-block" />
+                Config
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       
       {canvasContextMenu && onCreateBlock && onAddStickyNote && (
         <CanvasContextMenu

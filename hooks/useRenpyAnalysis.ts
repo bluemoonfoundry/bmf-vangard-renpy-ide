@@ -314,8 +314,11 @@ export const performRenpyAnalysis = (blocks: Block[]): RenpyAnalysisResult => {
             const targetLabelLocation = result.labels[targetLabel];
             if (targetLabelLocation) {
                 if (block.id !== targetLabelLocation.blockId) {
-                    if (!result.links.some(l => l.sourceId === block.id && l.targetId === targetLabelLocation.blockId)) {
-                        result.links.push({ sourceId: block.id, targetId: targetLabelLocation.blockId, targetLabel: targetLabel });
+                    const existingIdx = result.links.findIndex(l => l.sourceId === block.id && l.targetId === targetLabelLocation.blockId);
+                    if (existingIdx === -1) {
+                        result.links.push({ sourceId: block.id, targetId: targetLabelLocation.blockId, targetLabel: targetLabel, type: jumpType });
+                    } else if (jumpType === 'call') {
+                        result.links[existingIdx] = { ...result.links[existingIdx], type: 'call' };
                     }
                 }
             }
@@ -342,8 +345,11 @@ export const performRenpyAnalysis = (blocks: Block[]): RenpyAnalysisResult => {
           const targetLabelLocation = result.labels[targetLabel];
           if (targetLabelLocation) {
             if (block.id !== targetLabelLocation.blockId) {
-              if (!result.links.some(l => l.sourceId === block.id && l.targetId === targetLabelLocation.blockId)) {
-                result.links.push({ sourceId: block.id, targetId: targetLabelLocation.blockId, targetLabel: targetLabel });
+              const existingIdx = result.links.findIndex(l => l.sourceId === block.id && l.targetId === targetLabelLocation.blockId);
+              if (existingIdx === -1) {
+                result.links.push({ sourceId: block.id, targetId: targetLabelLocation.blockId, targetLabel: targetLabel, type: jumpType });
+              } else if (jumpType === 'call') {
+                result.links[existingIdx] = { ...result.links[existingIdx], type: 'call' };
               }
             }
           } else {

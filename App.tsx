@@ -2743,6 +2743,7 @@ const App: React.FC = () => {
         centerOnBlockRequest={centerOnBlockRequest} flashBlockRequest={flashBlockRequest}
         hoverHighlightIds={hoverHighlightIds} transform={storyCanvasTransform} onTransformChange={setStoryCanvasTransform}
         onCreateBlock={handleCreateBlockFromCanvas} onAddStickyNote={addStickyNote} mouseGestures={appSettings.mouseGestures}
+        onOpenRouteCanvas={() => handleOpenStaticTab('route-canvas')}
       />;
     }
     if (tab.type === 'route-canvas') {
