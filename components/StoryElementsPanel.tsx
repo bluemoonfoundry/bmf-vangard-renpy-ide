@@ -53,6 +53,12 @@ interface StoryElementsPanelProps {
     onCreateScene: (name?: string) => void;
     onDeleteScene: (sceneId: string) => void;
 
+    // ImageMap Props
+    imagemaps: { id: string, name: string }[];
+    onOpenImageMap: (imagemapId: string) => void;
+    onCreateImageMap: (name?: string) => void;
+    onDeleteImageMap: (imagemapId: string) => void;
+
     // Snippet Props
     snippetCategoriesState: Record<string, boolean>;
     onToggleSnippetCategory: (name: string, isOpen: boolean) => void;
@@ -94,6 +100,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     isFileSystemApiSupported,
     onHoverHighlightStart, onHoverHighlightEnd,
     scenes, onOpenScene, onCreateScene, onDeleteScene,
+    imagemaps, onOpenImageMap, onCreateImageMap, onDeleteImageMap,
     snippetCategoriesState, onToggleSnippetCategory,
     userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet,
 }) => {
@@ -245,6 +252,29 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                                 </li>
                             ))}
                             {scenes.length === 0 && <p className="text-sm text-secondary text-center py-4">No scenes created yet.</p>}
+                        </ul>
+
+                        {/* ImageMaps Section */}
+                        <div className="flex justify-between items-center mt-6">
+                            <h3 className="font-semibold">ImageMaps ({imagemaps.length})</h3>
+                            <button onClick={() => onCreateImageMap()} className="px-3 py-1 rounded bg-accent hover:bg-accent-hover text-white text-sm font-bold">+ New ImageMap</button>
+                        </div>
+                        <ul className="space-y-2">
+                            {imagemaps.map(imagemap => (
+                                <li key={imagemap.id} className="p-3 rounded-md bg-tertiary border border-primary flex items-center justify-between group hover:shadow-md transition-shadow">
+                                    <div className="flex-grow cursor-pointer" onClick={() => onOpenImageMap(imagemap.id)}>
+                                        <p className="font-semibold text-sm">{imagemap.name}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => onDeleteImageMap(imagemap.id)}
+                                        className="p-1 text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Delete ImageMap"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                </li>
+                            ))}
+                            {imagemaps.length === 0 && <p className="text-sm text-secondary text-center py-4">No imagemaps created yet.</p>}
                         </ul>
                     </div>
                 )}
