@@ -20,6 +20,7 @@ import AudioEditorView from './components/AudioEditorView';
 import CharacterEditorView from './components/CharacterEditorView';
 import SceneComposer from './components/SceneComposer';
 import ImageMapComposer from './components/ImageMapComposer';
+import ScreenLayoutComposer from './components/ScreenLayoutComposer';
 import MarkdownPreviewView from './components/MarkdownPreviewView';
 import PunchlistManager from './components/PunchlistManager';
 import TabContextMenu from './components/TabContextMenu';
@@ -37,7 +38,7 @@ import type {
   Block, BlockGroup, Link, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, IdeSettings, Theme, ProjectImage, RenpyAudio,
   ClipboardState, ImageMetadata, AudioMetadata, LabelNode, Character,
-  AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, PunchlistMetadata, MouseGestureSettings,
+  AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, MouseGestureSettings,
   ProjectLoadResult, ScannedImageAsset, ScannedAudioAsset, SerializedSprite, SerializedSceneComposition, UserSnippet
 } from './types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -379,6 +380,9 @@ const App: React.FC = () => {
   // ImageMap Composer State
   const [imagemapCompositions, setImagemapCompositions] = useImmer<Record<string, ImageMapComposition>>({});
 
+  // Screen Layout Composer State
+  const [screenLayoutCompositions, setScreenLayoutCompositions] = useImmer<Record<string, ScreenLayoutComposition>>({});
+
   // Punchlist State
   const [punchlistMetadata, setPunchlistMetadata] = useImmer<Record<string, PunchlistMetadata>>({});
   
@@ -675,6 +679,82 @@ const App: React.FC = () => {
       setHasUnsavedSettings(true);
   }, [setImagemapCompositions, activeTabId]);
 
+  // --- Screen Layout Composer Management ---
+  const handleCreateScreenLayout = useCallback((initialName?: string) => {
+      const id = `screenlayout-${Date.now()}`;
+      const name = initialName || `screen_${Object.keys(screenLayoutCompositions).length + 1}`;
+
+      setScreenLayoutCompositions(draft => {
+          draft[id] = {
+              screenName: name,
+              gameWidth: 1920,
+              gameHeight: 1080,
+              modal: false,
+              zorder: 0,
+              widgets: []
+          };
+      });
+
+      setOpenTabs(prev => [...prev, { id, type: 'screen-layout-composer', layoutId: id }]);
+      setActiveTabId(id);
+      setHasUnsavedSettings(true);
+  }, [screenLayoutCompositions, setScreenLayoutCompositions]);
+
+  const handleOpenScreenLayout = useCallback((layoutId: string) => {
+      setOpenTabs(prev => {
+          if (!prev.find(t => t.id === layoutId)) {
+              return [...prev, { id: layoutId, type: 'screen-layout-composer', layoutId }];
+          }
+          return prev;
+      });
+      setActiveTabId(layoutId);
+  }, []);
+
+  const handleScreenLayoutUpdate = useCallback((layoutId: string, value: React.SetStateAction<ScreenLayoutComposition>) => {
+      setScreenLayoutCompositions(draft => {
+          const prev = draft[layoutId] || { screenName: '', gameWidth: 1920, gameHeight: 1080, modal: false, zorder: 0, widgets: [] };
+          const next = typeof value === 'function' ? (value as (prevState: ScreenLayoutComposition) => ScreenLayoutComposition)(prev) : value;
+
+          if (JSON.stringify(prev) !== JSON.stringify(next)) {
+              draft[layoutId] = next;
+              setHasUnsavedSettings(true);
+          }
+      });
+  }, [setScreenLayoutCompositions]);
+
+  const handleRenameScreenLayout = useCallback((layoutId: string, newName: string) => {
+      setScreenLayoutCompositions(draft => {
+          if (draft[layoutId] && draft[layoutId].screenName !== newName) {
+              draft[layoutId].screenName = newName;
+              setHasUnsavedSettings(true);
+          }
+      });
+  }, [setScreenLayoutCompositions]);
+
+  const handleDuplicateScreenLayout = useCallback((layoutId: string) => {
+      const original = screenLayoutCompositions[layoutId];
+      if (!original) return;
+      const existingNames = new Set(Object.values(screenLayoutCompositions).map(c => c.screenName));
+      let counter = 1;
+      let newName = `${original.screenName} (${counter})`;
+      while (existingNames.has(newName)) { counter++; newName = `${original.screenName} (${counter})`; }
+      const newId = `screenlayout-${Date.now()}`;
+      setScreenLayoutCompositions(draft => { draft[newId] = { ...original, screenName: newName }; });
+      setHasUnsavedSettings(true);
+      setOpenTabs(prev => {
+          if (!prev.find(t => t.id === newId)) return [...prev, { id: newId, type: 'screen-layout-composer', layoutId: newId }];
+          return prev;
+      });
+      setActiveTabId(newId);
+  }, [screenLayoutCompositions, setScreenLayoutCompositions]);
+
+  const handleDeleteScreenLayout = useCallback((layoutId: string) => {
+      setScreenLayoutCompositions(draft => { delete draft[layoutId]; });
+
+      setOpenTabs(prev => prev.filter(t => t.id !== layoutId));
+      if (activeTabId === layoutId) setActiveTabId('canvas');
+      setHasUnsavedSettings(true);
+  }, [setScreenLayoutCompositions, activeTabId]);
 
   // --- Sync Explorer with Active Tab ---
   useEffect(() => {
@@ -1336,6 +1416,13 @@ const App: React.FC = () => {
                   setImagemapCompositions({});
               }
 
+              // Restore Screen Layout Compositions
+              if (projectData.settings.screenLayoutCompositions) {
+                  setScreenLayoutCompositions(projectData.settings.screenLayoutCompositions);
+              } else {
+                  setScreenLayoutCompositions({});
+              }
+
               // Restore Scan Directories
               if (projectData.settings.scannedImagePaths) {
                   const paths = projectData.settings.scannedImagePaths;
@@ -1507,7 +1594,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -1846,6 +1933,7 @@ const App: React.FC = () => {
         sceneCompositions: serializableScenes as unknown as Record<string, SceneComposition>,
         sceneNames,
         imagemapCompositions: serializableImagemaps,
+        screenLayoutCompositions,
         scannedImagePaths: Array.from(imageScanDirectories.keys()),
         scannedAudioPaths: Array.from(audioScanDirectories.keys()),
       };
@@ -1856,7 +1944,7 @@ const App: React.FC = () => {
       console.error("Failed to save IDE settings:", e);
       addToast('Failed to save workspace settings', 'error');
     }
-  }, [projectRootPath, projectSettings, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata]);
+  }, [projectRootPath, projectSettings, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata]);
 
 
   const handleSaveAll = useCallback(async () => {
@@ -2816,6 +2904,7 @@ const App: React.FC = () => {
     if (tab.type === 'ai-generator') return 'AI Generator';
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
+    if (tab.type === 'screen-layout-composer') return screenLayoutCompositions[tab.layoutId!]?.screenName || 'Screen Layout';
     if (tab.type === 'character') return `Char: ${analysisResult.characters.get(tab.characterTag!)?.name || tab.characterTag}`;
     if (tab.type === 'editor') return blocks.find(b => b.id === tab.blockId)?.title || 'Untitled';
     if (tab.type === 'markdown') return tab.filePath?.split('/').pop() ?? 'Markdown';
@@ -2930,6 +3019,30 @@ const App: React.FC = () => {
         imagemapName={composition.screenName}
         onRenameImageMap={(newName) => handleRenameImageMap(tab.imagemapId!, newName)}
         labels={allLabels}
+      />;
+    }
+    if (tab.type === 'screen-layout-composer' && tab.layoutId) {
+      const composition = screenLayoutCompositions[tab.layoutId] || {
+        screenName: 'new_screen',
+        gameWidth: 1920,
+        gameHeight: 1080,
+        modal: false,
+        zorder: 0,
+        widgets: []
+      };
+      const isLayoutLocked = analysisResult.screens.has(composition.screenName);
+      return <ScreenLayoutComposer
+        composition={composition}
+        onCompositionChange={(val) => handleScreenLayoutUpdate(tab.layoutId!, val)}
+        screenName={composition.screenName}
+        onRenameScreen={(newName) => handleRenameScreenLayout(tab.layoutId!, newName)}
+        labels={Object.keys(analysisResult.labels)}
+        isLocked={isLayoutLocked}
+        onDuplicate={() => handleDuplicateScreenLayout(tab.layoutId!)}
+        onGoToCode={isLayoutLocked ? () => {
+            const def = analysisResult.screens.get(composition.screenName);
+            if (def) handleOpenEditor(def.definedInBlockId, def.line);
+        } : undefined}
       />;
     }
     if (tab.type === 'markdown' && tab.filePath) {
@@ -3235,7 +3348,6 @@ const App: React.FC = () => {
                     }
                 }}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
-                onAddScreen={(name) => handleCreateBlockConfirm(name, 'screen', 'game')}
                 onFindScreenDefinition={(name) => {
                     const def = analysisResult.screens.get(name);
                     if (def) handleOpenEditor(def.definedInBlockId, def.line);
@@ -3398,6 +3510,12 @@ const App: React.FC = () => {
                 onOpenImageMap={handleOpenImageMap}
                 onCreateImageMap={handleCreateImageMap}
                 onDeleteImageMap={handleDeleteImageMap}
+                // Screen Layout Props
+                screenLayouts={Object.keys(screenLayoutCompositions).map(id => ({ id, name: screenLayoutCompositions[id]?.screenName || 'Screen Layout' }))}
+                onOpenScreenLayout={handleOpenScreenLayout}
+                onCreateScreenLayout={handleCreateScreenLayout}
+                onDeleteScreenLayout={handleDeleteScreenLayout}
+                onDuplicateScreenLayout={handleDuplicateScreenLayout}
                 // Snippet Props
                 snippetCategoriesState={snippetCategoriesState}
                 onToggleSnippetCategory={handleToggleSnippetCategory}

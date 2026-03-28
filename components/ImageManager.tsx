@@ -178,8 +178,9 @@ const ImageManager: React.FC<ImageManagerProps> = ({ images, metadata, scanDirec
           text: `show ${imageTag}`
       }));
       e.dataTransfer.setData('text/plain', `show ${imageTag}`);
-      // Add specific path for Scene Composer drop target
+      // Add specific path for Scene Composer / Screen Layout Composer drop targets
       e.dataTransfer.setData('application/renpy-image-path', image.filePath);
+      if (image.dataUrl) e.dataTransfer.setData('application/renpy-image-dataurl', image.dataUrl);
       e.dataTransfer.effectAllowed = 'copy';
   };
 

@@ -16,7 +16,6 @@ interface StoryElementsPanelProps {
     onAddVariable: (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onFindVariableUsages: (variableName: string) => void;
     // Screen callbacks
-    onAddScreen: (screenName: string) => void;
     onFindScreenDefinition: (screenName: string) => void;
     // Image props & callbacks
     projectImages: Map<string, ProjectImage>;
@@ -59,6 +58,13 @@ interface StoryElementsPanelProps {
     onCreateImageMap: (name?: string) => void;
     onDeleteImageMap: (imagemapId: string) => void;
 
+    // Screen Layout Props
+    screenLayouts: { id: string, name: string }[];
+    onOpenScreenLayout: (layoutId: string) => void;
+    onCreateScreenLayout: (name?: string) => void;
+    onDeleteScreenLayout: (layoutId: string) => void;
+    onDuplicateScreenLayout: (layoutId: string) => void;
+
     // Snippet Props
     snippetCategoriesState: Record<string, boolean>;
     onToggleSnippetCategory: (name: string, isOpen: boolean) => void;
@@ -94,13 +100,14 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     analysisResult,
     onOpenCharacterEditor, onFindCharacterUsages,
     onAddVariable, onFindVariableUsages,
-    onAddScreen, onFindScreenDefinition,
+    onFindScreenDefinition,
     projectImages, imageMetadata, onAddImageScanDirectory, onRemoveImageScanDirectory, imageScanDirectories, onCopyImagesToProject, onUpdateImageMetadata, onOpenImageEditor, imagesLastScanned, isRefreshingImages, onRefreshImages,
     projectAudios, audioMetadata, onAddAudioScanDirectory, onRemoveAudioScanDirectory, audioScanDirectories, onCopyAudiosToProject, onUpdateAudioMetadata, onOpenAudioEditor, audiosLastScanned, isRefreshingAudios, onRefreshAudios,
     isFileSystemApiSupported,
     onHoverHighlightStart, onHoverHighlightEnd,
     scenes, onOpenScene, onCreateScene, onDeleteScene,
     imagemaps, onOpenImageMap, onCreateImageMap, onDeleteImageMap,
+    screenLayouts, onOpenScreenLayout, onCreateScreenLayout, onDeleteScreenLayout, onDuplicateScreenLayout,
     snippetCategoriesState, onToggleSnippetCategory,
     userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet,
 }) => {
@@ -128,7 +135,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                 <TabButton className="flex-grow" label="Img" count={projectImages.size} isActive={activeTab === 'images'} onClick={() => setActiveTab('images')} />
                 <TabButton className="flex-grow" label="Snd" count={projectAudios.size} isActive={activeTab === 'audio'} onClick={() => setActiveTab('audio')} />
                 <TabButton className="flex-grow" label="Scrn" count={analysisResult.screens.size} isActive={activeTab === 'screens'} onClick={() => setActiveTab('screens')} />
-                <TabButton className="flex-grow" label="Composers" count={scenes.length + imagemaps.length} isActive={activeTab === 'composers'} onClick={() => setActiveTab('composers')} />
+                <TabButton className="flex-grow" label="Composers" count={scenes.length + imagemaps.length + screenLayouts.length} isActive={activeTab === 'composers'} onClick={() => setActiveTab('composers')} />
                 <TabButton className="flex-grow" label="Menus" isActive={activeTab === 'menus'} onClick={() => setActiveTab('menus')} />
                 <TabButton className="flex-grow" label="Code" isActive={activeTab === 'snippets'} onClick={() => setActiveTab('snippets')} />
             </nav>
@@ -225,7 +232,6 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                     <div className="flex-grow overflow-y-auto p-4 overscroll-contain">
                         <ScreenManager
                             screens={analysisResult.screens}
-                            onAddScreen={onAddScreen}
                             onFindDefinition={onFindScreenDefinition}
                         />
                     </div>
@@ -275,6 +281,59 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                                 </li>
                             ))}
                             {imagemaps.length === 0 && <p className="text-sm text-secondary text-center py-4">No imagemaps created yet.</p>}
+                        </ul>
+
+                        {/* Screen Layouts Section */}
+                        <div className="flex justify-between items-center mt-6">
+                            <h3 className="font-semibold">Screen Layouts ({screenLayouts.length})</h3>
+                            <button onClick={() => onCreateScreenLayout()} className="px-3 py-1 rounded bg-accent hover:bg-accent-hover text-white text-sm font-bold">+ New Screen</button>
+                        </div>
+                        <ul className="space-y-2">
+                            {screenLayouts.map(layout => {
+                                const isInCode = analysisResult.screens.has(layout.name);
+                                return (
+                                <li key={layout.id} className="p-3 rounded-md bg-tertiary border border-primary flex items-center justify-between group hover:shadow-md transition-shadow">
+                                    <div className="flex-grow cursor-pointer min-w-0" onClick={() => onOpenScreenLayout(layout.id)}>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="font-semibold text-sm truncate">{layout.name}</p>
+                                            {isInCode && (
+                                                <span className="flex-shrink-0 text-[9px] font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1 py-0.5 rounded">
+                                                    in code
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0 pl-2">
+                                        {isInCode && (
+                                            <button
+                                                onClick={() => onFindScreenDefinition(layout.name)}
+                                                title="Go to definition"
+                                                className="p-1 text-secondary hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity rounded"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => onDuplicateScreenLayout(layout.id)}
+                                            title="Duplicate"
+                                            className="p-1 text-secondary hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity rounded"
+                                        >
+                                            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                                <rect x="5" y="1" width="9" height="11" rx="1.5"/><rect x="1" y="4" width="9" height="11" rx="1.5"/>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => onDeleteScreenLayout(layout.id)}
+                                            className="p-1 text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded"
+                                            title="Delete Screen Layout"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                </li>
+                                );
+                            })}
+                            {screenLayouts.length === 0 && <p className="text-sm text-secondary text-center py-4">No screen layouts created yet.</p>}
                         </ul>
                     </div>
                 )}

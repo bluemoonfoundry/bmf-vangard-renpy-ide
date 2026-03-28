@@ -530,12 +530,13 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'punchlist' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'ai-generator' | 'stats' | 'markdown';
+  type: 'canvas' | 'route-canvas' | 'punchlist' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'ai-generator' | 'stats' | 'markdown';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
   sceneId?: string;
   imagemapId?: string;
+  layoutId?: string;
   scrollRequest?: { line: number; key: number };
 }
 
@@ -714,6 +715,51 @@ export interface ImageMapComposition {
 }
 
 /**
+ * Widget types supported by the Screen Layout Composer.
+ * Maps to Ren'Py screen language statement types.
+ */
+export type ScreenWidgetType =
+  'vbox' | 'hbox' | 'frame' |
+  'text' | 'image' |
+  'textbutton' | 'button' | 'imagebutton' |
+  'bar' | 'input' | 'null';
+
+/**
+ * A single widget node in a screen layout composition.
+ * Widgets may be nested (vbox/hbox/frame carry children).
+ * Top-level widgets support absolute positioning via xpos/ypos/xalign/yalign.
+ * Children of container widgets are flow-positioned by the container.
+ */
+export interface ScreenWidget {
+  id: string;
+  type: ScreenWidgetType;
+  xpos?: number;
+  ypos?: number;
+  xalign?: number;
+  yalign?: number;
+  text?: string;
+  action?: string;
+  imagePath?: string;
+  /** Preview-only: data/media URL for displaying the image in the composer. Not used in code generation. */
+  imageDataUrl?: string;
+  style?: string;
+  children?: ScreenWidget[];
+}
+
+/**
+ * A complete screen layout composition managed by the Screen Layout Composer.
+ * Generates a Ren'Py `screen` block. Persisted in ProjectSettings.
+ */
+export interface ScreenLayoutComposition {
+  screenName: string;
+  gameWidth: number;
+  gameHeight: number;
+  modal: boolean;
+  zorder: number;
+  widgets: ScreenWidget[];
+}
+
+/**
  * Project-level settings stored per Ren'Py project.
  * Includes AI features, tab state, and custom content.
  * @interface ProjectSettings
@@ -746,6 +792,7 @@ export interface ProjectSettings {
   sceneCompositions?: Record<string, SceneComposition>;
   sceneNames?: Record<string, string>;
   imagemapCompositions?: Record<string, ImageMapComposition>;
+  screenLayoutCompositions?: Record<string, ScreenLayoutComposition>;
   scannedImagePaths?: string[];
   scannedAudioPaths?: string[];
 }
