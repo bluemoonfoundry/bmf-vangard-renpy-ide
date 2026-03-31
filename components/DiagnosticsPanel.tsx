@@ -160,13 +160,25 @@ const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
     return map;
   }, [filteredIssues]);
 
+  // function toggleFile(key: string) {
+  //   setCollapsedFiles(prev => {
+  //     const next = new Set(prev);
+  //     next.has(key) ? next.delete(key) : next.add(key);
+  //     return next;
+  //   });
+  // }
+
   function toggleFile(key: string) {
-    setCollapsedFiles(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  }
+  setCollapsedFiles(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    return next;
+  });
+}
 
   // ---- Tasks (user-defined + sticky notes) ---------------------------------
 
