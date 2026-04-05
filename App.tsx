@@ -35,52 +35,20 @@ import UserSnippetModal from './components/UserSnippetModal';
 import { SearchProvider } from './contexts/SearchContext';
 import AIGeneratorView from './components/AIGeneratorView';
 import StatsView from './components/StatsView';
-import { useRenpyAnalysis, performRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
+import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
 import { useHistory } from './hooks/useHistory';
+import { createId } from './lib/createId';
 import type {
-  Block, BlockGroup, Link, Position, FileSystemTreeNode, EditorTab,
-  ToastMessage, IdeSettings, Theme, ProjectImage, RenpyAudio,
-  ClipboardState, ImageMetadata, AudioMetadata, LabelNode, Character,
-  AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, MouseGestureSettings,
-  ProjectLoadResult, ScannedImageAsset, ScannedAudioAsset, SerializedSprite, SerializedSceneComposition, UserSnippet
+  Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
+  ToastMessage, Theme, ProjectImage, RenpyAudio,
+  ClipboardState, ImageMetadata, AudioMetadata, Character,
+  AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
+  SerializedSprite, SerializedSceneComposition, UserSnippet
 } from './types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import packageJson from './package.json';
-
-// --- Versioning ---
-const APP_VERSION = process.env.APP_VERSION || '0.4.0';
-const BUILD_NUMBER = process.env.BUILD_NUMBER || 'dev';
-
-// --- Utility: ArrayBuffer to Base64 (Browser Compatible) ---
-const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-};
 
 // Minimal 1-sample silent WAV base64
 const SILENT_WAV_BASE64 = "UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAAAAA==";
-
-// --- Utility: Word Count ---
-const countWordsInRenpyScript = (script: string): number => {
-    if (!script) return 0;
-    // Regex to find dialogue (e.g., e "...") and narration ("...")
-    const DIALOGUE_NARRATION_REGEX = /(?:[a-zA-Z0-9_]+\s)?"((?:\\.|[^"\\])*)"/g;
-    let totalWords = 0;
-    let match;
-    while ((match = DIALOGUE_NARRATION_REGEX.exec(script)) !== null) {
-        const text = match[1];
-        if (text) {
-            const words = text.trim().split(/\s+/).filter(Boolean);
-            totalWords += words.length;
-        }
-    }
-    return totalWords;
-};
 
 
 // --- Generic Layout Algorithm ---
@@ -94,6 +62,17 @@ interface LayoutNode {
 interface LayoutEdge {
     sourceId: string;
     targetId: string;
+}
+
+interface SerializedImageRef {
+    filePath: string;
+}
+
+interface SerializedImageMapComposition {
+    screenName: string;
+    groundImage: SerializedImageRef | null;
+    hoverImage: SerializedImageRef | null;
+    hotspots: ImageMapComposition['hotspots'];
 }
 
 const computeAutoLayout = <T extends LayoutNode>(nodes: T[], edges: LayoutEdge[]): T[] => {
@@ -341,7 +320,7 @@ const App: React.FC = () => {
     }
   }, [projectRootPath]);
 
-  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [directoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [fileSystemTree, setFileSystemTree] = useState<FileSystemTreeNode | null>(null);
   
   // Use standard useState for Maps to avoid Immer proxy issues with native Maps
@@ -358,10 +337,10 @@ const App: React.FC = () => {
   // --- State: Scanning ---
   const [imageScanDirectories, setImageScanDirectories] = useState<Map<string, FileSystemDirectoryHandle>>(new Map());
   const [audioScanDirectories, setAudioScanDirectories] = useState<Map<string, FileSystemDirectoryHandle>>(new Map());
-  const [imagesLastScanned, setImagesLastScanned] = useState<number | null>(null);
-  const [audiosLastScanned, setAudiosLastScanned] = useState<number | null>(null);
-  const [isRefreshingImages, setIsRefreshingImages] = useState(false);
-  const [isRefreshingAudios, setIsRefreshingAudios] = useState(false);
+  const [imagesLastScanned] = useState<number | null>(null);
+  const [audiosLastScanned] = useState<number | null>(null);
+  const [isRefreshingImages] = useState(false);
+  const [isRefreshingAudios] = useState(false);
 
   // --- State: UI & Editor ---
   const [openTabs, setOpenTabs] = useState<EditorTab[]>([{ id: 'canvas', type: 'canvas' }]);
@@ -390,12 +369,13 @@ const App: React.FC = () => {
   const [punchlistMetadata, setPunchlistMetadata] = useImmer<Record<string, PunchlistMetadata>>({});
   // Diagnostics Tasks State
   const [diagnosticsTasks, setDiagnosticsTasks] = useImmer<DiagnosticsTask[]>([]);
+  const [ignoredDiagnostics, setIgnoredDiagnostics] = useImmer<IgnoredDiagnosticRule[]>([]);
   
   const [dirtyBlockIds, setDirtyBlockIds] = useState<Set<string>>(new Set());
   const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set()); // Blocks modified in editor but not synced to block state yet
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false); // Track project setting changes like sticky notes
   const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saved');
-  const [statusBarMessage, setStatusBarMessage] = useState('');
+  const [, setStatusBarMessage] = useState('');
   const [isScanningAssets, setIsScanningAssets] = useState(false);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -442,7 +422,7 @@ const App: React.FC = () => {
     mouseGestures: { canvasPanGesture: 'shift-drag', middleMouseAlwaysPans: false, zoomScrollDirection: 'normal', zoomScrollSensitivity: 1.0 },
   });
   const [isRenpyPathValid, setIsRenpyPathValid] = useState(false);
-  const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
+  const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
     enableAiFeatures: false,
     selectedModel: 'gemini-2.5-flash',
     draftingMode: false,
@@ -454,7 +434,7 @@ const App: React.FC = () => {
   const [centerOnBlockRequest, setCenterOnBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
   const [flashBlockRequest, setFlashBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
   const [canvasFilters, setCanvasFilters] = useState({ story: true, screens: true, config: false, notes: true, minimap: true });
-  const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
+  const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
   const [hoverHighlightIds, setHoverHighlightIds] = useState<Set<string> | null>(null);
 
   // --- State: Route Canvas ---
@@ -479,7 +459,7 @@ const App: React.FC = () => {
   const [analysisResult, isWorkerPending] = useRenpyAnalysis(analysisBlocks, 0);
   // Pending covers both: the 500ms debounce window AND the worker's async computation
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
-  const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata);
+  const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata, ignoredDiagnostics);
 
   // Ref that latches to true once the analysis worker starts (isWorkerPending goes true)
   // after a project load. Prevents the overlay from closing during the one-render gap
@@ -505,7 +485,6 @@ const App: React.FC = () => {
   // Memoized flat arrays — Map.values() iteration is O(n); without this every
   // renderTabContent call recreated 14,000-item arrays on each re-render.
   const imagesArray = useMemo(() => Array.from(images.values()), [images]);
-  const audiosArray = useMemo(() => Array.from(audios.values()), [audios]);
 
   // Stable array of character tag strings passed to CharacterEditorView.
   // Without this, Array.from() in renderTabContent creates a new reference every
@@ -970,7 +949,7 @@ const App: React.FC = () => {
 
   // --- Toast Helper ---
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
-    const id = Math.random().toString(36).substring(7);
+    const id = createId('toast');
     setToasts(prev => [...prev, { id, message, type }]);
   }, []);
 
@@ -1093,7 +1072,7 @@ const App: React.FC = () => {
             
             const res = await window.electronAPI.writeFile(fullPath, content);
             if (res.success) {
-                const id = addBlock(relativePath, content);
+                addBlock(relativePath, content);
                 addToast(`Created ${fileName} in ${cleanFolderPath || 'root'}`, 'success');
                 const projData = await window.electronAPI.loadProject(projectRootPath!);
                 setFileSystemTree(projData.tree);
@@ -1443,6 +1422,7 @@ const App: React.FC = () => {
               } else {
                 setDiagnosticsTasks([]);
               }
+              setIgnoredDiagnostics(projectData.settings.ignoredDiagnostics || []);
               
               // Load Scene Compositions
               // Helper to link saved paths back to loaded image objects
@@ -1491,9 +1471,9 @@ const App: React.FC = () => {
               // Restore ImageMap Compositions
               if (projectData.settings.imagemapCompositions) {
                   const restoredImagemaps: Record<string, ImageMapComposition> = {};
-                  Object.entries(projectData.settings.imagemapCompositions).forEach(([id, im]) => {
-                      const groundImg = im.groundImage ? imgMap.get((im.groundImage as any).filePath) : null;
-                      const hoverImg = im.hoverImage ? imgMap.get((im.hoverImage as any).filePath) : null;
+                  Object.entries(projectData.settings.imagemapCompositions as Record<string, SerializedImageMapComposition>).forEach(([id, im]) => {
+                      const groundImg = im.groundImage ? imgMap.get(im.groundImage.filePath) : null;
+                      const hoverImg = im.hoverImage ? imgMap.get(im.hoverImage.filePath) : null;
                       restoredImagemaps[id] = {
                           screenName: im.screenName,
                           groundImage: groundImg || null,
@@ -1667,6 +1647,8 @@ const App: React.FC = () => {
               setStickyNotes([]);
               setCharacterProfiles({});
               setPunchlistMetadata({});
+              setDiagnosticsTasks([]);
+              setIgnoredDiagnostics([]);
               setSceneCompositions({});
               setSceneNames({});
           }
@@ -1693,7 +1675,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -1733,7 +1715,7 @@ const App: React.FC = () => {
                 await handleOpenWithRenpyCheck(path);
             }
         } else {
-            alert("To use local file system features, please run this app in Electron or use a compatible browser with FS Access API support (Chrome/Edge). For now, you are in Browser Mode.");
+            addToast('Local file system features require the Electron app or a compatible browser with File System Access support.', 'warning');
         }
     } catch (err) {
         console.error(err);
@@ -1749,7 +1731,7 @@ const App: React.FC = () => {
                   await loadProject(path);
               }
           } else {
-              alert("Project creation is only supported in the Electron app.");
+              addToast('Project creation is only supported in the Electron app.', 'warning');
           }
       } catch (err) {
           console.error(err);
@@ -2062,12 +2044,12 @@ const App: React.FC = () => {
       });
 
       // Serialize imagemaps: map images to just their paths
-      const serializableImagemaps: Record<string, ImageMapComposition> = {};
+      const serializableImagemaps: Record<string, SerializedImageMapComposition> = {};
       Object.entries(imagemapCompositions).forEach(([id, im]) => {
           serializableImagemaps[id] = {
               screenName: im.screenName,
-              groundImage: im.groundImage ? { filePath: im.groundImage.filePath } as any : null,
-              hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } as any : null,
+              groundImage: im.groundImage ? { filePath: im.groundImage.filePath } : null,
+              hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } : null,
               hotspots: im.hotspots
           };
       });
@@ -2084,6 +2066,7 @@ const App: React.FC = () => {
         characterProfiles,
         punchlistMetadata,
         diagnosticsTasks,
+        ignoredDiagnostics,
         sceneCompositions: serializableScenes as unknown as Record<string, SceneComposition>,
         sceneNames,
         imagemapCompositions: serializableImagemaps,
@@ -2098,7 +2081,7 @@ const App: React.FC = () => {
       console.error("Failed to save IDE settings:", e);
       addToast('Failed to save workspace settings', 'error');
     }
-  }, [projectRootPath, projectSettings, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks]);
+  }, [projectRootPath, projectSettings, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics]);
 
 
   const handleSaveAll = useCallback(async () => {
@@ -2770,12 +2753,12 @@ const App: React.FC = () => {
   }, [addToast, analysisResult.characters, blocks, projectRootPath, setCharacterProfiles, updateBlock, addBlock, setFileSystemTree]);
 
   // --- Search ---
-  const handleToggleSearch = () => {
+  const handleToggleSearch = useCallback(() => {
     setActiveLeftPanel('search');
     if (!appSettings.isLeftSidebarOpen) {
       updateAppSettings(draft => { draft.isLeftSidebarOpen = true; });
     }
-  };
+  }, [appSettings.isLeftSidebarOpen, updateAppSettings]);
 
   const handleCreateNode = useCallback(async (parentPath: string, name: string, type: 'file' | 'folder') => {
     if (!window.electronAPI || !projectRootPath) return;
@@ -3095,13 +3078,15 @@ const App: React.FC = () => {
         diagnostics={diagnosticsResult}
         blocks={blocks} stickyNotes={stickyNotes}
         tasks={diagnosticsTasks}
+        ignoredDiagnostics={ignoredDiagnostics}
         onUpdateTasks={(updated) => { setDiagnosticsTasks(updated); setHasUnsavedSettings(true); }}
+        onUpdateIgnoredDiagnostics={(updated) => { setIgnoredDiagnostics(updated); setHasUnsavedSettings(true); }}
         onOpenBlock={handleOpenEditor} onHighlightBlock={(id) => handleCenterOnBlock(id)}
       />;
     }
     if (tab.type === 'ai-generator') {
       return <AIGeneratorView
-        currentBlockId={getCurrentBlockId()} blocks={blocks} analysisResult={analysisResult}
+        currentBlockId={getCurrentBlockId()} blocks={blocks}
         getCurrentContext={getCurrentContext} availableModels={AVAILABLE_MODELS} selectedModel={projectSettings.selectedModel}
       />;
     }
@@ -3164,6 +3149,7 @@ const App: React.FC = () => {
         images={imagesArray} metadata={imageMetadata} scene={composition}
         onSceneChange={(val) => handleSceneUpdate(tab.sceneId!, val)} sceneName={name}
         onRenameScene={(newName) => handleRenameScene(tab.sceneId!, newName)}
+        addToast={addToast}
       />;
     }
     if (tab.type === 'imagemap-composer' && tab.imagemapId) {
@@ -3309,7 +3295,6 @@ const App: React.FC = () => {
     >
     <div className={`fixed inset-0 flex flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${appSettings.theme}`}>
       <Toolbar
-        directoryHandle={directoryHandle}
         projectRootPath={projectRootPath}
         dirtyBlockIds={dirtyBlockIds}
         dirtyEditors={dirtyEditors}
@@ -3321,8 +3306,6 @@ const App: React.FC = () => {
         redo={redo}
         addBlock={() => setCreateBlockModalOpen(true)}
         handleTidyUp={() => handleTidyUp(true)}
-        onRequestNewProject={handleNewProjectRequest}
-        requestOpenFolder={handleOpenProjectFolder}
         handleSave={handleSaveAll}
         onOpenSettings={() => setSettingsModalOpen(true)}
         onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'stats' | 'diagnostics') => void}
@@ -3331,7 +3314,6 @@ const App: React.FC = () => {
         isGameRunning={isGameRunning}
         onRunGame={() => window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath!)}
         onStopGame={() => window.electronAPI?.stopGame()}
-        renpyPath={appSettings.renpyPath}
         isRenpyPathValid={isRenpyPathValid}
         draftingMode={projectSettings.draftingMode}
         onToggleDraftingMode={handleToggleDraftingMode}
@@ -3562,14 +3544,6 @@ const App: React.FC = () => {
                         }
                     }
                 }}
-                onUpdateImageMetadata={(path, meta) => {
-                    setImageMetadata(prev => { 
-                        const next = new Map(prev);
-                        next.set(path, meta);
-                        return next;
-                    });
-                    setHasUnsavedSettings(true);
-                }}
                 onOpenImageEditor={handleOpenImageEditorTab}
                 imagesLastScanned={imagesLastScanned}
                 isRefreshingImages={isRefreshingImages}
@@ -3629,14 +3603,6 @@ const App: React.FC = () => {
                             addToast('Failed to copy audio to project', 'error');
                         }
                     }
-                }}
-                onUpdateAudioMetadata={(path, meta) => {
-                    setAudioMetadata(prev => { 
-                        const next = new Map(prev);
-                        next.set(path, meta);
-                        return next;
-                    });
-                    setHasUnsavedSettings(true);
                 }}
                 onOpenAudioEditor={(filePath) => {
                     const tabId = `aud-${filePath}`;

@@ -139,6 +139,14 @@ export interface DiagnosticIssue {
   column?: number;
 }
 
+export interface IgnoredDiagnosticRule {
+  category: string;
+  filePath?: string;
+  blockId?: string;
+  line?: number;
+  message: string;
+}
+
 export interface DiagnosticsTask {
   id: string;               // crypto.randomUUID()
   title: string;
@@ -829,6 +837,7 @@ export interface ProjectSettings {
   characterProfiles?: Record<string, string>;
   punchlistMetadata?: Record<string, PunchlistMetadata>;
   diagnosticsTasks?: DiagnosticsTask[];
+  ignoredDiagnostics?: IgnoredDiagnosticRule[];
   sceneCompositions?: Record<string, SceneComposition>;
   sceneNames?: Record<string, string>;
   imagemapCompositions?: Record<string, ImageMapComposition>;
@@ -844,7 +853,7 @@ export interface ProjectSettings {
  * @extends AppSettings
  * @extends Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>
  */
-export interface IdeSettings extends AppSettings, Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'> {}
+export interface IdeSettings extends AppSettings, Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'> {}
 
 /**
  * Represents the current clipboard state for cut/copy operations in the file explorer.

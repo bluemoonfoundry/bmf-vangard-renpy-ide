@@ -7,14 +7,13 @@
  */
 
 import React, { useState, useRef, useCallback, useMemo, useEffect, forwardRef } from 'react';
-import { createPortal } from 'react-dom';
 import CodeBlock from './CodeBlock';
 import GroupContainer from './GroupContainer';
 import StickyNote from './StickyNote';
 import Minimap from './Minimap';
 import CanvasContextMenu from './CanvasContextMenu';
 import type { MinimapItem } from './Minimap';
-import type { Block, Position, RenpyAnalysisResult, LabelLocation, BlockGroup, Link, StickyNote as StickyNoteType, MouseGestureSettings } from '../types';
+import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings } from '../types';
 import type { BlockType } from './CreateBlockModal';
 
 interface StoryCanvasProps {
@@ -986,7 +985,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             </marker>
           </defs>
           <g transform={`translate(${-svgBounds.left}, ${-svgBounds.top})`}>
-            {visibleLinks.map((link, index) => {
+            {visibleLinks.map((link, _index) => {
               const sourceBlock = getBlockById(blocks, link.sourceId);
               const targetBlock = getBlockById(blocks, link.targetId);
               if (!sourceBlock || !targetBlock) return null;

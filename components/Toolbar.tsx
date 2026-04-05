@@ -1,11 +1,9 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import type { Theme } from '../types';
+import React, { useMemo } from 'react';
 import logo from '../vangard-renide-512x512.png';
 
 type SaveStatus = 'saving' | 'saved' | 'error';
 
 interface ToolbarProps {
-  directoryHandle: FileSystemDirectoryHandle | null;
   projectRootPath: string | null;
   dirtyBlockIds: Set<string>;
   dirtyEditors: Set<string>;
@@ -17,8 +15,6 @@ interface ToolbarProps {
   redo: () => void;
   addBlock: () => void;
   handleTidyUp: () => void;
-  onRequestNewProject: () => void;
-  requestOpenFolder: () => void;
   handleSave: () => void;
   onOpenSettings: () => void;
   onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'stats' | 'diagnostics') => void;
@@ -27,7 +23,6 @@ interface ToolbarProps {
   isGameRunning: boolean;
   onRunGame: () => void;
   onStopGame: () => void;
-  renpyPath: string;
   isRenpyPathValid: boolean;
   draftingMode: boolean;
   onToggleDraftingMode: (enabled: boolean) => void;
@@ -50,7 +45,6 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
 };
 
 const Toolbar: React.FC<ToolbarProps> = ({
-  directoryHandle,
   projectRootPath,
   dirtyBlockIds,
   dirtyEditors,
@@ -62,8 +56,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   redo,
   addBlock,
   handleTidyUp,
-  onRequestNewProject,
-  requestOpenFolder,
   handleSave,
   onOpenSettings,
   onOpenStaticTab,
@@ -72,7 +64,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   isGameRunning,
   onRunGame,
   onStopGame,
-  renpyPath,
   isRenpyPathValid,
   draftingMode,
   onToggleDraftingMode,
