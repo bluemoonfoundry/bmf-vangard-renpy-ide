@@ -288,7 +288,7 @@ const App: React.FC = () => {
     [debouncedBlocks],
   );
 
-  const [analysisResult, isWorkerPending] = useRenpyAnalysis(analysisBlocks, 0);
+  const [analysisResult, isWorkerPending, analysisProgress] = useRenpyAnalysis(analysisBlocks, 0);
   // Pending covers both: the 500ms debounce window AND the worker's async computation
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
   const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata, ignoredDiagnostics);
@@ -441,7 +441,7 @@ const App: React.FC = () => {
 
       return {
           ...raw,
-          labelNodes: finalNodes
+          labelNodes: finalNodes,
       };
   }, [debouncedBlocks, analysisResult, routeNodeLayoutCache, projectSettings.routeCanvasGroupingMode, projectSettings.routeCanvasLayoutMode]);
 
@@ -791,6 +791,18 @@ const App: React.FC = () => {
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  // Safety timeout: dismiss the analysis overlay if the worker hasn't finished
+  // within 30 seconds. Prevents the UI from being permanently locked on very
+  // large projects where analysis exceeds reasonable bounds.
+  useEffect(() => {
+    if (!isInitialAnalysisPending) return;
+    const timeout = setTimeout(() => {
+      setIsInitialAnalysisPending(false);
+      addToast('Analysis took too long and was skipped. Results may be incomplete.', 'warning');
+    }, 30_000);
+    return () => clearTimeout(timeout);
+  }, [isInitialAnalysisPending, addToast]);
 
   // --- Block Management ---
   const updateBlock = useCallback((id: string, data: Partial<Block>) => {
@@ -3299,7 +3311,8 @@ const App: React.FC = () => {
     if (tab.type === 'route-canvas') {
       return <RouteCanvas
         labelNodes={routeAnalysisResult.labelNodes} routeLinks={routeAnalysisResult.routeLinks}
-        identifiedRoutes={routeAnalysisResult.identifiedRoutes} updateLabelNodePositions={handleUpdateRouteNodePositions}
+        identifiedRoutes={routeAnalysisResult.identifiedRoutes} routesTruncated={routeAnalysisResult.routesTruncated}
+        updateLabelNodePositions={handleUpdateRouteNodePositions}
         stickyNotes={routeStickyNotes} onAddStickyNote={addRouteStickyNote}
         updateStickyNote={updateRouteStickyNote} deleteStickyNote={deleteRouteStickyNote}
         onOpenEditor={handleOpenEditor} transform={routeCanvasTransform} onTransformChange={setRouteCanvasTransform}
@@ -3983,7 +3996,7 @@ const App: React.FC = () => {
       )}
 
       {isLoading && <LoadingOverlay progress={loadingProgress} message={loadingMessage} onCancel={handleCancelLoad} />}
-      {isInitialAnalysisPending && !isLoading && <AnalysisOverlay blockCount={blocks.length} />}
+      {isInitialAnalysisPending && !isLoading && <AnalysisOverlay blockCount={blocks.length} progress={analysisProgress} />}
       
       <div className="fixed bottom-4 right-4 z-[9999] flex flex-col space-y-2 pointer-events-none">
         {toasts.map(toast => (

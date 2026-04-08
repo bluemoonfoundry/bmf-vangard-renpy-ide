@@ -8,13 +8,14 @@ interface RouteLabel {
 
 interface ViewRoutesPanelProps {
   routes: IdentifiedRoute[];
+  routesTruncated?: boolean;
   checkedRoutes: Set<number>;
   onToggleRoute: (routeId: number) => void;
   routeLabels: Map<number, RouteLabel>;
   className?: string;
 }
 
-const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, checkedRoutes, onToggleRoute, routeLabels, className = '' }) => {
+const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, routesTruncated, checkedRoutes, onToggleRoute, routeLabels, className = '' }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
@@ -24,7 +25,7 @@ const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, checkedRoutes
         onClick={() => setIsCollapsed(v => !v)}
         title="Auto-detected distinct execution paths through the story"
       >
-        <span>Routes ({routes.length})</span>
+        <span>Routes ({routes.length}{routesTruncated ? '+' : ''})</span>
         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
         </svg>
@@ -55,6 +56,9 @@ const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, checkedRoutes
               </label>
             );
           })}
+          {routesTruncated && (
+            <p className="text-xs text-amber-500 dark:text-amber-400 text-center p-2">Showing first {routes.length} routes. Large project route limit reached.</p>
+          )}
           {routes.length === 0 && (
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center p-2">No distinct routes found.</p>
           )}

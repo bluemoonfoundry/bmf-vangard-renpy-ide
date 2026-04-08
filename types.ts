@@ -546,6 +546,7 @@ export interface IdentifiedRoute {
  * @property {LabelNode[]} labelNodes - All nodes in Route Canvas visualization
  * @property {RouteLink[]} routeLinks - All connections in Route Canvas
  * @property {IdentifiedRoute[]} identifiedRoutes - Identified narrative paths
+ * @property {boolean} routesTruncated - True when route enumeration hit the hard cap
  */
 export interface RenpyAnalysisResult {
   links: Link[];
@@ -570,6 +571,7 @@ export interface RenpyAnalysisResult {
   labelNodes: LabelNode[];
   routeLinks: RouteLink[];
   identifiedRoutes: IdentifiedRoute[];
+  routesTruncated: boolean;
 }
 
 

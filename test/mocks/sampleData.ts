@@ -151,6 +151,7 @@ export function createEmptyAnalysisResult(overrides: Partial<RenpyAnalysisResult
     labelNodes: [],
     routeLinks: [],
     identifiedRoutes: [],
+    routesTruncated: false,
     ...overrides,
   };
 }

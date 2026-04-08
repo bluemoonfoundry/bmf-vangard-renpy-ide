@@ -23,6 +23,7 @@ interface RouteCanvasProps {
   labelNodes: LabelNode[];
   routeLinks: RouteLink[];
   identifiedRoutes: IdentifiedRoute[];
+  routesTruncated?: boolean;
   stickyNotes: StickyNote[];
   updateLabelNodePositions: (updates: { id: string, position: Position }[]) => void;
   onAddStickyNote: (position: Position) => void;
@@ -371,6 +372,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
   labelNodes: rawLabelNodes,
   routeLinks: rawRouteLinks,
   identifiedRoutes,
+  routesTruncated,
   stickyNotes,
   updateLabelNodePositions,
   onAddStickyNote,
@@ -1278,6 +1280,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
         />
         <ViewRoutesPanel
           routes={identifiedRoutes}
+          routesTruncated={routesTruncated}
           checkedRoutes={checkedRoutes}
           onToggleRoute={handleToggleRoute}
           routeLabels={routeLabels}
