@@ -11,6 +11,7 @@ import type { RenpyAnalysisResult, LabelLocation, JumpLocation, Character, Varia
 import { getTripleQuotedLineMask } from '../lib/renpyTripleQuotes';
 import { isReservedRenpyName } from '../lib/renpyNames';
 import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '../lib/renpyLabelGuards';
+import { buildRouteGraph, computeLayeredLayoutGeneric, type LayoutConfig } from '../lib/graphLayout';
 
 /**
  * Minimal block shape used by the analysis engine — only the fields it actually reads.
@@ -460,83 +461,15 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
   return result;
 };
 
-// --- Improved Layout: Handles Disconnected Components & Cycles ---
-const computeGraphLayout = (nodes: LabelNode[], links: RouteLink[]) => {
-    if (nodes.length === 0) return;
-
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
-    const outgoing = new Map<string, string[]>();
-    const incoming = new Map<string, string[]>();
-    
-    nodes.forEach(n => {
-        outgoing.set(n.id, []);
-        incoming.set(n.id, []);
-    });
-
-    links.forEach(l => {
-        if(nodeMap.has(l.sourceId) && nodeMap.has(l.targetId)) {
-            outgoing.get(l.sourceId)?.push(l.targetId);
-            incoming.get(l.targetId)?.push(l.sourceId);
-        }
-    });
-
-    const visited = new Set<string>();
-    const layers = new Map<number, string[]>();
-    const X_SPACING = 250;
-    const Y_SPACING = 100;
-
-    // Helper to process a connected component
-    const processComponent = (startNodeIds: string[], baseDepth: number) => {
-        const queue: { id: string, depth: number }[] = startNodeIds.map(id => ({ id, depth: baseDepth }));
-        startNodeIds.forEach(id => visited.add(id));
-
-        while (queue.length > 0) {
-            const { id, depth } = queue.shift()!;
-            
-            if (!layers.has(depth)) layers.set(depth, []);
-            layers.get(depth)!.push(id);
-
-            const neighbors = outgoing.get(id) || [];
-            for (const neighborId of neighbors) {
-                if (!visited.has(neighborId)) {
-                    visited.add(neighborId);
-                    queue.push({ id: neighborId, depth: depth + 1 });
-                }
-            }
-        }
-    };
-
-    // 1. Find true roots (no incoming edges)
-    const roots = nodes.filter(n => (incoming.get(n.id)?.length || 0) === 0);
-    processComponent(roots.map(n => n.id), 0);
-
-    // 2. Handle islands/cycles (remaining unvisited nodes)
-    let maxDepth = Math.max(-1, ...Array.from(layers.keys()));
-    
-    while (visited.size < nodes.length) {
-        const unvisited = nodes.find(n => !visited.has(n.id));
-        if (!unvisited) break;
-        
-        // Start a new "island" cluster a bit further to the right
-        const newStartDepth = maxDepth + 2; 
-        processComponent([unvisited.id], newStartDepth);
-        
-        // Update maxDepth for the next potential island
-        maxDepth = Math.max(maxDepth, ...Array.from(layers.keys()));
-    }
-
-    // Apply positions
-    layers.forEach((layerNodeIds, depth) => {
-        layerNodeIds.forEach((nodeId, index) => {
-            const node = nodeMap.get(nodeId);
-            if (node) {
-                node.position = {
-                    x: depth * X_SPACING + 50,
-                    y: index * Y_SPACING + 50
-                };
-            }
-        });
-    });
+const ROUTE_INITIAL_CONFIG: LayoutConfig = {
+  paddingX: 250,
+  paddingY: 100,
+  componentSpacing: 250,
+  clusterSpacingX: 220,
+  clusterSpacingY: 180,
+  defaultWidth: 180,
+  defaultHeight: 40,
+  crossAxisBase: 50,
 };
 
 /** Hard cap on the number of routes enumerated to prevent exponential blowup. */
@@ -654,35 +587,14 @@ export const performRouteAnalysis = (
     }
   });
 
-  const adj = new Map<string, { targetId: string; linkId: string }[]>();
-  const reverseAdj = new Map<string, string[]>();
-  labelNodes.forEach(node => {
-    adj.set(node.id, []);
-    reverseAdj.set(node.id, []);
-  });
+  // Build route graph using graphology for degree queries (start/end node detection)
+  const { startNodes, endNodes } = buildRouteGraph(labelNodes, routeLinks, labels, blockLabelInfo);
 
+  // Keep a link-level adjacency map for findPaths (needs per-link linkId granularity)
+  const adj = new Map<string, { targetId: string; linkId: string }[]>();
+  labelNodes.forEach(node => adj.set(node.id, []));
   routeLinks.forEach(link => {
     adj.get(link.sourceId)?.push({ targetId: link.targetId, linkId: link.id });
-    reverseAdj.get(link.targetId)?.push(link.sourceId);
-  });
-  
-  let startNodes: string[] = [];
-  const startLabelLocation = labels['start'];
-  if (startLabelLocation && startLabelLocation.type !== 'menu') {
-      const startNodeId = `${startLabelLocation.blockId}:start`;
-      if (labelNodes.has(startNodeId)) startNodes.push(startNodeId);
-  }
-  if (startNodes.length === 0) {
-      startNodes = Array.from(labelNodes.keys()).filter(nodeId => (reverseAdj.get(nodeId) || []).length === 0);
-  }
-
-  const endNodes = new Set<string>();
-  blockLabelInfo.forEach((blockLabels, blockId) => {
-    blockLabels.forEach(labelInfo => {
-      const nodeId = `${blockId}:${labelInfo.label}`;
-      const isLeafNode = (adj.get(nodeId) || []).length === 0;
-      if (isLeafNode || (labelInfo.hasReturn && !labelInfo.hasTerminal)) endNodes.add(nodeId);
-    });
   });
   
   const uniqueLabelPaths = new Map<string, string[]>();
@@ -727,7 +639,9 @@ export const performRouteAnalysis = (
   })));
 
   const nodesArray = Array.from(labelNodes.values());
-  computeGraphLayout(nodesArray, routeLinks);
+  const laidOut = computeLayeredLayoutGeneric(nodesArray, routeLinks, 'lr', ROUTE_INITIAL_CONFIG);
+  const posMap = new Map(laidOut.map(n => [n.id, n.position]));
+  nodesArray.forEach(n => { const pos = posMap.get(n.id); if (pos) n.position = pos; });
 
   return { labelNodes: nodesArray, routeLinks, identifiedRoutes, routesTruncated };
 }
