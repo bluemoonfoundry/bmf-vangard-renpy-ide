@@ -3,7 +3,7 @@
 ![Version](https://img.shields.io/badge/version-0.7.0_Public_Beta_4-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
-# Vangard Ren'Py IDE
+# Ren'IDE : The Ren'Py Visual Desiger
 
 > **The IDE that lets you see your story.**
 
@@ -18,7 +18,7 @@ Windows (installer) · macOS (DMG) · Linux (AppImage) · **Free**
 
 ---
 
-## Why Vangard?
+## Why Ren'IDE?
 
 Managing a Ren'Py project in a plain text editor means juggling dozens of `.rpy` files with no way to see the whole picture. You lose track of where jumps lead, which characters appear in which scenes, and whether your branching structure even makes sense.
 
@@ -37,7 +37,7 @@ Vangard gives you that picture — and keeps it in sync as you write.
 
 #### Story Canvas
 
-Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Tidy Up" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors.
+Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Redraw" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors.
 
 
 <img width="2002" height="1281" alt="Screenshot 2026-04-09 134418" src="https://github.com/user-attachments/assets/1db35b01-858f-40e8-afb0-64407a03565c" />
@@ -71,24 +71,39 @@ A full Monaco editor (the VS Code engine) built right in. Split panes let you ed
 
 ---
 
+### Story Elements
+
+The right sidebar analyzes your entire project continuously.
+
+| Tab | What it shows | What it looks like |
+|-----|---------------|-------------------------|
+| **Characters** | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. | <img width="305" height="681" alt="Screenshot 2026-04-09 135939" src="https://github.com/user-attachments/assets/5e27ab7c-8f81-4bbd-a473-d8577871aedb" /> |
+| **Variables** | All `define`/`default` globals. Find usages. | <img width="512" height="768" alt="Screenshot 2026-04-09 135947" src="https://github.com/user-attachments/assets/227b841d-b304-416c-833c-c0a9516deaaa" /> |
+| **Images**  | Image asset manager | <img width="307" height="917" alt="Screenshot 2026-04-09 135958" src="https://github.com/user-attachments/assets/2fd850d7-f78b-447e-897a-582d1e50be41" /> |
+| **Snd** | Audio asset manager | |
+| **Screens** | All `screen` definitions. Jump to definition. Add with boilerplate. |<img width="512" height="768" alt="Screenshot 2026-04-09 140234" src="https://github.com/user-attachments/assets/42e5511e-c9c1-47aa-afd2-fb9aa8d6dd6d" />|
+| **Composers** | Scene, Imagemap, and Screen Layout and Composition | <img width="512" height="768" alt="Screenshot 2026-04-09 140008" src="https://github.com/user-attachments/assets/91501699-4634-4770-aef8-b6814471c59b" />|
+| **Menus** | Visual menu and choice designer | <img width="313" height="1104" alt="Screenshot 2026-04-09 140034" src="https://github.com/user-attachments/assets/10184a6b-a276-4562-a759-97ff73cc6954" /> |
+| **Snippets** | Library of Ren'Py code patterns. User snippets with custom trigger prefixes. |<img width="512" height="768" alt="Screenshot 2026-04-09 140025" src="https://github.com/user-attachments/assets/1af69546-e868-44de-829c-5e3f4d4626f8" />|
+
 ### Asset Managers
 
 #### Image Assets
 
 Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage or Screen Layout Composer. Double-click to manage Ren'Py tags and metadata.
 
+<!--
 <img width="308" height="1011" alt="Image Assets Panel" src="https://github.com/user-attachments/assets/ab645f13-d21a-4a26-aeb2-b91367fb9a13" />
-
 <img width="1229" height="1001" alt="Image Viewer" src="https://github.com/user-attachments/assets/7c3360fb-484f-4be2-9d61-12c382ca6ef8" />
-
+-->
 #### Audio Assets
 
 Same workflow for audio. Browse, scan external directories, and right-click to copy `play music`, `play sound`, or `queue audio` statements. Built-in audio player.
 
+<!--
 <img width="311" height="1011" alt="Audio Assets Panel" src="https://github.com/user-attachments/assets/90623b20-6a20-4386-85e7-a49db27c2947" />
-
 <img width="1537" height="1007" alt="Audio Viewer / Player" src="https://github.com/user-attachments/assets/893ff1a3-72c7-48c7-ad5d-db547a6885b6" />
-
+-->
 ---
 
 ### Visual Composers
@@ -113,25 +128,6 @@ Build Ren'Py screens visually. Drag widgets (`vbox`, `hbox`, `frame`, `text`, `i
 
 ---
 
-### Story Elements
-
-The right sidebar analyzes your entire project continuously.
-
-| Tab | What it shows |
-|-----|---------------|
-| **Characters** | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
-| **Variables** | All `define`/`default` globals. Find usages. |
-| **Screens** | All `screen` definitions. Jump to definition. Add with boilerplate. |
-| **Scenes** | Saved Scene Composer compositions. |
-| **Composers** | All ImageMap + Screen Layout compositions. |
-| **Snippets** | Library of Ren'Py code patterns. User snippets with custom trigger prefixes. |
-
-<img width="299" height="998" alt="Characters" src="https://github.com/user-attachments/assets/3c87ba26-3da0-478f-a251-954d226ee703" />
-<img width="309" height="1006" alt="Variables" src="https://github.com/user-attachments/assets/fa470bb0-b783-46de-a608-b7298483db57" />
-<img width="306" height="1011" alt="Screens" src="https://github.com/user-attachments/assets/40e83b54-44b0-4207-888b-c9ebd11286da" />
-<img width="310" height="1008" alt="Composers Tab" src="https://github.com/user-attachments/assets/5a45c071-9ca0-4fe7-94c1-8e92a1dfeec0" />
-
----
 
 ### Diagnostics
 
