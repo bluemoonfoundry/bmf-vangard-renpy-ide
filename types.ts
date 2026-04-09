@@ -719,6 +719,7 @@ export interface SceneSprite {
   alpha: number;
   blur: number;
   visible?: boolean;
+  locked?: boolean;
 }
 
 /**
