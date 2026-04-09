@@ -546,6 +546,7 @@ export interface IdentifiedRoute {
  * @property {LabelNode[]} labelNodes - All nodes in Route Canvas visualization
  * @property {RouteLink[]} routeLinks - All connections in Route Canvas
  * @property {IdentifiedRoute[]} identifiedRoutes - Identified narrative paths
+ * @property {boolean} routesTruncated - True when route enumeration hit the hard cap
  */
 export interface RenpyAnalysisResult {
   links: Link[];
@@ -570,6 +571,7 @@ export interface RenpyAnalysisResult {
   labelNodes: LabelNode[];
   routeLinks: RouteLink[];
   identifiedRoutes: IdentifiedRoute[];
+  routesTruncated: boolean;
 }
 
 
@@ -642,8 +644,9 @@ export type Theme = 'system' | 'light' | 'dark' | 'solarized-light' | 'solarized
  * @property {number} leftSidebarWidth - Width of left sidebar (pixels)
  * @property {boolean} isRightSidebarOpen - Whether right sidebar is visible
  * @property {number} rightSidebarWidth - Width of right sidebar (pixels)
- * @property {string} renpyPath - Path to Ren'Py runtime directory
+ * @property {string} renpyPath - Path to Ren'Py SDK directory (executable derived per-OS: renpy.exe / renpy.sh)
  * @property {string[]} recentProjects - List of recently opened project paths
+ * @property {string} [lastProjectDir] - Parent directory last used when creating a new project (for dialog pre-fill)
  * @property {string} editorFontFamily - Font family for code editor
  * @property {number} editorFontSize - Font size for code editor (pixels)
  * @property {Record<string, boolean>} [snippetCategoriesState] - Collapsed/expanded state of snippet categories
@@ -661,6 +664,7 @@ export interface AppSettings {
   snippetCategoriesState?: Record<string, boolean>;
   mouseGestures?: MouseGestureSettings;
   userSnippets?: UserSnippet[];
+  lastProjectDir?: string;
 }
 
 /**
@@ -1074,6 +1078,19 @@ export interface SerializedSceneComposition {
 }
 
 /**
+ * Options for creating a new Ren'Py project from template
+ */
+export interface CreateProjectOptions {
+  projectDir: string;      // Full path to project directory
+  projectName: string;     // User-entered project name
+  width: number;           // Game resolution width
+  height: number;          // Game resolution height
+  accentColor: string;     // Hex color string (e.g., "#00b8c3")
+  isLight: boolean;        // True for light theme, false for dark
+  sdkPath?: string;        // Optional Ren'Py SDK path
+}
+
+/**
  * Global Electron API interface available in windows.electronAPI.
  * Provides access to OS-level features in Electron app mode.
  * Methods for file operations, Ren'Py execution, game control, and IPC.
@@ -1083,6 +1100,7 @@ declare global {
     electronAPI?: {
           openDirectory: () => Promise<string | null>;
           createProject?: () => Promise<string | null>;
+          createProjectFromTemplate?: (options: CreateProjectOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
           checkRenpyProject?: (path: string) => Promise<{ hasGameFolder: boolean; isRenpyProject: boolean }>;
           cancelProjectLoad?: () => void;
           onLoadProgress?: (callback: (value: number, message: string) => void) => () => void;

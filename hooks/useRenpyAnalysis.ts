@@ -11,6 +11,7 @@ import type { RenpyAnalysisResult, LabelLocation, JumpLocation, Character, Varia
 import { getTripleQuotedLineMask } from '../lib/renpyTripleQuotes';
 import { isReservedRenpyName } from '../lib/renpyNames';
 import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '../lib/renpyLabelGuards';
+import { buildRouteGraph, computeLayeredLayoutGeneric, type LayoutConfig } from '../lib/graphLayout';
 
 /**
  * Minimal block shape used by the analysis engine — only the fields it actually reads.
@@ -192,6 +193,7 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
     labelNodes: [],
     routeLinks: [],
     identifiedRoutes: [],
+    routesTruncated: false,
   };
 
   blocks.forEach(block => {
@@ -294,6 +296,13 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
   });
 
   const variableNames = Array.from(result.variables.keys());
+  // Build a single combined regex for all variable names instead of constructing
+  // one RegExp per variable per line. This reduces O(vars × lines) regex constructions
+  // to a single O(lines) pass with one regex.
+  const combinedVarRegex = variableNames.length > 0
+    ? new RegExp(`\\b(${variableNames.map(v => v.replace(/\./g, '\\.')).join('|')})\\b`, 'g')
+    : null;
+
   blocks.forEach(block => {
     if (block.filePath && (block.filePath.endsWith('debug_placeholders.rpy') || block.filePath === 'game/debug_placeholders.rpy')) return;
 
@@ -395,9 +404,11 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
         blockTypes.add('dialogue');
       }
 
-      variableNames.forEach(varName => {
-        const usageRegex = new RegExp(`\\b${varName.replace('.', '\\.')}\\b`);
-        if (usageRegex.test(sanitizedLine)) {
+      if (combinedVarRegex) {
+        combinedVarRegex.lastIndex = 0;
+        let varMatch: RegExpExecArray | null;
+        while ((varMatch = combinedVarRegex.exec(sanitizedLine)) !== null) {
+          const varName = varMatch[1];
           const defOnThisLine = result.variables.get(varName)?.definedInBlockId === block.id && result.variables.get(varName)?.line === index + 1;
           if (!defOnThisLine) {
               if (!result.variableUsages.has(varName)) result.variableUsages.set(varName, []);
@@ -407,7 +418,7 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
               }
           }
         }
-      });
+      }
     });
 
     if (blockTypes.size > 0) result.blockTypes.set(block.id, blockTypes);
@@ -450,93 +461,31 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
   return result;
 };
 
-// --- Improved Layout: Handles Disconnected Components & Cycles ---
-const computeGraphLayout = (nodes: LabelNode[], links: RouteLink[]) => {
-    if (nodes.length === 0) return;
-
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
-    const outgoing = new Map<string, string[]>();
-    const incoming = new Map<string, string[]>();
-    
-    nodes.forEach(n => {
-        outgoing.set(n.id, []);
-        incoming.set(n.id, []);
-    });
-
-    links.forEach(l => {
-        if(nodeMap.has(l.sourceId) && nodeMap.has(l.targetId)) {
-            outgoing.get(l.sourceId)?.push(l.targetId);
-            incoming.get(l.targetId)?.push(l.sourceId);
-        }
-    });
-
-    const visited = new Set<string>();
-    const layers = new Map<number, string[]>();
-    const X_SPACING = 250;
-    const Y_SPACING = 100;
-
-    // Helper to process a connected component
-    const processComponent = (startNodeIds: string[], baseDepth: number) => {
-        const queue: { id: string, depth: number }[] = startNodeIds.map(id => ({ id, depth: baseDepth }));
-        startNodeIds.forEach(id => visited.add(id));
-
-        while (queue.length > 0) {
-            const { id, depth } = queue.shift()!;
-            
-            if (!layers.has(depth)) layers.set(depth, []);
-            layers.get(depth)!.push(id);
-
-            const neighbors = outgoing.get(id) || [];
-            for (const neighborId of neighbors) {
-                if (!visited.has(neighborId)) {
-                    visited.add(neighborId);
-                    queue.push({ id: neighborId, depth: depth + 1 });
-                }
-            }
-        }
-    };
-
-    // 1. Find true roots (no incoming edges)
-    const roots = nodes.filter(n => (incoming.get(n.id)?.length || 0) === 0);
-    processComponent(roots.map(n => n.id), 0);
-
-    // 2. Handle islands/cycles (remaining unvisited nodes)
-    let maxDepth = Math.max(-1, ...Array.from(layers.keys()));
-    
-    while (visited.size < nodes.length) {
-        const unvisited = nodes.find(n => !visited.has(n.id));
-        if (!unvisited) break;
-        
-        // Start a new "island" cluster a bit further to the right
-        const newStartDepth = maxDepth + 2; 
-        processComponent([unvisited.id], newStartDepth);
-        
-        // Update maxDepth for the next potential island
-        maxDepth = Math.max(maxDepth, ...Array.from(layers.keys()));
-    }
-
-    // Apply positions
-    layers.forEach((layerNodeIds, depth) => {
-        layerNodeIds.forEach((nodeId, index) => {
-            const node = nodeMap.get(nodeId);
-            if (node) {
-                node.position = {
-                    x: depth * X_SPACING + 50,
-                    y: index * Y_SPACING + 50
-                };
-            }
-        });
-    });
+const ROUTE_INITIAL_CONFIG: LayoutConfig = {
+  paddingX: 250,
+  paddingY: 100,
+  componentSpacing: 250,
+  clusterSpacingX: 220,
+  clusterSpacingY: 180,
+  defaultWidth: 180,
+  defaultHeight: 40,
+  crossAxisBase: 50,
 };
+
+/** Hard cap on the number of routes enumerated to prevent exponential blowup. */
+const MAX_ROUTES = 500;
+/** Maximum recursion depth for path enumeration. */
+const MAX_ROUTE_DEPTH = 100;
 
 export const performRouteAnalysis = (
     blocks: AnalysisBlock[],
     labels: RenpyAnalysisResult['labels'],
     jumps: RenpyAnalysisResult['jumps']
-): { labelNodes: LabelNode[], routeLinks: RouteLink[], identifiedRoutes: IdentifiedRoute[] } => {
+): { labelNodes: LabelNode[], routeLinks: RouteLink[], identifiedRoutes: IdentifiedRoute[], routesTruncated: boolean } => {
   const labelNodes = new Map<string, LabelNode>();
   const routeLinks: RouteLink[] = [];
   const identifiedRoutes: IdentifiedRoute[] = [];
+  let routesTruncated = false;
   const blockLabelInfo = new Map<string, { label: string; startLine: number; endLine: number; hasTerminal: boolean; hasReturn: boolean; }[]>();
 
   blocks.forEach(block => {
@@ -638,40 +587,23 @@ export const performRouteAnalysis = (
     }
   });
 
-  const adj = new Map<string, { targetId: string; linkId: string }[]>();
-  const reverseAdj = new Map<string, string[]>();
-  labelNodes.forEach(node => {
-    adj.set(node.id, []);
-    reverseAdj.set(node.id, []);
-  });
+  // Build route graph using graphology for degree queries (start/end node detection)
+  const { startNodes, endNodes } = buildRouteGraph(labelNodes, routeLinks, labels, blockLabelInfo);
 
+  // Keep a link-level adjacency map for findPaths (needs per-link linkId granularity)
+  const adj = new Map<string, { targetId: string; linkId: string }[]>();
+  labelNodes.forEach(node => adj.set(node.id, []));
   routeLinks.forEach(link => {
     adj.get(link.sourceId)?.push({ targetId: link.targetId, linkId: link.id });
-    reverseAdj.get(link.targetId)?.push(link.sourceId);
-  });
-  
-  let startNodes: string[] = [];
-  const startLabelLocation = labels['start'];
-  if (startLabelLocation && startLabelLocation.type !== 'menu') {
-      const startNodeId = `${startLabelLocation.blockId}:start`;
-      if (labelNodes.has(startNodeId)) startNodes.push(startNodeId);
-  }
-  if (startNodes.length === 0) {
-      startNodes = Array.from(labelNodes.keys()).filter(nodeId => (reverseAdj.get(nodeId) || []).length === 0);
-  }
-
-  const endNodes = new Set<string>();
-  blockLabelInfo.forEach((blockLabels, blockId) => {
-    blockLabels.forEach(labelInfo => {
-      const nodeId = `${blockId}:${labelInfo.label}`;
-      const isLeafNode = (adj.get(nodeId) || []).length === 0;
-      if (isLeafNode || (labelInfo.hasReturn && !labelInfo.hasTerminal)) endNodes.add(nodeId);
-    });
   });
   
   const uniqueLabelPaths = new Map<string, string[]>();
 
-  function findPaths(currentNodeId: string, currentLinks: string[], currentNodes: string[], visited: Set<string>) {
+  function findPaths(currentNodeId: string, currentLinks: string[], currentNodes: string[], visited: Set<string>, depth: number) {
+    if (uniqueLabelPaths.size >= MAX_ROUTES || depth > MAX_ROUTE_DEPTH) {
+      routesTruncated = true;
+      return;
+    }
     currentNodes.push(currentNodeId);
     if (visited.has(currentNodeId)) { currentNodes.pop(); return; }
     visited.add(currentNodeId);
@@ -686,8 +618,9 @@ export const performRouteAnalysis = (
         }
     } else {
       for (const { targetId, linkId } of neighbors) {
+          if (uniqueLabelPaths.size >= MAX_ROUTES) { routesTruncated = true; break; }
           currentLinks.push(linkId);
-          findPaths(targetId, currentLinks, currentNodes, visited);
+          findPaths(targetId, currentLinks, currentNodes, visited, depth + 1);
           currentLinks.pop();
       }
     }
@@ -695,7 +628,10 @@ export const performRouteAnalysis = (
     currentNodes.pop();
   }
 
-  startNodes.forEach(startNode => findPaths(startNode, [], [], new Set()));
+  startNodes.forEach(startNode => {
+    if (uniqueLabelPaths.size >= MAX_ROUTES) { routesTruncated = true; return; }
+    findPaths(startNode, [], [], new Set(), 0);
+  });
   
   const allPaths = Array.from(uniqueLabelPaths.values());
   identifiedRoutes.push(...allPaths.filter(path => path.length > 0).map((path, index) => ({
@@ -703,9 +639,11 @@ export const performRouteAnalysis = (
   })));
 
   const nodesArray = Array.from(labelNodes.values());
-  computeGraphLayout(nodesArray, routeLinks);
+  const laidOut = computeLayeredLayoutGeneric(nodesArray, routeLinks, 'lr', ROUTE_INITIAL_CONFIG);
+  const posMap = new Map(laidOut.map(n => [n.id, n.position]));
+  nodesArray.forEach(n => { const pos = posMap.get(n.id); if (pos) n.position = pos; });
 
-  return { labelNodes: nodesArray, routeLinks, identifiedRoutes };
+  return { labelNodes: nodesArray, routeLinks, identifiedRoutes, routesTruncated };
 }
 
 /** Empty result returned on first render before the worker responds. */
@@ -732,6 +670,7 @@ export const EMPTY_ANALYSIS_RESULT: RenpyAnalysisResult = {
   labelNodes: [],
   routeLinks: [],
   identifiedRoutes: [],
+  routesTruncated: false,
 };
 
 /** Module-level worker singleton — created once, reused across re-renders. */
@@ -752,19 +691,28 @@ const getAnalysisWorker = (): Worker | null => {
   return _analysisWorker;
 };
 
+/** Progress info reported by the analysis worker between phases. */
+export interface AnalysisProgress {
+  phase: string;
+  percent: number;
+}
+
 /**
  * Hook that runs Ren'Py analysis asynchronously via a Web Worker.
- * Returns `[result, isPending]` — `isPending` is true while the worker is computing.
+ * Returns `[result, isPending, progress]` — `isPending` is true while the worker
+ * is computing; `progress` carries the latest phase/percent reported by the worker.
  * Falls back to synchronous analysis if Web Workers are unavailable (e.g. test env).
  */
-export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [RenpyAnalysisResult, boolean] => {
+export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [RenpyAnalysisResult, boolean, AnalysisProgress | null] => {
   const [result, setResult] = useState<RenpyAnalysisResult>(EMPTY_ANALYSIS_RESULT);
   const [isPending, setIsPending] = useState(false);
+  const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const requestIdRef = useRef(0);
 
   useEffect(() => {
     const currentId = ++requestIdRef.current;
     setIsPending(true);
+    setProgress(null);
 
     const worker = getAnalysisWorker();
 
@@ -775,6 +723,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [Ren
       r.labelNodes = routeData.labelNodes;
       r.routeLinks = routeData.routeLinks;
       r.identifiedRoutes = routeData.identifiedRoutes;
+      r.routesTruncated = routeData.routesTruncated;
       setResult(r);
       setIsPending(false);
       return;
@@ -782,10 +731,18 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [Ren
 
     const handleMessage = (e: MessageEvent) => {
       if (e.data.id !== currentId) return; // stale — a newer request superseded this one
+
+      // Handle intermediate progress messages (no result field)
+      if (e.data.type === 'progress') {
+        setProgress({ phase: e.data.phase, percent: e.data.percent });
+        return;
+      }
+
       worker.removeEventListener('message', handleMessage);
       if (!e.data.error) {
         setResult(e.data.result);
       }
+      setProgress(null);
       setIsPending(false);
     };
 
@@ -798,5 +755,5 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [Ren
     };
   }, [blocks, trigger]);
 
-  return [result, isPending];
+  return [result, isPending, progress];
 };

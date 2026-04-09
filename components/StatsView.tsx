@@ -7,7 +7,7 @@ import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute,
 interface StatsViewProps {
   blocks: Block[];
   analysisResult: RenpyAnalysisResult;
-  routeAnalysisResult: { labelNodes: LabelNode[]; routeLinks: RouteLink[]; identifiedRoutes: IdentifiedRoute[] };
+  routeAnalysisResult: { labelNodes: LabelNode[]; routeLinks: RouteLink[]; identifiedRoutes: IdentifiedRoute[]; routesTruncated: boolean };
   projectImages: Map<string, ProjectImage>;
   imageMetadata: Map<string, ImageMetadata>;
   projectAudios: Map<string, RenpyAudio>;
@@ -278,7 +278,7 @@ const StatsView: React.FC<StatsViewProps> = ({
   const [coverageSortDir, setCoverageSortDir] = useState<CoverageSortDir>('asc');
 
   const { branchingBlockIds, labels, characters, dialogueLines } = analysisResult;
-  const { identifiedRoutes, labelNodes, routeLinks } = routeAnalysisResult;
+  const { identifiedRoutes, labelNodes, routeLinks, routesTruncated } = routeAnalysisResult;
 
   const totalWords = useMemo(
     () => blocks.reduce((acc, b) => acc + countWordsInScript(b.content), 0),
@@ -594,8 +594,8 @@ const StatsView: React.FC<StatsViewProps> = ({
         />
         <StatCard
           label="Identified Routes"
-          value={identifiedRoutes.length.toLocaleString()}
-          sub="unique story paths"
+          value={`${identifiedRoutes.length.toLocaleString()}${routesTruncated ? '+' : ''}`}
+          sub={routesTruncated ? 'unique story paths (limit reached)' : 'unique story paths'}
         />
       </div>
 
@@ -613,7 +613,7 @@ const StatsView: React.FC<StatsViewProps> = ({
         </div>
         <div className="ml-auto text-right text-xs text-secondary flex-shrink-0">
           <p>{branchRatioPercent}% of files branch</p>
-          <p>{identifiedRoutes.length} route{identifiedRoutes.length !== 1 ? 's' : ''} identified</p>
+          <p>{identifiedRoutes.length}{routesTruncated ? '+' : ''} route{identifiedRoutes.length !== 1 ? 's' : ''} identified</p>
         </div>
       </div>
 

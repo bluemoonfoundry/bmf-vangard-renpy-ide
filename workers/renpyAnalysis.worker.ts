@@ -62,11 +62,19 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       return;
     }
 
+    self.postMessage({ id, type: 'progress', phase: 'Parsing scripts', percent: 10 });
+
     const result = performRenpyAnalysis(blocks);
+
+    self.postMessage({ id, type: 'progress', phase: 'Building route graph', percent: 60 });
+
     const routeData = performRouteAnalysis(blocks, result.labels, result.jumps);
     result.labelNodes = routeData.labelNodes;
     result.routeLinks = routeData.routeLinks;
     result.identifiedRoutes = routeData.identifiedRoutes;
+    result.routesTruncated = routeData.routesTruncated;
+
+    self.postMessage({ id, type: 'progress', phase: 'Finalizing', percent: 95 });
 
     cachedSignatures = newSigs;
     cachedResult = result;

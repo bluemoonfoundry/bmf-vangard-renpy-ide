@@ -1,10 +1,15 @@
 import React from 'react';
+import type { AnalysisProgress } from '../hooks/useRenpyAnalysis';
 
 interface AnalysisOverlayProps {
   blockCount: number;
+  progress?: AnalysisProgress | null;
 }
 
-const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ blockCount }) => {
+const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ blockCount, progress }) => {
+  const percent = progress?.percent ?? 0;
+  const phase = progress?.phase ?? 'Preparing';
+
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 max-w-lg w-full text-center border border-gray-200 dark:border-gray-700">
@@ -20,10 +25,13 @@ const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ blockCount }) => {
           {blockCount > 50 && ' This may take a moment for large projects.'}
         </p>
         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700 overflow-hidden">
-          <div className="bg-indigo-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
+          <div
+            className="bg-indigo-500 h-2 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${Math.max(percent, 5)}%` }}
+          />
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-          The application will be ready when analysis is complete.
+          {progress ? `${phase}... ${percent}%` : 'The application will be ready when analysis is complete.'}
         </p>
       </div>
     </div>
