@@ -39,17 +39,21 @@ Vangard gives you that picture — and keeps it in sync as you write.
 
 Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Tidy Up" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors.
 
-<img width="1103" height="389" alt="Story Canvas" src="https://github.com/user-attachments/assets/b594803d-7909-4ff1-9d90-227d7e906596" />
+
+<img width="2002" height="1281" alt="Screenshot 2026-04-09 134418" src="https://github.com/user-attachments/assets/1db35b01-858f-40e8-afb0-64407a03565c" />
 
 #### Route Canvas
 
 A label-by-label control flow graph. Every `label` becomes a node; every `jump`, `call`, and implicit fall-through becomes an edge. Highlight specific routes with distinct colors. Unreachable labels are flagged. Hover over menu nodes to inspect all choices and their destinations.
 
-<img width="1964" height="1114" alt="Route Canvas" src="https://github.com/user-attachments/assets/62da186a-7505-406d-b66c-b4d7f9ed8d7e" />
+<img width="2002" height="1281" alt="Screenshot 2026-04-09 134430" src="https://github.com/user-attachments/assets/d9062eec-675b-4dbf-9079-e0f2ebf3a285" />
 
 #### Choice Canvas
 
 The writer's view. Where the Route Canvas shows code structure, the Choice Canvas shows the player experience. Menu nodes fan out to destinations via color-coded choice pills. Each pill shows the player-visible choice text and any `if` condition guard as a badge — so you can trace exactly what the player sees and where each choice leads, even when paths cross.
+
+
+<img width="2017" height="1297" alt="Screenshot 2026-04-09 134448" src="https://github.com/user-attachments/assets/6be28ed9-3226-4892-b014-8d91458a42f9" />
 
 ---
 
