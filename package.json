@@ -83,8 +83,7 @@
       "electron.js",
       "preload.js",
       "vangard-renide-512x512.png",
-      "lib/**/*",
-      "resources/**/*"
+      "lib/**/*"
     ],
     "asarUnpack": [
       "node_modules/sharp/**/*"
@@ -113,6 +112,13 @@
       "target": "AppImage",
       "icon": "vangard-renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "resources/renpy-template",
+        "to": "renpy-template",
+        "filter": ["**/*"]
+      }
+    ]
   }
 }
