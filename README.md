@@ -103,9 +103,13 @@ Layer backgrounds and sprites on a stage. Per-sprite controls: zoom, flip, rotat
 
 Draw clickable hotspot rectangles over a ground image (with optional hover overlay). Each hotspot has a configurable action type (`jump` or `call`) and target label. Generates `imagebutton`/`imagemap` screen code ready to copy into your project. Ground and hover images are set by dragging from the Image Assets panel.
 
+<img width="2004" height="1280" alt="Screenshot 2026-04-09 134836" src="https://github.com/user-attachments/assets/07aa6607-9774-4715-b35e-e5ae1cb4dc87" />
+
 #### Screen Layout Composer
 
 Build Ren'Py screens visually. Drag widgets (`vbox`, `hbox`, `frame`, `text`, `image`, `textbutton`, `button`, `imagebutton`, `bar`, `input`, `null`) onto the stage and nest them. Configure properties per widget. Generates ready-to-use `screen` code with copy-to-clipboard support. Existing screens can be viewed in read-only mode; duplicate to create an editable copy.
+
+<img width="2005" height="1276" alt="Screenshot 2026-04-09 134942" src="https://github.com/user-attachments/assets/435bae88-4e7f-4361-9bd1-c2c6f7c14b60" />
 
 ---
 
@@ -142,11 +146,16 @@ A dedicated panel surfaces issues across every file in the project.
 
 Click any issue to jump directly to the source. Filter by severity (error / warning / info). Convert issues to task checklist items tracked with your project.
 
+<img width="2001" height="1278" alt="Screenshot 2026-04-09 134751" src="https://github.com/user-attachments/assets/6bc492a7-7eb3-45c4-b7a5-d94ada5cdb92" />
+
 ---
 
 ### Project Statistics
 
 Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores.
+
+
+<img width="1992" height="1274" alt="Screenshot 2026-04-09 134804" src="https://github.com/user-attachments/assets/f0134184-e807-400c-8b63-5236450d6ca6" />
 
 ---
 
