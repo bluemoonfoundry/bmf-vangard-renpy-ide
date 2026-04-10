@@ -723,7 +723,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                     {scene.background && scene.background.visible !== false && (
                         <div
                             className={`absolute inset-0 w-full h-full ${selectedSpriteId === 'background' ? `ring-4 ring-inset ${scene.background.locked ? 'ring-amber-500' : 'ring-indigo-500'}` : ''}`}
-                            style={{ zIndex: 0 }}
+                            style={{ zIndex: 0, pointerEvents: scene.background.locked ? 'none' : 'auto' }}
                             onPointerDown={(e) => handlePointerDown(e, 'background')}
                         >
                             {renderSpriteImage(scene.background, true)}
@@ -752,6 +752,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                                     left: `${sprite.x * 100}%`,
                                     top: `${sprite.y * 100}%`,
                                     zIndex: index + 1,
+                                    pointerEvents: sprite.locked ? 'none' : 'auto',
                                 }}
                                 onPointerDown={(e) => handlePointerDown(e, sprite.id)}
                                 onWheel={(e) => handleWheel(e, sprite.id)}
