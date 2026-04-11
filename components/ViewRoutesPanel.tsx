@@ -13,25 +13,46 @@ interface ViewRoutesPanelProps {
   onToggleRoute: (routeId: number) => void;
   routeLabels: Map<number, RouteLabel>;
   className?: string;
+  /**
+   * When true, renders without an outer container (no border/bg/shadow).
+   * Use when embedding inside CanvasToolbox which provides the container.
+   */
+  embedded?: boolean;
 }
 
-const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, routesTruncated, checkedRoutes, onToggleRoute, routeLabels, className = '' }) => {
+const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({
+  routes,
+  routesTruncated,
+  checkedRoutes,
+  onToggleRoute,
+  routeLabels,
+  className = '',
+  embedded = false,
+}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  return (
-    <div className={`view-routes-panel bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-52 max-w-full overflow-hidden ${className}`}>
+  const inner = (
+    <>
       <button
-        className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className={`w-full flex items-center justify-between px-3 py-2 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+          embedded ? '' : 'border-b border-gray-200 dark:border-gray-600'
+        }`}
         onClick={() => setIsCollapsed(v => !v)}
         title="Auto-detected distinct execution paths through the story"
       >
         <span>Routes ({routes.length}{routesTruncated ? '+' : ''})</span>
-        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-4 w-4 text-gray-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
         </svg>
       </button>
       {!isCollapsed && (
-        <div className="p-2 space-y-1 max-h-[45vh] overflow-y-auto">
+        // max-h-60 ≈ 240px ≈ 10 routes before scrolling
+        <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
           {routes.map(route => {
             const labels = routeLabels.get(route.id);
             return (
@@ -57,13 +78,25 @@ const ViewRoutesPanel: React.FC<ViewRoutesPanelProps> = ({ routes, routesTruncat
             );
           })}
           {routesTruncated && (
-            <p className="text-xs text-amber-500 dark:text-amber-400 text-center p-2">Showing first {routes.length} routes. Large project route limit reached.</p>
+            <p className="text-xs text-amber-500 dark:text-amber-400 text-center p-2">
+              Showing first {routes.length} routes. Large project route limit reached.
+            </p>
           )}
           {routes.length === 0 && (
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center p-2">No distinct routes found.</p>
           )}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className={className}>{inner}</div>;
+  }
+
+  return (
+    <div className={`view-routes-panel bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-52 max-w-full overflow-hidden ${className}`}>
+      {inner}
     </div>
   );
 };

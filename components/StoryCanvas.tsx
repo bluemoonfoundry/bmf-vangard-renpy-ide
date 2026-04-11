@@ -13,6 +13,8 @@ import StickyNote from './StickyNote';
 import Minimap from './Minimap';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasLayoutControls from './CanvasLayoutControls';
+import CanvasToolbox from './CanvasToolbox';
+import CanvasNavControls from './CanvasNavControls';
 import type { MinimapItem } from './Minimap';
 import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode } from '../types';
 import type { BlockType } from './CreateBlockModal';
@@ -934,88 +936,125 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
           </div>
         </div>
       )}
-      <CanvasLayoutControls
-        canvasLabel="Story Canvas"
-        layoutMode={layoutMode}
-        groupingMode={groupingMode}
-        onChangeLayoutMode={onChangeLayoutMode}
-        onChangeGroupingMode={onChangeGroupingMode}
-        className="absolute top-4 left-4"
-      />
-
-      <div
-        className="absolute top-4 right-4 z-20 flex max-w-[calc(100%-2rem)] flex-col gap-3 xl:flex-row xl:items-start"
-        onPointerDown={e => e.stopPropagation()}
-      >
-        {/* Flag + Fit buttons */}
-        <div className="flex items-center gap-1.5">
-          {startBlock && (
-            <button
-              onClick={centerOnStartBlock}
-              title="Go to start label"
-              aria-label="Go to start label"
-              className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-              </svg>
-            </button>
+      {/* ── Canvas Toolbox (top-left) ── */}
+      <CanvasToolbox label="Story Canvas">
+        <CanvasLayoutControls
+          canvasLabel="Story Canvas"
+          layoutMode={layoutMode}
+          groupingMode={groupingMode}
+          onChangeLayoutMode={onChangeLayoutMode}
+          onChangeGroupingMode={onChangeGroupingMode}
+          embedded
+        />
+        {/* View Filters */}
+        <div className="filter-panel p-3 flex flex-col space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">View Filters</h4>
+          <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={canvasFilters.story} onChange={e => setCanvasFilters(f => ({ ...f, story: e.target.checked }))} className="h-4 w-4 rounded focus:ring-indigo-500" style={{ accentColor: 'rgb(79 70 229)' }} />
+            <span>Story Blocks</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={canvasFilters.screens} onChange={e => setCanvasFilters(f => ({ ...f, screens: e.target.checked }))} className="h-4 w-4 rounded focus:ring-teal-500" style={{ accentColor: 'rgb(13 148 136)' }} />
+            <span>Screen Blocks</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={canvasFilters.config} onChange={e => setCanvasFilters(f => ({ ...f, config: e.target.checked }))} className="h-4 w-4 rounded focus:ring-red-500" style={{ accentColor: 'rgb(239 68 68)' }} />
+            <span>Config Blocks</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={canvasFilters.notes} onChange={e => setCanvasFilters(f => ({ ...f, notes: e.target.checked }))} className="h-4 w-4 rounded focus:ring-yellow-500" style={{ accentColor: 'rgb(234 179 8)' }} />
+            <span>Notes</span>
+          </label>
+          <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+          <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={canvasFilters.minimap} onChange={e => setCanvasFilters(f => ({ ...f, minimap: e.target.checked }))} className="h-4 w-4 rounded" style={{ accentColor: 'rgb(107 114 128)' }} />
+            <span>Minimap</span>
+          </label>
+          {availableCharacters.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-primary px-1">Character</span>
+                <select
+                  className="text-xs bg-secondary border border-primary rounded px-1.5 py-1 text-primary cursor-pointer"
+                  value={characterTagFilter}
+                  onChange={e => setCharacterTagFilter(e.target.value)}
+                  onPointerDown={e => e.stopPropagation()}
+                >
+                  <option value="">All characters</option>
+                  {availableCharacters.map(c => (
+                    <option key={c.tag} value={c.tag}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
-          <button
-            onClick={fitToScreen}
-            title="Fit all blocks to screen (F)"
-            aria-label="Fit all blocks to screen"
-            className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 01-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-          </button>
         </div>
-        {/* View Filters panel */}
-        <div className="filter-panel bg-secondary p-2 rounded-lg shadow-lg border border-primary flex flex-col space-y-2">
-            <h4 className="text-sm font-semibold text-center px-2 text-primary">View Filters</h4>
-            <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
-                <input type="checkbox" checked={canvasFilters.story} onChange={e => setCanvasFilters(f => ({ ...f, story: e.target.checked }))} className="h-4 w-4 rounded focus:ring-indigo-500" style={{ accentColor: 'rgb(79 70 229)' }} />
-                <span>Story Blocks</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
-                <input type="checkbox" checked={canvasFilters.screens} onChange={e => setCanvasFilters(f => ({ ...f, screens: e.target.checked }))} className="h-4 w-4 rounded focus:ring-teal-500" style={{ accentColor: 'rgb(13 148 136)' }} />
-                <span>Screen Blocks</span>
-            </label>
-             <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
-                <input type="checkbox" checked={canvasFilters.config} onChange={e => setCanvasFilters(f => ({ ...f, config: e.target.checked }))} className="h-4 w-4 rounded focus:ring-red-500" style={{ accentColor: 'rgb(239 68 68)' }} />
-                <span>Config Blocks</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
-                <input type="checkbox" checked={canvasFilters.notes} onChange={e => setCanvasFilters(f => ({ ...f, notes: e.target.checked }))} className="h-4 w-4 rounded focus:ring-yellow-500" style={{ accentColor: 'rgb(234 179 8)' }} />
-                <span>Notes</span>
-            </label>
-            <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-            <label className="flex items-center space-x-2 cursor-pointer text-sm text-secondary">
-                <input type="checkbox" checked={canvasFilters.minimap} onChange={e => setCanvasFilters(f => ({ ...f, minimap: e.target.checked }))} className="h-4 w-4 rounded" style={{ accentColor: 'rgb(107 114 128)' }} />
-                <span>Minimap</span>
-            </label>
-            {availableCharacters.length > 0 && (
-              <>
-                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-primary px-1">Character</span>
-                  <select
-                    className="text-xs bg-secondary border border-primary rounded px-1.5 py-1 text-primary cursor-pointer"
-                    value={characterTagFilter}
-                    onChange={e => setCharacterTagFilter(e.target.value)}
-                    onPointerDown={e => e.stopPropagation()}
-                  >
-                    <option value="">All characters</option>
-                    {availableCharacters.map(c => (
-                      <option key={c.tag} value={c.tag}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-        </div>
+      </CanvasToolbox>
+
+      {/* ── Legend (top-right) ── */}
+      <div
+        className="absolute top-4 right-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden"
+        onPointerDown={e => e.stopPropagation()}
+        onContextMenu={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setShowLegend(v => !v)}
+          className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <span>Legend</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${showLegend ? '' : '-rotate-90'}`} viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {showLegend && (
+          <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
+            <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Arrows</div>
+            <div className="flex items-center gap-2">
+              <svg width="28" height="10" className="shrink-0">
+                <path d="M0,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+                <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
+              </svg>
+              Jump
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="28" height="10" className="shrink-0">
+                <circle cx="4" cy="5" r="3" fill="none" stroke="#4f46e5" strokeWidth="2" />
+                <path d="M8,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+                <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
+              </svg>
+              Call (returns)
+            </div>
+            <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Roles</div>
+            <div className="flex items-center gap-2">
+              <span className="w-10 h-4 shrink-0 rounded border-2 border-green-400 bg-green-50 dark:bg-green-900/20 inline-block" />
+              Story start
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-10 h-4 shrink-0 rounded border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-900/20 inline-block" />
+              Story end
+            </div>
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M15 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 9V4zM5 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 005 9V4z" opacity=".5"/><path d="M15 11a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 16v-5z" />
+              </svg>
+              Branching
+            </div>
+            <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Types</div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded border-2 border-gray-300 bg-white dark:bg-gray-800 inline-block" />
+              Story
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded border-2 border-teal-400 bg-teal-50 dark:bg-teal-900/20 inline-block" />
+              Screen
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded border-2 border-red-400 bg-red-50 dark:bg-red-900/20 inline-block" />
+              Config
+            </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -1152,77 +1191,24 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             />
         ))}
       </div>
-      {canvasFilters.minimap && (
-        <Minimap
-          items={minimapItems}
-          transform={transform}
-          canvasDimensions={canvasDimensions}
-          onTransformChange={onTransformChange}
+      {/* ── Bottom-right cluster: Nav controls + Minimap ── */}
+      <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-1.5" onPointerDown={e => e.stopPropagation()}>
+        <CanvasNavControls
+          onFit={fitToScreen}
+          fitTitle="Fit all blocks to screen (F)"
+          onGoToStart={centerOnStartBlock}
+          hasStart={!!startBlock}
         />
-      )}
-
-      <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2" onPointerDown={e => e.stopPropagation()}>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow overflow-hidden">
-          <button
-            onClick={() => setShowLegend(v => !v)}
-            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform ${showLegend ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            Legend
-          </button>
-          {showLegend && (
-            <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 min-w-[160px]">
-              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Arrows</div>
-              <div className="flex items-center gap-2">
-                <svg width="28" height="10" className="shrink-0">
-                  <path d="M0,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
-                  <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
-                </svg>
-                Jump
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="28" height="10" className="shrink-0">
-                  <circle cx="4" cy="5" r="3" fill="none" stroke="#4f46e5" strokeWidth="2" />
-                  <path d="M8,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
-                  <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
-                </svg>
-                Call (returns)
-              </div>
-              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Roles</div>
-              <div className="flex items-center gap-2">
-                <span className="w-10 h-4 shrink-0 rounded border-2 border-green-400 bg-green-50 dark:bg-green-900/20 inline-block" />
-                Story start
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-10 h-4 shrink-0 rounded border-2 border-dashed border-amber-400 bg-amber-50 dark:bg-amber-900/20 inline-block" />
-                Story end
-              </div>
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M15 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 9V4zM5 4a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 005 9V4z" opacity=".5"/><path d="M15 11a1 1 0 00-1.447-.894l-5 2.5a1 1 0 000 1.789l5 2.5A1 1 0 0015 16v-5z" />
-                </svg>
-                Branching
-              </div>
-              <div className="font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wide text-[10px] pt-1">Block Types</div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded border-2 border-gray-300 bg-white dark:bg-gray-800 inline-block" />
-                Story
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded border-2 border-teal-400 bg-teal-50 dark:bg-teal-900/20 inline-block" />
-                Screen
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded border-2 border-red-400 bg-red-50 dark:bg-red-900/20 inline-block" />
-                Config
-              </div>
-            </div>
-          )}
-        </div>
+        {canvasFilters.minimap && (
+          <Minimap
+            items={minimapItems}
+            transform={transform}
+            canvasDimensions={canvasDimensions}
+            onTransformChange={onTransformChange}
+          />
+        )}
       </div>
-      
+
       {canvasContextMenu && onCreateBlock && onAddStickyNote && (
         <CanvasContextMenu
             x={canvasContextMenu.x}

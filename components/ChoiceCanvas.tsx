@@ -15,6 +15,8 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import StickyNoteComponent from './StickyNote';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasLayoutControls from './CanvasLayoutControls';
+import CanvasToolbox from './CanvasToolbox';
+import CanvasNavControls from './CanvasNavControls';
 import Minimap from './Minimap';
 import type { MinimapItem } from './Minimap';
 import type { LabelNode, RouteLink, MouseGestureSettings, RenpyAnalysisResult, StickyNote, StoryCanvasLayoutMode, StoryCanvasGroupingMode } from '../types';
@@ -205,6 +207,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   // Node selection for depth-1 highlight (single click)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [showLegend, setShowLegend] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   // Interaction state: idle | panning | node-press
@@ -674,33 +677,8 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
 
       {/* ── Canvas ── */}
       <div ref={canvasAreaRef} className="flex-1 relative overflow-hidden">
-        {/* Top-right overlay: Fit, Go-to-start, layout controls */}
-        <div
-          className="cc-controls absolute top-3 right-3 z-20 flex items-center gap-1.5"
-          onPointerDown={e => e.stopPropagation()}
-        >
-          {hasStartNode && (
-            <button
-              onClick={centerOnStart}
-              aria-label="Go to start label"
-              title="Go to start label"
-              className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
-          <button
-            onClick={fitToScreen}
-            aria-label="Fit all nodes to screen"
-            title="Fit all nodes to screen"
-            className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H5.414l3.293 3.293a1 1 0 11-1.414 1.414L4 6.414V8a1 1 0 01-2 0V4zm13 0a1 1 0 01.707.293l-3.293 3.293a1 1 0 01-1.414-1.414L15.586 3H14a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V5.414l-3.293 3.293A1 1 0 0112.293 7.29zM3 16a1 1 0 010-2V12.414l3.293-3.293a1 1 0 011.414 1.414L4.414 14H6a1 1 0 010 2H4a1 1 0 01-1-1zm13 1a1 1 0 01-.707-.293l-3.293-3.293a1 1 0 011.414-1.414L16.586 15H15a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V16.586l-3.293 3.293A1 1 0 0113.293 19.29z" clipRule="evenodd" />
-            </svg>
-          </button>
+        {/* ── Canvas Toolbox (top-left) ── */}
+        <CanvasToolbox label="Choice Canvas">
           <CanvasLayoutControls
             canvasLabel="Choice Canvas"
             layoutMode={layoutMode}
@@ -709,8 +687,63 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             onChangeGroupingMode={onChangeGroupingMode}
             allowedLayoutModes={['flow-td', 'flow-lr', 'connected-components']}
             showGrouping={false}
+            embedded
           />
-        </div>
+        </CanvasToolbox>
+
+        {/* ── Legend (top-right) ── */}
+        {!isEmpty && (
+          <div
+            className="absolute top-4 right-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden"
+            onPointerDown={e => e.stopPropagation()}
+            onContextMenu={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowLegend(v => !v)}
+              className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span>Legend</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${showLegend ? '' : '-rotate-90'}`}
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {showLegend && (
+              <div className="px-3 pb-3 pt-1 space-y-1.5 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <svg width="22" height="8" className="shrink-0" aria-hidden="true">
+                    <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(129 140 248)" strokeWidth="2" />
+                    <polygon points="13,1.5 21,4 13,6.5" fill="rgb(129 140 248)" />
+                  </svg>
+                  Choice
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg width="22" height="8" className="shrink-0" aria-hidden="true">
+                    <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(156 163 175)" strokeWidth="1.5" />
+                    <polygon points="13,1.5 21,4 13,6.5" fill="rgb(156 163 175)" />
+                  </svg>
+                  Jump / Call
+                </div>
+                {showImplicit && (
+                  <div className="flex items-center gap-2">
+                    <svg width="22" height="8" className="shrink-0" aria-hidden="true">
+                      <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(209 213 219)" strokeWidth="1.5" strokeDasharray="4 3" />
+                      <polygon points="13,1.5 21,4 13,6.5" fill="rgb(209 213 219)" />
+                    </svg>
+                    Fall-through
+                  </div>
+                )}
+                <div className="pt-1 text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700">
+                  Click a node to highlight · double-click to open
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {isEmpty ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">
@@ -1118,45 +1151,21 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
           />
         )}
 
-        {/* ── Minimap ── */}
+        {/* ── Bottom-right cluster: Nav controls + Minimap ── */}
         {!isEmpty && (
-          <Minimap
-            items={minimapItems}
-            transform={transform}
-            canvasDimensions={canvasDimensions}
-            onTransformChange={onTransformChange}
-          />
-        )}
-
-        {/* ── Legend ── */}
-        {!isEmpty && (
-          <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs space-y-1.5 shadow pointer-events-none">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <svg width="22" height="8" className="shrink-0" aria-hidden="true">
-                <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(129 140 248)" strokeWidth="2" />
-                <polygon points="13,1.5 21,4 13,6.5" fill="rgb(129 140 248)" />
-              </svg>
-              Choice
-            </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <svg width="22" height="8" className="shrink-0" aria-hidden="true">
-                <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(156 163 175)" strokeWidth="1.5" />
-                <polygon points="13,1.5 21,4 13,6.5" fill="rgb(156 163 175)" />
-              </svg>
-              Jump / Call
-            </div>
-            {showImplicit && (
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <svg width="22" height="8" className="shrink-0" aria-hidden="true">
-                  <line x1="1" y1="4" x2="15" y2="4" stroke="rgb(209 213 219)" strokeWidth="1.5" strokeDasharray="4 3" />
-                  <polygon points="13,1.5 21,4 13,6.5" fill="rgb(209 213 219)" />
-                </svg>
-                Fall-through
-              </div>
-            )}
-            <div className="pt-1 text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700">
-              Click a node to highlight · double-click to open
-            </div>
+          <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-1.5" onPointerDown={e => e.stopPropagation()}>
+            <CanvasNavControls
+              onFit={fitToScreen}
+              fitTitle="Fit all nodes to screen"
+              onGoToStart={centerOnStart}
+              hasStart={hasStartNode}
+            />
+            <Minimap
+              items={minimapItems}
+              transform={transform}
+              canvasDimensions={canvasDimensions}
+              onTransformChange={onTransformChange}
+            />
           </div>
         )}
       </div>

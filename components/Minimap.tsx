@@ -156,7 +156,7 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     <div
       ref={minimapRef}
       onPointerDown={handlePan}
-      className="absolute bottom-4 right-4 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-lg"
+      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-lg"
       style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
     >
       <div className="relative w-full h-full overflow-hidden">

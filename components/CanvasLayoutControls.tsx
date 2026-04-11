@@ -14,6 +14,11 @@ interface CanvasLayoutControlsProps {
   allowedLayoutModes?: StoryCanvasLayoutMode[];
   /** Whether to show the grouping mode row. Defaults to true. */
   showGrouping?: boolean;
+  /**
+   * When true, renders without an outer container (no border/bg/shadow).
+   * Use when embedding inside CanvasToolbox which provides the container.
+   */
+  embedded?: boolean;
 }
 
 const baseButtonClass = 'h-9 w-9 rounded-md border transition-colors flex items-center justify-center';
@@ -55,10 +60,15 @@ const CanvasLayoutControls: React.FC<CanvasLayoutControlsProps> = ({
   onChangeViewLevel,
   allowedLayoutModes = ALL_LAYOUT_MODES,
   showGrouping = true,
+  embedded = false,
 }) => {
   return (
     <div
-      className={`layout-panel z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 shadow-lg backdrop-blur p-2 ${className}`}
+      className={
+        embedded
+          ? `p-3 ${className}`
+          : `layout-panel z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 shadow-lg backdrop-blur p-2 ${className}`
+      }
       onPointerDown={event => event.stopPropagation()}
     >
       <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">

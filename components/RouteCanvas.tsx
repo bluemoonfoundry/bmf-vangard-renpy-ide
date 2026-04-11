@@ -13,6 +13,10 @@ import FileBlock from './FileBlock';
 import ViewRoutesPanel from './ViewRoutesPanel';
 import Minimap from './Minimap';
 import CanvasLayoutControls from './CanvasLayoutControls';
+import CanvasToolbox from './CanvasToolbox';
+import CanvasNavControls from './CanvasNavControls';
+import MenuInspectorPanel from './MenuInspectorPanel';
+import type { SelectedMenu, MenuPopoverChoice } from './MenuInspectorPanel';
 import StickyNoteComponent from './StickyNote';
 import CanvasContextMenu from './CanvasContextMenu';
 import type { MinimapItem } from './Minimap';
@@ -40,22 +44,6 @@ interface RouteCanvasProps {
 }
 
 interface Rect { x: number; y: number; width: number; height: number; }
-
-interface MenuPopoverChoice {
-  choiceText: string;
-  choiceCondition?: string;
-  targetLabel: string;
-  sourceLine?: number;
-  blockId: string;
-  routeColors: string[]; // colors of currently-checked routes that include this choice
-}
-
-interface SelectedMenu {
-  groupKey: string;
-  sourceLabel: string;
-  menuLine: number;
-  choices: MenuPopoverChoice[];
-}
 
 interface RouteNavigationEntry {
   nodeId: string | null;
@@ -174,9 +162,9 @@ const Arrow: React.FC<{
             event.stopPropagation();
             onOpenContextMenu(event, link);
           }}
-          title={`Click to center ${targetNode.label}. Alt+click centers ${sourceNode.label}.`}
           style={{ cursor: 'pointer', pointerEvents: 'all', filter: isHovered ? 'brightness(1.5) drop-shadow(0 0 4px currentColor)' : undefined }}
         >
+          <title>{`Click to center ${targetNode.label}. Alt+click centers ${sourceNode.label}.`}</title>
           <path
               d={pathData}
               stroke="transparent"
@@ -278,88 +266,6 @@ const BlockContainer: React.FC<{
             </div>
         </div>
     );
-};
-
-const MenuInspectorPanel: React.FC<{
-  selectedMenu: SelectedMenu | null;
-  isOpen: boolean;
-  onToggle: () => void;
-  onOpenEditor: (blockId: string, line: number) => void;
-}> = ({ selectedMenu, isOpen, onToggle, onOpenEditor }) => {
-  const firstChoice = selectedMenu?.choices[0];
-  return (
-    <div
-      className="absolute top-4 left-4 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-64 overflow-hidden"
-      onPointerDown={e => e.stopPropagation()}
-    >
-      <button
-        className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        onClick={onToggle}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="shrink-0">Menu Inspector</span>
-          {selectedMenu && (
-            <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400 truncate">
-              {selectedMenu.sourceLabel}
-            </span>
-          )}
-        </div>
-        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-400 shrink-0 transition-transform ml-1 ${isOpen ? '' : '-rotate-90'}`} viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
-      </button>
-      {isOpen && (
-        !selectedMenu ? (
-          <div className="px-3 py-5 text-xs text-center text-gray-400 dark:text-gray-500">
-            Click a menu pill <span className="inline-block w-3 h-3 rounded-full bg-indigo-500 opacity-80 align-middle" /> to inspect choices
-          </div>
-        ) : (
-          <>
-            <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto">
-              {selectedMenu.choices.map((choice, i) => (
-                <li key={i} className="px-3 py-2">
-                  <div className="flex items-start gap-2">
-                    <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold flex items-center justify-center">
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-900 dark:text-gray-100 leading-snug break-words">
-                        &ldquo;{choice.choiceText}&rdquo;
-                      </p>
-                      {choice.choiceCondition && (
-                        <span className="mt-1 text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 rounded px-1 py-px inline-block">
-                          if {choice.choiceCondition}
-                        </span>
-                      )}
-                      <div className="mt-0.5 flex items-center gap-1.5">
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                          → <span className="font-mono text-indigo-500 dark:text-indigo-400">{choice.targetLabel}</span>
-                        </span>
-                        {choice.routeColors.map((color, ci) => (
-                          <span key={ci} className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: color }} title="Part of a highlighted route" />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="border-t border-gray-100 dark:border-gray-700 px-3 py-2 flex items-center justify-between">
-              <span className="text-xs text-gray-400 dark:text-gray-500">line {selectedMenu.menuLine}</span>
-              {firstChoice && (
-                <button
-                  className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline"
-                  onClick={() => onOpenEditor(firstChoice.blockId, selectedMenu.menuLine)}
-                >
-                  Open in editor ↗
-                </button>
-              )}
-            </div>
-          </>
-        )
-      )}
-    </div>
-  );
 };
 
 type InteractionState =
@@ -1236,38 +1142,8 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
       onPointerDown={handlePointerDown}
       onContextMenu={handleContextMenu}
     >
-      <div
-        className="absolute top-4 right-4 z-20 flex max-w-[calc(100%-2rem)] flex-col gap-3 xl:flex-row xl:items-start"
-        onPointerDown={e => e.stopPropagation()}
-      >
-        {/* Fit + Go-to-start — same position/style as in Choice Canvas */}
-        <div className="flex items-center gap-1.5 order-3 xl:order-0">
-          {labelNodes.some(n => n.label === 'start') && (
-            <button
-              onClick={() => {
-                const startNode = labelNodes.find(n => n.label === 'start');
-                if (startNode) centerOnNode(startNode.id, { recordHistory: true });
-              }}
-              title="Go to start label"
-              aria-label="Go to start label"
-              className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
-          <button
-            onClick={fitToScreen}
-            title="Fit all nodes to screen (F)"
-            aria-label="Fit all nodes to screen"
-            className="h-9 w-9 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H5.414l3.293 3.293a1 1 0 11-1.414 1.414L4 6.414V8a1 1 0 01-2 0V4zm13 0a1 1 0 01.707.293l-3.293 3.293a1 1 0 01-1.414-1.414L15.586 3H14a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V5.414l-3.293 3.293A1 1 0 0112.293 7.29zM3 16a1 1 0 010-2V12.414l3.293-3.293a1 1 0 011.414 1.414L4.414 14H6a1 1 0 010 2H4a1 1 0 01-1-1zm13 1a1 1 0 01-.707-.293l-3.293-3.293a1 1 0 011.414-1.414L16.586 15H15a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V16.586l-3.293 3.293A1 1 0 0113.293 19.29z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+      {/* ── Canvas Toolbox (top-left) — section order: Layout → Nav → Routes → Menu Inspector ── */}
+      <CanvasToolbox label="Route Canvas">
         <CanvasLayoutControls
           canvasLabel="Route Canvas"
           layoutMode={layoutMode}
@@ -1276,255 +1152,10 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
           onChangeGroupingMode={onChangeGroupingMode}
           viewLevel={viewLevel}
           onChangeViewLevel={handleChangeViewLevel}
-          className="order-2 xl:order-1"
+          embedded
         />
-        <ViewRoutesPanel
-          routes={identifiedRoutes}
-          routesTruncated={routesTruncated}
-          checkedRoutes={checkedRoutes}
-          onToggleRoute={handleToggleRoute}
-          routeLabels={routeLabels}
-          className="order-1 xl:order-2"
-        />
-      </div>
-      <div
-        className="absolute top-0 left-0"
-        style={{
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          transformOrigin: '0 0',
-        }}
-      >
-        {/* Layer 0: Block Group Containers */}
-        {blockGroups.map(group => (
-            <BlockContainer 
-                key={group.id} 
-                id={group.id} 
-                title={group.title} 
-                rect={group.rect} 
-                isDimmed={linkColors !== null} // Dim background containers if a route is selected
-            />
-        ))}
-
-        <svg 
-          className="absolute pointer-events-none"
-          style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 5 }}
-        >
-          <defs>
-            {/* Markers: viewBox="0 0 10 10", triangle shape M0,0 L10,5 L0,10 z, bigger size 12x12 */}
-            <marker id="arrowhead-4f46e5" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5" />
-            </marker>
-            <marker id="arrowhead-7c3aed" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed" />
-            </marker>
-            <marker id="arrowhead-94a3b8" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" />
-            </marker>
-            {identifiedRoutes.map(route => (
-                <marker key={route.id} id={`arrowhead-${route.color.replace('#', '')}`} viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-                    <path d="M0,0 L10,5 L0,10 z" fill={route.color} />
-                </marker>
-            ))}
-          </defs>
-          <g transform={`translate(${-svgBounds.left}, ${-svgBounds.top})`}>
-            {renderedLinks.map((link) => {
-              const sourceNode = nodeMap.get(link.sourceId);
-              const targetNode = nodeMap.get(link.targetId);
-              if (!sourceNode || !targetNode) return null;
-
-              const [sourcePos, targetPos] = getOptimalPath(sourceNode, targetNode);
-
-              let color = link.type === 'implicit' ? "#94a3b8" : link.type === 'call' ? "#7c3aed" : "#4f46e5";
-              let isDimmed = false;
-
-              if (viewLevel === 'file') {
-                // In file view: only apply focus/trace dimming, no route coloring
-                if (traceNodeIds && traceEdgeIds) {
-                  isDimmed = !traceEdgeIds.has(link.id);
-                } else if (focusedNodeIds) {
-                  isDimmed = !focusedNodeIds.has(link.sourceId) || !focusedNodeIds.has(link.targetId);
-                }
-              } else {
-                if (traceNodeIds && traceEdgeIds) {
-                  isDimmed = !traceEdgeIds.has(link.id);
-                  if (!isDimmed) color = linkColors?.get(link.id) ?? '#4f46e5';
-                } else if (focusedNodeIds) {
-                  isDimmed = !focusedNodeIds.has(link.sourceId) || !focusedNodeIds.has(link.targetId);
-                  if (!isDimmed && linkColors?.has(link.id)) color = linkColors.get(link.id)!;
-                } else if (linkColors) {
-                  if (linkColors.has(link.id)) {
-                    color = linkColors.get(link.id)!;
-                  } else {
-                    isDimmed = true;
-                    color = '#9ca3af'; // gray
-                  }
-                }
-              }
-
-              return (
-                <Arrow
-                  key={link.id}
-                  link={link}
-                  sourcePos={sourcePos}
-                  targetPos={targetPos}
-                  sourceNode={sourceNode}
-                  targetNode={targetNode}
-                  type={link.type}
-                  color={color}
-                  isDimmed={isDimmed}
-                  onFollow={handleFollowLink}
-                  onOpenContextMenu={handleOpenEdgeContextMenu}
-                />
-              );
-            })}
-            {/* One pill per menu group — offset outward from the node boundary (label view only) */}
-            {viewLevel === 'label' && Array.from(menuGroups.entries()).map(([key, group]) => {
-              const { links, sourcePos } = group[0];
-              const firstLink = links[0];
-              const color = linkColors?.get(firstLink.id) ?? '#4f46e5';
-
-              // Push the pill outward past the node edge so it isn't obscured
-              const sourceNode = nodeMap.get(firstLink.sourceId);
-              let cx = sourcePos.x;
-              let cy = sourcePos.y;
-              if (sourceNode) {
-                const ncx = sourceNode.position.x + sourceNode.width / 2;
-                const ncy = sourceNode.position.y + sourceNode.height / 2;
-                const dx = sourcePos.x - ncx;
-                const dy = sourcePos.y - ncy;
-                const dist = Math.hypot(dx, dy) || 1;
-                const offset = 11 + 10; // pill radius + gap
-                cx = sourcePos.x + (dx / dist) * offset;
-                cy = sourcePos.y + (dy / dist) * offset;
-              }
-
-              return (
-                <MenuPill
-                  key={key}
-                  cx={cx}
-                  cy={cy}
-                  count={links.length}
-                  color={color}
-                  isActive={selectedMenu?.groupKey === key}
-                  onClick={(e) => handleMenuPillClick(e, key)}
-                />
-              );
-            })}
-          </g>
-        </svg>
-
-        {rubberBandRect && <RubberBand rect={rubberBandRect} />}
-
-        {/* Sticky notes */}
-        {stickyNotes.map(note => (
-          <div
-            key={note.id}
-            onPointerDown={e => handleNoteDragStart(e, note.id)}
-          >
-            <StickyNoteComponent
-              note={note}
-              updateNote={updateStickyNote}
-              deleteNote={deleteStickyNote}
-              isSelected={selectedNoteIds.includes(note.id)}
-              isDragging={false}
-            />
-          </div>
-        ))}
-
-        {viewLevel === 'file' && fileGraph
-          ? fileGraph.nodes.map(node => {
-              const isSelected = selectedNodeIds.includes(node.id);
-              let isNodeDimmed = false;
-              if (traceNodeIds) isNodeDimmed = !traceNodeIds.has(node.id);
-              else if (focusedNodeIds) isNodeDimmed = !focusedNodeIds.has(node.id);
-              return (
-                <FileBlock
-                  key={node.id}
-                  node={node}
-                  labelCount={fileGraph.labelCountByFile.get(node.id) ?? 0}
-                  onDrillDown={handleDrillDown}
-                  onOpenEditor={onOpenEditor}
-                  isSelected={isSelected}
-                  isDimmed={isNodeDimmed && !isSelected}
-                />
-              );
-            })
-          : labelNodes.map((node) => {
-              const isSelected = selectedNodeIds.includes(node.id);
-              let isNodeDimmed = false;
-              if (traceNodeIds) isNodeDimmed = !traceNodeIds.has(node.id);
-              else if (focusedNodeIds) isNodeDimmed = !focusedNodeIds.has(node.id);
-
-              // Overlay: only active when overlayMode is set and the node matches
-              let overlayHighlight: 'hub' | 'branch' | 'menu-heavy' | 'call-heavy' | null = null;
-              let overlayCount: number | undefined;
-              if (overlayMode === 'hubs' && hubData.set.has(node.id)) {
-                overlayHighlight = 'hub';
-                overlayCount = hubData.counts.get(node.id);
-              } else if (overlayMode === 'branch-points' && branchData.set.has(node.id)) {
-                overlayHighlight = 'branch';
-                overlayCount = branchData.counts.get(node.id);
-              } else if (overlayMode === 'menu-heavy' && menuHeavyData.set.has(node.id)) {
-                overlayHighlight = 'menu-heavy';
-                overlayCount = menuHeavyData.counts.get(node.id);
-              } else if (overlayMode === 'call-heavy' && callHeavyData.set.has(node.id)) {
-                overlayHighlight = 'call-heavy';
-                overlayCount = callHeavyData.counts.get(node.id);
-              }
-
-              return (
-                <LabelBlock
-                  key={node.id}
-                  node={node}
-                  onOpenEditor={onOpenEditor}
-                  isSelected={isSelected}
-                  isDragging={isDraggingSelection && isSelected}
-                  isEntry={node.id === entryNodeId}
-                  isUnreachable={unreachableNodeIds.has(node.id)}
-                  isDeadEnd={deadEndNodeIds.has(node.id)}
-                  isDimmed={isNodeDimmed && !isSelected}
-                  overlayHighlight={overlayHighlight}
-                  overlayCount={overlayCount}
-                />
-              );
-            })
-        }
-      </div>
-      <MenuInspectorPanel
-        selectedMenu={selectedMenu}
-        isOpen={isMenuPanelOpen}
-        onToggle={() => setIsMenuPanelOpen(v => !v)}
-        onOpenEditor={onOpenEditor}
-      />
-      {edgeContextMenu && (
-        <div
-          className="route-edge-menu fixed z-30 w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
-          style={{ left: edgeContextMenu.x, top: edgeContextMenu.y }}
-          onPointerDown={event => event.stopPropagation()}
-        >
-          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => handleFollowLink(edgeContextMenu.link, 'target')}>
-            Center target
-          </button>
-          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => handleFollowLink(edgeContextMenu.link, 'source')}>
-            Center source
-          </button>
-          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => {
-            const node = nodeMap.get(edgeContextMenu.link.targetId);
-            if (node) onOpenEditor(node.blockId, node.startLine);
-            closeTransientUi();
-          }}>
-            Open target in editor
-          </button>
-          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => {
-            const node = nodeMap.get(edgeContextMenu.link.sourceId);
-            if (node) onOpenEditor(node.blockId, node.startLine);
-            closeTransientUi();
-          }}>
-            Open source in editor
-          </button>
-        </div>
-      )}
-      <div className="route-nav-panel absolute bottom-4 left-4 z-20 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 shadow-lg" onPointerDown={e => e.stopPropagation()}>
+        {/* ── Navigation: back/forward, go-to-label, focus, overlays, edge filters, trace, inspectors ── */}
+        <div className="flex flex-col gap-2 p-2">
 
         {/* ── Row 1: Back / Forward / Go-to-label ── */}
         <div className="flex items-center gap-2">
@@ -1910,93 +1541,353 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
             </div>
           );
         })()}
-
-      </div>
-      {/* Bottom-left controls: Legend */}
-      <div className="absolute bottom-4 left-[312px] z-20 flex flex-col items-start gap-2" onPointerDown={e => e.stopPropagation()}>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow overflow-hidden">
-          <button
-            onClick={() => setShowLegend(v => !v)}
-            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform ${showLegend ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            Legend
-          </button>
-          {showLegend && (
-            <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Edges</p>
-              <div className="flex items-center gap-2">
-                <svg width="28" height="10" className="shrink-0">
-                  <path d="M0,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
-                  <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
-                </svg>
-                Jump
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="28" height="10" className="shrink-0">
-                  <circle cx="4" cy="5" r="3.5" fill="none" stroke="#7c3aed" strokeWidth="2" />
-                  <path d="M8,5 L20,5" stroke="#7c3aed" strokeWidth="2.5" fill="none" />
-                  <polygon points="18,2 26,5 18,8" fill="#7c3aed" />
-                </svg>
-                Call <span className="text-gray-400 dark:text-gray-500">(circle = returns)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="28" height="10" className="shrink-0">
-                  <path d="M0,5 L20,5" stroke="#94a3b8" strokeWidth="2.5" fill="none" strokeDasharray="4,2" />
-                  <polygon points="18,2 26,5 18,8" fill="#94a3b8" />
-                </svg>
-                Implicit flow
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="16" height="16" className="shrink-0">
-                  <circle cx="8" cy="8" r="7" fill="#4f46e5" opacity="0.9" />
-                  <text x="8" y="8" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">2</text>
-                </svg>
-                Menu choices
-              </div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Nodes</p>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-green-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Entry (start)
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-orange-400 border-2 border-white dark:border-gray-800 inline-block" />
-                Unreachable
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-amber-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Dead end
-              </div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Overlays</p>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-sky-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Hub (≥3 incoming)
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-violet-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Branch (≥3 outgoing)
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-rose-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Menu-heavy (≥2 menus)
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 shrink-0 rounded-full bg-teal-500 border-2 border-white dark:border-gray-800 inline-block" />
-                Call-heavy (≥2 calls in)
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+        <ViewRoutesPanel
+          routes={identifiedRoutes}
+          routesTruncated={routesTruncated}
+          checkedRoutes={checkedRoutes}
+          onToggleRoute={handleToggleRoute}
+          routeLabels={routeLabels}
+          embedded
+        />
+        <MenuInspectorPanel
+          selectedMenu={selectedMenu}
+          isOpen={isMenuPanelOpen}
+          onToggle={() => setIsMenuPanelOpen(v => !v)}
+          onOpenEditor={onOpenEditor}
+          embedded
+        />
+      </CanvasToolbox>
 
-      <Minimap
-        items={minimapItems}
-        transform={transform}
-        canvasDimensions={canvasDimensions}
-        onTransformChange={onTransformChange}
-      />
+      {/* ── Legend (top-right) ── */}
+      <div
+        className="absolute top-4 right-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden"
+        onPointerDown={e => e.stopPropagation()}
+        onContextMenu={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setShowLegend(v => !v)}
+          className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <span>Legend</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${showLegend ? '' : '-rotate-90'}`} viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+        {showLegend && (
+          <div className="px-3 pb-3 pt-1 space-y-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Edges</p>
+            <div className="flex items-center gap-2">
+              <svg width="28" height="10" className="shrink-0">
+                <path d="M0,5 L20,5" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+                <polygon points="18,2 26,5 18,8" fill="#4f46e5" />
+              </svg>
+              Jump
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="28" height="10" className="shrink-0">
+                <circle cx="4" cy="5" r="3.5" fill="none" stroke="#7c3aed" strokeWidth="2" />
+                <path d="M8,5 L20,5" stroke="#7c3aed" strokeWidth="2.5" fill="none" />
+                <polygon points="18,2 26,5 18,8" fill="#7c3aed" />
+              </svg>
+              Call <span className="text-gray-400 dark:text-gray-500">(circle = returns)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="28" height="10" className="shrink-0">
+                <path d="M0,5 L20,5" stroke="#94a3b8" strokeWidth="2.5" fill="none" strokeDasharray="4,2" />
+                <polygon points="18,2 26,5 18,8" fill="#94a3b8" />
+              </svg>
+              Implicit flow
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" className="shrink-0">
+                <circle cx="8" cy="8" r="7" fill="#4f46e5" opacity="0.9" />
+                <text x="8" y="8" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="bold" fill="white">2</text>
+              </svg>
+              Menu choices
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Nodes</p>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-green-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Entry (start)
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-orange-400 border-2 border-white dark:border-gray-800 inline-block" />
+              Unreachable
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-amber-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Dead end
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Overlays</p>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-sky-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Hub (≥3 incoming)
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-violet-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Branch (≥3 outgoing)
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-rose-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Menu-heavy (≥2 menus)
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 shrink-0 rounded-full bg-teal-500 border-2 border-white dark:border-gray-800 inline-block" />
+              Call-heavy (≥2 calls in)
+            </div>
+          </div>
+        )}
+      </div>
+      <div
+        className="absolute top-0 left-0"
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          transformOrigin: '0 0',
+        }}
+      >
+        {/* Layer 0: Block Group Containers */}
+        {blockGroups.map(group => (
+            <BlockContainer 
+                key={group.id} 
+                id={group.id} 
+                title={group.title} 
+                rect={group.rect} 
+                isDimmed={linkColors !== null} // Dim background containers if a route is selected
+            />
+        ))}
+
+        <svg 
+          className="absolute pointer-events-none"
+          style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 5 }}
+        >
+          <defs>
+            {/* Markers: viewBox="0 0 10 10", triangle shape M0,0 L10,5 L0,10 z, bigger size 12x12 */}
+            <marker id="arrowhead-4f46e5" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5" />
+            </marker>
+            <marker id="arrowhead-7c3aed" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed" />
+            </marker>
+            <marker id="arrowhead-94a3b8" viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8" />
+            </marker>
+            {identifiedRoutes.map(route => (
+                <marker key={route.id} id={`arrowhead-${route.color.replace('#', '')}`} viewBox="0 0 10 10" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L10,5 L0,10 z" fill={route.color} />
+                </marker>
+            ))}
+          </defs>
+          <g transform={`translate(${-svgBounds.left}, ${-svgBounds.top})`}>
+            {renderedLinks.map((link) => {
+              const sourceNode = nodeMap.get(link.sourceId);
+              const targetNode = nodeMap.get(link.targetId);
+              if (!sourceNode || !targetNode) return null;
+
+              const [sourcePos, targetPos] = getOptimalPath(sourceNode, targetNode);
+
+              let color = link.type === 'implicit' ? "#94a3b8" : link.type === 'call' ? "#7c3aed" : "#4f46e5";
+              let isDimmed = false;
+
+              if (viewLevel === 'file') {
+                // In file view: only apply focus/trace dimming, no route coloring
+                if (traceNodeIds && traceEdgeIds) {
+                  isDimmed = !traceEdgeIds.has(link.id);
+                } else if (focusedNodeIds) {
+                  isDimmed = !focusedNodeIds.has(link.sourceId) || !focusedNodeIds.has(link.targetId);
+                }
+              } else {
+                if (traceNodeIds && traceEdgeIds) {
+                  isDimmed = !traceEdgeIds.has(link.id);
+                  if (!isDimmed) color = linkColors?.get(link.id) ?? '#4f46e5';
+                } else if (focusedNodeIds) {
+                  isDimmed = !focusedNodeIds.has(link.sourceId) || !focusedNodeIds.has(link.targetId);
+                  if (!isDimmed && linkColors?.has(link.id)) color = linkColors.get(link.id)!;
+                } else if (linkColors) {
+                  if (linkColors.has(link.id)) {
+                    color = linkColors.get(link.id)!;
+                  } else {
+                    isDimmed = true;
+                    color = '#9ca3af'; // gray
+                  }
+                }
+              }
+
+              return (
+                <Arrow
+                  key={link.id}
+                  link={link}
+                  sourcePos={sourcePos}
+                  targetPos={targetPos}
+                  sourceNode={sourceNode}
+                  targetNode={targetNode}
+                  type={link.type}
+                  color={color}
+                  isDimmed={isDimmed}
+                  onFollow={handleFollowLink}
+                  onOpenContextMenu={handleOpenEdgeContextMenu}
+                />
+              );
+            })}
+            {/* One pill per menu group — offset outward from the node boundary (label view only) */}
+            {viewLevel === 'label' && Array.from(menuGroups.entries()).map(([key, group]) => {
+              const { links, sourcePos } = group[0];
+              const firstLink = links[0];
+              const color = linkColors?.get(firstLink.id) ?? '#4f46e5';
+
+              // Push the pill outward past the node edge so it isn't obscured
+              const sourceNode = nodeMap.get(firstLink.sourceId);
+              let cx = sourcePos.x;
+              let cy = sourcePos.y;
+              if (sourceNode) {
+                const ncx = sourceNode.position.x + sourceNode.width / 2;
+                const ncy = sourceNode.position.y + sourceNode.height / 2;
+                const dx = sourcePos.x - ncx;
+                const dy = sourcePos.y - ncy;
+                const dist = Math.hypot(dx, dy) || 1;
+                const offset = 11 + 10; // pill radius + gap
+                cx = sourcePos.x + (dx / dist) * offset;
+                cy = sourcePos.y + (dy / dist) * offset;
+              }
+
+              return (
+                <MenuPill
+                  key={key}
+                  cx={cx}
+                  cy={cy}
+                  count={links.length}
+                  color={color}
+                  isActive={selectedMenu?.groupKey === key}
+                  onClick={(e) => handleMenuPillClick(e, key)}
+                />
+              );
+            })}
+          </g>
+        </svg>
+
+        {rubberBandRect && <RubberBand rect={rubberBandRect} />}
+
+        {/* Sticky notes */}
+        {stickyNotes.map(note => (
+          <div
+            key={note.id}
+            onPointerDown={e => handleNoteDragStart(e, note.id)}
+          >
+            <StickyNoteComponent
+              note={note}
+              updateNote={updateStickyNote}
+              deleteNote={deleteStickyNote}
+              isSelected={selectedNoteIds.includes(note.id)}
+              isDragging={false}
+            />
+          </div>
+        ))}
+
+        {viewLevel === 'file' && fileGraph
+          ? fileGraph.nodes.map(node => {
+              const isSelected = selectedNodeIds.includes(node.id);
+              let isNodeDimmed = false;
+              if (traceNodeIds) isNodeDimmed = !traceNodeIds.has(node.id);
+              else if (focusedNodeIds) isNodeDimmed = !focusedNodeIds.has(node.id);
+              return (
+                <FileBlock
+                  key={node.id}
+                  node={node}
+                  labelCount={fileGraph.labelCountByFile.get(node.id) ?? 0}
+                  onDrillDown={handleDrillDown}
+                  onOpenEditor={onOpenEditor}
+                  isSelected={isSelected}
+                  isDimmed={isNodeDimmed && !isSelected}
+                />
+              );
+            })
+          : labelNodes.map((node) => {
+              const isSelected = selectedNodeIds.includes(node.id);
+              let isNodeDimmed = false;
+              if (traceNodeIds) isNodeDimmed = !traceNodeIds.has(node.id);
+              else if (focusedNodeIds) isNodeDimmed = !focusedNodeIds.has(node.id);
+
+              // Overlay: only active when overlayMode is set and the node matches
+              let overlayHighlight: 'hub' | 'branch' | 'menu-heavy' | 'call-heavy' | null = null;
+              let overlayCount: number | undefined;
+              if (overlayMode === 'hubs' && hubData.set.has(node.id)) {
+                overlayHighlight = 'hub';
+                overlayCount = hubData.counts.get(node.id);
+              } else if (overlayMode === 'branch-points' && branchData.set.has(node.id)) {
+                overlayHighlight = 'branch';
+                overlayCount = branchData.counts.get(node.id);
+              } else if (overlayMode === 'menu-heavy' && menuHeavyData.set.has(node.id)) {
+                overlayHighlight = 'menu-heavy';
+                overlayCount = menuHeavyData.counts.get(node.id);
+              } else if (overlayMode === 'call-heavy' && callHeavyData.set.has(node.id)) {
+                overlayHighlight = 'call-heavy';
+                overlayCount = callHeavyData.counts.get(node.id);
+              }
+
+              return (
+                <LabelBlock
+                  key={node.id}
+                  node={node}
+                  onOpenEditor={onOpenEditor}
+                  isSelected={isSelected}
+                  isDragging={isDraggingSelection && isSelected}
+                  isEntry={node.id === entryNodeId}
+                  isUnreachable={unreachableNodeIds.has(node.id)}
+                  isDeadEnd={deadEndNodeIds.has(node.id)}
+                  isDimmed={isNodeDimmed && !isSelected}
+                  overlayHighlight={overlayHighlight}
+                  overlayCount={overlayCount}
+                />
+              );
+            })
+        }
+      </div>
+      {edgeContextMenu && (
+        <div
+          className="route-edge-menu fixed z-30 w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
+          style={{ left: edgeContextMenu.x, top: edgeContextMenu.y }}
+          onPointerDown={event => event.stopPropagation()}
+        >
+          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => handleFollowLink(edgeContextMenu.link, 'target')}>
+            Center target
+          </button>
+          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => handleFollowLink(edgeContextMenu.link, 'source')}>
+            Center source
+          </button>
+          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => {
+            const node = nodeMap.get(edgeContextMenu.link.targetId);
+            if (node) onOpenEditor(node.blockId, node.startLine);
+            closeTransientUi();
+          }}>
+            Open target in editor
+          </button>
+          <button className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => {
+            const node = nodeMap.get(edgeContextMenu.link.sourceId);
+            if (node) onOpenEditor(node.blockId, node.startLine);
+            closeTransientUi();
+          }}>
+            Open source in editor
+          </button>
+        </div>
+      )}
+      {/* ── Bottom-right cluster: Nav controls + Minimap ── */}
+      <div className="absolute bottom-4 right-4 z-30 flex flex-col items-end gap-1.5" onPointerDown={e => e.stopPropagation()}>
+        <CanvasNavControls
+          onFit={fitToScreen}
+          fitTitle="Fit all nodes to screen (F)"
+          onGoToStart={() => {
+            const startNode = labelNodes.find(n => n.label === 'start');
+            if (startNode) centerOnNode(startNode.id, { recordHistory: true });
+          }}
+          hasStart={labelNodes.some(n => n.label === 'start')}
+        />
+        <Minimap
+          items={minimapItems}
+          transform={transform}
+          canvasDimensions={canvasDimensions}
+          onTransformChange={onTransformChange}
+        />
+      </div>
       {canvasContextMenu && (
         <CanvasContextMenu
           x={canvasContextMenu.x}
