@@ -177,8 +177,17 @@ export function computeLayeredLayoutGeneric<N extends LayoutNode>(
 
 /**
  * BFS-based layer assignment for cyclic components.
- * Mirrors the original algorithm: start from zero in-degree nodes (within the component),
- * decrement in-degrees as layers are consumed, push leftovers into a final layer.
+ *
+ * Uses progressive cycle-breaking: when the BFS queue empties but unvisited nodes
+ * remain (a cycle has stalled progress), we re-seed from the unvisited node with the
+ * minimum accumulated in-degree. That node is the best cycle-break point because it
+ * has the fewest unprocessed predecessors, so it violates the fewest ordering
+ * constraints. This repeats until every node is placed, producing a layout where
+ * back-edges are rendered as left-pointing arrows rather than dumping all cycle
+ * participants into a single crowded column.
+ *
+ * Complexity: O(V² + E) worst case (rare deep nesting of cycles);
+ *             O(V + E) for typical story graphs with a small number of back-edges.
  */
 function bfsLayers(
   componentNodeIds: string[],
@@ -186,7 +195,6 @@ function bfsLayers(
   componentNodeSet: Set<string>,
 ): string[][] {
   const inDegree = new Map<string, number>();
-  const queue: string[] = [];
 
   componentNodeIds.forEach(id => {
     let degree = 0;
@@ -194,18 +202,34 @@ function bfsLayers(
       if (componentNodeSet.has(source)) degree++;
     });
     inDegree.set(id, degree);
-    if (degree === 0) queue.push(id);
   });
-
-  // If all nodes have incoming edges (pure cycle), seed with the first node
-  if (queue.length === 0 && componentNodeIds.length > 0) {
-    queue.push(componentNodeIds[0]);
-  }
 
   const visited = new Set<string>();
   const layers: string[][] = [];
+  const queue: string[] = [];
 
-  while (queue.length > 0) {
+  // Seed with zero in-degree nodes; fall back to first node for pure cycles.
+  componentNodeIds.forEach(id => { if ((inDegree.get(id) ?? 0) === 0) queue.push(id); });
+  if (queue.length === 0 && componentNodeIds.length > 0) queue.push(componentNodeIds[0]);
+
+  while (visited.size < componentNodeIds.length) {
+    // Queue exhausted but unvisited nodes remain — a cycle has stalled the BFS.
+    // Break it by seeding from the unvisited node with the minimum in-degree:
+    // that node has the most predecessors already placed, so it is the least
+    // disruptive cut point in the cycle.
+    if (queue.length === 0) {
+      let minDeg = Infinity;
+      let seed = '';
+      for (const id of componentNodeIds) {
+        if (visited.has(id)) continue;
+        const deg = inDegree.get(id) ?? 0;
+        if (deg < minDeg) { minDeg = deg; seed = id; }
+      }
+      if (seed) queue.push(seed);
+    }
+
+    if (queue.length === 0) break; // Defensive: all nodes already visited.
+
     const layerSize = queue.length;
     const currentLayer: string[] = [];
 
@@ -216,7 +240,10 @@ function bfsLayers(
       currentLayer.push(current);
 
       graph.forEachOutEdge(current, (_edge, _attrs, _source, target) => {
-        if (!componentNodeSet.has(target)) return;
+        // Skip edges that leave the component or point back to already-placed nodes
+        // (back-edges in the cycle); they are still drawn as arrows but ignored for
+        // layer assignment.
+        if (!componentNodeSet.has(target) || visited.has(target)) return;
         inDegree.set(target, (inDegree.get(target) ?? 1) - 1);
         if ((inDegree.get(target) ?? 0) <= 0) {
           queue.push(target);
@@ -228,9 +255,6 @@ function bfsLayers(
       layers.push(currentLayer);
     }
   }
-
-  const leftovers = componentNodeIds.filter(id => !visited.has(id));
-  if (leftovers.length > 0) layers.push(leftovers);
 
   return layers;
 }

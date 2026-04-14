@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid,
 } from 'recharts';
@@ -135,6 +135,13 @@ function computePathStats(
 }
 
 // ── Shared components ─────────────────────────────────────────────────────────
+
+const InlineSpinner: React.FC = () => (
+  <svg className="animate-spin h-5 w-5 text-indigo-400 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+  </svg>
+);
 
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">{children}</h2>
@@ -280,31 +287,41 @@ const StatsView: React.FC<StatsViewProps> = ({
   const { branchingBlockIds, labels, characters, dialogueLines } = analysisResult;
   const { identifiedRoutes, labelNodes, routeLinks, routesTruncated } = routeAnalysisResult;
 
-  const totalWords = useMemo(
-    () => blocks.reduce((acc, b) => acc + countWordsInScript(b.content), 0),
-    [blocks],
-  );
+  const [totalWords, setTotalWords] = useState<number | null>(null);
+  useEffect(() => {
+    setTotalWords(null);
+    const id = setTimeout(() => {
+      setTotalWords(blocks.reduce((acc, b) => acc + countWordsInScript(b.content), 0));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [blocks]);
 
-  const characterWordCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    const DIALOGUE_RE = /(?:[a-zA-Z0-9_]+\s)?"((?:\\.|[^"\\])*)"/;
-    dialogueLines.forEach((lines, blockId) => {
-      const block = blocks.find(b => b.id === blockId);
-      if (!block) return;
-      const scriptLines = block.content.split('\n');
-      lines.forEach(dl => {
-        const rawLine = scriptLines[dl.line] ?? '';
-        const m = rawLine.match(DIALOGUE_RE);
-        if (!m) return;
-        const wordCount = m[1].trim().split(/\s+/).filter(Boolean).length;
-        const tag = dl.tag || 'narrator';
-        counts.set(tag, (counts.get(tag) ?? 0) + wordCount);
+  const [characterWordCounts, setCharacterWordCounts] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    setCharacterWordCounts(null);
+    const id = setTimeout(() => {
+      const counts = new Map<string, number>();
+      const DIALOGUE_RE = /(?:[a-zA-Z0-9_]+\s)?"((?:\\.|[^"\\])*)"/;
+      dialogueLines.forEach((lines, blockId) => {
+        const block = blocks.find(b => b.id === blockId);
+        if (!block) return;
+        const scriptLines = block.content.split('\n');
+        lines.forEach(dl => {
+          const rawLine = scriptLines[dl.line] ?? '';
+          const m = rawLine.match(DIALOGUE_RE);
+          if (!m) return;
+          const wordCount = m[1].trim().split(/\s+/).filter(Boolean).length;
+          const tag = dl.tag || 'narrator';
+          counts.set(tag, (counts.get(tag) ?? 0) + wordCount);
+        });
       });
-    });
-    return counts;
+      setCharacterWordCounts(counts);
+    }, 0);
+    return () => clearTimeout(id);
   }, [blocks, dialogueLines]);
 
   const { dialogueWords, narrationWords } = useMemo(() => {
+    if (!characterWordCounts) return { dialogueWords: null, narrationWords: null };
     let dialogue = 0;
     let narration = 0;
     characterWordCounts.forEach((words, tag) => {
@@ -321,12 +338,17 @@ const StatsView: React.FC<StatsViewProps> = ({
     [branchingBlockIds.size, blocks.length, identifiedRoutes.length],
   );
 
-  const pathStats = useMemo(
-    () => computePathStats(labelNodes, routeLinks),
-    [labelNodes, routeLinks],
-  );
+  const [pathStats, setPathStats] = useState<PathStats | null>(null);
+  useEffect(() => {
+    setPathStats(null);
+    const id = setTimeout(() => {
+      setPathStats(computePathStats(labelNodes, routeLinks));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [labelNodes, routeLinks]);
 
   const charChartData = useMemo(() => {
+    if (!characterWordCounts) return null;
     const data: { name: string; words: number; color: string }[] = [];
     characterWordCounts.forEach((words, tag) => {
       const char = characters.get(tag);
@@ -336,7 +358,7 @@ const StatsView: React.FC<StatsViewProps> = ({
   }, [characterWordCounts, characters]);
 
   const displayedChars = useMemo(
-    () => charLimit === 'all' ? charChartData : charChartData.slice(0, charLimit),
+    () => !charChartData ? null : charLimit === 'all' ? charChartData : charChartData.slice(0, charLimit),
     [charChartData, charLimit],
   );
 
@@ -352,7 +374,17 @@ const StatsView: React.FC<StatsViewProps> = ({
 
   // ── Coverage computation ────────────────────────────────────────────────────
 
-  const coverageData = useMemo(() => {
+  type CoverageData = {
+    rows: CoverageRow[];
+    imageTotal: number; imageReferenced: number; imageMissing: number; imageOrphaned: number;
+    audioTotal: number; audioReferenced: number; audioMissing: number; audioOrphaned: number;
+  };
+
+  const [coverageData, setCoverageData] = useState<CoverageData | null>(null);
+  useEffect(() => {
+    setCoverageData(null);
+    const id = setTimeout(() => {
+    const _computeCoverage = () => {
     // Collect all image tags and audio paths referenced in code
     const referencedImageTags = new Set<string>();
     const referencedAudioPaths = new Set<string>();
@@ -496,9 +528,15 @@ const StatsView: React.FC<StatsViewProps> = ({
       audioMissing: audioRows.filter(r => r.status === 'missing').length,
       audioOrphaned: audioRows.filter(r => r.status === 'orphaned').length,
     };
+    };
+    setCoverageData(_computeCoverage());
+    }, 0);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks, projectImages, imageMetadata, projectAudios, analysisResult.definedImages]);
 
   const coverageRows = useMemo(() => {
+    if (!coverageData) return null;
     let list = coverageData.rows;
     if (coverageTypeFilter !== 'all') list = list.filter(r => r.type === coverageTypeFilter);
     if (coverageStatusFilter !== 'all') list = list.filter(r => r.status === coverageStatusFilter);
@@ -514,7 +552,7 @@ const StatsView: React.FC<StatsViewProps> = ({
       const statusOrder = { referenced: 0, orphaned: 1, missing: 2 };
       return mul * (statusOrder[a.status] - statusOrder[b.status]);
     });
-  }, [coverageData.rows, coverageTypeFilter, coverageStatusFilter, coverageTextFilter, coverageSortKey, coverageSortDir]);
+  }, [coverageData, coverageTypeFilter, coverageStatusFilter, coverageTextFilter, coverageSortKey, coverageSortDir]);
 
   function toggleCoverageSort(key: CoverageSortKey) {
     if (coverageSortKey === key) setCoverageSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -533,7 +571,7 @@ const StatsView: React.FC<StatsViewProps> = ({
     );
   }
 
-  const estimatedMinutes = Math.round(totalWords / 200);
+  const estimatedMinutes = totalWords !== null ? Math.round(totalWords / 200) : null;
   const branchRatioPercent = Math.round((branchingBlockIds.size / Math.max(1, blocks.length)) * 100);
 
   return (
@@ -545,12 +583,13 @@ const StatsView: React.FC<StatsViewProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard
           label="Total Words"
-          value={totalWords.toLocaleString()}
+          value={totalWords === null ? <InlineSpinner /> : totalWords.toLocaleString()}
           sub="dialogue & narration"
         />
         <StatCard
           label="Estimated Playtime"
           value={
+            estimatedMinutes === null ? <InlineSpinner /> :
             estimatedMinutes < 60
               ? `${estimatedMinutes} min`
               : `${Math.floor(estimatedMinutes / 60)}h ${estimatedMinutes % 60}m`
@@ -559,13 +598,13 @@ const StatsView: React.FC<StatsViewProps> = ({
         />
         <StatCard
           label="Dialogue Words"
-          value={dialogueWords.toLocaleString()}
-          sub={totalWords > 0 ? `${Math.round((dialogueWords / totalWords) * 100)}% of total` : 'characters speaking'}
+          value={dialogueWords === null ? <InlineSpinner /> : dialogueWords.toLocaleString()}
+          sub={totalWords !== null && totalWords > 0 && dialogueWords !== null ? `${Math.round((dialogueWords / totalWords) * 100)}% of total` : 'characters speaking'}
         />
         <StatCard
           label="Narration Words"
-          value={narrationWords.toLocaleString()}
-          sub={totalWords > 0 ? `${Math.round((narrationWords / totalWords) * 100)}% of total` : 'narrator lines'}
+          value={narrationWords === null ? <InlineSpinner /> : narrationWords.toLocaleString()}
+          sub={totalWords !== null && totalWords > 0 && narrationWords !== null ? `${Math.round((narrationWords / totalWords) * 100)}% of total` : 'narrator lines'}
         />
       </div>
 
@@ -580,7 +619,7 @@ const StatsView: React.FC<StatsViewProps> = ({
         <StatCard
           label="Characters"
           value={characters.size.toLocaleString()}
-          sub={`${charChartData.length} speaking`}
+          sub={charChartData !== null ? `${charChartData.length} speaking` : '…'}
         />
         <StatCard
           label="Labels"
@@ -622,17 +661,17 @@ const StatsView: React.FC<StatsViewProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <StatCard
           label="Distinct Endings"
-          value={pathStats.endingCount.toLocaleString()}
+          value={pathStats === null ? <InlineSpinner /> : pathStats.endingCount.toLocaleString()}
           sub="labels with no exit"
         />
         <StatCard
           label="Shortest Path"
-          value={pathStats.shortestPath !== null ? `${pathStats.shortestPath} steps` : '—'}
+          value={pathStats === null ? <InlineSpinner /> : (pathStats.shortestPath !== null ? `${pathStats.shortestPath} steps` : '—')}
           sub="from start to first ending"
         />
         <StatCard
           label="Longest Path"
-          value={pathStats.longestPath !== null ? `${pathStats.longestPath} steps` : '—'}
+          value={pathStats === null ? <InlineSpinner /> : (pathStats.longestPath !== null ? `${pathStats.longestPath} steps` : '—')}
           sub="from start to deepest ending"
         />
       </div>
@@ -643,12 +682,12 @@ const StatsView: React.FC<StatsViewProps> = ({
         <StatCard
           label="Image Assets"
           value={projectImages.size.toLocaleString()}
-          sub={coverageData.imageReferenced > 0 ? `${coverageData.imageReferenced} referenced` : 'tracked images'}
+          sub={coverageData !== null && coverageData.imageReferenced > 0 ? `${coverageData.imageReferenced} referenced` : 'tracked images'}
         />
         <StatCard
           label="Audio Assets"
           value={projectAudios.size.toLocaleString()}
-          sub={coverageData.audioReferenced > 0 ? `${coverageData.audioReferenced} referenced` : 'tracked audio files'}
+          sub={coverageData !== null && coverageData.audioReferenced > 0 ? `${coverageData.audioReferenced} referenced` : 'tracked audio files'}
         />
         <StatCard
           label={diagnosticsErrorCount > 0 ? 'Script Errors' : 'No Errors'}
@@ -663,10 +702,15 @@ const StatsView: React.FC<StatsViewProps> = ({
       </div>
 
       {/* Word count by character */}
-      {charChartData.length > 0 && (
-        <section className="mb-8">
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Word Count by Character</h2>
+        {!charChartData || !displayedChars ? (
+          <div className="flex items-center gap-2 text-secondary text-sm py-4">
+            <InlineSpinner /> <span>Computing character word counts…</span>
+          </div>
+        ) : charChartData.length === 0 ? null : (
+          <>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold">Word Count by Character</h2>
             <div className="flex items-center gap-1">
               {CHAR_LIMITS.map(l => (
                 <button
@@ -708,8 +752,9 @@ const StatsView: React.FC<StatsViewProps> = ({
               </BarChart>
             </ResponsiveContainer>
           )}
-        </section>
-      )}
+          </>
+        )}
+      </section>
 
       {/* Lines by file */}
       <section className="mb-8">
@@ -752,9 +797,13 @@ const StatsView: React.FC<StatsViewProps> = ({
       </section>
 
       {/* Asset Coverage */}
-      {(coverageData.rows.length > 0) && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Asset Coverage</h2>
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Asset Coverage</h2>
+        {!coverageData || !coverageRows ? (
+          <div className="flex items-center gap-2 text-secondary text-sm py-4">
+            <InlineSpinner /> <span>Scanning asset coverage…</span>
+          </div>
+        ) : coverageData.rows.length === 0 ? null : (<>
 
           {/* Coverage bars */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
@@ -905,8 +954,8 @@ const StatsView: React.FC<StatsViewProps> = ({
               </tbody>
             </table>
           </div>
-        </section>
-      )}
+        </>)}
+      </section>
     </div>
   );
 };

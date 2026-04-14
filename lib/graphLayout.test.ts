@@ -107,6 +107,47 @@ describe('computeLayeredLayoutGeneric', () => {
     });
   });
 
+  it('places cycle nodes in distinct layers rather than collapsing them into one column', () => {
+    // Simulates a story with a cross-stage backward edge:
+    //   root → a → b → c → d (cycle back-edge: d → b)
+    // Without progressive cycle-breaking, b/c/d all end up in the final "leftovers"
+    // layer at the same X position, causing arrows from 'a' to appear to end in empty space.
+    const nodes = [node('root'), node('a'), node('b'), node('c'), node('d')];
+    const edges = [
+      edge('root', 'a'), edge('a', 'b'), edge('b', 'c'), edge('c', 'd'),
+      edge('d', 'b'), // back-edge creating the cycle
+    ];
+    const result = computeLayeredLayoutGeneric(nodes, edges, 'lr', CONFIG);
+    expect(result).toHaveLength(5);
+
+    const pos = Object.fromEntries(result.map(n => [n.id, n.position]));
+    // root < a < b should hold — the narrative order is respected up to the cycle entry
+    expect(pos['root'].x).toBeLessThan(pos['a'].x);
+    expect(pos['a'].x).toBeLessThan(pos['b'].x);
+    // b, c, d must be in distinct layers (distinct X positions)
+    const xs = [pos['b'].x, pos['c'].x, pos['d'].x];
+    expect(new Set(xs).size).toBe(3);
+  });
+
+  it('handles a chain with a mid-graph backward edge', () => {
+    // Simulates: script → arrival → meet → choice → evening → stage2 → choice (back-edge)
+    const nodes = ['script', 'arrival', 'meet', 'choice', 'evening', 'stage2'].map(id => node(id));
+    const edges = [
+      edge('script', 'arrival'), edge('arrival', 'meet'), edge('meet', 'choice'),
+      edge('choice', 'evening'), edge('evening', 'stage2'),
+      edge('stage2', 'choice'), // cross-stage back-edge
+    ];
+    const result = computeLayeredLayoutGeneric(nodes, edges, 'lr', CONFIG);
+    expect(result).toHaveLength(6);
+    const pos = Object.fromEntries(result.map(n => [n.id, n.position]));
+    // Nodes before the cycle entry must be in strictly ascending X order
+    expect(pos['script'].x).toBeLessThan(pos['arrival'].x);
+    expect(pos['arrival'].x).toBeLessThan(pos['meet'].x);
+    // All nodes must have distinct X positions (no two nodes collapsed into one column)
+    const allX = Object.values(pos).map(p => p.x);
+    expect(new Set(allX).size).toBe(6);
+  });
+
   it('handles disconnected components', () => {
     const nodes = [node('a'), node('b'), node('c'), node('d')];
     const edges = [edge('a', 'b'), edge('c', 'd')];
