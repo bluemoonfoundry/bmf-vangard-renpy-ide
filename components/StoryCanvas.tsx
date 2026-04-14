@@ -16,7 +16,7 @@ import CanvasLayoutControls from './CanvasLayoutControls';
 import CanvasToolbox from './CanvasToolbox';
 import CanvasNavControls from './CanvasNavControls';
 import type { MinimapItem } from './Minimap';
-import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode } from '../types';
+import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult } from '../types';
 import type { BlockType } from './CreateBlockModal';
 
 interface StoryCanvasProps {
@@ -55,6 +55,7 @@ interface StoryCanvasProps {
   groupingMode: StoryCanvasGroupingMode;
   onChangeLayoutMode: (mode: StoryCanvasLayoutMode) => void;
   onChangeGroupingMode: (mode: StoryCanvasGroupingMode) => void;
+  diagnosticsResult?: DiagnosticsResult;
 }
 
 const getBlockById = (blocks: Block[], id: string) => blocks.find(b => b.id === id);
@@ -215,15 +216,17 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     onInteractionEnd, deleteBlock, onOpenEditor, 
     selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds, 
     findUsagesHighlightIds, clearFindUsages, dirtyBlockIds, 
-    canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds, 
+    canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     transform, onTransformChange, onCreateBlock, onAddStickyNote, onOpenRouteCanvas, mouseGestures,
-    layoutMode, groupingMode, onChangeLayoutMode, onChangeGroupingMode
+    layoutMode, groupingMode, onChangeLayoutMode, onChangeGroupingMode, diagnosticsResult,
 }) => {
   const [rubberBandRect, setRubberBandRect] = useState<Rect | null>(null);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldPos: Position } | null>(null);
   const [characterTagFilter, setCharacterTagFilter] = useState<string>('');
   const [showLegend, setShowLegend] = useState(false);
+  const [labelSearchQuery, setLabelSearchQuery] = useState('');
+  const [showLabelSearchResults, setShowLabelSearchResults] = useState(false);
   
   // Refs for Imperative DOM updates
   const blockRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -852,6 +855,48 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     }));
   }, [startBlock, onTransformChange]);
 
+  const blockDiagnosticSeverity = useMemo(() => {
+    const map = new Map<string, 'error' | 'warning'>();
+    if (!diagnosticsResult) return map;
+    for (const issue of diagnosticsResult.issues) {
+      if (!issue.blockId) continue;
+      const current = map.get(issue.blockId);
+      // 'error' beats 'warning'
+      if (issue.severity === 'error') {
+        map.set(issue.blockId, 'error');
+      } else if (issue.severity === 'warning' && current !== 'error') {
+        map.set(issue.blockId, 'warning');
+      }
+    }
+    return map;
+  }, [diagnosticsResult]);
+
+  const labelSearchResults = useMemo(() => {
+    const query = labelSearchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return analysisResult.labelNodes
+      .filter(n =>
+        n.label.toLowerCase().includes(query) ||
+        (n.containerName ?? '').toLowerCase().includes(query),
+      )
+      .slice(0, 8);
+  }, [analysisResult.labelNodes, labelSearchQuery]);
+
+  const centerOnLabelBlock = useCallback((blockId: string) => {
+    const block = blocks.find(b => b.id === blockId);
+    if (!block || !canvasRef.current) return;
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const cx = block.position.x + block.width / 2;
+    const cy = block.position.y + block.height / 2;
+    onTransformChange(t => ({
+      ...t,
+      x: canvasRect.width / 2 - cx * t.scale,
+      y: canvasRect.height / 2 - cy * t.scale,
+    }));
+    setShowLabelSearchResults(false);
+    setLabelSearchQuery('');
+  }, [blocks, onTransformChange]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -990,6 +1035,36 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             </>
           )}
         </div>
+        {/* ── Go to Label ── */}
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-1.5">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Go to Label</h4>
+          <input
+            value={labelSearchQuery}
+            onChange={e => {
+              setLabelSearchQuery(e.target.value);
+              setShowLabelSearchResults(true);
+            }}
+            onFocus={() => setShowLabelSearchResults(true)}
+            placeholder="Search labels…"
+            className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+          />
+          {showLabelSearchResults && labelSearchQuery.trim() && (
+            <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700">
+              {labelSearchResults.length > 0 ? labelSearchResults.map(node => (
+                <button
+                  key={node.id}
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                  onClick={() => centerOnLabelBlock(node.blockId)}
+                >
+                  <div className="font-mono text-gray-900 dark:text-gray-100">{node.label}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{node.containerName ?? 'Unknown file'}</div>
+                </button>
+              )) : (
+                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No matching labels.</div>
+              )}
+            </div>
+          )}
+        </div>
       </CanvasToolbox>
 
       {/* ── Legend (top-right) ── */}
@@ -1064,13 +1139,14 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
           transformOrigin: '0 0',
         }}
       >
-        <svg 
+        <svg
           className="absolute pointer-events-none"
           style={{
             left: svgBounds.left,
             top: svgBounds.top,
             width: svgBounds.width,
             height: svgBounds.height,
+            overflow: 'visible',
           }}
         >
           <defs>
@@ -1172,6 +1248,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               isScreenBlock={isScreenBlock}
               isConfigBlock={isConfigBlock}
               isFlashing={flashingBlockId === block.id}
+              diagnosticSeverity={blockDiagnosticSeverity.get(block.id) ?? null}
             />
           );
         })}

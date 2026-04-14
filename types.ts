@@ -892,14 +892,17 @@ export interface ProjectSettings {
   storyCanvasLayoutVersion?: number;
   storyCanvasLayoutWasUserAdjusted?: boolean;
   storyBlockLayouts?: Record<string, SavedStoryBlockLayout>;
+  storyCanvasHasAutocentered?: boolean;
   routeCanvasLayoutMode?: StoryCanvasLayoutMode;
   routeCanvasGroupingMode?: StoryCanvasGroupingMode;
   routeCanvasLayoutFingerprint?: string;
   routeCanvasLayoutVersion?: number;
   routeCanvasLayoutWasUserAdjusted?: boolean;
   routeNodeLayouts?: Record<string, SavedRouteNodeLayout>;
+  routeCanvasHasAutocentered?: boolean;
   choiceCanvasLayoutMode?: StoryCanvasLayoutMode;
   choiceCanvasGroupingMode?: StoryCanvasGroupingMode;
+  choiceCanvasHasAutocentered?: boolean;
   openTabs: EditorTab[];
   activeTabId: string;
   splitLayout?: 'none' | 'right' | 'bottom';

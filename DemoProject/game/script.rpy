@@ -24,10 +24,36 @@ screen screen_1():
             button action foobarbaz()
 
 init:
+    # Character sprites are 896x1280 on a 1920x1080 screen.
+    # At zoom 1.0 the image is 200px taller than the viewport, causing the head
+    # to be clipped at the top.  Scale to 0.844 so the full character fits within
+    # the screen height, then anchor the bottom of the image to the bottom of the
+    # screen so the character stands on the ground line.
+
     transform size_normal:
-        zoom 1.0
-        ypos 1.3
-        fit "contain"
+        zoom 0.844
+        yanchor 1.0
+        ypos 1.0
+
+    # Override the built-in left/center/right position transforms so every
+    # "show <char> at <pos>" automatically gets the correct scaling and grounding.
+    transform left:
+        zoom 0.844
+        yanchor 1.0
+        ypos 1.0
+        xalign 0.0
+
+    transform center:
+        zoom 0.844
+        yanchor 1.0
+        ypos 1.0
+        xalign 0.5
+
+    transform right:
+        zoom 0.844
+        yanchor 1.0
+        ypos 1.0
+        xalign 1.0
 
 
 

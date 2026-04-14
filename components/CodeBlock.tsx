@@ -20,6 +20,7 @@ interface CodeBlockProps {
   isScreenBlock: boolean;
   isConfigBlock: boolean;
   isFlashing: boolean;
+  diagnosticSeverity?: 'error' | 'warning' | null;
 }
 
 const LabelIcon: React.FC = () => <div title="Contains Labels"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A1 1 0 012 10V5a1 1 0 011-1h5a1 1 0 01.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg></div>;
@@ -70,6 +71,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
   isScreenBlock,
   isConfigBlock,
   isFlashing,
+  diagnosticSeverity,
 }, ref) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
@@ -213,7 +215,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
     <div
       ref={ref}
       data-block-id={block.id}
-      className={`code-block-wrapper group absolute ${bgClass} rounded-lg shadow-2xl border-2 ${borderClass} ${shadowClass} flex flex-col transition-colors duration-200 ${isDimmed ? 'opacity-30' : ''} ${isFlashing ? 'flash-block' : isHoverHighlighted ? 'pulse-block heatmap-highlight' : ''}`}
+      className={`code-block-wrapper group absolute ${bgClass} rounded-lg ${diagnosticSeverity ? '' : 'shadow-2xl'} border-2 ${borderClass} ${shadowClass} flex flex-col transition-colors duration-200 ${isDimmed ? 'opacity-30' : ''} ${isFlashing ? 'flash-block' : isHoverHighlighted ? 'pulse-block heatmap-highlight' : ''}`}
       style={{
         left: block.position.x,
         top: block.position.y,
@@ -222,6 +224,11 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
         zIndex: isSelected ? 10 : 5,
         // Remove transition on left/top during drag to prevent fighting with JS updates
         transitionProperty: isDragging ? 'none' : 'box-shadow, border-color, opacity, transform',
+        boxShadow: diagnosticSeverity === 'error'
+          ? '0 0 0 2px rgba(239,68,68,0.55), 0 0 22px 8px rgba(239,68,68,0.28), 0 25px 50px -12px rgb(0 0 0 / 0.25)'
+          : diagnosticSeverity === 'warning'
+            ? '0 0 0 2px rgba(234,179,8,0.5), 0 0 16px 6px rgba(234,179,8,0.22), 0 25px 50px -12px rgb(0 0 0 / 0.25)'
+            : undefined,
       }}
       onDoubleClick={() => onOpenEditor(block.id)}
     >

@@ -268,6 +268,8 @@ const App: React.FC = () => {
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
   const [findUsagesHighlightIds, setFindUsagesHighlightIds] = useState<Set<string> | null>(null);
   const [centerOnBlockRequest, setCenterOnBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
+  const [centerOnRouteStartRequest, setCenterOnRouteStartRequest] = useState<{ key: number } | null>(null);
+  const [centerOnChoiceStartRequest, setCenterOnChoiceStartRequest] = useState<{ key: number } | null>(null);
   const [flashBlockRequest, setFlashBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
   const [canvasFilters, setCanvasFilters] = useState({ story: true, screens: true, config: false, notes: true, minimap: true });
   const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
@@ -342,6 +344,7 @@ const App: React.FC = () => {
   const secondaryTabBarRef = useRef<HTMLDivElement>(null);
   const pendingStoryLayoutRefreshRef = useRef<PendingStoryLayoutRefresh | null>(null);
   const pendingRouteLayoutRefreshRef = useRef<PendingRouteLayoutRefresh | null>(null);
+  const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
 
   // --- Utility Functions ---
   const getCurrentContext = useCallback(() => {
@@ -1192,14 +1195,19 @@ const App: React.FC = () => {
   }, [applyStoryLayout, projectSettings.storyCanvasGroupingMode, projectSettings.storyCanvasLayoutMode]);
 
   const handleChangeStoryCanvasLayoutMode = useCallback((mode: StoryCanvasLayoutMode) => {
+    const currentGroupingMode = projectSettings.storyCanvasGroupingMode ?? 'none';
+    // Switching away from clustered-flow makes the active grouping meaningless — reset it.
+    const newGroupingMode: StoryCanvasGroupingMode =
+      mode !== 'clustered-flow' && currentGroupingMode !== 'none' ? 'none' : currentGroupingMode;
+
     updateProjectSettings(draft => {
       draft.storyCanvasLayoutMode = mode;
+      draft.storyCanvasGroupingMode = newGroupingMode;
     });
     setHasUnsavedSettings(true);
     if (blocks.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      const groupingMode = projectSettings.storyCanvasGroupingMode ?? 'none';
       setTimeout(() => {
-        applyStoryLayout(mode, groupingMode, {
+        applyStoryLayout(mode, newGroupingMode, {
           showToast: false,
           statusMessage: 'Story layout updated.',
         });
@@ -1215,14 +1223,22 @@ const App: React.FC = () => {
   ]);
 
   const handleChangeStoryCanvasGroupingMode = useCallback((mode: StoryCanvasGroupingMode) => {
+    const currentLayoutMode = projectSettings.storyCanvasLayoutMode ?? 'flow-lr';
+    // Grouping only takes effect in clustered-flow; auto-switch when a group is chosen.
+    // Clearing grouping while in clustered-flow reverts to flow-lr.
+    const newLayoutMode: StoryCanvasLayoutMode =
+      mode !== 'none' ? 'clustered-flow'
+      : currentLayoutMode === 'clustered-flow' ? 'flow-lr'
+      : currentLayoutMode;
+
     updateProjectSettings(draft => {
       draft.storyCanvasGroupingMode = mode;
+      draft.storyCanvasLayoutMode = newLayoutMode;
     });
     setHasUnsavedSettings(true);
     if (blocks.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      const layoutMode = projectSettings.storyCanvasLayoutMode ?? 'flow-lr';
       setTimeout(() => {
-        applyStoryLayout(layoutMode, mode, {
+        applyStoryLayout(newLayoutMode, mode, {
           showToast: false,
           statusMessage: 'Story layout updated.',
         });
@@ -1274,14 +1290,19 @@ const App: React.FC = () => {
   }, [routeAnalysisResult.labelNodes, routeAnalysisResult.routeLinks, routeNodeLayoutCache, updateProjectSettings, addToast]);
 
   const handleChangeRouteCanvasLayoutMode = useCallback((mode: StoryCanvasLayoutMode) => {
+    const currentGroupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
+    // Switching away from clustered-flow makes the active grouping meaningless — reset it.
+    const newGroupingMode: StoryCanvasGroupingMode =
+      mode !== 'clustered-flow' && currentGroupingMode !== 'none' ? 'none' : currentGroupingMode;
+
     updateProjectSettings(draft => {
       draft.routeCanvasLayoutMode = mode;
+      draft.routeCanvasGroupingMode = newGroupingMode;
     });
     setHasUnsavedSettings(true);
     if (routeAnalysisResult.labelNodes.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      const groupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
       setTimeout(() => {
-        applyRouteLayout(mode, groupingMode, {
+        applyRouteLayout(mode, newGroupingMode, {
           showToast: false,
           statusMessage: 'Route layout updated.',
         });
@@ -1297,14 +1318,22 @@ const App: React.FC = () => {
   ]);
 
   const handleChangeRouteCanvasGroupingMode = useCallback((mode: StoryCanvasGroupingMode) => {
+    const currentLayoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
+    // Grouping only takes effect in clustered-flow; auto-switch when a group is chosen.
+    // Clearing grouping while in clustered-flow reverts to flow-lr.
+    const newLayoutMode: StoryCanvasLayoutMode =
+      mode !== 'none' ? 'clustered-flow'
+      : currentLayoutMode === 'clustered-flow' ? 'flow-lr'
+      : currentLayoutMode;
+
     updateProjectSettings(draft => {
       draft.routeCanvasGroupingMode = mode;
+      draft.routeCanvasLayoutMode = newLayoutMode;
     });
     setHasUnsavedSettings(true);
     if (routeAnalysisResult.labelNodes.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      const layoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
       setTimeout(() => {
-        applyRouteLayout(layoutMode, mode, {
+        applyRouteLayout(newLayoutMode, mode, {
           showToast: false,
           statusMessage: 'Route layout updated.',
         });
@@ -1346,30 +1375,37 @@ const App: React.FC = () => {
       !savedVersionMatches ||
       pendingRefresh.savedFingerprint !== currentFingerprint;
 
-    if (!shouldRefreshLayout) {
-      return;
+    if (shouldRefreshLayout) {
+      if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
+        updateProjectSettings(draft => {
+          draft.storyCanvasLayoutFingerprint = currentFingerprint;
+          draft.storyCanvasLayoutVersion = getStoryLayoutVersion();
+        });
+        setHasUnsavedSettings(true);
+        addToast('Story graph changed. Layout preserved; use Redraw to reorganize.', 'info');
+      } else {
+        applyStoryLayout(layoutMode, groupingMode, {
+          showToast: pendingRefresh.hasSavedLayouts,
+          successMessage: pendingRefresh.hasSavedLayouts
+            ? 'Story layout refreshed for changed graph'
+            : 'Story layout generated',
+          statusMessage: pendingRefresh.hasSavedLayouts
+            ? 'Story layout refreshed.'
+            : 'Story layout generated.',
+          toastType: 'info',
+        });
+      }
     }
 
-    if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
-      updateProjectSettings(draft => {
-        draft.storyCanvasLayoutFingerprint = currentFingerprint;
-        draft.storyCanvasLayoutVersion = getStoryLayoutVersion();
-      });
+    if (pendingAutoCenterRef.current.story) {
+      pendingAutoCenterRef.current.story = false;
+      const startLabelNode = analysisResult.labelNodes.find(n => n.label === 'start');
+      if (startLabelNode) {
+        setCenterOnBlockRequest({ blockId: startLabelNode.blockId, key: Date.now() });
+      }
+      updateProjectSettings(draft => { draft.storyCanvasHasAutocentered = true; });
       setHasUnsavedSettings(true);
-      addToast('Story graph changed. Layout preserved; use Redraw to reorganize.', 'info');
-      return;
     }
-
-    applyStoryLayout(layoutMode, groupingMode, {
-      showToast: pendingRefresh.hasSavedLayouts,
-      successMessage: pendingRefresh.hasSavedLayouts
-        ? 'Story layout refreshed for changed graph'
-        : 'Story layout generated',
-      statusMessage: pendingRefresh.hasSavedLayouts
-        ? 'Story layout refreshed.'
-        : 'Story layout generated.',
-      toastType: 'info',
-    });
   }, [
     blocks,
     isInitialAnalysisPending,
@@ -1377,9 +1413,11 @@ const App: React.FC = () => {
     projectSettings.storyCanvasGroupingMode,
     projectSettings.storyCanvasLayoutMode,
     analysisResult.links,
+    analysisResult.labelNodes,
     applyStoryLayout,
     addToast,
     updateProjectSettings,
+    setCenterOnBlockRequest,
   ]);
 
   useEffect(() => {
@@ -1403,30 +1441,34 @@ const App: React.FC = () => {
       !savedVersionMatches ||
       pendingRefresh.savedFingerprint !== currentFingerprint;
 
-    if (!shouldRefreshLayout) {
-      return;
+    if (shouldRefreshLayout) {
+      if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
+        updateProjectSettings(draft => {
+          draft.routeCanvasLayoutFingerprint = currentFingerprint;
+          draft.routeCanvasLayoutVersion = getRouteCanvasLayoutVersion();
+        });
+        setHasUnsavedSettings(true);
+        addToast('Route graph changed. Layout preserved; use Redraw to reorganize.', 'info');
+      } else {
+        applyRouteLayout(layoutMode, groupingMode, {
+          showToast: pendingRefresh.hasSavedLayouts,
+          successMessage: pendingRefresh.hasSavedLayouts
+            ? 'Route layout refreshed for changed graph'
+            : 'Route layout generated',
+          statusMessage: pendingRefresh.hasSavedLayouts
+            ? 'Route layout refreshed.'
+            : 'Route layout generated.',
+          toastType: 'info',
+        });
+      }
     }
 
-    if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
-      updateProjectSettings(draft => {
-        draft.routeCanvasLayoutFingerprint = currentFingerprint;
-        draft.routeCanvasLayoutVersion = getRouteCanvasLayoutVersion();
-      });
+    if (pendingAutoCenterRef.current.route) {
+      pendingAutoCenterRef.current.route = false;
+      setCenterOnRouteStartRequest({ key: Date.now() });
+      updateProjectSettings(draft => { draft.routeCanvasHasAutocentered = true; });
       setHasUnsavedSettings(true);
-      addToast('Route graph changed. Layout preserved; use Redraw to reorganize.', 'info');
-      return;
     }
-
-    applyRouteLayout(layoutMode, groupingMode, {
-      showToast: pendingRefresh.hasSavedLayouts,
-      successMessage: pendingRefresh.hasSavedLayouts
-        ? 'Route layout refreshed for changed graph'
-        : 'Route layout generated',
-      statusMessage: pendingRefresh.hasSavedLayouts
-        ? 'Route layout refreshed.'
-        : 'Route layout generated.',
-      toastType: 'info',
-    });
   }, [
     isInitialAnalysisPending,
     isAnalysisPending,
@@ -1438,7 +1480,19 @@ const App: React.FC = () => {
     applyRouteLayout,
     addToast,
     updateProjectSettings,
+    setCenterOnRouteStartRequest,
   ]);
+
+  // Auto-center Choice Canvas on first project open
+  useEffect(() => {
+    if (isInitialAnalysisPending || isAnalysisPending) return;
+    if (!pendingAutoCenterRef.current.choice) return;
+    if (!routeAnalysisResult.labelNodes.some(n => n.label === 'start')) return;
+    pendingAutoCenterRef.current.choice = false;
+    setCenterOnChoiceStartRequest({ key: Date.now() });
+    updateProjectSettings(draft => { draft.choiceCanvasHasAutocentered = true; });
+    setHasUnsavedSettings(true);
+  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, updateProjectSettings]);
 
   // --- Tab Management Helpers ---
   const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'ai-generator' | 'stats') => {
@@ -1562,6 +1616,11 @@ const App: React.FC = () => {
               savedVersion: projectData.settings?.routeCanvasLayoutVersion,
               savedWasUserAdjusted: projectData.settings?.routeCanvasLayoutWasUserAdjusted ?? false,
           };
+          pendingAutoCenterRef.current = {
+              story: !(projectData.settings?.storyCanvasHasAutocentered ?? false),
+              route: !(projectData.settings?.routeCanvasHasAutocentered ?? false),
+              choice: !(projectData.settings?.choiceCanvasHasAutocentered ?? false),
+          };
           setRouteNodeLayoutCache(new Map(
             Object.entries(savedRouteNodeLayouts).map(([id, layout]) => [id, layout.position]),
           ));
@@ -1604,11 +1663,14 @@ const App: React.FC = () => {
                   draft.storyCanvasLayoutFingerprint = projectData.settings.storyCanvasLayoutFingerprint;
                   draft.storyCanvasLayoutVersion = projectData.settings.storyCanvasLayoutVersion ?? getStoryLayoutVersion();
                   draft.storyCanvasLayoutWasUserAdjusted = projectData.settings.storyCanvasLayoutWasUserAdjusted ?? false;
+                  draft.storyCanvasHasAutocentered = projectData.settings.storyCanvasHasAutocentered ?? false;
                   draft.routeCanvasLayoutMode = savedRouteLayoutMode;
                   draft.routeCanvasGroupingMode = savedRouteGroupingMode;
                   draft.routeCanvasLayoutFingerprint = projectData.settings.routeCanvasLayoutFingerprint;
                   draft.routeCanvasLayoutVersion = projectData.settings.routeCanvasLayoutVersion ?? getRouteCanvasLayoutVersion();
                   draft.routeCanvasLayoutWasUserAdjusted = projectData.settings.routeCanvasLayoutWasUserAdjusted ?? false;
+                  draft.routeCanvasHasAutocentered = projectData.settings.routeCanvasHasAutocentered ?? false;
+                  draft.choiceCanvasHasAutocentered = projectData.settings.choiceCanvasHasAutocentered ?? false;
               });
               setStickyNotes(projectData.settings.stickyNotes || []);
               setRouteStickyNotes(projectData.settings.routeStickyNotes || []);
@@ -3332,6 +3394,7 @@ const App: React.FC = () => {
         groupingMode={projectSettings.storyCanvasGroupingMode ?? 'none'}
         onChangeLayoutMode={handleChangeStoryCanvasLayoutMode}
         onChangeGroupingMode={handleChangeStoryCanvasGroupingMode}
+        diagnosticsResult={diagnosticsResult}
       />;
     }
     if (tab.type === 'route-canvas') {
@@ -3347,6 +3410,7 @@ const App: React.FC = () => {
         groupingMode={projectSettings.routeCanvasGroupingMode ?? 'none'}
         onChangeLayoutMode={handleChangeRouteCanvasLayoutMode}
         onChangeGroupingMode={handleChangeRouteCanvasGroupingMode}
+        centerOnStartRequest={centerOnRouteStartRequest}
       />;
     }
     if (tab.type === 'choice-canvas') {
@@ -3365,6 +3429,7 @@ const App: React.FC = () => {
         groupingMode={projectSettings.choiceCanvasGroupingMode ?? 'none'}
         onChangeLayoutMode={handleChangeChoiceCanvasLayoutMode}
         onChangeGroupingMode={handleChangeChoiceCanvasGroupingMode}
+        centerOnStartRequest={centerOnChoiceStartRequest}
       />;
     }
     if (tab.type === 'diagnostics' || tab.type === 'punchlist') {

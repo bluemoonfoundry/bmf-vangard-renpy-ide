@@ -180,6 +180,7 @@ export interface ChoiceCanvasProps {
   groupingMode: StoryCanvasGroupingMode;
   onChangeLayoutMode: (mode: StoryCanvasLayoutMode) => void;
   onChangeGroupingMode: (mode: StoryCanvasGroupingMode) => void;
+  centerOnStartRequest?: { key: number } | null;
 }
 
 const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
@@ -199,10 +200,13 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   groupingMode,
   onChangeLayoutMode,
   onChangeGroupingMode,
+  centerOnStartRequest,
 }) => {
   const [showSnippets, setShowSnippets] = useState(true);
   const [showImplicit, setShowImplicit] = useState(false);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldPos: { x: number; y: number } } | null>(null);
+  const [labelSearchQuery, setLabelSearchQuery] = useState('');
+  const [showLabelSearchResults, setShowLabelSearchResults] = useState(false);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   // Node selection for depth-1 highlight (single click)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -508,6 +512,38 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
 
   const hasStartNode = useMemo(() => layoutedNodes.some(n => n.label === 'start'), [layoutedNodes]);
 
+  const lastHandledAutoCenterKeyRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!centerOnStartRequest) return;
+    if (centerOnStartRequest.key === lastHandledAutoCenterKeyRef.current) return;
+    lastHandledAutoCenterKeyRef.current = centerOnStartRequest.key;
+    centerOnStart();
+  }, [centerOnStartRequest, centerOnStart]);
+
+  const labelSearchResults = useMemo(() => {
+    const query = labelSearchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return layoutedNodes
+      .filter(n =>
+        n.label.toLowerCase().includes(query) ||
+        (n.containerName ?? '').toLowerCase().includes(query),
+      )
+      .slice(0, 8);
+  }, [layoutedNodes, labelSearchQuery]);
+
+  const centerOnChoiceNode = useCallback((nodeId: string) => {
+    const node = layoutedNodes.find(n => n.id === nodeId);
+    if (!node || !canvasAreaRef.current) return;
+    const { width, height } = canvasAreaRef.current.getBoundingClientRect();
+    onTransformChange(t => ({
+      x: (width / 2) - ((node.position.x + node.width / 2) * t.scale),
+      y: (height / 2) - ((node.position.y + node.height / 2) * t.scale),
+      scale: t.scale,
+    }));
+    setShowLabelSearchResults(false);
+    setLabelSearchQuery('');
+  }, [layoutedNodes, onTransformChange]);
+
   // ── Wheel zoom ──
   // Attach to the always-rendered container div, not the SVG, so the listener
   // is registered regardless of whether the SVG is currently mounted (empty state).
@@ -689,6 +725,36 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             showGrouping={false}
             embedded
           />
+          {/* ── Go to Label ── */}
+          <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-1.5">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Go to Label</h4>
+            <input
+              value={labelSearchQuery}
+              onChange={e => {
+                setLabelSearchQuery(e.target.value);
+                setShowLabelSearchResults(true);
+              }}
+              onFocus={() => setShowLabelSearchResults(true)}
+              placeholder="Search labels…"
+              className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
+            />
+            {showLabelSearchResults && labelSearchQuery.trim() && (
+              <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700">
+                {labelSearchResults.length > 0 ? labelSearchResults.map(node => (
+                  <button
+                    key={node.id}
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => centerOnChoiceNode(node.id)}
+                  >
+                    <div className="font-mono text-gray-900 dark:text-gray-100">{node.label}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{node.containerName ?? 'Unknown file'}</div>
+                  </button>
+                )) : (
+                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No matching labels.</div>
+                )}
+              </div>
+            )}
+          </div>
         </CanvasToolbox>
 
         {/* ── Legend (top-right) ── */}

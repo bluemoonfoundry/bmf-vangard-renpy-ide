@@ -49,7 +49,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
         <span>{activity.label}</span>
       </div>
 
-      {/* Right — project summary */}
+      {/* Right — project summary + version */}
       <div className="flex items-center gap-3 text-secondary">
         {errorCount > 0 && (
           <span className="flex items-center gap-1 text-red-400">
@@ -68,6 +68,12 @@ const StatusBar: React.FC<StatusBarProps> = ({
           </span>
         )}
         <span>{blockCount} file{blockCount !== 1 ? 's' : ''}</span>
+        <span className="border-l border-primary pl-3 opacity-50">
+          v{process.env.APP_VERSION}
+          {process.env.BUILD_NUMBER && process.env.BUILD_NUMBER !== 'dev' && (
+            <span className="opacity-70"> ({process.env.BUILD_NUMBER})</span>
+          )}
+        </span>
       </div>
     </div>
   );

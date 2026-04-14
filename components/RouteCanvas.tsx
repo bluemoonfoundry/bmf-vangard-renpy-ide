@@ -41,6 +41,7 @@ interface RouteCanvasProps {
   groupingMode: StoryCanvasGroupingMode;
   onChangeLayoutMode: (mode: StoryCanvasLayoutMode) => void;
   onChangeGroupingMode: (mode: StoryCanvasGroupingMode) => void;
+  centerOnStartRequest?: { key: number } | null;
 }
 
 interface Rect { x: number; y: number; width: number; height: number; }
@@ -292,6 +293,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
   groupingMode,
   onChangeLayoutMode,
   onChangeGroupingMode,
+  centerOnStartRequest,
 }) => {
   const [rubberBandRect, setRubberBandRect] = useState<Rect | null>(null);
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
@@ -648,6 +650,15 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
     setSelectedNodeIds([nodeId]);
     closeTransientUi();
   }, [nodeMap, selectedNodeIds, transform, navHistoryIndex, onTransformChange, closeTransientUi]);
+
+  const lastHandledAutoCenterKeyRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!centerOnStartRequest) return;
+    if (centerOnStartRequest.key === lastHandledAutoCenterKeyRef.current) return;
+    lastHandledAutoCenterKeyRef.current = centerOnStartRequest.key;
+    const startNode = labelNodes.find(n => n.label === 'start');
+    if (startNode) centerOnNode(startNode.id, { recordHistory: false });
+  }, [centerOnStartRequest, labelNodes, centerOnNode]);
 
   const applyHistoryEntry = useCallback((index: number) => {
     const entry = navHistory[index];
@@ -1651,9 +1662,9 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
             />
         ))}
 
-        <svg 
+        <svg
           className="absolute pointer-events-none"
-          style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 5 }}
+          style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 5, overflow: 'visible' }}
         >
           <defs>
             {/* Markers: viewBox="0 0 10 10", triangle shape M0,0 L10,5 L0,10 z, bigger size 12x12 */}
@@ -1807,7 +1818,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
         {viewLevel === 'label' && (
           <svg
             className="absolute pointer-events-none"
-            style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 20 }}
+            style={{ left: svgBounds.left, top: svgBounds.top, width: svgBounds.width, height: svgBounds.height, zIndex: 20, overflow: 'visible' }}
           >
             <g transform={`translate(${-svgBounds.left}, ${-svgBounds.top})`}>
               {Array.from(menuGroups.entries()).map(([key, group]) => {
