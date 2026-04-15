@@ -28,4 +28,11 @@ label stage7_ritual_shared:
     $ mystery_solved = True
     $ friends_saved = 5
 
+    scene gym
+    show m zorder 1:
+        xcenter 0.83 ycenter 0.73 alpha 0.6
+    show l zorder 2:
+        xcenter 0.29 ycenter 0.73 blur 5
+
+
     jump stage7_aftermath

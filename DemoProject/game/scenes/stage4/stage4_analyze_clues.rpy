@@ -37,3 +37,15 @@ label stage4_analyze_clues:
             $ theory = "destruction"
             k "A dark path. But perhaps necessary."
             jump stage4_theory_destroy
+
+
+    e "I have something to say."
+
+    scene bg park with fade
+
+    e "What will you do?"
+    menu:
+        "Foo":
+            pass
+        "Bar":
+            jump stage3_night

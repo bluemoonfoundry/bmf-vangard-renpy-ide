@@ -39,5 +39,7 @@ label stage1_evening:
 
     "Tomorrow, the real investigation begins."
 
+    call TestScriptX
+
     # Stage 1 complete - proceed to Stage 2
     jump stage2_begin

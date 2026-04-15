@@ -924,6 +924,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
                         )}
                         {onDuplicate && (
                             <button onClick={onDuplicate}
+                                title="This screen is locked. Click 'Duplicate' to create an editable copy."
                                 className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 text-white transition-colors">
                                 <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                                     <rect x="5" y="1" width="9" height="11" rx="1.5"/><rect x="1" y="4" width="9" height="11" rx="1.5" fill="currentColor" opacity="0.2"/>

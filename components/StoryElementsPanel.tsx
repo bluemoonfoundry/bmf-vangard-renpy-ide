@@ -48,7 +48,7 @@ const TAB_CATEGORIES: TabCategory[] = [
         subTabs: [
             { id: 'scenes', label: 'Scenes' },
             { id: 'imagemaps', label: 'ImageMaps' },
-            { id: 'screenLayouts', label: 'Layouts' },
+            { id: 'screenLayouts', label: 'Screen Layouts' },
         ],
     },
     {

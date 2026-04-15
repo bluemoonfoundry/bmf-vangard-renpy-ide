@@ -42,3 +42,6 @@ label stage1_meet_s:
         jump stage1_evening
     else:
         jump stage1_choice
+
+    call clarity_file_maxim
+    

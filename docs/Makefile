@@ -1,4 +1,3 @@
-PANDOC=/Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc
 INPUT=TITLE_PAGE.md USER_GUIDE.md
 OUTPUT=Ren-IDE_User_Guide.pdf
 
