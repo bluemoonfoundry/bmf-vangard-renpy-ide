@@ -630,10 +630,11 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
     if (!node || !canvasRef.current) return;
 
     const { width, height } = canvasRef.current.getBoundingClientRect();
+    const scale = Math.max(transform.scale, 1.0);
     const nextTransform = {
-      x: (width / 2) - ((node.position.x + node.width / 2) * transform.scale),
-      y: (height / 2) - ((node.position.y + node.height / 2) * transform.scale),
-      scale: transform.scale,
+      x: (width / 2) - ((node.position.x + node.width / 2) * scale),
+      y: (height / 2) - ((node.position.y + node.height / 2) * scale),
+      scale,
     };
 
     if (options?.recordHistory ?? true) {

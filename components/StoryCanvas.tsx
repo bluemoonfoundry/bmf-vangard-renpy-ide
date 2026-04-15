@@ -290,10 +290,11 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
 
     if (found && canvasEl) {
         const canvasRect = canvasEl.getBoundingClientRect();
-        const newX = (canvasRect.width / 2) - (targetX * transform.scale);
-        const newY = (canvasRect.height / 2) - (targetY * transform.scale);
-        
-        onTransformChange(t => ({ ...t, x: newX, y: newY }));
+        const scale = Math.max(transform.scale, 1.0);
+        const newX = (canvasRect.width / 2) - (targetX * scale);
+        const newY = (canvasRect.height / 2) - (targetY * scale);
+
+        onTransformChange(t => ({ ...t, scale, x: newX, y: newY }));
 
         // Flash for visual feedback
         setFlashingBlockId(blockId);
@@ -692,7 +693,6 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
                 setSelectedGroupIds([]);
                 setSelectedNoteIds([]);
                 if (highlightedPath) setHighlightedPath(null);
-                if (findUsagesHighlightIds) clearFindUsages();
                 if (canvasContextMenu) setCanvasContextMenu(null);
             }
         }
@@ -722,13 +722,22 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             }
         }
         
-        const wasInteractiveMove = state.type === 'dragging-blocks' || 
-                                 state.type === 'dragging-groups' || 
+        const wasInteractiveMove = state.type === 'dragging-blocks' ||
+                                 state.type === 'dragging-groups' ||
                                  state.type === 'dragging-notes' ||
-                                 state.type === 'resizing-block' || 
+                                 state.type === 'resizing-block' ||
                                  state.type === 'resizing-group' ||
                                  state.type === 'resizing-note';
-        
+
+        // Clear the find-usages highlight on any canvas click that isn't a drag.
+        // This covers both genuine empty-space clicks (rubber-band state) AND clicks on
+        // dimmed blocks (idle state) — dimmed blocks are 30% opacity and look like empty
+        // space to the user, but route through the block branch of handlePointerDown,
+        // leaving interactionState as 'idle'.
+        if (distance <= 5 && findUsagesHighlightIds) {
+            clearFindUsages();
+        }
+
         setIsDraggingSelection(false);
         if (wasInteractiveMove) onInteractionEnd();
         interactionState.current = { type: 'idle' };
@@ -848,11 +857,10 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const cx = startBlock.position.x + startBlock.width / 2;
     const cy = startBlock.position.y + startBlock.height / 2;
-    onTransformChange(t => ({
-      ...t,
-      x: canvasRect.width / 2 - cx * t.scale,
-      y: canvasRect.height / 2 - cy * t.scale,
-    }));
+    onTransformChange(t => {
+      const scale = Math.max(t.scale, 1.0);
+      return { ...t, scale, x: canvasRect.width / 2 - cx * scale, y: canvasRect.height / 2 - cy * scale };
+    });
   }, [startBlock, onTransformChange]);
 
   const blockDiagnosticSeverity = useMemo(() => {
@@ -888,11 +896,10 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const cx = block.position.x + block.width / 2;
     const cy = block.position.y + block.height / 2;
-    onTransformChange(t => ({
-      ...t,
-      x: canvasRect.width / 2 - cx * t.scale,
-      y: canvasRect.height / 2 - cy * t.scale,
-    }));
+    onTransformChange(t => {
+      const scale = Math.max(t.scale, 1.0);
+      return { ...t, scale, x: canvasRect.width / 2 - cx * scale, y: canvasRect.height / 2 - cy * scale };
+    });
     setShowLabelSearchResults(false);
     setLabelSearchQuery('');
   }, [blocks, onTransformChange]);

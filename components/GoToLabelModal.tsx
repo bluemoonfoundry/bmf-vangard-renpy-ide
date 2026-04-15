@@ -17,26 +17,26 @@ interface GoToLabelModalProps {
 
 const MAX_RESULTS = 10;
 
-/** Scores a candidate string against a query. Returns a negative number (higher = better match), or null if no match. */
+/** Scores a candidate string against a query. Returns a positive number (higher = better match), or null if no match. */
 function score(candidate: string, query: string): number | null {
   if (!query) return 0;
   const c = candidate.toLowerCase();
   const q = query.toLowerCase();
-  // Exact match
-  if (c === q) return -1000;
-  // Starts with
-  if (c.startsWith(q)) return -500 - (100 - candidate.length);
-  // Contains
+  // Exact match — best possible
+  if (c === q) return 1000;
+  // Starts with — very good; shorter candidates rank higher (fewer extra chars)
+  if (c.startsWith(q)) return 500 + (100 - Math.min(candidate.length, 100));
+  // Contains — good; earlier position ranks higher
   const idx = c.indexOf(q);
-  if (idx !== -1) return -idx;
-  // Fuzzy: all query chars present in order
+  if (idx !== -1) return 200 - idx;
+  // Fuzzy: all query chars present in order — weakest match
   let ci = 0;
   for (const ch of q) {
     ci = c.indexOf(ch, ci);
     if (ci === -1) return null;
     ci++;
   }
-  return -(candidate.length); // fuzzy match scores lowest
+  return 10; // fuzzy match scores lowest but still matches
 }
 
 const GoToLabelModal: React.FC<GoToLabelModalProps> = ({ isOpen, items, canvasName, onSelect, onClose }) => {
@@ -61,7 +61,7 @@ const GoToLabelModal: React.FC<GoToLabelModalProps> = ({ isOpen, items, canvasNa
       const s = score(item.label, query.trim());
       if (s !== null) scored.push({ item, s });
     }
-    return scored.sort((a, b) => b.s - a.s).slice(0, MAX_RESULTS).map(x => x.item);
+    return scored.sort((a, b) => b.s - a.s).slice(0, MAX_RESULTS).map(x => x.item); // highest score first
   }, [items, query]);
 
   // Clamp activeIndex when results shrink

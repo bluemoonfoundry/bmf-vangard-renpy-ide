@@ -505,11 +505,14 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
     const startNode = layoutedNodes.find(n => n.label === 'start');
     if (!startNode || !canvasAreaRef.current) return;
     const { width, height } = canvasAreaRef.current.getBoundingClientRect();
-    onTransformChange(t => ({
-      x: (width / 2) - ((startNode.position.x + startNode.width / 2) * t.scale),
-      y: (height / 2) - ((startNode.position.y + startNode.height / 2) * t.scale),
-      scale: t.scale,
-    }));
+    onTransformChange(t => {
+      const scale = Math.max(t.scale, 1.0);
+      return {
+        x: (width / 2) - ((startNode.position.x + startNode.width / 2) * scale),
+        y: (height / 2) - ((startNode.position.y + startNode.height / 2) * scale),
+        scale,
+      };
+    });
   }, [layoutedNodes, onTransformChange]);
 
   const hasStartNode = useMemo(() => layoutedNodes.some(n => n.label === 'start'), [layoutedNodes]);
