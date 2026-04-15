@@ -23,6 +23,8 @@ label stage1_announcement:
 
     h "We don't know yet. Professor Sterling discovered it missing this morning."
     h "The strange part is... there are no signs of forced entry."
+    h "And no other signs of anything strange either."
+    
 
     $ artifact_knowledge += 20
     $ clues_found.append("no_forced_entry")
@@ -38,3 +40,4 @@ label stage1_announcement:
             h "That's what we're trying to figure out."
             h "Professor Sterling is coordinating with the authorities."
             jump stage1_meet_s
+
