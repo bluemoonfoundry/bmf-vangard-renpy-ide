@@ -1,10 +1,64 @@
 # Changelog
 
-All notable changes to Vangard Ren'Py IDE are documented here. Note that this is a rolling changelog that gets periodically updated as a release is being worked. Items that are listed under a version that is marked (Not Yet Released) are not formally part of a release. They are availble as part of the "latest" commits in the codebase and are likely to be part of the next release, but are not gauranteed to be so. 
+All notable changes to Vangard Ren'Py IDE are documented here. Note that this is a rolling changelog that gets periodically updated as a release is being worked. Items that are listed under a version that is marked (Not Yet Released) are not formally part of a release. They are available as part of the "latest" commits in the codebase and are likely to be part of the next release, but are not guaranteed to be so.
 
 ---
 
-## [v0.7.0] — Public Beta 4
+## [v0.7.1] — — Public Beta 4 (Not Yet Released)
+
+### New Features
+
+#### Ctrl+G Go-to-Label Command Palette
+- **Global label navigation** — press `Ctrl+G` (or `Cmd+G` on Mac) from any canvas tab to open a compact command palette at the top of the screen. Type a label name, press `Enter` or click to jump directly to that node on the active canvas. `Escape` or clicking the backdrop dismisses it.
+- **Fuzzy search with smart ranking** — exact matches rank first, followed by prefix matches, substring matches, and finally fuzzy character-sequence matches. The active canvas name (Story / Route / Choice) is displayed in the palette header so context is always clear.
+- Works on all three canvases; navigating from the palette always zooms the view in to at least scale 1.0 so the target is clearly visible.
+
+#### Go-to-Label Search in Canvas Toolboxes
+- **Story Canvas** — a "Go to Label" search box in the canvas toolbox lets you filter and jump to any label in the project. Clicking a result centers and zooms to the block containing that label.
+- **Choice Canvas** — same search box added to the Choice Canvas toolbox, navigating to the corresponding choice node.
+- Route Canvas already had this feature; all three canvases are now consistent.
+
+#### Diagnostic Glow on Story Canvas Blocks
+- Blocks that contain diagnostics now display a colored outer glow when zoomed out: **red** for errors, **amber** for warnings. This makes problem areas visible at a glance even when the canvas is fully zoomed out to show the whole project graph.
+
+#### Version Display in Status Bar
+- The app version (e.g. `v0.7.1`) is now shown at the right end of the status bar at all times. When a `BUILD_NUMBER` environment variable is set at build time, the build number is also shown in parentheses.
+
+#### Auto-Center Canvas on First Open
+- When a project is first opened, each canvas (Story, Route, Choice) automatically centers and zooms to the `start` label node. This behavior is persisted per project so reopening the project does not re-center again.
+
+#### Story Elements — Two-Level Tab Navigation
+- The Story Elements right sidebar has been redesigned with a two-level tab layout: a primary row of section tabs (Characters, Variables, Images, etc.) and a scrollable content area below. This replaces the previous accordion design and makes better use of vertical space.
+- The Menus tab now has a dedicated visual **Menu Builder** with support for custom code blocks inside menu choices.
+
+#### Canvas Controls Consolidation
+- All three canvases now share a consistent **CanvasToolbox** component in the top-left with standardized layout and grouping controls, and a **CanvasNavControls** cluster in the bottom-right with fit-to-screen and go-to-start buttons. This replaces the previously inconsistent per-canvas control placements.
+
+### Improvements
+
+#### Canvas Navigation — Zoom on Go-To
+- All "go to" actions (flag/start button, toolbox label search, Ctrl+G palette) now snap the viewport up to at least scale 1.0 when the canvas is currently more zoomed out. Navigating to a label no longer leaves it as a tiny unreadable dot. Affects all three canvases.
+
+#### Canvas Grouping — Auto-Switch Layout Mode
+- Selecting "Group by connected components" or "Group by file prefix" in Story Canvas or Route Canvas now automatically switches the layout mode to `Clustered Flow` (the only mode that renders grouping). Previously, clicking a grouping option had no visible effect unless you had already manually selected the Clustered Flow layout mode.
+- Clearing a grouping while in Clustered Flow mode reverts the layout to the default flow. Switching away from Clustered Flow resets the grouping selection to none.
+
+#### Stats Tab — Deferred Loading with Spinners
+- The Stats tab now opens immediately. The four heavy computations (total word count, per-character word counts, path depth stats, and asset coverage) are deferred to run asynchronously after the initial render, each showing an inline spinner until their result is ready. Previously, opening Stats for large projects caused a noticeable delay before the tab appeared at all.
+
+#### Graph Layout — Improved Cycle Handling
+- The BFS layer-assignment algorithm used for cyclic story graphs now uses progressive cycle-breaking: when the BFS queue stalls (all remaining nodes are part of a cycle), the algorithm seeds from the unvisited node with the lowest in-degree rather than an arbitrary node. This produces more readable layouts where back-edges render as left-pointing arrows instead of all cycle participants being dumped into a single crowded column.
+
+### Bug Fixes
+
+- **Canvas grouping had no effect** — `handleChangeStoryCanvasGroupingMode` and `handleChangeRouteCanvasGroupingMode` passed the current (non-clustered) layout mode to the layout engine, which silently ignores grouping in all modes except `clustered-flow`. Fixed by auto-switching as described above.
+- **Find-usages highlight not clearing on canvas click** — clicking on a dimmed block (30% opacity, indistinguishable from empty space) left `interactionState` as `idle` in `handlePointerDown`, so `handlePointerUp` never reached the rubber-band branch that cleared the highlight. Added a general distance ≤ 5 check at the end of `handlePointerUp` that fires regardless of interaction state.
+- **Go-to-label modal not finding "start"** — the score function used negative values (exact = −1000, substring ≈ 0) but sorted descending, making exact matches rank last and get cut off by the 10-result limit. Redesigned with positive scores (exact = 1000, prefix ≈ 500+, contains ≈ 200 − idx, fuzzy = 10).
+- **Choice Canvas go-to not zooming** — `centerOnChoiceNode` and `centerOnStart` preserved the current zoom level; navigating to a node while zoomed out left it invisible. Both now snap up to at least scale 1.0.
+
+---
+
+## [v0.7.0]
 
 ### New Features
 

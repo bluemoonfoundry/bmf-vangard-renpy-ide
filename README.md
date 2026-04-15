@@ -1,9 +1,9 @@
 [![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
-![Version](https://img.shields.io/badge/version-0.7.0_Public_Beta_4-blue)
+![Version](https://img.shields.io/badge/version-0.7.1_Public_Beta_4-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
-# Ren'IDE : The Ren'Py Visual Desiger
+# Ren'IDE : The Ren'Py Visual Designer
 
 > **The IDE that lets you see your story.**
 
@@ -14,7 +14,7 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 **[Download the latest release →](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)**  
 Windows (installer) · macOS (DMG) · Linux (AppImage) · **Free**
 
-<img width="2558" height="1384" alt="Screenshot 2026-04-10 074606" src="https://github.com/user-attachments/assets/93c02126-18a2-45eb-8e7c-952d969827c9" />
+**[Watch the Beta 4 demo reel on YouTube →](https://youtube.com/watch?v=bZ-Wy1cFaYg&si=mxKo5r4Us4XV5brJ)**
 
 ---
 
@@ -37,23 +37,17 @@ Vangard gives you that picture — and keeps it in sync as you write.
 
 #### Story Canvas
 
-Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Redraw" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors.
+Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Redraw" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors. Blocks with diagnostics display a colored outer glow — red for errors, amber for warnings — so problem areas are visible even when fully zoomed out.
 
-
-<img width="2002" height="1281" alt="Screenshot 2026-04-09 134418" src="https://github.com/user-attachments/assets/1db35b01-858f-40e8-afb0-64407a03565c" />
+Use `Ctrl+G` (or `Cmd+G`) to open the **Go-to-Label** command palette at any time. Type a label name and press `Enter` to jump directly to that node. The toolbox also has a persistent "Go to Label" search box for the same purpose. Both zoom the canvas in to at least 100% so the target is always clearly visible.
 
 #### Route Canvas
 
-A label-by-label control flow graph. Every `label` becomes a node; every `jump`, `call`, and implicit fall-through becomes an edge. Highlight specific routes with distinct colors. Unreachable labels are flagged. Hover over menu nodes to inspect all choices and their destinations.
-
-<img width="2002" height="1281" alt="Screenshot 2026-04-09 134430" src="https://github.com/user-attachments/assets/d9062eec-675b-4dbf-9079-e0f2ebf3a285" />
+A label-by-label control flow graph. Every `label` becomes a node; every `jump`, `call`, and implicit fall-through becomes an edge. Highlight specific routes with distinct colors. Unreachable labels are flagged. Hover over menu nodes to inspect all choices and their destinations. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette, with zoom-on-navigate consistent with the Story Canvas.
 
 #### Choice Canvas
 
-The writer's view. Where the Route Canvas shows code structure, the Choice Canvas shows the player experience. Menu nodes fan out to destinations via color-coded choice pills. Each pill shows the player-visible choice text and any `if` condition guard as a badge — so you can trace exactly what the player sees and where each choice leads, even when paths cross.
-
-
-<img width="2017" height="1297" alt="Screenshot 2026-04-09 134448" src="https://github.com/user-attachments/assets/6be28ed9-3226-4892-b014-8d91458a42f9" />
+The writer's view. Where the Route Canvas shows code structure, the Choice Canvas shows the player experience. Menu nodes fan out to destinations via color-coded choice pills. Each pill shows the player-visible choice text and any `if` condition guard as a badge — so you can trace exactly what the player sees and where each choice leads, even when paths cross. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette.
 
 ---
 
@@ -67,24 +61,22 @@ A full Monaco editor (the VS Code engine) built right in. Split panes let you ed
 - **User-defined snippets** — create custom snippets with trigger prefixes that integrate with IntelliSense
 - Cursor position (Ln/Col) in status bar
 
-<img width="1233" height="1007" alt="Code Editor — Split Pane" src="https://github.com/user-attachments/assets/1aa05b75-7a9a-4356-b6a4-5a4589491a4e" />
-
 ---
 
 ### Story Elements
 
-The right sidebar analyzes your entire project continuously.
+The right sidebar analyzes your entire project continuously. Tabs are organized in a two-level layout — a primary row of section tabs with a scrollable content area below — for efficient use of vertical space.
 
-| Tab | What it shows | What it looks like |
-|-----|---------------|-------------------------|
-| **Characters** | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. | <img width="305" height="681" alt="Screenshot 2026-04-09 135939" src="https://github.com/user-attachments/assets/5e27ab7c-8f81-4bbd-a473-d8577871aedb" /> |
-| **Variables** | All `define`/`default` globals. Find usages. | <img width="512" height="768" alt="Screenshot 2026-04-09 135947" src="https://github.com/user-attachments/assets/227b841d-b304-416c-833c-c0a9516deaaa" /> |
-| **Images**  | Image asset manager | <img width="307" height="917" alt="Screenshot 2026-04-09 135958" src="https://github.com/user-attachments/assets/2fd850d7-f78b-447e-897a-582d1e50be41" /> |
-| **Snd** | Audio asset manager | |
-| **Screens** | All `screen` definitions. Jump to definition. Add with boilerplate. |<img width="512" height="768" alt="Screenshot 2026-04-09 140234" src="https://github.com/user-attachments/assets/42e5511e-c9c1-47aa-afd2-fb9aa8d6dd6d" />|
-| **Composers** | Scene, Imagemap, and Screen Layout and Composition | <img width="512" height="768" alt="Screenshot 2026-04-09 140008" src="https://github.com/user-attachments/assets/91501699-4634-4770-aef8-b6814471c59b" />|
-| **Menus** | Visual menu and choice designer | <img width="313" height="1104" alt="Screenshot 2026-04-09 140034" src="https://github.com/user-attachments/assets/10184a6b-a276-4562-a759-97ff73cc6954" /> |
-| **Snippets** | Library of Ren'Py code patterns. User snippets with custom trigger prefixes. |<img width="512" height="768" alt="Screenshot 2026-04-09 140025" src="https://github.com/user-attachments/assets/1af69546-e868-44de-829c-5e3f4d4626f8" />|
+| Tab | What it shows |
+|-----|---------------|
+| **Characters** | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
+| **Variables** | All `define`/`default` globals. Find usages. |
+| **Images**  | Image asset manager |
+| **Snd** | Audio asset manager |
+| **Screens** | All `screen` definitions. Jump to definition. Add with boilerplate. |
+| **Composers** | Scene, Imagemap, and Screen Layout and Composition |
+| **Menus** | Visual menu and choice designer |
+| **Snippets** | Library of Ren'Py code patterns. User snippets with custom trigger prefixes. |
 
 ### Asset Managers
 
@@ -92,18 +84,10 @@ The right sidebar analyzes your entire project continuously.
 
 Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage or Screen Layout Composer. Double-click to manage Ren'Py tags and metadata.
 
-<!--
-<img width="308" height="1011" alt="Image Assets Panel" src="https://github.com/user-attachments/assets/ab645f13-d21a-4a26-aeb2-b91367fb9a13" />
-<img width="1229" height="1001" alt="Image Viewer" src="https://github.com/user-attachments/assets/7c3360fb-484f-4be2-9d61-12c382ca6ef8" />
--->
 #### Audio Assets
 
 Same workflow for audio. Browse, scan external directories, and right-click to copy `play music`, `play sound`, or `queue audio` statements. Built-in audio player.
 
-<!--
-<img width="311" height="1011" alt="Audio Assets Panel" src="https://github.com/user-attachments/assets/90623b20-6a20-4386-85e7-a49db27c2947" />
-<img width="1537" height="1007" alt="Audio Viewer / Player" src="https://github.com/user-attachments/assets/893ff1a3-72c7-48c7-ad5d-db547a6885b6" />
--->
 ---
 
 ### Visual Composers
@@ -112,22 +96,15 @@ Same workflow for audio. Browse, scan external directories, and right-click to c
 
 Layer backgrounds and sprites on a stage. Per-sprite controls: zoom, flip, rotate, alpha, blur. Reorder layers by dragging. Configurable stage resolution (presets: 1920×1080, 1280×720, 1024×768, 800×600, or custom). Copy the generated `scene`/`show` Ren'Py code or export the composition as a PNG.
 
-<img width="1718" height="1001" alt="Scene Composer" src="https://github.com/user-attachments/assets/3dd84ee3-7eb6-4664-b93d-ada3690d039a" />
-
 #### ImageMap Composer
 
 Draw clickable hotspot rectangles over a ground image (with optional hover overlay). Each hotspot has a configurable action type (`jump` or `call`) and target label. Generates `imagebutton`/`imagemap` screen code ready to copy into your project. Ground and hover images are set by dragging from the Image Assets panel.
-
-<img width="2004" height="1280" alt="Screenshot 2026-04-09 134836" src="https://github.com/user-attachments/assets/07aa6607-9774-4715-b35e-e5ae1cb4dc87" />
 
 #### Screen Layout Composer
 
 Build Ren'Py screens visually. Drag widgets (`vbox`, `hbox`, `frame`, `text`, `image`, `textbutton`, `button`, `imagebutton`, `bar`, `input`, `null`) onto the stage and nest them. Configure properties per widget. Generates ready-to-use `screen` code with copy-to-clipboard support. Existing screens can be viewed in read-only mode; duplicate to create an editable copy.
 
-<img width="2005" height="1276" alt="Screenshot 2026-04-09 134942" src="https://github.com/user-attachments/assets/435bae88-4e7f-4361-9bd1-c2c6f7c14b60" />
-
 ---
-
 
 ### Diagnostics
 
@@ -142,16 +119,11 @@ A dedicated panel surfaces issues across every file in the project.
 
 Click any issue to jump directly to the source. Filter by severity (error / warning / info). Convert issues to task checklist items tracked with your project.
 
-<img width="2001" height="1278" alt="Screenshot 2026-04-09 134751" src="https://github.com/user-attachments/assets/6bc492a7-7eb3-45c4-b7a5-d94ada5cdb92" />
-
 ---
 
 ### Project Statistics
 
-Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores.
-
-
-<img width="1992" height="1274" alt="Screenshot 2026-04-09 134804" src="https://github.com/user-attachments/assets/f0134184-e807-400c-8b63-5236450d6ca6" />
+Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores. Statistics are computed asynchronously after the tab opens — each metric shows an inline spinner until ready, so the Stats tab appears instantly even for large projects.
 
 ---
 
@@ -167,6 +139,7 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 - **Run Game** — launch Ren'Py as a child process directly from the toolbar.
 - **10 Themes** — system, light, dark, solarized light/dark, colorful light/dark, neon dark, ocean dark, candy light, forest light.
 - **Auto-updater** — checks for new releases on launch and prompts to install.
+- **Version in status bar** — the app version is always visible at the right end of the status bar.
 - **Cross-platform** — Windows (NSIS installer), macOS (DMG), Linux (AppImage).
 
 ---
@@ -179,6 +152,7 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 | Undo / Redo | `Ctrl+Z` / `Ctrl+Y` |
 | New Block | `N` |
 | Group selected blocks | `G` |
+| Go to Label | `Ctrl+G` / `Cmd+G` |
 | Pan canvas | `Shift+Drag` (configurable) |
 | Zoom canvas | Mouse scroll |
 | Select multiple blocks | `Ctrl+Click` or rubber-band drag |
@@ -240,16 +214,7 @@ Output goes to `release/`. On Windows: run the `.exe` installer. On Mac: open th
 
 ---
 
-## Project Explorer
-
-<img width="261" height="1019" alt="Project Explorer" src="https://github.com/user-attachments/assets/c3abdbb8-9606-4353-9e93-3239608b1249" />
-
----
-
 ## Toolbar Reference
-
-<img width="1839" height="83" alt="Screenshot 2026-04-09 135204" src="https://github.com/user-attachments/assets/0d04dc9b-b9b6-42ed-b205-0b31536b6a03" />
-
 
 | Button | Function | Shortcut |
 |--------|----------|----------|
@@ -268,4 +233,4 @@ Output goes to `release/`. On Windows: run the `.exe` installer. On Mac: open th
 
 ---
 
-*Vangard Ren'Py IDE — v0.7.0 Public Beta 4*
+*Vangard Ren'Py IDE — v0.7.1 Public Beta 4 (not yet released) · last release: v0.6.0 Public Beta 3*
