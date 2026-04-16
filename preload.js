@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadProject: (rootPath) => ipcRenderer.invoke('project:load', rootPath),
   refreshProjectTree: (rootPath) => ipcRenderer.invoke('project:refresh-tree', rootPath),
   readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
+  fileExists: (filePath) => ipcRenderer.invoke('fs:fileExists', filePath),
   writeFile: (filePath, content, encoding) => ipcRenderer.invoke('fs:writeFile', filePath, content, encoding),
   createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
   removeEntry: (entryPath) => ipcRenderer.invoke('fs:removeEntry', entryPath),
@@ -76,6 +77,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- App Settings ---
   getAppSettings: () => ipcRenderer.invoke('app:get-settings'),
   saveAppSettings: (settings) => ipcRenderer.invoke('app:save-settings', settings),
+  getUserDataPath: () => ipcRenderer.invoke('app:getUserDataPath'),
   // --- Path utils ---
   path: {
     join: (...args) => ipcRenderer.invoke('path:join', ...args),

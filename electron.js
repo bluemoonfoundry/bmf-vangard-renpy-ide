@@ -48,7 +48,9 @@ const WATCH_DEBOUNCE_MS = 400;
 
 function startProjectWatcher(rootPath) {
     if (projectWatcher) {
-        try { projectWatcher.close(); } catch {}
+        try { projectWatcher.close(); } catch {
+            // Ignore errors when closing watcher
+        }
         projectWatcher = null;
     }
     watchDebounceTimers.forEach(t => clearTimeout(t));
@@ -573,6 +575,22 @@ async function updateApplicationMenu() {
         label: 'Help',
         submenu: [
             {
+                label: 'Show Tutorial',
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'show-tutorial' }); }
+            },
+            {
+                label: 'User Guide',
+                click: () => {
+                    const userGuidePath = app.isPackaged
+                        ? path.join(process.resourcesPath, 'docs', 'Ren-IDE_User_Guide.html')
+                        : path.join(__dirname, 'docs', 'Ren-IDE_User_Guide.html');
+                    shell.openPath(userGuidePath).catch(err => {
+                        console.error('Failed to open user guide:', err);
+                        dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');
+                    });
+                }
+            },
+            {
                 label: 'Keyboard Shortcuts',
                 accelerator: 'CmdOrCtrl+/',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-shortcuts' }); }
@@ -1029,10 +1047,23 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('fs:fileExists', async (event, filePath) => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
   ipcMain.handle('path:join', (event, ...args) => {
     return path.join(...args);
   });
-  
+
+  ipcMain.handle('app:getUserDataPath', () => {
+    return app.getPath('userData');
+  });
+
   ipcMain.on('reply-unsaved-changes-before-exit', (event, hasUnsavedChanges) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (window) {

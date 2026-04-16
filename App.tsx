@@ -34,6 +34,7 @@ import AboutModal from './components/AboutModal';
 import UserSnippetModal from './components/UserSnippetModal';
 import NewProjectWizardModal from './components/NewProjectWizardModal';
 import { MenuConstructorModal } from './components/MenuConstructorModal';
+import FirstRunTutorial from './components/FirstRunTutorial';
 import { SearchProvider } from './contexts/SearchContext';
 import StatsView from './components/StatsView';
 import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
@@ -217,6 +218,9 @@ const App: React.FC = () => {
   // --- State: Menu Constructor Modal ---
   const [menuConstructorModalOpen, setMenuConstructorModalOpen] = useState(false);
   const [editingMenuTemplate, setEditingMenuTemplate] = useState<MenuTemplate | null>(null);
+
+  // --- State: First Run Tutorial ---
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // --- State: Application and Project Settings ---
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -3243,14 +3247,6 @@ const App: React.FC = () => {
       }
   }, [clipboard, projectRootPath, addToast]);
 
-  const snippetCategoriesState = appSettings.snippetCategoriesState || {};
-  const handleToggleSnippetCategory = (name: string, isOpen: boolean) => {
-      updateAppSettings(draft => {
-          if (!draft.snippetCategoriesState) draft.snippetCategoriesState = {};
-          draft.snippetCategoriesState[name] = isOpen;
-      });
-  };
-
   // --- User Snippet CRUD ---
   const handleSaveSnippet = (snippet: UserSnippet) => {
       updateAppSettings(draft => {
@@ -3340,6 +3336,7 @@ const App: React.FC = () => {
             if (data.command === 'open-settings') setSettingsModalOpen(true);
             if (data.command === 'open-shortcuts') setShortcutsModalOpen(true);
             if (data.command === 'open-about') setAboutModalOpen(true);
+            if (data.command === 'show-tutorial') setShowTutorial(true);
             if (data.command === 'toggle-left-sidebar') updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; });
             if (data.command === 'toggle-right-sidebar') updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; });
             if (data.command === 'explorer-new-file') setExplorerExternalAction({ type: 'new-file', key: Date.now() });
@@ -3898,7 +3895,7 @@ const App: React.FC = () => {
                   <p className="text-gray-500 dark:text-gray-400 text-sm">Use the File menu or the buttons below to get started.</p>
                 </div>
                 {window.electronAPI && (
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center" data-tutorial="project-menu">
                     <button
                       onClick={handleCreateProject}
                       className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
@@ -4228,12 +4225,11 @@ const App: React.FC = () => {
                 onDeleteScreenLayout={handleDeleteScreenLayout}
                 onDuplicateScreenLayout={handleDuplicateScreenLayout}
                 // Snippet Props
-                snippetCategoriesState={snippetCategoriesState}
-                onToggleSnippetCategory={handleToggleSnippetCategory}
                 userSnippets={appSettings.userSnippets}
                 onCreateSnippet={() => { setEditingSnippet(null); setUserSnippetModalOpen(true); }}
                 onEditSnippet={(snippet) => { setEditingSnippet(snippet); setUserSnippetModalOpen(true); }}
                 onDeleteSnippet={handleDeleteSnippet}
+                projectRootPath={projectRootPath}
                 // Menu Template Props
                 menuTemplates={appSettings.menuTemplates || []}
                 onCreateMenuTemplate={() => { setEditingMenuTemplate(null); setMenuConstructorModalOpen(true); }}
@@ -4438,6 +4434,11 @@ const App: React.FC = () => {
         canvasName={goToLabelCanvasName}
         onSelect={handleGoToLabel}
         onClose={() => setIsGoToLabelOpen(false)}
+      />
+
+      <FirstRunTutorial
+        forceShow={showTutorial}
+        onComplete={() => setShowTutorial(false)}
       />
     </div>
     </SearchProvider>

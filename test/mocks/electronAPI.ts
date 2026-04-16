@@ -60,6 +60,7 @@ export interface MockElectronAPI {
 
   // File system
   readFile: Mock<(path: string) => Promise<string>>;
+  fileExists: Mock<(path: string) => Promise<boolean>>;
   writeFile: Mock<(path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>>;
   createDirectory: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   removeEntry: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
@@ -90,7 +91,7 @@ export interface MockElectronAPI {
   // Settings
   getAppSettings: Mock<() => Promise<Partial<AppSettings> | null>>;
   saveAppSettings: Mock<(settings: AppSettings) => Promise<{ success: boolean; error?: string }>>;
-
+  getUserDataPath: Mock<() => Promise<string>>;
 
   // Auto-updater
   onUpdateAvailable: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
@@ -126,6 +127,7 @@ export function createMockElectronAPI(): MockElectronAPI {
 
     // File system
     readFile: vi.fn().mockResolvedValue(''),
+    fileExists: vi.fn().mockResolvedValue(false),
     writeFile: vi.fn().mockResolvedValue({ success: true }),
     createDirectory: vi.fn().mockResolvedValue({ success: true }),
     removeEntry: vi.fn().mockResolvedValue({ success: true }),
@@ -156,6 +158,7 @@ export function createMockElectronAPI(): MockElectronAPI {
     // Settings
     getAppSettings: vi.fn().mockResolvedValue(null),
     saveAppSettings: vi.fn().mockResolvedValue({ success: true }),
+    getUserDataPath: vi.fn().mockResolvedValue('/mock/userdata'),
 
     // Auto-updater
     onUpdateAvailable: vi.fn().mockReturnValue(noopUnsubscribe),

@@ -126,12 +126,11 @@ interface StoryElementsPanelProps {
     onDuplicateScreenLayout: (layoutId: string) => void;
 
     // Snippet Props
-    snippetCategoriesState: Record<string, boolean>;
-    onToggleSnippetCategory: (name: string, isOpen: boolean) => void;
     userSnippets?: UserSnippet[];
     onCreateSnippet?: () => void;
     onEditSnippet?: (snippet: UserSnippet) => void;
     onDeleteSnippet?: (snippetId: string) => void;
+    projectRootPath?: string | null;
 
     // Menu Template Props
     menuTemplates: MenuTemplate[];
@@ -157,8 +156,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     scenes, onOpenScene, onCreateScene, onDeleteScene,
     imagemaps, onOpenImageMap, onCreateImageMap, onDeleteImageMap,
     screenLayouts, onOpenScreenLayout, onCreateScreenLayout, onDeleteScreenLayout, onDuplicateScreenLayout,
-    snippetCategoriesState, onToggleSnippetCategory,
-    userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet,
+    userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet, projectRootPath,
     menuTemplates, onCreateMenuTemplate, onEditMenuTemplate, onDeleteMenuTemplate,
     projectSettings, onUpdateProjectSettings, hasProject,
 }) => {
@@ -203,7 +201,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     const activeTabCategory = TAB_CATEGORIES.find(c => c.id === activeCategory);
 
     return (
-        <div className="h-full bg-secondary text-primary flex flex-col min-h-0">
+        <div className="h-full bg-secondary text-primary flex flex-col min-h-0" data-tutorial="story-elements">
             {/* Category bar */}
             <div className="flex-none border-b border-primary flex" role="tablist" aria-label="Story Elements categories">
                 {TAB_CATEGORIES.map(category => (
@@ -496,14 +494,13 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                 {/* Snippets */}
                 {activeSubTab === 'snippets' && (
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">Code Snippets ({userSnippets?.length ?? 0})</h2>
+                        <h2 className="text-lg font-semibold mb-4">Code Snippets</h2>
                         <SnippetManager
-                            categoriesState={snippetCategoriesState}
-                            onToggleCategory={onToggleSnippetCategory}
                             userSnippets={userSnippets}
                             onCreateSnippet={onCreateSnippet}
                             onEditSnippet={onEditSnippet}
                             onDeleteSnippet={onDeleteSnippet}
+                            projectRootPath={projectRootPath}
                         />
                     </div>
                 )}

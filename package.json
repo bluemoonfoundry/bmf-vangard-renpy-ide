@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:debug": "vite build --mode development",
+    "build:docs": "cd docs && make html",
     "preview": "vite preview",
     "electron:start": "npm run build && electron .",
     "predist": "node -e \"const fs=require('fs');try{fs.rmSync('release',{recursive:true,force:true})}catch(e){}\"",
@@ -85,7 +86,8 @@
       "electron.js",
       "preload.js",
       "vangard-renide-512x512.png",
-      "lib/**/*"
+      "lib/**/*",
+      "docs/Ren-IDE_User_Guide.html"
     ],
     "asarUnpack": [
       "node_modules/sharp/**/*"
