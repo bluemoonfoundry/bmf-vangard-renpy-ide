@@ -39,7 +39,7 @@ const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, on
   const handleConfirm = () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-        setError('Filename cannot be empty.');
+        setError('Oops! Your scene needs a name.');
         return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(trimmedName)) {
@@ -65,7 +65,7 @@ const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, on
         onClick={e => e.stopPropagation()}
       >
         <header className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="create-block-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">Add New Block</h2>
+          <h2 id="create-block-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">New Scene</h2>
         </header>
         
         <main className="p-6 space-y-4">
@@ -133,7 +133,7 @@ const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, on
             onClick={handleConfirm}
             className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-sm"
           >
-            Create Block
+            Create Scene
           </button>
         </footer>
       </div>

@@ -257,7 +257,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                             <button onClick={() => onOpenCharacterEditor('new_character')} className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-bold">+ Add</button>
                         </div>
                         {characterList.length === 0 ? (
-                            <p className="text-sm text-secondary italic">No characters defined yet.</p>
+                            <p className="text-sm text-secondary italic">Characters bring your story to life. Click 'Add' to create your first one!</p>
                         ) : (
                             <div
                                 ref={charContainerRef}

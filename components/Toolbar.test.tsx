@@ -40,9 +40,9 @@ describe('Toolbar', () => {
   it('renders key toolbar buttons', () => {
     render(<Toolbar {...createProps()} />);
 
-    expect(screen.getByText('Add Block')).toBeInTheDocument();
-    expect(screen.getByText('Add Note')).toBeInTheDocument();
-    expect(screen.getByText('Redraw')).toBeInTheDocument();
+    expect(screen.getByText('New Scene')).toBeInTheDocument();
+    expect(screen.getByText('Leave a Note')).toBeInTheDocument();
+    expect(screen.getByText('Auto-arrange')).toBeInTheDocument();
     expect(screen.getByText('Run')).toBeInTheDocument();
   });
 
@@ -136,12 +136,12 @@ describe('Toolbar', () => {
     expect(props.onToggleDraftingMode).toHaveBeenCalledWith(true);
   });
 
-  it('calls addBlock when Add Block is clicked', async () => {
+  it('calls addBlock when New Scene is clicked', async () => {
     const props = createProps();
     const user = userEvent.setup();
     render(<Toolbar {...props} />);
 
-    await user.click(screen.getByText('Add Block'));
+    await user.click(screen.getByText('New Scene'));
     expect(props.addBlock).toHaveBeenCalledTimes(1);
   });
 
@@ -150,7 +150,7 @@ describe('Toolbar', () => {
     const user = userEvent.setup();
     render(<Toolbar {...props} />);
 
-    await user.click(screen.getByText('Redraw'));
+    await user.click(screen.getByText('Auto-arrange'));
 
     expect(props.handleTidyUp).toHaveBeenCalledTimes(1);
   });

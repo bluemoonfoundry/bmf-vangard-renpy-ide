@@ -303,7 +303,12 @@ const ImageManager: React.FC<ImageManagerProps> = ({ images, metadata, scanDirec
             ))}
           </div>
         )}
-        {filteredImages.length === 0 && (
+        {filteredImages.length === 0 && images.length === 0 && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                No images yet — drag some in to get started!
+            </p>
+        )}
+        {filteredImages.length === 0 && images.length > 0 && (
             <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                 No images found matching criteria.
             </p>

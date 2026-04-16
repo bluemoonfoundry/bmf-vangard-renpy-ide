@@ -316,7 +316,7 @@ const AudioManager: React.FC<AudioManagerProps> = ({ audios, metadata, scanDirec
             </div>
           ))}
         </div>
-        {audios.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No audio found. Add a source directory to get started.</p>}
+        {audios.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Add music and sound effects to bring your story to life.</p>}
         {audios.length > 0 && filteredAudios.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No audio files match your filter.</p>}
       </div>
       {contextMenu && (

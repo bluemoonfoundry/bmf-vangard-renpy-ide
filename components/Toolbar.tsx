@@ -137,27 +137,27 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </ToolbarButton>
         <div className="h-6 w-px bg-primary shrink-0" />
 
-        <ToolbarButton onClick={addBlock} title="Add New Block (N)">
+        <ToolbarButton onClick={addBlock} title="New Scene (N)">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-          <span>Add Block</span>
+          <span>New Scene</span>
         </ToolbarButton>
 
         <ToolbarButton
           onClick={onAddStickyNote ?? undefined}
           disabled={!onAddStickyNote}
-          title={onAddStickyNote ? 'Add Sticky Note to active canvas' : 'Open a canvas to add sticky notes'}
+          title={onAddStickyNote ? 'Leave a Note on active canvas' : 'Open a canvas to add notes'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" /></svg>
-          <span>Add Note</span>
+          <span>Leave a Note</span>
         </ToolbarButton>
 
         <ToolbarButton
           onClick={canRedraw ? handleTidyUp : undefined}
           disabled={!canRedraw}
-          title={canRedraw ? `Redraw ${redrawLabel} Canvas` : 'No active canvas to redraw'}
+          title={canRedraw ? `Organize ${redrawLabel} Layout` : 'No active canvas to organize'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-          <span>Redraw</span>
+          <span>Auto-arrange</span>
         </ToolbarButton>
         <div className="h-6 w-px bg-primary shrink-0" />
 

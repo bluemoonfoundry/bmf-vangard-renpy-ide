@@ -22,12 +22,12 @@ describe('CreateBlockModal', () => {
   it('renders the modal with title and form when open', () => {
     render(<CreateBlockModal {...defaultProps} />);
 
-    expect(screen.getByText('Add New Block')).toBeInTheDocument();
+    expect(screen.getByText('New Scene')).toBeInTheDocument();
     expect(screen.getByText('Story')).toBeInTheDocument();
     expect(screen.getByText('Screen')).toBeInTheDocument();
     expect(screen.getByText('Config')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
-    expect(screen.getByText('Create Block')).toBeInTheDocument();
+    expect(screen.getByText('Create Scene')).toBeInTheDocument();
   });
 
   it('shows the default path', () => {
@@ -39,8 +39,8 @@ describe('CreateBlockModal', () => {
     const user = userEvent.setup();
     render(<CreateBlockModal {...defaultProps} />);
 
-    await user.click(screen.getByText('Create Block'));
-    expect(screen.getByText('Filename cannot be empty.')).toBeInTheDocument();
+    await user.click(screen.getByText('Create Scene'));
+    expect(screen.getByText('Oops! Your scene needs a name.')).toBeInTheDocument();
     expect(defaultProps.onConfirm).not.toHaveBeenCalled();
   });
 
@@ -50,7 +50,7 @@ describe('CreateBlockModal', () => {
 
     const input = screen.getByPlaceholderText('chapter_1');
     await user.type(input, 'invalid-name!');
-    await user.click(screen.getByText('Create Block'));
+    await user.click(screen.getByText('Create Scene'));
 
     expect(screen.getByText('Filename should only contain letters, numbers, and underscores.')).toBeInTheDocument();
     expect(defaultProps.onConfirm).not.toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe('CreateBlockModal', () => {
 
     const input = screen.getByPlaceholderText('chapter_1');
     await user.type(input, 'my_scene');
-    await user.click(screen.getByText('Create Block'));
+    await user.click(screen.getByText('Create Scene'));
 
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('my_scene', 'story');
     expect(defaultProps.onClose).toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe('CreateBlockModal', () => {
     await user.click(screen.getByText('Screen'));
     const input = screen.getByPlaceholderText('inventory_screen');
     await user.type(input, 'menu_screen');
-    await user.click(screen.getByText('Create Block'));
+    await user.click(screen.getByText('Create Scene'));
 
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('menu_screen', 'screen');
   });
@@ -87,7 +87,7 @@ describe('CreateBlockModal', () => {
     await user.click(screen.getByText('Config'));
     const input = screen.getByPlaceholderText('custom_config');
     await user.type(input, 'game_options');
-    await user.click(screen.getByText('Create Block'));
+    await user.click(screen.getByText('Create Scene'));
 
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('game_options', 'config');
   });
