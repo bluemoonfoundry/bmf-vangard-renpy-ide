@@ -58,13 +58,17 @@ make all
 
 ## Integration with Build Process
 
-The HTML user guide is automatically generated during the distribution build:
+The HTML user guide is **committed to the repository** and bundled with distribution builds.
+
+**Important:** When you modify `USER_GUIDE.md`, you must manually rebuild and commit the HTML:
 
 ```bash
-npm run dist
+make html
+git add Ren-IDE_User_Guide.html
+git commit -m "Update user guide HTML"
 ```
 
-The `predist` script in `package.json` calls `npm run build:docs` which runs `make html`.
+The HTML file is version-controlled to avoid requiring Pandoc in CI environments.
 
 ## Customization
 
