@@ -23,7 +23,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ progress, message, onCa
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] backdrop-blur-sm transition-opacity duration-300">
+    <div data-loading="true" className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] backdrop-blur-sm transition-opacity duration-300">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 max-w-lg w-full text-center border border-gray-200 dark:border-gray-700">
         {cancelling ? (
           <>

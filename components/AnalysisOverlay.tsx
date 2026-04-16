@@ -19,7 +19,7 @@ const AnalysisOverlay: React.FC<AnalysisOverlayProps> = ({ blockCount, progress 
   const phase = progress?.phase ?? 'Preparing';
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] backdrop-blur-sm">
+    <div data-analyzing="true" className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 max-w-lg w-full text-center border border-gray-200 dark:border-gray-700">
         <div className="flex justify-center mb-6">
           <svg className="animate-spin h-10 w-10 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

@@ -35,11 +35,20 @@ protocol.registerSchemesAsPrivileged([
 
 // --- CLI startup flags ---
 // Supports: electron . --project /path/to/project
+//           electron . --user-data-dir /path/to/userData
 // Used by the Playwright screenshot capture script and power users.
 const _projectArgIdx = process.argv.indexOf('--project');
 const startupProjectPath = (_projectArgIdx !== -1 && _projectArgIdx + 1 < process.argv.length)
     ? process.argv[_projectArgIdx + 1]
     : null;
+
+// Allow overriding the userData directory before the app is ready.
+// Playwright uses this to point at the production app's settings so
+// the correct theme and layout preferences are loaded.
+const _userDataArgIdx = process.argv.indexOf('--user-data-dir');
+if (_userDataArgIdx !== -1 && _userDataArgIdx + 1 < process.argv.length) {
+    app.setPath('userData', process.argv[_userDataArgIdx + 1]);
+}
 
 // --- Game Process Management ---
 let gameProcess = null;
