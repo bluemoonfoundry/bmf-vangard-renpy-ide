@@ -644,7 +644,6 @@ export interface AppSettings {
   recentProjects: string[];
   editorFontFamily: string;
   editorFontSize: number;
-  snippetCategoriesState?: Record<string, boolean>;
   mouseGestures?: MouseGestureSettings;
   userSnippets?: UserSnippet[];
   menuTemplates?: MenuTemplate[];
@@ -1134,6 +1133,7 @@ declare global {
           loadProject: (path: string) => Promise<ProjectLoadResult>;
           refreshProjectTree: (path: string) => Promise<FileSystemTreeNode>;
           readFile: (path: string) => Promise<string>;
+          fileExists: (path: string) => Promise<boolean>;
           writeFile: (path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>;
           createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
           removeEntry: (path: string) => Promise<{ success: boolean; error?: string }>;
@@ -1147,6 +1147,7 @@ declare global {
           forceQuit: () => void;
           getAppSettings: () => Promise<Partial<AppSettings> | null>;
           saveAppSettings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
+          getUserDataPath: () => Promise<string>;
           selectRenpy: () => Promise<string | null>;
           runGame: (renpyPath: string, projectPath: string) => void;
           stopGame: () => void;

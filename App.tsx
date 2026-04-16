@@ -3237,14 +3237,6 @@ const App: React.FC = () => {
       }
   }, [clipboard, projectRootPath, addToast]);
 
-  const snippetCategoriesState = appSettings.snippetCategoriesState || {};
-  const handleToggleSnippetCategory = (name: string, isOpen: boolean) => {
-      updateAppSettings(draft => {
-          if (!draft.snippetCategoriesState) draft.snippetCategoriesState = {};
-          draft.snippetCategoriesState[name] = isOpen;
-      });
-  };
-
   // --- User Snippet CRUD ---
   const handleSaveSnippet = (snippet: UserSnippet) => {
       updateAppSettings(draft => {
@@ -4222,12 +4214,11 @@ const App: React.FC = () => {
                 onDeleteScreenLayout={handleDeleteScreenLayout}
                 onDuplicateScreenLayout={handleDuplicateScreenLayout}
                 // Snippet Props
-                snippetCategoriesState={snippetCategoriesState}
-                onToggleSnippetCategory={handleToggleSnippetCategory}
                 userSnippets={appSettings.userSnippets}
                 onCreateSnippet={() => { setEditingSnippet(null); setUserSnippetModalOpen(true); }}
                 onEditSnippet={(snippet) => { setEditingSnippet(snippet); setUserSnippetModalOpen(true); }}
                 onDeleteSnippet={handleDeleteSnippet}
+                projectRootPath={projectRootPath}
                 // Menu Template Props
                 menuTemplates={appSettings.menuTemplates || []}
                 onCreateMenuTemplate={() => { setEditingMenuTemplate(null); setMenuConstructorModalOpen(true); }}

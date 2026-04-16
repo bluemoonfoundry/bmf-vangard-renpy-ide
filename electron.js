@@ -1029,10 +1029,23 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('fs:fileExists', async (event, filePath) => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
   ipcMain.handle('path:join', (event, ...args) => {
     return path.join(...args);
   });
-  
+
+  ipcMain.handle('app:getUserDataPath', () => {
+    return app.getPath('userData');
+  });
+
   ipcMain.on('reply-unsaved-changes-before-exit', (event, hasUnsavedChanges) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (window) {
