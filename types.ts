@@ -902,7 +902,7 @@ export interface ProjectSettings {
   scannedAudioPaths?: string[];
   storyElementsTabState?: {
     activeTab: 'storyData' | 'assets' | 'composers' | 'tools';
-    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'screenLayouts' | 'snippets' | 'menuTemplates';
+    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'screenLayouts' | 'snippets' | 'menuTemplates' | 'colorPalette';
   };
 }
 

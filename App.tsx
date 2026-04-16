@@ -40,6 +40,7 @@ import StatsView from './components/StatsView';
 import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
 import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
 import { useHistory } from './hooks/useHistory';
+import { useProjectColorScan } from './hooks/useProjectColorScan';
 import { createId } from './lib/createId';
 import {
   buildSavedStoryBlockLayouts,
@@ -406,6 +407,9 @@ const App: React.FC = () => {
       
       return paths;
   }, [audios, analysisResult.variables]);
+
+  // --- Project Color Scan ---
+  const projectColors = useProjectColorScan(blocks);
 
   // --- Route View Logic ---
   const handleUpdateRouteNodePositions = useCallback((updates: { id: string, position: Position }[]) => {
@@ -3292,6 +3296,49 @@ const App: React.FC = () => {
       setHasUnsavedSettings(true);
   };
 
+  // --- Color Picker Actions ---
+  const getActiveColorPickerEditor = useCallback(() => {
+      const activeEditorTab = openTabs.find(t => t.id === activeTabId && t.type === 'editor');
+      if (!activeEditorTab?.blockId) return null;
+      return editorInstances.current.get(activeEditorTab.blockId) ?? null;
+  }, [openTabs, activeTabId]);
+
+  const handleInsertColor = useCallback((hex: string) => {
+      const editor = getActiveColorPickerEditor();
+      if (!editor) { addToast('Open a file in the editor to insert a color.', 'warning'); return; }
+      const pos = editor.getPosition();
+      if (!pos) return;
+      editor.executeEdits('color-picker', [{
+          range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+          text: hex,
+          forceMoveMarkers: true,
+      }]);
+      editor.focus();
+  }, [getActiveColorPickerEditor, addToast]);
+
+  const handleWrapSelectionWithColor = useCallback((hex: string) => {
+      const editor = getActiveColorPickerEditor();
+      if (!editor) { addToast('Open a file in the editor to wrap text with a color tag.', 'warning'); return; }
+      const selection = editor.getSelection();
+      if (!selection || selection.isEmpty()) {
+          addToast('Select text in the editor first, then click Wrap.', 'info');
+          return;
+      }
+      const selectedText = editor.getModel()?.getValueInRange(selection) ?? '';
+      editor.executeEdits('color-picker-wrap', [{
+          range: selection,
+          text: `{color=${hex}}${selectedText}{/color}`,
+          forceMoveMarkers: true,
+      }]);
+      editor.focus();
+  }, [getActiveColorPickerEditor, addToast]);
+
+  const handleCopyColorHex = useCallback((hex: string) => {
+      navigator.clipboard.writeText(hex)
+          .then(() => addToast(`Copied ${hex}`, 'success'))
+          .catch(() => addToast('Failed to copy to clipboard', 'error'));
+  }, [addToast]);
+
   // --- Explorer Selection → File Menu State Sync ---
   useEffect(() => {
     if (!window.electronAPI?.updateExplorerMenuState) return;
@@ -4235,6 +4282,11 @@ const App: React.FC = () => {
                 onCreateMenuTemplate={() => { setEditingMenuTemplate(null); setMenuConstructorModalOpen(true); }}
                 onEditMenuTemplate={(template) => { setEditingMenuTemplate(template); setMenuConstructorModalOpen(true); }}
                 onDeleteMenuTemplate={handleDeleteMenuTemplate}
+                // Color Picker
+                onInsertColorAtCursor={handleInsertColor}
+                onWrapColorSelection={handleWrapSelectionWithColor}
+                onCopyColorHex={handleCopyColorHex}
+                projectColors={projectColors}
                 // Accordion State Props
                 projectSettings={projectSettings as ProjectSettings}
                 onUpdateProjectSettings={updateProjectSettings}

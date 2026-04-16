@@ -8,6 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Character, Variable, ProjectImage, ImageMetadata, RenpyAudio, AudioMetadata, RenpyAnalysisResult, UserSnippet, MenuTemplate, ProjectSettings } from '../types';
+import type { PaletteColor } from '../lib/colorPalettes';
 import { useVirtualList } from '../hooks/useVirtualList';
 
 // p-2 (16px) + color dot/name/tag rows (~36px) + space-y-2 gap (8px)
@@ -18,13 +19,14 @@ import AudioManager from './AudioManager';
 import SnippetManager from './SnippetManager';
 import ScreenManager from './ScreenManager';
 import { MenuTemplateManager } from './MenuTemplateManager';
+import ColorPickerPane from './ColorPickerPane';
 
 type CategoryId = 'storyData' | 'assets' | 'composers' | 'tools';
 type SubTabId =
     | 'characters' | 'variables' | 'screens'  // storyData
     | 'images' | 'audio'                       // assets
     | 'scenes' | 'imagemaps' | 'screenLayouts' // composers
-    | 'snippets' | 'menuTemplates';            // tools
+    | 'snippets' | 'menuTemplates' | 'colorPalette'; // tools
 
 interface TabCategory {
     id: CategoryId;
@@ -65,6 +67,7 @@ const TAB_CATEGORIES: TabCategory[] = [
         subTabs: [
             { id: 'snippets', label: 'Snippets' },
             { id: 'menuTemplates', label: 'Menus' },
+            { id: 'colorPalette', label: 'Colors' },
         ],
     },
 ];
@@ -138,6 +141,12 @@ interface StoryElementsPanelProps {
     onEditMenuTemplate: (template: MenuTemplate) => void;
     onDeleteMenuTemplate: (templateId: string) => void;
 
+    // Color Picker
+    onInsertColorAtCursor: (hex: string) => void;
+    onWrapColorSelection: (hex: string) => void;
+    onCopyColorHex: (hex: string) => void;
+    projectColors?: PaletteColor[];
+
     // Tab/Subsection State Props
     projectSettings: ProjectSettings;
     onUpdateProjectSettings: (updater: (draft: ProjectSettings) => void) => void;
@@ -158,6 +167,10 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     screenLayouts, onOpenScreenLayout, onCreateScreenLayout, onDeleteScreenLayout, onDuplicateScreenLayout,
     userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet, projectRootPath,
     menuTemplates, onCreateMenuTemplate, onEditMenuTemplate, onDeleteMenuTemplate,
+    onInsertColorAtCursor,
+    onWrapColorSelection,
+    onCopyColorHex,
+    projectColors,
     projectSettings, onUpdateProjectSettings, hasProject,
 }) => {
     const [activeCategory, setActiveCategory] = useState<CategoryId>(
@@ -245,8 +258,8 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                 </div>
             )}
 
-            {/* Tab content — full remaining height, scrollable */}
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
+            {/* Tab content — full remaining height. Colors tab manages its own scroll internally. */}
+            <div className={`flex-1 min-h-0 ${activeSubTab === 'colorPalette' ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain p-4'}`}>
                 {/* Characters */}
                 {activeSubTab === 'characters' && (
                     <div>
@@ -519,6 +532,16 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                             onDeleteTemplate={onDeleteMenuTemplate}
                         />
                     </div>
+                )}
+
+                {/* Color Picker — fills the bounded container, manages its own internal layout */}
+                {activeSubTab === 'colorPalette' && (
+                    <ColorPickerPane
+                        onInsertAtCursor={onInsertColorAtCursor}
+                        onWrapSelection={onWrapColorSelection}
+                        onCopyHex={onCopyColorHex}
+                        projectColors={projectColors}
+                    />
                 )}
             </div>
         </div>
