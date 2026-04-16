@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ doc_title }}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts: EB Garamond (Classic Tome Body) and Playfair Display (Antique Headings) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- MEDIEVAL TOME / SEPIA STYLING --- */
+
+        :root {
+            --desk-color: #261e17;     /* Dark wood/leather surrounding the book */
+            --page-color: #f4ead5;     /* Warm parchment/sepia paper */
+            --text-color: #332518;     /* Dark warm brown "ink", not pure black */
+            --heading-color: #8c2a2a;  /* Faded crimson red for headings */
+            --accent-gold: #cba885;    /* Old gold for sidebar text */
+            --border-color: #d4c4a8;   /* Darker parchment for borders/lines */
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--desk-color);
+            color: var(--text-color);
+            font-family: 'EB Garamond', serif;
+            font-size: 1.25rem;
+            line-height: 1.7;
+            position: relative;
+        }
+
+        h1, h2, h3, h4, h5 {
+            font-family: 'Playfair Display', serif;
+            color: var(--heading-color);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+        }
+
+        h1 { border-bottom: none; }
+
+        /* --- THE "PARCHMENT PAGE" EFFECT --- */
+        .content-page {
+            background-color: var(--page-color);
+            border-radius: 2px;
+            box-shadow: 10px 10px 25px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(212, 196, 168, 0.3);
+            padding: 4rem 5rem;
+            margin-top: 2rem;
+            margin-bottom: 4rem;
+            background-image: radial-gradient(circle at center, transparent 70%, rgba(200, 180, 150, 0.15) 100%);
+        }
+
+        .drop-cap::first-letter {
+            font-family: 'Playfair Display', serif;
+            float: left;
+            font-size: 4.5rem;
+            line-height: 0.8;
+            padding-right: 0.5rem;
+            padding-top: 0.2rem;
+            color: var(--heading-color);
+        }
+
+        @media (max-width: 768px) {
+            .content-page { padding: 2rem; }
+        }
+
+        /* --- SIDEBAR STYLING --- */
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+            height: calc(100vh - 4rem);
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+
+        .sidebar-heading {
+            font-family: 'Playfair Display', serif;
+            color: var(--accent-gold);
+            border-bottom: 1px solid rgba(203, 168, 133, 0.3);
+            padding-bottom: 0.5rem;
+        }
+
+        .nav-pills .nav-link {
+            color: var(--accent-gold);
+            font-family: 'EB Garamond', serif;
+            font-size: 1.1rem;
+            border-radius: 0;
+            margin-bottom: 0.25rem;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #f5deb3;
+        }
+
+        .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+            background-color: rgba(0, 0, 0, 0.2);
+            color: #f4ead5;
+            font-weight: 600;
+            border-left: 3px solid var(--heading-color);
+        }
+
+        .nav-pills .nav .nav-link {
+            margin-left: 1rem;
+            font-size: 1rem;
+            font-style: italic;
+        }
+
+        /* --- CALLOUTS / MANUSCRIPT NOTES --- */
+        .guide-note {
+            background-color: #e8dcca;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--heading-color);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            font-style: italic;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+        }
+
+        hr {
+            margin: 3rem 0;
+            border-top: 2px solid var(--border-color);
+            opacity: 1;
+        }
+
+        code {
+            background-color: rgba(140, 42, 42, 0.1);
+            color: var(--heading-color);
+            padding: 0.1rem 0.3rem;
+            border-radius: 2px;
+            font-family: monospace;
+        }
+
+        pre {
+            background-color: rgba(140, 42, 42, 0.06);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--heading-color);
+            padding: 1.25rem;
+            border-radius: 2px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-color);
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: rgba(140, 42, 42, 0.08);
+            font-family: 'Playfair Display', serif;
+            color: var(--heading-color);
+        }
+
+        tr:nth-child(even) td {
+            background-color: rgba(212, 196, 168, 0.2);
+        }
+
+        blockquote {
+            border-left: 4px solid var(--heading-color);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            background-color: rgba(212, 196, 168, 0.2);
+            font-style: italic;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--border-color);
+            box-shadow: 4px 4px 12px rgba(0,0,0,0.15);
+            margin: 1.5rem 0;
+        }
+
+        /* Scrollbar styling for sidebar */
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(203, 168, 133, 0.3); border-radius: 3px; }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(203, 168, 133, 0.6); }
+    </style>
+</head>
+<body data-bs-spy="scroll" data-bs-target="#userGuideNav" data-bs-smooth-scroll="true" tabindex="0">
+
+<div class="container-fluid px-4 py-3">
+    <div class="row justify-content-center">
+
+        <!-- SIDEBAR NAVIGATION -->
+        <div class="col-lg-3 col-xl-2 d-none d-lg-block">
+            <nav id="userGuideNav" class="sidebar mt-4">
+                <h4 class="sidebar-heading fs-4 mb-4">Table of Contents</h4>
+                <nav class="nav nav-pills flex-column">
+
+                    {% for section in sections %}
+                        <a class="nav-link" href="#{{ section.id }}">{{ section.nav_title }}</a>
+
+                        {% if section.subsections %}
+                        <nav class="nav nav-pills flex-column">
+                            {% for sub in section.subsections %}
+                            <a class="nav-link" href="#{{ sub.id }}">{{ sub.nav_title }}</a>
+                            {% endfor %}
+                        </nav>
+                        {% endif %}
+                    {% endfor %}
+
+                </nav>
+            </nav>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="col-12 col-lg-8 col-xl-7">
+            <!-- The "Parchment Page" container -->
+            <div class="content-page">
+
+                <div class="text-center mb-5">
+                    <h1 class="display-3 mb-2">{{ doc_title }}</h1>
+                    <p class="lead" style="font-style: italic; color: var(--heading-color);">{{ doc_subtitle | default("Being a complete guide to the mastery of the software.") }}</p>
+                </div>
+
+                {% for section in sections %}
+                    <section id="{{ section.id }}">
+                        <h2>{{ section.content_title }}</h2>
+
+                        {{ section.html_content | safe }}
+
+                        {% if section.subsections %}
+                            {% for sub in section.subsections %}
+                                <h3 id="{{ sub.id }}">{{ sub.content_title }}</h3>
+                                {{ sub.html_content | safe }}
+                            {% endfor %}
+                        {% endif %}
+                    </section>
+
+                    {% if not loop.last %}
+                    <hr>
+                    {% endif %}
+                {% endfor %}
+
+            </div> <!-- End of content-page -->
+        </div> <!-- End of column -->
+    </div> <!-- End of row -->
+</div>
+
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

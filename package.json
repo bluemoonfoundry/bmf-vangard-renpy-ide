@@ -1,6 +1,8 @@
 {
   "name": "Vangard-RenPy-IDE",
   "version": "0.7.1",
+  "author": "Blue Moon Foundry Software",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "main": "electron.js",
   "scripts": {
@@ -86,8 +88,7 @@
       "electron.js",
       "preload.js",
       "vangard-renide-512x512.png",
-      "lib/**/*",
-      "docs/Ren-IDE_User_Guide.html"
+      "lib/**/*"
     ],
     "asarUnpack": [
       "node_modules/sharp/**/*"
@@ -118,6 +119,10 @@
       "artifactName": "${name}-${version}.${ext}"
     },
     "extraResources": [
+      {
+        "from": "docs/Ren-IDE_User_Guide.html",
+        "to": "docs/Ren-IDE_User_Guide.html"
+      },
       {
         "from": "resources/renpy-template",
         "to": "renpy-template",

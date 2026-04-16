@@ -6880,10 +6880,8 @@ A: Not currently, but you can script file operations (e.g., batch renaming) usin
 
 ### Development Team
 
-**Ren'IDE (Vangard Ren'Py IDE)**
+**Ren'IDE (Vangard Ren'Py IDE)** is developed by **Blue Moon Foundry Software**.
 
-- **Project Lead:** (Add name/handle)
-- **Lead Developer:** (Add name/handle)
 - **Contributors:** See [GitHub Contributors](https://github.com/bluemoonfoundry/vangard-renpy-ide/graphs/contributors)
 
 ### Open Source Libraries
@@ -6909,7 +6907,7 @@ Ren'IDE is built with the following open source technologies:
 
 ### License
 
-Ren'IDE is released under the [MIT License](https://opensource.org/licenses/MIT) (or specify actual license).
+Ren'IDE is released under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html).
 
 ---
 
@@ -6920,8 +6918,8 @@ Ren'IDE is released under the [MIT License](https://opensource.org/licenses/MIT)
 **Document Version:** 1.0
 **Last Updated:** April 2026
 **Total Pages:** Approximately 100-110 pages (when rendered as PDF)
-**Authors:** (Add author name/handle)
-**License:** (Add documentation license, e.g., Creative Commons)
+**Developer:** Blue Moon Foundry Software
+**License:** GNU Affero General Public License v3.0 (AGPL-3.0)
 
 ---
 

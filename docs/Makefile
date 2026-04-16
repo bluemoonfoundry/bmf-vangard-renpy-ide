@@ -39,8 +39,7 @@ pdf:
 
 html:
 	@echo "Generating HTML user guide..."
-	$(PANDOC) USER_GUIDE.md -o $(HTML_OUTPUT) --toc --toc-depth=3 --number-sections --syntax-highlighting=tango --standalone --metadata title="Ren'IDE User Guide" --template=template-inline.html
-	@echo "✓ HTML generated: $(HTML_OUTPUT)"
+	python build_guide.py
 
 draft:
 	@echo "Generating draft PDF (no title page)..."
