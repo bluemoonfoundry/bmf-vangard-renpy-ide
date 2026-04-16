@@ -421,24 +421,24 @@ const App: React.FC = () => {
   const handleClearFindUsages = useCallback(() => setFindUsagesHighlightIds(null), []);
   const canvasInteractionEnd = useCallback(() => {}, []);
 
-  const routeAnalysisResult = useMemo(() => {
+  // Split into two memos so that dragging route nodes (which updates routeNodeLayoutCache)
+  // only reruns the cheap position-override step, not the expensive analysis + layout pass.
+  const routeRaw = useMemo(() => {
       const raw = performRouteAnalysis(debouncedBlocks, analysisResult.labels, analysisResult.jumps);
       const layoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
       const groupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
       const layoutedNodes = computeRouteCanvasLayout(raw.labelNodes, raw.routeLinks, layoutMode, groupingMode);
+      return { ...raw, labelNodes: layoutedNodes };
+  }, [debouncedBlocks, analysisResult, projectSettings.routeCanvasGroupingMode, projectSettings.routeCanvasLayoutMode]);
 
-      // Apply User Overrides (Cache)
-      // If the user has manually moved a node, we prioritize that position over the auto-layout
-      const finalNodes = layoutedNodes.map(n => {
+  const routeAnalysisResult = useMemo(() => {
+      // Apply user-dragged position overrides on top of the auto-layout result.
+      const finalNodes = routeRaw.labelNodes.map(n => {
           const cached = routeNodeLayoutCache.get(n.id);
           return cached ? { ...n, position: cached } : n;
       });
-
-      return {
-          ...raw,
-          labelNodes: finalNodes,
-      };
-  }, [debouncedBlocks, analysisResult, routeNodeLayoutCache, projectSettings.routeCanvasGroupingMode, projectSettings.routeCanvasLayoutMode]);
+      return { ...routeRaw, labelNodes: finalNodes };
+  }, [routeRaw, routeNodeLayoutCache]);
 
   // --- Scene Composer Management ---
   const handleCreateScene = useCallback((initialName?: string) => {
@@ -1141,6 +1141,12 @@ const App: React.FC = () => {
   }, [setBlocks, setGroups, activeTabId]);
 
   // --- Layout ---
+  // Ref so applyStoryLayout always reads the latest blocks without needing blocks in its
+  // dependency array. Without this, every block position change (drag) recreates the callback,
+  // which cascades to handleTidyUp → Toolbar re-render, causing the cursor-hover delay.
+  const blocksForLayoutRef = useRef(blocks);
+  blocksForLayoutRef.current = blocks;
+
   const applyStoryLayout = useCallback((
     layoutMode: StoryCanvasLayoutMode,
     groupingMode: StoryCanvasGroupingMode,
@@ -1149,7 +1155,7 @@ const App: React.FC = () => {
     setStatusBarMessage('Organizing layout...');
     try {
         const links = analysisResult.links;
-        const newLayout = computeStoryLayout(blocks, links, layoutMode, groupingMode);
+        const newLayout = computeStoryLayout(blocksForLayoutRef.current, links, layoutMode, groupingMode);
         const layoutFingerprint = computeStoryLayoutFingerprint(newLayout, links, layoutMode, groupingMode);
         setBlocks(newLayout);
         updateProjectSettings(draft => {
@@ -1172,7 +1178,7 @@ const App: React.FC = () => {
         }
         setStatusBarMessage('Error organizing layout.');
     }
-  }, [blocks, analysisResult.links, setBlocks, addToast, updateProjectSettings]);
+  }, [analysisResult.links, setBlocks, addToast, updateProjectSettings]);
 
   const handleTidyUp = useCallback((showToast = true) => {
     applyStoryLayout(

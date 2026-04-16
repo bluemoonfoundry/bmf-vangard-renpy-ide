@@ -10,12 +10,12 @@ subtitle: |
   *See Your Story*
 author: Blue Moon Foundry
 date: April 2026
-version: Version 0.7.1 Public Beta 4
+version: Version 0.7.1 Public B<eta 4
 abstract: |
   Welcome to Ren'IDE, the visual development environment designed specifically for Ren'Py visual novel creators. This comprehensive guide covers everything from installation to advanced features, with dedicated sections for writers, artists, and developers.
 
   Whether you're creating your first visual novel or managing a complex branching narrative with hundreds of scenes, Ren'IDE helps you visualize structure, catch errors early, and streamline your workflow.
-keywords: Ren'Py, Visual Novel, IDE, Game Development, Narrative Design, Visual Editor
+keywords: [RenPy, Visual Novel, IDE, Game Development, Narrative Design, Visual Editor]
 lang: en-US
 documentclass: report
 geometry:
@@ -27,6 +27,20 @@ colorlinks: true
 linkcolor: blue
 urlcolor: blue
 toccolor: blue
+
+
+header-includes:
+  - \usepackage{silence}
+  - \WarningsOff[hyperxmp]
+pandoc-latex-engine: xelatex
+# Add this line to bypass the metadata injection if the above fails:
+metadata-allow-html: true
+header-includes:
+  - |
+    \makeatletter
+    \providecommand{\xmpquote}[1]{#1}
+    \makeatother
+
 ---
 
 \thispagestyle{empty}

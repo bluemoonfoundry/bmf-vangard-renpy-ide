@@ -270,11 +270,27 @@ const BlockContainer: React.FC<{
     );
 };
 
+/** Pre-computed arrow data captured once at drag-start, used for DOM-direct path updates. */
+type DragArrow = {
+  gEl: SVGGElement;
+  link: RouteLink;
+  sourceW: number; sourceH: number;
+  targetW: number; targetH: number;
+  sourceDragged: boolean;
+  targetDragged: boolean;
+  sourceStaticPos: Position; // valid when !sourceDragged
+  targetStaticPos: Position; // valid when !targetDragged
+};
+
 type InteractionState =
   | { type: 'idle' }
   | { type: 'panning'; }
   | { type: 'rubber-band'; start: Position; }
-  | { type: 'dragging-nodes'; dragStartPositions: Map<string, Position>; };
+  | { type: 'dragging-nodes';
+      dragStartPositions: Map<string, Position>;
+      nodeEls: Map<string, HTMLElement>;
+      dragArrows: DragArrow[];
+    };
 
 const RouteCanvas: React.FC<RouteCanvasProps> = ({
   labelNodes: rawLabelNodes,
@@ -329,6 +345,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
   const pendingDrillDownRef = useRef<string | null>(null);
   const interactionState = useRef<InteractionState>({ type: 'idle' });
   const pointerStartPos = useRef<Position>({ x: 0, y: 0 });
+  const rafRef = useRef<number | null>(null);
   // ── Filter: exclude underscore-prefixed reserved Ren'Py labels ──
   const labelNodes = useMemo(
     () => rawLabelNodes.filter(n => !n.label.startsWith('_')),
@@ -965,7 +982,38 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
             const node = nodeMap.get(id);
             if (node) dragStartPositions.set(id, node.position);
         });
-        interactionState.current = { type: 'dragging-nodes', dragStartPositions };
+
+        // Collect node DOM elements once at drag-start so handlePointerMove can use
+        // direct style updates instead of React state updates on every mouse event.
+        const nodeEls = new Map<string, HTMLElement>();
+        dragStartPositions.forEach((_, id) => {
+            const el = canvasRef.current?.querySelector(`[data-label-node-id="${id}"]`) as HTMLElement | null;
+            if (el) nodeEls.set(id, el);
+        });
+
+        // Pre-collect affected arrow <g> elements and their node metadata so we can
+        // update arrow paths in the same RAF pass without touching React state.
+        const draggingIds = new Set(dragStartPositions.keys());
+        const dragArrows: DragArrow[] = [];
+        renderedLinks.forEach(link => {
+            const isDraggingSource = draggingIds.has(link.sourceId);
+            const isDraggingTarget = draggingIds.has(link.targetId);
+            if (!isDraggingSource && !isDraggingTarget) return;
+            const gEl = canvasRef.current?.querySelector(`[data-link-id="${link.id}"]`) as SVGGElement | null;
+            if (!gEl) return;
+            const srcNode = nodeMap.get(link.sourceId);
+            const tgtNode = nodeMap.get(link.targetId);
+            if (!srcNode || !tgtNode) return;
+            dragArrows.push({
+                gEl, link,
+                sourceW: srcNode.width, sourceH: srcNode.height,
+                targetW: tgtNode.width, targetH: tgtNode.height,
+                sourceDragged: isDraggingSource, targetDragged: isDraggingTarget,
+                sourceStaticPos: srcNode.position, targetStaticPos: tgtNode.position,
+            });
+        });
+
+        interactionState.current = { type: 'dragging-nodes', dragStartPositions, nodeEls, dragArrows };
         setIsDraggingSelection(true);
 
         if (e.shiftKey) {
@@ -994,11 +1042,57 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
 
         switch(interactionState.current.type) {
             case 'dragging-nodes': {
-                const updates = Array.from(interactionState.current.dragStartPositions.entries()).map(([id, startPos]) => ({
-                    id,
-                    position: { x: startPos.x + dx, y: startPos.y + dy }
-                }));
-                updateLabelNodePositions(updates);
+                // Throttle via RAF and update DOM directly — no React state updates during move.
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+                rafRef.current = requestAnimationFrame(() => {
+                    const state = interactionState.current;
+                    if (state.type !== 'dragging-nodes') return;
+
+                    // Move node elements
+                    state.nodeEls.forEach((el, id) => {
+                        const startPos = state.dragStartPositions.get(id)!;
+                        el.style.left = `${startPos.x + dx}px`;
+                        el.style.top = `${startPos.y + dy}px`;
+                    });
+
+                    // Update arrow paths
+                    state.dragArrows.forEach(({ gEl, link, sourceW, sourceH, targetW, targetH, sourceDragged, targetDragged, sourceStaticPos, targetStaticPos }) => {
+                        const srcStartPos = state.dragStartPositions.get(link.sourceId);
+                        const tgtStartPos = state.dragStartPositions.get(link.targetId);
+                        const srcPos = sourceDragged && srcStartPos
+                            ? { x: srcStartPos.x + dx, y: srcStartPos.y + dy }
+                            : sourceStaticPos;
+                        const tgtPos = targetDragged && tgtStartPos
+                            ? { x: tgtStartPos.x + dx, y: tgtStartPos.y + dy }
+                            : targetStaticPos;
+
+                        // Reuse the same attachment-point logic as the Arrow renderer
+                        const srcNode = { position: srcPos, width: sourceW, height: sourceH } as LabelNode;
+                        const tgtNode = { position: tgtPos, width: targetW, height: targetH } as LabelNode;
+                        const [sourceAttach, targetAttach] = getOptimalPath(srcNode, tgtNode);
+
+                        const isVertical = Math.abs(targetAttach.y - sourceAttach.y) > Math.abs(targetAttach.x - sourceAttach.x);
+                        let pathData: string;
+                        if (isVertical) {
+                            const midY = sourceAttach.y + (targetAttach.y - sourceAttach.y) / 2;
+                            pathData = `M${sourceAttach.x},${sourceAttach.y} C${sourceAttach.x},${midY} ${targetAttach.x},${midY} ${targetAttach.x},${targetAttach.y}`;
+                        } else {
+                            const midX = sourceAttach.x + (targetAttach.x - sourceAttach.x) / 2;
+                            pathData = `M${sourceAttach.x},${sourceAttach.y} C${midX},${sourceAttach.y} ${midX},${targetAttach.y} ${targetAttach.x},${targetAttach.y}`;
+                        }
+
+                        const paths = gEl.querySelectorAll('path');
+                        if (paths.length >= 2) {
+                            paths[0].setAttribute('d', pathData);
+                            paths[1].setAttribute('d', pathData);
+                        }
+                        const circle = gEl.querySelector('circle');
+                        if (circle) {
+                            circle.setAttribute('cx', String(sourceAttach.x));
+                            circle.setAttribute('cy', String(sourceAttach.y));
+                        }
+                    });
+                });
                 break;
             }
             case 'panning': {
@@ -1016,7 +1110,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
             }
         }
     };
-    
+
     const handlePointerUp = (upEvent: PointerEvent) => {
         const state = interactionState.current;
         const pointerEndPos = getPointInWorldSpace(upEvent.clientX, upEvent.clientY);
@@ -1025,6 +1119,15 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
         const dx = pointerEndPos.x - startPos.x;
         const dy = pointerEndPos.y - startPos.y;
         const distance = Math.hypot(dx, dy);
+
+        // Commit dragged positions to React state once, on release
+        if (state.type === 'dragging-nodes' && distance > 0) {
+            const updates = Array.from(state.dragStartPositions.entries()).map(([id, startNodePos]) => ({
+                id,
+                position: { x: startNodePos.x + dx, y: startNodePos.y + dy },
+            }));
+            updateLabelNodePositions(updates);
+        }
 
         if (state.type === 'rubber-band') {
             if (distance > 5) {
@@ -1035,13 +1138,13 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
                     height: Math.abs(dy),
                 };
 
-                 const selectedInRect = labelNodes.filter(n => 
+                 const selectedInRect = labelNodes.filter(n =>
                     n.position.x < finalRect.x + finalRect.width &&
                     n.position.x + n.width > finalRect.x &&
                     n.position.y < finalRect.y + finalRect.height &&
                     n.position.y + n.height > finalRect.y
                 ).map(n => n.id);
-                
+
                 if (upEvent.shiftKey) {
                     setSelectedNodeIds(prev => [...new Set([...prev, ...selectedInRect])]);
                 } else {
@@ -1051,13 +1154,14 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
                 setSelectedNodeIds([]);
             }
         }
-        
+
         setIsDraggingSelection(false);
         interactionState.current = { type: 'idle' };
         setRubberBandRect(null);
         if (canvasRef.current) canvasEl.releasePointerCapture(e.pointerId);
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
