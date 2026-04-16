@@ -223,6 +223,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
     <div
       ref={ref}
       data-block-id={block.id}
+      data-tutorial="canvas-block"
       className={`code-block-wrapper group absolute ${bgClass} rounded-lg ${diagnosticSeverity ? '' : 'shadow-2xl'} border-2 ${borderClass} ${shadowClass} flex flex-col transition-colors duration-200 ${isDimmed ? 'opacity-30' : ''} ${isFlashing ? 'flash-block' : isHoverHighlighted ? 'pulse-block heatmap-highlight' : ''}`}
       style={{
         left: block.position.x,

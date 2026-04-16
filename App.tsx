@@ -34,6 +34,7 @@ import AboutModal from './components/AboutModal';
 import UserSnippetModal from './components/UserSnippetModal';
 import NewProjectWizardModal from './components/NewProjectWizardModal';
 import { MenuConstructorModal } from './components/MenuConstructorModal';
+import FirstRunTutorial from './components/FirstRunTutorial';
 import { SearchProvider } from './contexts/SearchContext';
 import StatsView from './components/StatsView';
 import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
@@ -217,6 +218,9 @@ const App: React.FC = () => {
   // --- State: Menu Constructor Modal ---
   const [menuConstructorModalOpen, setMenuConstructorModalOpen] = useState(false);
   const [editingMenuTemplate, setEditingMenuTemplate] = useState<MenuTemplate | null>(null);
+
+  // --- State: First Run Tutorial ---
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // --- State: Application and Project Settings ---
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -3884,7 +3888,7 @@ const App: React.FC = () => {
                   <p className="text-gray-500 dark:text-gray-400 text-sm">Use the File menu or the buttons below to get started.</p>
                 </div>
                 {window.electronAPI && (
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center" data-tutorial="project-menu">
                     <button
                       onClick={handleCreateProject}
                       className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
@@ -4423,6 +4427,10 @@ const App: React.FC = () => {
         canvasName={goToLabelCanvasName}
         onSelect={handleGoToLabel}
         onClose={() => setIsGoToLabelOpen(false)}
+      />
+
+      <FirstRunTutorial
+        onComplete={() => setShowTutorial(false)}
       />
     </div>
     </SearchProvider>

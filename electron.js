@@ -48,7 +48,9 @@ const WATCH_DEBOUNCE_MS = 400;
 
 function startProjectWatcher(rootPath) {
     if (projectWatcher) {
-        try { projectWatcher.close(); } catch {}
+        try { projectWatcher.close(); } catch {
+            // Ignore errors when closing watcher
+        }
         projectWatcher = null;
     }
     watchDebounceTimers.forEach(t => clearTimeout(t));

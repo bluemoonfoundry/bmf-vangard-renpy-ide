@@ -201,7 +201,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     const activeTabCategory = TAB_CATEGORIES.find(c => c.id === activeCategory);
 
     return (
-        <div className="h-full bg-secondary text-primary flex flex-col min-h-0">
+        <div className="h-full bg-secondary text-primary flex flex-col min-h-0" data-tutorial="story-elements">
             {/* Category bar */}
             <div className="flex-none border-b border-primary flex" role="tablist" aria-label="Story Elements categories">
                 {TAB_CATEGORIES.map(category => (
