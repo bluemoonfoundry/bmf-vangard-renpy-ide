@@ -46,7 +46,8 @@ make all
 ### Source Files
 - `USER_GUIDE.md` - Main user guide content
 - `TITLE_PAGE.md` - Title page for PDF version
-- `user-guide.css` - Styles for HTML version
+- `user-guide.css` - Styles for HTML version (two-panel layout)
+- `template.html` - Custom Pandoc template for HTML structure
 
 ### Generated Files (gitignored)
 - `Ren-IDE_User_Guide.html` - Bundled with app

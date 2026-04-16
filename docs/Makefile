@@ -25,7 +25,8 @@ HTML_OPTIONS=--toc \
   --embed-resources \
   --standalone \
   --metadata title="Ren'IDE User Guide" \
-  --css=user-guide.css
+  --css=user-guide.css \
+  --template=template.html
 
 .PHONY: all clean pdf draft test html help
 
