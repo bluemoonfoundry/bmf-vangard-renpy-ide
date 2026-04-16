@@ -88,23 +88,6 @@ export interface StickyNote {
   color: NoteColor;
 }
 
-// LLM support types
-export type LLMProvider = 'google' | 'openai' | 'anthropic' | 'other';
-
-export interface LLMModel {
-  id: string;
-  name: string;
-  provider: LLMProvider;
-  apiKeyEnvVar?: string;
-  apiKeyName?: string;
-  description?: string;
-  isDefault?: boolean;
-}
-
-export interface ApiKeyStore {
-  [provider: string]: string;
-}
-
 /**
  * Metadata associated with punchlist items for task tracking.
  * @interface PunchlistMetadata
@@ -591,7 +574,7 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'ai-generator' | 'stats' | 'markdown';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'stats' | 'markdown';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
@@ -867,10 +850,8 @@ export interface ScreenLayoutComposition {
 
 /**
  * Project-level settings stored per Ren'Py project.
- * Includes AI features, tab state, and custom content.
+ * Includes tab state and custom content.
  * @interface ProjectSettings
- * @property {boolean} enableAiFeatures - Whether AI features are enabled
- * @property {string} selectedModel - AI model ID for content generation
  * @property {boolean} draftingMode - Whether drafting mode is active
  * @property {EditorTab[]} openTabs - Currently open editor tabs
  * @property {string} activeTabId - ID of the currently active tab
@@ -883,8 +864,6 @@ export interface ScreenLayoutComposition {
  * @property {string[]} [scannedAudioPaths] - Paths to directories scanned for audio
  */
 export interface ProjectSettings {
-  enableAiFeatures: boolean;
-  selectedModel: string;
   draftingMode: boolean;
   storyCanvasLayoutMode?: StoryCanvasLayoutMode;
   storyCanvasGroupingMode?: StoryCanvasGroupingMode;
@@ -1193,9 +1172,6 @@ declare global {
               buttonLabel?: string;
               filters?: { name: string; extensions: string[] }[];
           }) => Promise<string | null>;
-          loadApiKeys: () => Promise<Record<string, string>>;
-          saveApiKey: (provider: string, key: string) => Promise<{ success: boolean; error?: string }>;
-          getApiKey: (provider: string) => Promise<string | null>;
           onUpdateAvailable?: (callback: (version: string) => void) => () => void;
           onUpdateNotAvailable?: (callback: () => void) => () => void;
           onUpdateError?: (callback: () => void) => () => void;

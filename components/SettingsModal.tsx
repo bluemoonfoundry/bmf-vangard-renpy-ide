@@ -2,7 +2,7 @@
  * @file SettingsModal.tsx
  * @description Application and project settings dialog (188 lines).
  * Configures UI preferences (theme, sidebar widths, font), Ren'Py path,
- * AI model selection, and project-specific options (draftingMode, AI features).
+ * project-specific options (draftingMode).
  * Persists settings to localStorage and project settings file.
  */
 
@@ -15,7 +15,6 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: IdeSettings;
   onSettingsChange: (key: keyof IdeSettings, value: IdeSettings[keyof IdeSettings]) => void;
-  availableModels: string[];
 }
 
 const THEME_OPTIONS: { value: Theme; label: string }[] = [
@@ -39,7 +38,7 @@ const DEFAULT_MOUSE_GESTURES: MouseGestureSettings = {
   zoomScrollSensitivity: 1.0,
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange, availableModels }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const { modalProps, contentRef } = useModalAccessibility({ isOpen, onClose, titleId: 'settings-modal-title' });
 
   if (!isOpen) {
@@ -223,48 +222,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </>
             )}
 
-            <div className="border-t border-primary"></div>
-            <div className="space-y-4">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                    <input 
-                        type="checkbox" 
-                        checked={settings.enableAiFeatures}
-                        onChange={(e) => onSettingsChange('enableAiFeatures', e.target.checked)}
-                        className="h-5 w-5 rounded focus:ring-accent" 
-                        style={{ accentColor: 'var(--accent-primary)' }}
-                    />
-                    <span className="text-sm font-medium text-primary select-none">
-                        Enable AI Features (Gemini)
-                    </span>
-                </label>
-
-                {settings.enableAiFeatures && (
-                    <div className="space-y-4 pl-8">
-                        <div>
-                            <p className="text-xs text-secondary mt-2">
-                                The Gemini API key should be configured via the `API_KEY` environment variable.
-                            </p>
-                        </div>
-                        <div>
-                            <label htmlFor="model-select" className="block text-sm font-medium text-primary mb-1">
-                                Default Model
-                            </label>
-                            <select
-                                id="model-select"
-                                value={settings.selectedModel}
-                                onChange={(e) => onSettingsChange('selectedModel', e.target.value)}
-                                className="w-full mt-1 p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-primary"
-                            >
-                                {availableModels.map(model => (
-                                    <option key={model} value={model}>{model}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
-            </div>
              <p className="text-xs text-secondary pt-4 border-t border-primary">
-                    Application settings (like theme, font, and mouse gestures) are saved globally. Project settings (like AI model) are saved in `project.ide.json`.
+                    Application settings (like theme, font, and mouse gestures) are saved globally. Project settings (like drafting mode) are saved in `project.ide.json`.
                 </p>
         </main>
         <footer className="bg-header p-4 rounded-b-lg flex justify-end items-center space-x-4 border-t border-primary">

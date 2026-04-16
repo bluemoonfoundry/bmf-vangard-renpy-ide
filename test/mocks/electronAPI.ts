@@ -87,12 +87,10 @@ export interface MockElectronAPI {
   onGameStopped: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
   onGameError: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
 
-  // Settings & API keys
+  // Settings
   getAppSettings: Mock<() => Promise<Partial<AppSettings> | null>>;
   saveAppSettings: Mock<(settings: AppSettings) => Promise<{ success: boolean; error?: string }>>;
-  loadApiKeys: Mock<() => Promise<Record<string, string>>>;
-  saveApiKey: Mock<(provider: string, key: string) => Promise<{ success: boolean; error?: string }>>;
-  getApiKey: Mock<(provider: string) => Promise<string | null>>;
+
 
   // Auto-updater
   onUpdateAvailable: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
@@ -155,12 +153,9 @@ export function createMockElectronAPI(): MockElectronAPI {
     onGameStopped: vi.fn().mockReturnValue(noopUnsubscribe),
     onGameError: vi.fn().mockReturnValue(noopUnsubscribe),
 
-    // Settings & API keys
+    // Settings
     getAppSettings: vi.fn().mockResolvedValue(null),
     saveAppSettings: vi.fn().mockResolvedValue({ success: true }),
-    loadApiKeys: vi.fn().mockResolvedValue({}),
-    saveApiKey: vi.fn().mockResolvedValue({ success: true }),
-    getApiKey: vi.fn().mockResolvedValue(null),
 
     // Auto-updater
     onUpdateAvailable: vi.fn().mockReturnValue(noopUnsubscribe),

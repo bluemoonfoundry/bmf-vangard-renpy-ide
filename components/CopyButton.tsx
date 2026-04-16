@@ -3,7 +3,7 @@
  * @description Reusable clipboard copy button with idle and success states (~60 lines).
  * Key features: three size variants (xs/sm/md), 2-second "Copied!" feedback, async clipboard API.
  * Integration: the canonical component for all "copy to clipboard" UI in the app; used in
- * `AIGeneratorView`, `SnippetManager`, `SceneComposer`, `ImageMapComposer`, and others.
+ * `SnippetManager`, `SceneComposer`, `ImageMapComposer`, and others.
  */
 import React, { useState } from 'react';
 

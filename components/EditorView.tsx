@@ -42,9 +42,6 @@ interface EditorViewProps {
   editorTheme: 'light' | 'dark';
   editorFontFamily: string;
   editorFontSize: number;
-  enableAiFeatures: boolean;
-  availableModels: string[];
-  selectedModel: string;
   addToast: (message: string, type: ToastMessage['type']) => void;
   onEditorMount: (blockId: string, editor: monaco.editor.IStandaloneCodeEditor) => void;
   onEditorUnmount: (blockId: string) => void;
@@ -242,7 +239,6 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     editorTheme,
     editorFontFamily,
     editorFontSize,
-    enableAiFeatures,
     onEditorMount,
     onEditorUnmount,
     onCursorPositionChange,
@@ -252,7 +248,6 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
   } = props;
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
-  const aiFeaturesEnabledContextKey = useRef<monaco.editor.IContextKey<boolean> | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const decorationIds = useRef<string[]>([]);
   const draftingDecorationIds = useRef<string[]>([]);
@@ -350,12 +345,6 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         }, 100); 
     }
   }, [initialScrollRequest]);
-
-  useEffect(() => {
-    if (aiFeaturesEnabledContextKey.current) {
-      aiFeaturesEnabledContextKey.current.set(enableAiFeatures);
-    }
-  }, [enableAiFeatures]);
 
   const handleEditorWillMount: BeforeMount = (monacoInstance) => {
     // Only register if not already registered
@@ -710,8 +699,6 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         editor.setPosition({ lineNumber: initialScrollRequest.line, column: 1 });
       }, 50);
     }
-
-    aiFeaturesEnabledContextKey.current = editor.createContextKey('aiFeaturesEnabled', enableAiFeatures);
 
     const editorNode = editor.getDomNode();
     if (editorNode) {

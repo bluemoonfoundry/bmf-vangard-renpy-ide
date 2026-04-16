@@ -179,7 +179,6 @@ describe('Test Infrastructure', () => {
 
     it('creates valid ProjectSettings', () => {
       const settings = createProjectSettings();
-      expect(settings.enableAiFeatures).toBe(false);
       expect(settings.openTabs).toHaveLength(1);
       expect(settings.activeTabId).toBe('canvas');
     });

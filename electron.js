@@ -539,10 +539,6 @@ async function updateApplicationMenu() {
                 label: 'Stats',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'stats' }); }
             },
-            {
-                label: 'AI Generator',
-                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'ai-generator' }); }
-            },
             { type: 'separator' },
             {
                 label: 'Toggle Left Sidebar',

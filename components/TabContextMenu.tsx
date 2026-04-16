@@ -47,7 +47,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
     onClose();
   };
 
-  const isProtectedTab = tabId === 'canvas' || tabId === 'ai-generator';
+  const isProtectedTab = tabId === 'canvas';
   const moveLabel = paneId === 'primary' ? 'Move to Secondary Pane' : 'Move to Primary Pane';
 
   return (

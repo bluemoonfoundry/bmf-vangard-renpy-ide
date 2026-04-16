@@ -35,7 +35,6 @@ import UserSnippetModal from './components/UserSnippetModal';
 import NewProjectWizardModal from './components/NewProjectWizardModal';
 import { MenuConstructorModal } from './components/MenuConstructorModal';
 import { SearchProvider } from './contexts/SearchContext';
-import AIGeneratorView from './components/AIGeneratorView';
 import StatsView from './components/StatsView';
 import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
 import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
@@ -102,21 +101,6 @@ interface PendingRouteLayoutRefresh {
     savedWasUserAdjusted: boolean;
 }
 
-const AVAILABLE_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-3-pro-preview',
-    'gemini-2.5-flash-image',
-    'gemini-3-pro-image-preview',
-    'veo-3.1-fast-generate-preview',
-    'gpt-4o',
-    'gpt-4-turbo',
-    'gpt-4',
-    'gpt-3.5-turbo',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-opus-20250219',
-    'claude-3-sonnet-20240229',
-    'claude-3-haiku-20240307'
-];
 
 const App: React.FC = () => {
   // --- State: Blocks & Groups (Undo/Redo) ---
@@ -254,8 +238,6 @@ const App: React.FC = () => {
   });
   const [isRenpyPathValid, setIsRenpyPathValid] = useState(false);
   const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
-    enableAiFeatures: false,
-    selectedModel: 'gemini-2.5-flash',
     draftingMode: false,
     storyCanvasLayoutMode: 'flow-lr',
     storyCanvasGroupingMode: 'none',
@@ -1409,8 +1391,6 @@ const App: React.FC = () => {
       if (startLabelNode) {
         setCenterOnBlockRequest({ blockId: startLabelNode.blockId, key: Date.now() });
       }
-      updateProjectSettings(draft => { draft.storyCanvasHasAutocentered = true; });
-      setHasUnsavedSettings(true);
     }
   }, [
     blocks,
@@ -1472,8 +1452,6 @@ const App: React.FC = () => {
     if (pendingAutoCenterRef.current.route) {
       pendingAutoCenterRef.current.route = false;
       setCenterOnRouteStartRequest({ key: Date.now() });
-      updateProjectSettings(draft => { draft.routeCanvasHasAutocentered = true; });
-      setHasUnsavedSettings(true);
     }
   }, [
     isInitialAnalysisPending,
@@ -1496,12 +1474,10 @@ const App: React.FC = () => {
     if (!routeAnalysisResult.labelNodes.some(n => n.label === 'start')) return;
     pendingAutoCenterRef.current.choice = false;
     setCenterOnChoiceStartRequest({ key: Date.now() });
-    updateProjectSettings(draft => { draft.choiceCanvasHasAutocentered = true; });
-    setHasUnsavedSettings(true);
-  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, updateProjectSettings]);
+  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes]);
 
   // --- Tab Management Helpers ---
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'ai-generator' | 'stats') => {
+  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats') => {
         const id = type;
         // If already open in primary, activate it there
         if (openTabs.find(t => t.id === id)) {
@@ -1622,11 +1598,7 @@ const App: React.FC = () => {
               savedVersion: projectData.settings?.routeCanvasLayoutVersion,
               savedWasUserAdjusted: projectData.settings?.routeCanvasLayoutWasUserAdjusted ?? false,
           };
-          pendingAutoCenterRef.current = {
-              story: !(projectData.settings?.storyCanvasHasAutocentered ?? false),
-              route: !(projectData.settings?.routeCanvasHasAutocentered ?? false),
-              choice: !(projectData.settings?.choiceCanvasHasAutocentered ?? false),
-          };
+          pendingAutoCenterRef.current = { story: true, route: true, choice: true };
           setRouteNodeLayoutCache(new Map(
             Object.entries(savedRouteNodeLayouts).map(([id, layout]) => [id, layout.position]),
           ));
@@ -1661,22 +1633,20 @@ const App: React.FC = () => {
 
           if (projectData.settings) {
               updateProjectSettings(draft => {
-                  draft.enableAiFeatures = projectData.settings.enableAiFeatures ?? false;
-                  draft.selectedModel = projectData.settings.selectedModel ?? 'gemini-2.5-flash';
                   draft.draftingMode = projectData.settings.draftingMode ?? false;
                   draft.storyCanvasLayoutMode = savedStoryLayoutMode;
                   draft.storyCanvasGroupingMode = savedStoryGroupingMode;
                   draft.storyCanvasLayoutFingerprint = projectData.settings.storyCanvasLayoutFingerprint;
                   draft.storyCanvasLayoutVersion = projectData.settings.storyCanvasLayoutVersion ?? getStoryLayoutVersion();
                   draft.storyCanvasLayoutWasUserAdjusted = projectData.settings.storyCanvasLayoutWasUserAdjusted ?? false;
-                  draft.storyCanvasHasAutocentered = projectData.settings.storyCanvasHasAutocentered ?? false;
+                  draft.storyCanvasHasAutocentered = false;
                   draft.routeCanvasLayoutMode = savedRouteLayoutMode;
                   draft.routeCanvasGroupingMode = savedRouteGroupingMode;
                   draft.routeCanvasLayoutFingerprint = projectData.settings.routeCanvasLayoutFingerprint;
                   draft.routeCanvasLayoutVersion = projectData.settings.routeCanvasLayoutVersion ?? getRouteCanvasLayoutVersion();
                   draft.routeCanvasLayoutWasUserAdjusted = projectData.settings.routeCanvasLayoutWasUserAdjusted ?? false;
-                  draft.routeCanvasHasAutocentered = projectData.settings.routeCanvasHasAutocentered ?? false;
-                  draft.choiceCanvasHasAutocentered = projectData.settings.choiceCanvasHasAutocentered ?? false;
+                  draft.routeCanvasHasAutocentered = false;
+                  draft.choiceCanvasHasAutocentered = false;
               });
               setStickyNotes(projectData.settings.stickyNotes || []);
               setRouteStickyNotes(projectData.settings.routeStickyNotes || []);
@@ -1859,7 +1829,7 @@ const App: React.FC = () => {
                   if (tab.type === 'markdown' && tab.filePath) {
                       return true; // File existence checked on tab render
                   }
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'ai-generator' || tab.type === 'stats';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats';
               });
 
               const rehydratedTabs = validTabs.map(tab => {
@@ -1894,7 +1864,7 @@ const App: React.FC = () => {
                   if (tab.type === 'audio' && tab.filePath) return audioMap.has(tab.filePath);
                   if (tab.type === 'character' && tab.characterTag) return true;
                   if (tab.type === 'markdown' && tab.filePath) return true;
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'ai-generator' || tab.type === 'stats' || tab.type === 'scene-composer';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'scene-composer';
               });
               setSplitLayout(validSecondary.length > 0 ? savedSplitLayout : 'none');
               setSplitPrimarySize(projectData.settings.splitPrimarySize ?? 600);
@@ -1904,8 +1874,6 @@ const App: React.FC = () => {
 
           } else {
               updateProjectSettings(draft => {
-                  draft.enableAiFeatures = false;
-                  draft.selectedModel = 'gemini-2.5-flash';
                   draft.draftingMode = false;
                   draft.storyCanvasLayoutMode = 'flow-lr';
                   draft.storyCanvasGroupingMode = 'none';
@@ -2673,23 +2641,21 @@ const App: React.FC = () => {
 
   const handleCloseOthersRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const tabsToClose = tabs.filter(t => t.id !== tabId && t.id !== 'ai-generator');
+    const tabsToClose = tabs.filter(t => t.id !== tabId);
     processTabCloseRequest(tabsToClose, tabId, paneId);
   }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
 
   const handleCloseAllRequest = useCallback((paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const tabsToClose = tabs.filter(t => t.id !== 'ai-generator');
-    // Find the first tab that isn't being closed as fallback; otherwise empty
-    const fallback = tabs.find(t => t.id === 'ai-generator')?.id ?? '';
-    processTabCloseRequest(tabsToClose, fallback, paneId);
+    const tabsToClose = [...tabs];
+    processTabCloseRequest(tabsToClose, '', paneId);
   }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
 
   const handleCloseLeftRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
     const index = tabs.findIndex(t => t.id === tabId);
     if (index === -1) return;
-    const tabsToClose = tabs.slice(0, index).filter(t => t.id !== 'ai-generator');
+    const tabsToClose = tabs.slice(0, index);
     processTabCloseRequest(tabsToClose, tabId, paneId);
   }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
 
@@ -2697,7 +2663,7 @@ const App: React.FC = () => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
     const index = tabs.findIndex(t => t.id === tabId);
     if (index === -1) return;
-    const tabsToClose = tabs.slice(index + 1).filter(t => t.id !== 'ai-generator');
+    const tabsToClose = tabs.slice(index + 1);
     processTabCloseRequest(tabsToClose, tabId, paneId);
   }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
 
@@ -3356,14 +3322,14 @@ const App: React.FC = () => {
   // --- Menu Command Handling ---
   useEffect(() => {
         if (!window.electronAPI) return;
-        const removeListener = window.electronAPI.onMenuCommand((data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist' | 'ai-generator', path?: string }) => {
+        const removeListener = window.electronAPI.onMenuCommand((data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist', path?: string }) => {
             if (data.command === 'new-project') handleNewProjectRequest();
             if (data.command === 'open-project') handleOpenProjectFolder();
             if (data.command === 'open-recent' && data.path) handleOpenWithRenpyCheck(data.path);
             if (data.command === 'save-all') handleSaveAll();
             if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
             if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'ai-generator');
+            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics');
             if (data.command === 'toggle-search') handleToggleSearch();
             if (data.command === 'open-settings') setSettingsModalOpen(true);
             if (data.command === 'open-shortcuts') setShortcutsModalOpen(true);
@@ -3507,7 +3473,6 @@ const App: React.FC = () => {
     if (tab.id === 'choice-canvas') return 'Choice Canvas';
     if (tab.id === 'diagnostics' || tab.id === 'punchlist') return 'Diagnostics';
     if (tab.id === 'stats') return 'Stats';
-    if (tab.type === 'ai-generator') return 'AI Generator';
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
     if (tab.type === 'screen-layout-composer') return screenLayoutCompositions[tab.layoutId!]?.screenName || 'Screen Layout';
@@ -3587,12 +3552,6 @@ const App: React.FC = () => {
         onOpenBlock={handleOpenEditor} onHighlightBlock={(id) => handleCenterOnBlock(id)}
       />;
     }
-    if (tab.type === 'ai-generator') {
-      return <AIGeneratorView
-        currentBlockId={getCurrentBlockId()} blocks={blocks}
-        getCurrentContext={getCurrentContext} availableModels={AVAILABLE_MODELS} selectedModel={projectSettings.selectedModel}
-      />;
-    }
     if (tab.id === 'stats') {
       return <StatsView
         blocks={blocks}
@@ -3614,8 +3573,7 @@ const App: React.FC = () => {
         onDirtyChange={(id, dirty) => { setDirtyEditors(prev => { const next = new Set(prev); if (dirty) { next.add(id); } else { next.delete(id); } return next; }); }}
         onContentChange={(id, content) => { setBlocks(prev => prev.map(b => b.id === id ? { ...b, content } : b)); }}
         editorTheme={appSettings.theme.includes('dark') ? 'dark' : 'light'} editorFontFamily={appSettings.editorFontFamily}
-        editorFontSize={appSettings.editorFontSize} enableAiFeatures={projectSettings.enableAiFeatures}
-        availableModels={AVAILABLE_MODELS} selectedModel={projectSettings.selectedModel} addToast={addToast}
+        editorFontSize={appSettings.editorFontSize} addToast={addToast}
         onEditorMount={(id, editor) => editorInstances.current.set(id, editor)}
         onEditorUnmount={(id) => { const editor = editorInstances.current.get(id); if (editor) { const block = blocksRef.current.find(b => b.id === id); if (block && editor.getValue() !== block.content) { syncEditorToStateAndMarkDirty(id, editor.getValue()); } } editorInstances.current.delete(id); }}
         onCursorPositionChange={setEditorCursorPosition}
@@ -4414,7 +4372,6 @@ const App: React.FC = () => {
                 setHasUnsavedSettings(true);
             }
         }}
-        availableModels={AVAILABLE_MODELS}
       />
 
       <KeyboardShortcutsModal

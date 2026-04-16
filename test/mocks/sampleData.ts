@@ -223,8 +223,6 @@ export function createAppSettings(overrides: Partial<AppSettings> = {}): AppSett
 
 export function createProjectSettings(overrides: Partial<ProjectSettings> = {}): ProjectSettings {
   return {
-    enableAiFeatures: false,
-    selectedModel: 'gemini-2.0-flash',
     draftingMode: false,
     openTabs: [{ id: 'canvas', type: 'canvas' }],
     activeTabId: 'canvas',
