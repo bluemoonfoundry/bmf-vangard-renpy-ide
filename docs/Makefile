@@ -39,7 +39,7 @@ pdf:
 
 html:
 	@echo "Generating HTML user guide..."
-	$(PANDOC) USER_GUIDE.md -o $(HTML_OUTPUT) $(HTML_OPTIONS)
+	$(PANDOC) USER_GUIDE.md -o $(HTML_OUTPUT) --toc --toc-depth=3 --number-sections --syntax-highlighting=tango --standalone --metadata title="Ren'IDE User Guide" --template=template-inline.html
 	@echo "✓ HTML generated: $(HTML_OUTPUT)"
 
 draft:
