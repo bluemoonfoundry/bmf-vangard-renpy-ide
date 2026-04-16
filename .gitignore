@@ -23,6 +23,12 @@ DemoProject/*.log
 DemoProject/traceback.txt
 DemoProject/errors.txt
 
+# Generated documentation
+docs/Ren-IDE_User_Guide.html
+docs/Ren-IDE_User_Guide.pdf
+docs/Ren-IDE_User_Guide_DRAFT.pdf
+docs/test.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

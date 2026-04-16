@@ -579,6 +579,18 @@ async function updateApplicationMenu() {
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'show-tutorial' }); }
             },
             {
+                label: 'User Guide',
+                click: () => {
+                    const userGuidePath = app.isPackaged
+                        ? path.join(process.resourcesPath, 'docs', 'Ren-IDE_User_Guide.html')
+                        : path.join(__dirname, 'docs', 'Ren-IDE_User_Guide.html');
+                    shell.openPath(userGuidePath).catch(err => {
+                        console.error('Failed to open user guide:', err);
+                        dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');
+                    });
+                }
+            },
+            {
                 label: 'Keyboard Shortcuts',
                 accelerator: 'CmdOrCtrl+/',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-shortcuts' }); }
