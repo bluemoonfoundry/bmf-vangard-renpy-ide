@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
     // Strip console.log and console.warn from production builds.
     // console.error is kept — those indicate real problems.
     ...(!isDevelopment && {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       oxc: {
         minify: {
           // Treat these as side-effect-free so they can be tree-shaken

@@ -540,7 +540,7 @@ const StatsView: React.FC<StatsViewProps> = ({
     setCoverageData(_computeCoverage());
     }, 0);
     return () => clearTimeout(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [blocks, projectImages, imageMetadata, projectAudios, analysisResult.definedImages]);
 
   const coverageRows = useMemo(() => {

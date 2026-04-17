@@ -10,6 +10,6 @@ label stage5_phenomenon:
     $ supernatural_witnessed = True
     $ clues_found.append("time_distortion")
 
-    "This is beyond anything you imagined."
+    "This is beyond {color=#FF0000}anything{/color} you imagined."
 
     jump stage5_emergency_meeting
