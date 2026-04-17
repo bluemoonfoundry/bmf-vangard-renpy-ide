@@ -409,6 +409,46 @@ const App: React.FC = () => {
       return paths;
   }, [audios, analysisResult.variables]);
 
+  const allStickyNotes = useMemo(
+    () => [...stickyNotes, ...routeStickyNotes, ...choiceStickyNotes],
+    [stickyNotes, routeStickyNotes, choiceStickyNotes]
+  );
+
+  const analysisLabelKeys = useMemo(
+    () => Object.keys(analysisResult.labels),
+    [analysisResult.labels]
+  );
+
+  const scenesArray = useMemo(
+    () => Object.keys(sceneCompositions).map(id => ({ id, name: sceneNames[id] || 'Scene' })),
+    [sceneCompositions, sceneNames]
+  );
+
+  const imagemapsArray = useMemo(
+    () => Object.keys(imagemapCompositions).map(id => ({ id, name: imagemapCompositions[id]?.screenName || 'ImageMap' })),
+    [imagemapCompositions]
+  );
+
+  const screenLayoutsArray = useMemo(
+    () => Object.keys(screenLayoutCompositions).map(id => ({ id, name: screenLayoutCompositions[id]?.screenName || 'Screen Layout' })),
+    [screenLayoutCompositions]
+  );
+
+  const settingsMerged = useMemo(
+    () => ({ ...appSettings, ...projectSettings }),
+    [appSettings, projectSettings]
+  );
+
+  const menuLabels = useMemo(
+    () => new Set(Object.keys(analysisResult.labels)),
+    [analysisResult.labels]
+  );
+
+  const menuVariables = useMemo(
+    () => new Set(analysisResult.variables.keys()),
+    [analysisResult.variables]
+  );
+
   // --- Project Color Scan ---
   const projectColors = useProjectColorScan(blocks);
 
@@ -3526,6 +3566,158 @@ const App: React.FC = () => {
       };
   }, []);
 
+  // --- Memoized callbacks for StoryElementsPanel and related JSX ---
+
+  const handleAddVariable = useCallback((v: { name: string; initialValue: string }) => {
+    const varContent = `default ${v.name} = ${v.initialValue}\n`;
+    const targetFile = 'game/variables.rpy';
+    const existing = blocks.find(b => b.filePath === targetFile);
+    if (existing) {
+      updateBlock(existing.id, { content: existing.content + '\n' + varContent });
+      addToast(`Added variable ${v.name} to variables.rpy`, 'success');
+    } else {
+      addToast(`Please create 'game/variables.rpy' first.`, 'warning');
+    }
+  }, [blocks, updateBlock, addToast]);
+
+  const handleFindScreenDefinition = useCallback((name: string) => {
+    const def = analysisResult.screens.get(name);
+    if (def) handleOpenEditor(def.definedInBlockId, def.line);
+  }, [analysisResult.screens, handleOpenEditor]);
+
+  const handleAddImageScanDirectory = useCallback(async () => {
+    if (window.electronAPI) {
+      try {
+        const path = await window.electronAPI.openDirectory();
+        if (path) {
+          setImageScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          setIsScanningAssets(true);
+          try {
+            const { images: scanned } = await window.electronAPI.scanDirectory(path);
+            setImages(prev => {
+              const next = new Map(prev);
+              scanned.forEach((img) => {
+                if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
+              });
+              return next;
+            });
+          } finally {
+            setIsScanningAssets(false);
+          }
+          setHasUnsavedSettings(true);
+        }
+      } catch (err) {
+        console.error('Failed to scan image directory:', err);
+        addToast('Failed to scan image directory', 'error');
+      }
+    }
+  }, [addToast]);
+
+  const handleRemoveImageScanDirectory = useCallback((path: string) => {
+    setImageScanDirectories(prev => {
+      const next = new Map(prev);
+      next.delete(path);
+      return next;
+    });
+    setHasUnsavedSettings(true);
+  }, []);
+
+  const handleCopyImagesToProjectBulk = useCallback(async (sourcePaths: string[]) => {
+    if (window.electronAPI && projectRootPath) {
+      try {
+        for (const src of sourcePaths) {
+          const fileName = src.split('/').pop() || 'image.png';
+          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images');
+          const destPath = await window.electronAPI.path.join(destDir, fileName);
+          await window.electronAPI.copyEntry(src, destPath);
+        }
+        await loadProject(projectRootPath);
+      } catch (err) {
+        console.error('Failed to copy images to project:', err);
+        addToast('Failed to copy images to project', 'error');
+      }
+    }
+  }, [projectRootPath, loadProject, addToast]);
+
+  const handleAddAudioScanDirectory = useCallback(async () => {
+    if (window.electronAPI) {
+      try {
+        const path = await window.electronAPI.openDirectory();
+        if (path) {
+          setAudioScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          setIsScanningAssets(true);
+          try {
+            const { audios: scanned } = await window.electronAPI.scanDirectory(path);
+            setAudios(prev => {
+              const next = new Map(prev);
+              scanned.forEach((aud) => {
+                if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
+              });
+              return next;
+            });
+          } finally {
+            setIsScanningAssets(false);
+          }
+          setHasUnsavedSettings(true);
+        }
+      } catch (err) {
+        console.error('Failed to scan audio directory:', err);
+        addToast('Failed to scan audio directory', 'error');
+      }
+    }
+  }, [addToast]);
+
+  const handleRemoveAudioScanDirectory = useCallback((path: string) => {
+    setAudioScanDirectories(prev => {
+      const next = new Map(prev);
+      next.delete(path);
+      return next;
+    });
+    setHasUnsavedSettings(true);
+  }, []);
+
+  const handleCopyAudiosToProjectBulk = useCallback(async (sourcePaths: string[]) => {
+    if (window.electronAPI && projectRootPath) {
+      try {
+        for (const src of sourcePaths) {
+          const fileName = src.split('/').pop() || 'audio.ogg';
+          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio');
+          const destPath = await window.electronAPI.path.join(destDir, fileName);
+          await window.electronAPI.copyEntry(src, destPath);
+        }
+        await loadProject(projectRootPath);
+      } catch (err) {
+        console.error('Failed to copy audio to project:', err);
+        addToast('Failed to copy audio to project', 'error');
+      }
+    }
+  }, [projectRootPath, loadProject, addToast]);
+
+  const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
+    const tabId = `aud-${filePath}`;
+    setOpenTabs(prev => {
+      if (!prev.find(t => t.id === tabId)) {
+        return [...prev, { id: tabId, type: 'audio' as const, filePath }];
+      }
+      return prev;
+    });
+    setActiveTabId(tabId);
+  }, []);
+
+  const handleHoverHighlightStart = useCallback((key: string, type: 'character' | 'variable') => {
+    const ids = new Set<string>();
+    if (type === 'character') {
+      analysisResult.dialogueLines.forEach((dialogues, blockId) => {
+        if (dialogues.some(d => d.tag === key)) ids.add(blockId);
+      });
+    } else {
+      analysisResult.variableUsages.get(key)?.forEach(u => ids.add(u.blockId));
+    }
+    setHoverHighlightIds(ids);
+  }, [analysisResult.dialogueLines, analysisResult.variableUsages]);
+
+  const handleHoverHighlightEnd = useCallback(() => setHoverHighlightIds(null), []);
+
   // --- Tab helpers (used by both panes) ---
   const getTabLabel = (tab: EditorTab): React.ReactNode => {
     if (tab.id === 'canvas') return 'Story Canvas';
@@ -3604,7 +3796,7 @@ const App: React.FC = () => {
     if (tab.type === 'diagnostics' || tab.type === 'punchlist') {
       return <DiagnosticsPanel
         diagnostics={diagnosticsResult}
-        blocks={blocks} stickyNotes={[...stickyNotes, ...routeStickyNotes, ...choiceStickyNotes]}
+        blocks={blocks} stickyNotes={allStickyNotes}
         tasks={diagnosticsTasks}
         ignoredDiagnostics={ignoredDiagnostics}
         onUpdateTasks={(updated) => { setDiagnosticsTasks(updated); setHasUnsavedSettings(true); }}
@@ -3683,14 +3875,13 @@ const App: React.FC = () => {
         hoverImage: null,
         hotspots: []
       };
-      const allLabels = Object.keys(analysisResult.labels);
       return <ImageMapComposer
         images={imagesArray}
         imagemap={composition}
         onImageMapChange={(val) => handleImageMapUpdate(tab.imagemapId!, val)}
         imagemapName={composition.screenName}
         onRenameImageMap={(newName) => handleRenameImageMap(tab.imagemapId!, newName)}
-        labels={allLabels}
+        labels={analysisLabelKeys}
       />;
     }
     if (tab.type === 'screen-layout-composer' && tab.layoutId) {
@@ -3708,7 +3899,7 @@ const App: React.FC = () => {
         onCompositionChange={(val) => handleScreenLayoutUpdate(tab.layoutId!, val)}
         screenName={composition.screenName}
         onRenameScreen={(newName) => handleRenameScreenLayout(tab.layoutId!, newName)}
-        labels={Object.keys(analysisResult.labels)}
+        labels={analysisLabelKeys}
         isLocked={isLayoutLocked}
         onDuplicate={() => handleDuplicateScreenLayout(tab.layoutId!)}
         onGoToCode={isLayoutLocked ? () => {
@@ -4110,77 +4301,16 @@ const App: React.FC = () => {
                 analysisResult={analysisResultWithProfiles}
                 onOpenCharacterEditor={handleOpenCharacterEditor}
                 onFindCharacterUsages={(tag) => handleFindUsages(tag, 'character')}
-                onAddVariable={(v) => {
-                    const varContent = `default ${v.name} = ${v.initialValue}\n`;
-                    const targetFile = 'game/variables.rpy';
-                    const existing = blocks.find(b => b.filePath === targetFile);
-                    if (existing) {
-                        updateBlock(existing.id, { content: existing.content + '\n' + varContent });
-                        addToast(`Added variable ${v.name} to variables.rpy`, 'success');
-                    } else {
-                        addToast(`Please create 'game/variables.rpy' first.`, 'warning');
-                    }
-                }}
+                onAddVariable={handleAddVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
-                onFindScreenDefinition={(name) => {
-                    const def = analysisResult.screens.get(name);
-                    if (def) handleOpenEditor(def.definedInBlockId, def.line);
-                }}
+                onFindScreenDefinition={handleFindScreenDefinition}
                 // Image Props
                 projectImages={images}
                 imageMetadata={imageMetadata}
                 imageScanDirectories={imageScanDirectories}
-                onAddImageScanDirectory={async () => {
-                    if (window.electronAPI) {
-                        try {
-                            const path = await window.electronAPI.openDirectory();
-                            if (path) {
-                                setImageScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
-                                setIsScanningAssets(true);
-                                try {
-                                    const { images: scanned } = await window.electronAPI.scanDirectory(path);
-                                    setImages(prev => {
-                                        const next = new Map(prev);
-                                        scanned.forEach((img) => {
-                                            if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
-                                        });
-                                        return next;
-                                    });
-                                } finally {
-                                    setIsScanningAssets(false);
-                                }
-                                setHasUnsavedSettings(true);
-                            }
-                        } catch (err) {
-                            console.error('Failed to scan image directory:', err);
-                            addToast('Failed to scan image directory', 'error');
-                        }
-                    }
-                }}
-                onRemoveImageScanDirectory={(path) => {
-                    setImageScanDirectories(prev => {
-                        const next = new Map(prev);
-                        next.delete(path);
-                        return next;
-                    });
-                    setHasUnsavedSettings(true);
-                }}
-                onCopyImagesToProject={async (sourcePaths) => {
-                    if (window.electronAPI && projectRootPath) {
-                        try {
-                            for (const src of sourcePaths) {
-                                const fileName = src.split('/').pop() || 'image.png';
-                                const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images');
-                                const destPath = await window.electronAPI.path.join(destDir, fileName);
-                                await window.electronAPI.copyEntry(src, destPath);
-                            }
-                            await loadProject(projectRootPath);
-                        } catch (err) {
-                            console.error('Failed to copy images to project:', err);
-                            addToast('Failed to copy images to project', 'error');
-                        }
-                    }
-                }}
+                onAddImageScanDirectory={handleAddImageScanDirectory}
+                onRemoveImageScanDirectory={handleRemoveImageScanDirectory}
+                onCopyImagesToProject={handleCopyImagesToProjectBulk}
                 onOpenImageEditor={handleOpenImageEditorTab}
                 imagesLastScanned={imagesLastScanned}
                 isRefreshingImages={isRefreshingImages}
@@ -4190,96 +4320,28 @@ const App: React.FC = () => {
                 projectAudios={audios}
                 audioMetadata={audioMetadata}
                 audioScanDirectories={audioScanDirectories}
-                onAddAudioScanDirectory={async () => {
-                     if (window.electronAPI) {
-                        try {
-                            const path = await window.electronAPI.openDirectory();
-                            if (path) {
-                                setAudioScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
-                                setIsScanningAssets(true);
-                                try {
-                                    const { audios: scanned } = await window.electronAPI.scanDirectory(path);
-                                    setAudios(prev => {
-                                        const next = new Map(prev);
-                                        scanned.forEach((aud) => {
-                                            if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
-                                        });
-                                        return next;
-                                    });
-                                } finally {
-                                    setIsScanningAssets(false);
-                                }
-                                setHasUnsavedSettings(true);
-                            }
-                        } catch (err) {
-                            console.error('Failed to scan audio directory:', err);
-                            addToast('Failed to scan audio directory', 'error');
-                        }
-                    }
-                }}
-                onRemoveAudioScanDirectory={(path) => {
-                    setAudioScanDirectories(prev => {
-                        const next = new Map(prev);
-                        next.delete(path);
-                        return next;
-                    });
-                    setHasUnsavedSettings(true);
-                }}
-                onCopyAudiosToProject={async (sourcePaths) => {
-                     if (window.electronAPI && projectRootPath) {
-                        try {
-                            for (const src of sourcePaths) {
-                                const fileName = src.split('/').pop() || 'audio.ogg';
-                                const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio');
-                                const destPath = await window.electronAPI.path.join(destDir, fileName);
-                                await window.electronAPI.copyEntry(src, destPath);
-                            }
-                            await loadProject(projectRootPath);
-                        } catch (err) {
-                            console.error('Failed to copy audio to project:', err);
-                            addToast('Failed to copy audio to project', 'error');
-                        }
-                    }
-                }}
-                onOpenAudioEditor={(filePath) => {
-                    const tabId = `aud-${filePath}`;
-                    setOpenTabs(prev => {
-                        if (!prev.find(t => t.id === tabId)) {
-                            return [...prev, { id: tabId, type: 'audio', filePath }];
-                        }
-                        return prev;
-                    });
-                    setActiveTabId(tabId);
-                }}
+                onAddAudioScanDirectory={handleAddAudioScanDirectory}
+                onRemoveAudioScanDirectory={handleRemoveAudioScanDirectory}
+                onCopyAudiosToProject={handleCopyAudiosToProjectBulk}
+                onOpenAudioEditor={handleOpenAudioEditorInTab}
                 audiosLastScanned={audiosLastScanned}
                 isRefreshingAudios={isRefreshingAudios}
                 onRefreshAudios={() => {}}
                 isFileSystemApiSupported={!!window.electronAPI}
-                onHoverHighlightStart={(key, type) => {
-                    const ids = new Set<string>();
-                    // Highlight logic same as find usages but transient
-                    if (type === 'character') {
-                        analysisResult.dialogueLines.forEach((dialogues, blockId) => {
-                            if (dialogues.some(d => d.tag === key)) ids.add(blockId);
-                        });
-                    } else {
-                        analysisResult.variableUsages.get(key)?.forEach(u => ids.add(u.blockId));
-                    }
-                    setHoverHighlightIds(ids);
-                }}
-                onHoverHighlightEnd={() => setHoverHighlightIds(null)}
+                onHoverHighlightStart={handleHoverHighlightStart}
+                onHoverHighlightEnd={handleHoverHighlightEnd}
                 // Scene Props
-                scenes={Object.keys(sceneCompositions).map(id => ({ id, name: sceneNames[id] || 'Scene' }))}
+                scenes={scenesArray}
                 onOpenScene={handleOpenScene}
                 onCreateScene={handleCreateScene}
                 onDeleteScene={handleDeleteScene}
                 // ImageMap Props
-                imagemaps={Object.keys(imagemapCompositions).map(id => ({ id, name: imagemapCompositions[id]?.screenName || 'ImageMap' }))}
+                imagemaps={imagemapsArray}
                 onOpenImageMap={handleOpenImageMap}
                 onCreateImageMap={handleCreateImageMap}
                 onDeleteImageMap={handleDeleteImageMap}
                 // Screen Layout Props
-                screenLayouts={Object.keys(screenLayoutCompositions).map(id => ({ id, name: screenLayoutCompositions[id]?.screenName || 'Screen Layout' }))}
+                screenLayouts={screenLayoutsArray}
                 onOpenScreenLayout={handleOpenScreenLayout}
                 onCreateScreenLayout={handleCreateScreenLayout}
                 onDeleteScreenLayout={handleDeleteScreenLayout}
@@ -4426,7 +4488,7 @@ const App: React.FC = () => {
       <SettingsModal 
         isOpen={settingsModalOpen} 
         onClose={() => setSettingsModalOpen(false)}
-        settings={{ ...appSettings, ...projectSettings }}
+        settings={settingsMerged}
         onSettingsChange={(key, value) => {
             if (key in appSettings) {
                 updateAppSettings(draft => {
@@ -4475,8 +4537,8 @@ const App: React.FC = () => {
           setMenuConstructorModalOpen(false);
         }}
         initialTemplate={editingMenuTemplate || undefined}
-        labels={new Set(Object.keys(analysisResult.labels))}
-        variables={new Set(analysisResult.variables.keys())}
+        labels={menuLabels}
+        variables={menuVariables}
         mode="edit-template"
       />
 
