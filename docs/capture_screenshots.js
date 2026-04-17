@@ -77,12 +77,6 @@ function loadProductionSettings() {
 }
 
 // ---------------------------------------------------------------------------
-// Window constants
-// ---------------------------------------------------------------------------
-const WIN_WIDTH  = 1440;
-const WIN_HEIGHT = 900;
-
-// ---------------------------------------------------------------------------
 // Wait helpers
 // ---------------------------------------------------------------------------
 
@@ -153,6 +147,14 @@ const SCREENSHOTS = [
 
     // --- Section 3: Interface ---
     {
+        filename: 'app-layout.png',
+        description: 'Full application layout with Story Canvas visible',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Story Canvas');
+        },
+    },
+    {
         filename: 'story-elements-characters.png',
         description: 'Right sidebar — Characters sub-tab',
         setup: async (page) => {
@@ -170,6 +172,23 @@ const SCREENSHOTS = [
     },
 
     // --- Section 4: Core Features ---
+    {
+        filename: 'code-editor.png',
+        description: 'Monaco editor with a Ren\'Py script open',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Story Canvas');
+            // Fit all blocks into the viewport first so the characters block is reachable
+            await page.click('button[aria-label="Fit all to screen"]');
+            await page.waitForTimeout(500);
+            // Click the "Open in Tab" button on the characters CodeBlock
+            await page.locator(
+                'div.code-block-wrapper:has(span[title*="characters"]) button[title="Open in Tab"]'
+            ).click({ force: true });
+            await page.waitForSelector('.monaco-editor', { timeout: 8000 });
+            await page.waitForTimeout(600);
+        },
+    },
     {
         filename: 'story-canvas-basic.png',
         description: 'Story Canvas',
@@ -218,14 +237,29 @@ const SCREENSHOTS = [
             await page.waitForTimeout(600);
         },
     },
+    {
+        filename: 'project-statistics.png',
+        description: 'Project statistics panel',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await page.click('button[aria-label="Script Statistics"]');
+            await page.waitForSelector('h1:has-text("Script Statistics")', { timeout: 8000 });
+            await page.waitForTimeout(600);
+        },
+    },
 
     // --- Section 5: For Writers ---
     {
         filename: 'writer-character-manager.png',
-        description: 'Characters tab',
+        description: 'Character editor tab for Maya',
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Story', 'Characters');
+            // Click the pencil icon for Maya to open her character editor tab
+            await page.click(
+                'div[title="Drag to editor to insert dialogue"]:has-text("Maya") button[aria-label="Edit character"]'
+            );
+            await page.waitForTimeout(800);
         },
     },
     {
@@ -244,14 +278,35 @@ const SCREENSHOTS = [
             await clickSidebarTab(page, 'Tools', 'Menus');
         },
     },
+    {
+        filename: 'menu-editor-modal.png',
+        description: 'Menu editor modal (new menu)',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Tools', 'Menus');
+            // Click + New to open the menu constructor modal
+            await page.click('h2:has-text("Menu Templates") ~ div button:has-text("+ New"), button.bg-accent:has-text("+ New")');
+            await page.waitForSelector('[role="dialog"][aria-labelledby="menu-constructor-title"]', { timeout: 8000 });
+            await page.waitForTimeout(600);
+        },
+        teardown: async (page) => {
+            // Dismiss the modal
+            await page.click('[role="dialog"][aria-labelledby="menu-constructor-title"] button:has-text("Cancel")');
+            await page.waitForSelector('[role="dialog"][aria-labelledby="menu-constructor-title"]', { state: 'detached', timeout: 5000 });
+        },
+    },
 
     // --- Section 6: For Artists ---
     {
         filename: 'artist-images-tab.png',
-        description: 'Images sub-tab',
+        description: 'Images sub-tab with an image opened',
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Assets', 'Images');
+            await page.waitForTimeout(600); // let thumbnails load
+            // Double-click the m.png thumbnail to open the image editor tab
+            await page.dblclick('div:has(img[alt="m.png"])');
+            await page.waitForTimeout(800);
         },
     },
     {
@@ -268,6 +323,11 @@ const SCREENSHOTS = [
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Compose', 'Scenes');
+            // Click the "Garden" scene to open it in the composer
+            await page.click('li p.font-semibold:has-text("Garden")');
+            // Wait for the SceneComposer tab to render (unique heading in SceneComposer)
+            await page.waitForSelector('h3:has-text("Layers")', { timeout: 8000 });
+            await page.waitForTimeout(800);
         },
     },
     {
@@ -276,14 +336,29 @@ const SCREENSHOTS = [
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Compose', 'ImageMaps');
+            // Click "Imagemap_1" to open it in the composer
+            await page.click('li p.font-semibold:has-text("Imagemap_1")');
+            // Wait for ImageMapComposer canvas to render
+            await page.waitForSelector('.cursor-crosshair', { timeout: 8000 });
+            await page.waitForTimeout(800);
         },
     },
     {
         filename: 'artist-screen-layouts-composer.png',
-        description: 'Screen Layouts composer tab',
+        description: 'Screen Layout Composer',
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Compose', 'Screen Layouts');
+            // Click + New to create and open a new screen layout composer tab.
+            // Use the scoped selector so we don't accidentally hit another "+ New" button.
+            await page.click('div:has(h2:has-text("Screen Layouts")) button:has-text("+ New")');
+            // Wait for the composer toolbar label which is always rendered
+            await page.waitForSelector('span:has-text("Screen Layout Composer")', { timeout: 8000 });
+            await page.waitForTimeout(600);
+        },
+        teardown: async (page) => {
+            // Navigate away rather than closing the tab — avoids tab-close timing issues
+            await clickSidebarTab(page, 'Tools', 'Snippets');
         },
     },
 
@@ -334,17 +409,16 @@ async function launchApp(productionSettings, extraArgs = []) {
     });
 }
 
-/** Get the main window and resize the BrowserWindow to a fixed known-good size */
+/** Get the main window and go full screen before taking any snapshots */
 async function getMainPage(electronApp) {
     const page = await electronApp.firstWindow();
-    // setViewportSize has no effect in Electron; resize via the BrowserWindow API
+    // setViewportSize has no effect in Electron; use the BrowserWindow API instead
     await electronApp.evaluate(({ BrowserWindow }) => {
         const [win] = BrowserWindow.getAllWindows();
-        if (win) {
-            win.setContentSize(1440, 900, false);
-            win.center();
-        }
+        if (win) win.setFullScreen(true);
     });
+    // Wait for the full-screen transition to complete
+    await page.waitForTimeout(800);
     return page;
 }
 
@@ -393,6 +467,7 @@ async function main() {
         try {
             if (entry.setup) await entry.setup(page);
             await page.screenshot({ path: path.join(OUT_DIR, entry.filename) });
+            if (entry.teardown) await entry.teardown(page);
             captured++;
             console.log('ok');
         } catch (err) {

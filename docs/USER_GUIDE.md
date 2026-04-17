@@ -735,6 +735,8 @@ npm run lint:fix        # Automatically fix issues
 
 When you launch Ren'IDE for the first time, you'll see the **Welcome Screen**.
 
+![Welcome Screen](images/welcome-screen.png)
+
 ### The Welcome Screen
 
 The Welcome Screen has two main sections:
@@ -794,6 +796,8 @@ Depending on your operating system, you may be prompted for permissions on first
 ## Opening an Existing Project
 
 If you have an existing Ren'Py project—whether you created it in the Ren'Py launcher, in a text editor, or in Ren'IDE previously—you can open it in Ren'IDE.
+
+![Main interface after opening a project](images/project-opened.png)
 
 ### What Ren'IDE Looks For
 
@@ -1141,6 +1145,8 @@ Now that you have Ren'IDE installed and your first project open, let's explore t
 ## Application Layout
 
 Ren'IDE's interface is organized into several distinct areas, each serving a specific purpose. Understanding this layout will help you navigate efficiently and find the tools you need.
+
+![Full application layout with Story Canvas](images/app-layout.png)
 
 ### Main Layout Areas
 
@@ -1557,6 +1563,10 @@ If your version doesn't have this, use the main search panel (Ctrl+F) to search 
 
 The Story Elements panel is a multi-tab interface that displays project data extracted from your Ren'Py code. It uses a **two-level tab navigation** design: a primary row of section tabs at the top, with scrollable content below.
 
+![Story Elements — Characters tab](images/story-elements-characters.png)
+
+![Story Elements — Images tab](images/story-elements-images.png)
+
 ### Tab Navigation
 
 **Primary tabs (always visible):**
@@ -1672,6 +1682,8 @@ Browses and manages all audio assets (music and sound effects).
 ### Screens Tab
 
 Lists all `screen` definitions found in your project (typically in `screens.rpy` or custom screen files).
+
+![Story Elements — Screens tab](images/dev-screens-tab.png)
 
 **Information shown:**
 
@@ -2078,6 +2090,8 @@ Ren'IDE's signature feature is its three-canvas visualization system. Each canva
 
 The Story Canvas is the default view when you open a project. It represents your project at the **file level**: each `.rpy` file is a draggable block on the canvas, and arrows show jumps and calls between files.
 
+![Story Canvas](images/story-canvas-basic.png)
+
 #### What the Story Canvas Shows
 
 **Blocks:**
@@ -2254,6 +2268,8 @@ The legend is a floating panel that can be moved or dismissed.
 
 The Route Canvas visualizes your project at the **label level**: every `label` becomes a node, and every `jump`, `call`, or implicit fall-through becomes an edge. This is a control flow graph that shows how the player moves through your story.
 
+![Route Canvas](images/route-canvas-basic.png)
+
 #### What the Route Canvas Shows
 
 **Nodes (Labels):**
@@ -2385,6 +2401,8 @@ Roles are indicated by color and/or icon.
 
 The Choice Canvas shows your project from the **player's perspective**: what choices will they see, what text appears, where do choices lead, and what conditions guard them?
 
+![Choice Canvas](images/choice-canvas-basic.png)
+
 #### What the Choice Canvas Shows
 
 **Menu Nodes:**
@@ -2502,6 +2520,8 @@ These navigation features work on **all three canvases**:
 ## Code Editor
 
 Ren'IDE includes a full-featured code editor powered by **Monaco** (the same engine as Visual Studio Code). This section covers editor features beyond what was mentioned in Section 3.5.
+
+![Monaco editor with a Ren'Py script open](images/code-editor.png)
 
 ### Monaco Editor Basics
 
@@ -2682,6 +2702,8 @@ Create custom snippets in the Snippets tab (see Section 3.4.8).
 
 Ren'IDE includes a powerful full-text search across your entire project.
 
+![Search & Replace panel](images/search-panel.png)
+
 ### Opening the Search Panel
 
 - Press `Ctrl+Shift+F` (Windows/Linux) or `Cmd+Shift+F` (macOS), or
@@ -2765,6 +2787,8 @@ The search panel remembers recent queries. Click the dropdown in the search box 
 ## Diagnostics Panel
 
 The Diagnostics panel is your quality assurance tool, continuously analyzing your project for issues.
+
+![Diagnostics panel](images/diagnostics-panel-full.png)
 
 ### Opening Diagnostics
 
@@ -2857,6 +2881,8 @@ Blocks on the Story Canvas that contain diagnostics display a colored glow (red 
 ## Project Statistics
 
 The Project Statistics panel provides analytical insights into your visual novel project.
+
+![Project Statistics panel](images/project-statistics.png)
 
 ### Opening Stats
 
@@ -3198,6 +3224,8 @@ Use all three canvases together for a complete picture:
 
 Characters are the heart of any visual novel. Ren'IDE helps you track, manage, and analyze your characters.
 
+![Character Manager](images/writer-character-manager.png)
+
 ### Character Database (Characters Tab)
 
 The Characters tab in the Story Elements panel shows all defined characters.
@@ -3331,6 +3359,10 @@ Characters defined but never used in dialogue are flagged with a warning in the 
 ## Menu Builder & Choices
 
 Menus are the core of branching narratives. Ren'IDE's visual Menu Builder helps you design choices without writing code.
+
+![Menu Builder — Menus list](images/writer-menu-builder.png)
+
+![Menu Builder — New menu editor](images/menu-editor-modal.png)
 
 ### Visual Menu Designer
 
@@ -3647,6 +3679,8 @@ Notes are saved in `project.ide.json` and persist across sessions.
 
 Variables drive branching logic and state in visual novels. Ren'IDE helps you track them.
 
+![Variables tab](images/writer-variables.png)
+
 ### Variables Tab
 
 The **Variables tab** in the Story Elements panel shows all globally defined variables.
@@ -3858,6 +3892,8 @@ This section is for visual novel artists—the people creating backgrounds, char
 
 Managing hundreds of image files is a common challenge in visual novel development. Ren'IDE's Image Asset Manager makes browsing, organizing, and integrating images effortless.
 
+![Image Assets tab](images/artist-images-tab.png)
+
 ### Image Assets Tab Overview
 
 Open the **Images tab** in the Story Elements panel (right sidebar) to access the Image Asset Manager.
@@ -4011,6 +4047,8 @@ This makes composition workflows seamless—no need to manually browse for files
 
 Audio asset management works similarly to image management, with features tailored for music and sound effects.
 
+![Audio Assets tab](images/artist-audio-tab.png)
+
 ### Audio Assets Tab Overview
 
 Open the **Snd (Audio) tab** in the Story Elements panel to access the Audio Asset Manager.
@@ -4131,6 +4169,8 @@ Paste into your script for instant audio integration.
 ## Scene Composer
 
 The Scene Composer is a visual tool for composing scenes: laying out backgrounds and character sprites, applying transforms, and generating Ren'Py code.
+
+![Scene Composer](images/artist-scenes-composer.png)
 
 ### Overview
 
@@ -4318,6 +4358,8 @@ Commit `project.ide.json` to version control so teammates can load your composit
 ## ImageMap Composer
 
 The ImageMap Composer is a tool for creating **clickable imagemaps**: images with rectangular hotspots that trigger actions (jumps or calls) when clicked.
+
+![ImageMap Composer](images/artist-imagemaps-composer.png)
 
 ### Overview
 
@@ -4899,6 +4941,8 @@ Check your version's documentation for customization options.
 
 Snippets are templates for common code patterns. Ren'IDE includes 28+ built-in snippets and supports user-defined snippets.
 
+![Snippets tab](images/dev-snippets-tab.png)
+
 ### Built-in Snippets Overview
 
 **Structural Snippets:**
@@ -5087,9 +5131,26 @@ define e = Character("Eileen", color="#c8ffc8", image="eileen")
 
 ---
 
+## Color Picker
+
+The **Colors tab** (Tools → Colors) provides an integrated color picker for generating Ren'Py-ready color values without leaving the IDE.
+
+![Color Picker tab](images/dev-colors-tab.png)
+
+**Features:**
+
+- Visual hue/saturation/lightness selector
+- Hex, RGB, and HSL value display
+- One-click copy of the color value as a Ren'Py-compatible hex string (e.g., `"#c8ffc8"`)
+- Useful when configuring character colors, UI accent colors, or screen widget styles
+
+---
+
 ## Screen Layout Composer
 
 The Screen Layout Composer is a visual tool for building Ren'Py `screen` definitions—perfect for creating custom UIs, menus, HUDs, and more.
+
+![Screen Layout Composer](images/artist-screen-layouts-composer.png)
 
 ### Overview
 
