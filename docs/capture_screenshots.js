@@ -6,24 +6,20 @@
  * to capture screenshots for the user guide.
  *
  * Usage:
- *   node docs/capture_screenshots.js [--project /path] [--out docs/images] [--user-data-dir /path]
+ *   node docs/capture_screenshots.js [--project /path] [--out docs/images]
  *
  * Requirements:
  *   npm install --save-dev playwright
  *
- * Defaults:
- *   --project      ./DemoProject
- *   --out          docs/images
- *   --user-data-dir  auto-detected from platform + package.json productName
- *                    (points to the packaged app's userData so the correct
- *                     theme and layout settings are used)
+ * The script auto-detects the production app's app-settings.json and injects
+ * it via RENIDE_SETTINGS_OVERRIDE so the correct theme and layout are used.
  */
 
 import { _electron as electron } from 'playwright';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 
@@ -40,32 +36,45 @@ const getArg = (flag) => {
     return idx !== -1 && idx + 1 < args.length ? args[idx + 1] : null;
 };
 
-const PROJECT_PATH  = getArg('--project')       ?? path.join(ROOT, 'DemoProject');
-const OUT_DIR       = getArg('--out')            ?? path.join(__dirname, 'images');
+const PROJECT_PATH = getArg('--project') ?? path.join(ROOT, 'DemoProject');
+const OUT_DIR      = getArg('--out')     ?? path.join(__dirname, 'images');
 
-// Auto-detect the packaged app's userData directory so Playwright uses the
-// same theme / layout preferences as when you run the installed app manually.
-// The productName from package.json is "Ren'IDE".
-function getProductionUserDataDir() {
+// ---------------------------------------------------------------------------
+// Load production app settings for theme/layout consistency
+// ---------------------------------------------------------------------------
+function getProductionSettingsPath() {
     const pkg = require(path.join(ROOT, 'package.json'));
     const productName = pkg.build?.productName ?? pkg.name;
+    let base;
     switch (process.platform) {
         case 'win32':
-            return path.join(
-                process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming'),
-                productName
-            );
+            base = process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming');
+            break;
         case 'darwin':
-            return path.join(os.homedir(), 'Library', 'Application Support', productName);
+            base = path.join(os.homedir(), 'Library', 'Application Support');
+            break;
         default:
-            return path.join(
-                process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'),
-                productName
-            );
+            base = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config');
     }
+    return path.join(base, productName, 'app-settings.json');
 }
 
-const USER_DATA_DIR = getArg('--user-data-dir') ?? getProductionUserDataDir();
+function loadProductionSettings() {
+    const settingsFile = getProductionSettingsPath();
+    if (!existsSync(settingsFile)) {
+        console.warn(`  Production settings not found at: ${settingsFile}`);
+        console.warn(`  Screenshots will use default theme. Run the installed app first to save settings.`);
+        return null;
+    }
+    try {
+        const settings = JSON.parse(readFileSync(settingsFile, 'utf8'));
+        console.log(`  Settings loaded from: ${settingsFile} (theme: ${settings.theme ?? 'system'})`);
+        return settings;
+    } catch (e) {
+        console.warn(`  Could not parse production settings: ${e.message}`);
+        return null;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Window constants
@@ -74,91 +83,115 @@ const WIN_WIDTH  = 1440;
 const WIN_HEIGHT = 900;
 
 // ---------------------------------------------------------------------------
-// Screenshot manifest
+// Wait helpers
 // ---------------------------------------------------------------------------
 
-/** Wait for settings to be loaded and both loading/analysis overlays to clear */
-async function waitForReady(page) {
-    // 1. App settings loaded — theme and sidebar prefs are applied
-    await page.waitForSelector('[data-app-ready="true"]', { timeout: 15000 });
-    // 2. Project load overlay gone
-    await page.waitForSelector('[data-loading]', { state: 'detached', timeout: 45000 });
-    // 3. Analysis overlay gone
-    await page.waitForSelector('[data-analyzing]', { state: 'detached', timeout: 60000 });
-    // 4. Brief stabilisation so canvas layout and animations settle
-    await page.waitForTimeout(800);
+/**
+ * Wait for the project to be fully loaded AND initial analysis complete.
+ * data-project-ready="true" is set on the root div only when
+ * !isLoading && !isInitialAnalysisPending && !!projectRootPath.
+ */
+async function waitForProjectReady(page) {
+    await page.waitForSelector('[data-project-ready="true"]', { timeout: 90000 });
+    await page.waitForTimeout(700);
 }
 
-/** Click a toolbar canvas-tab button by partial title text */
+/**
+ * Wait for app settings to have loaded (theme and layout prefs applied).
+ * data-app-ready="true" is set on the root div once appSettingsLoaded is true.
+ */
+async function waitForAppReady(page) {
+    await page.waitForSelector('[data-app-ready="true"]', { timeout: 15000 });
+    await page.waitForTimeout(300);
+}
+
+// ---------------------------------------------------------------------------
+// Navigation helpers
+// ---------------------------------------------------------------------------
+
+/** Click a canvas-type button in the toolbar by partial title text */
 async function clickCanvasTab(page, titleFragment) {
-    await page.click(`[data-tutorial="canvas-tabs"] button[title*="${titleFragment}"]`);
+    await page.click(`[aria-label="Switch canvas"] button[title*="${titleFragment}"]`);
     await page.waitForTimeout(600);
 }
 
-/** Click a right-sidebar tab by visible label */
-async function clickSidebarTab(page, label) {
-    await page.click(
-        `[data-tutorial="story-elements"] [role="tablist"] button:has-text("${label}")`
-    );
-    await page.waitForTimeout(500);
+/**
+ * Navigate the two-level right sidebar.
+ * Top categories: Story | Assets | Compose | Tools
+ * Sub-tabs per category:
+ *   Story   → Characters, Variables, Screens
+ *   Assets  → Images, Audio
+ *   Compose → Scenes, ImageMaps, Screen Layouts
+ *   Tools   → Snippets, Menus, Colors
+ */
+async function clickSidebarTab(page, category, subTab) {
+    // 1. Click the top-level category
+    await page.click(`[aria-label="Story Elements categories"] button:has-text("${category}")`);
+    await page.waitForTimeout(300);
+    // 2. Click the sub-tab (the sub-tablist aria-label is "<Category> sections")
+    if (subTab) {
+        await page.click(
+            `[aria-label="${category} sections"] button:has-text("${subTab}")`
+        );
+        await page.waitForTimeout(400);
+    }
 }
 
+// ---------------------------------------------------------------------------
+// Screenshot manifest
+// ---------------------------------------------------------------------------
 const SCREENSHOTS = [
+    // --- Welcome screen (no project) — handled separately ---
+    { filename: 'welcome-screen.png', welcomeOnly: true },
+
     // --- Section 2: Getting Started ---
-    {
-        filename: 'welcome-screen.png',
-        description: 'Welcome screen before any project is open',
-        welcomeOnly: true,
-    },
     {
         filename: 'project-opened.png',
         description: 'Main UI immediately after opening a project',
-        setup: async (page) => { await waitForReady(page); },
-        waitFor: '[data-tutorial="story-canvas"]',
+        setup: async (page) => { await waitForProjectReady(page); },
     },
 
-    // --- Section 3: Interface Overview ---
+    // --- Section 3: Interface ---
     {
         filename: 'story-elements-characters.png',
-        description: 'Right sidebar — Characters tab',
+        description: 'Right sidebar — Characters sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Characters');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Story', 'Characters');
         },
     },
     {
         filename: 'story-elements-images.png',
-        description: 'Right sidebar — Images tab',
+        description: 'Right sidebar — Images sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Images');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Assets', 'Images');
         },
     },
 
     // --- Section 4: Core Features ---
     {
         filename: 'story-canvas-basic.png',
-        description: 'Story Canvas showing project file blocks',
+        description: 'Story Canvas',
         setup: async (page) => {
-            await waitForReady(page);
+            await waitForProjectReady(page);
             await clickCanvasTab(page, 'Story Canvas');
         },
-        waitFor: '[data-tutorial="story-canvas"]',
     },
     {
         filename: 'route-canvas-basic.png',
-        description: 'Route Canvas — label-level control flow graph',
+        description: 'Route Canvas',
         setup: async (page) => {
-            await waitForReady(page);
+            await waitForProjectReady(page);
             await clickCanvasTab(page, 'Route Canvas');
             await page.waitForTimeout(1000);
         },
     },
     {
         filename: 'choice-canvas-basic.png',
-        description: 'Choice Canvas — player-visible choice tree',
+        description: 'Choice Canvas',
         setup: async (page) => {
-            await waitForReady(page);
+            await waitForProjectReady(page);
             await clickCanvasTab(page, 'Choice Canvas');
             await page.waitForTimeout(1000);
         },
@@ -167,8 +200,11 @@ const SCREENSHOTS = [
         filename: 'diagnostics-panel-full.png',
         description: 'Diagnostics panel',
         setup: async (page) => {
-            await waitForReady(page);
-            await page.click('button[title*="Diagnostics"]');
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Story Canvas');
+            await page.click('button[title*="Diagnostics"]').catch(() =>
+                page.click('button:has-text("Diagnostics")')
+            );
             await page.waitForTimeout(800);
         },
     },
@@ -176,8 +212,7 @@ const SCREENSHOTS = [
         filename: 'search-panel.png',
         description: 'Global search panel',
         setup: async (page) => {
-            await waitForReady(page);
-            // Return to canvas first so search overlays it cleanly
+            await waitForProjectReady(page);
             await clickCanvasTab(page, 'Story Canvas');
             await page.keyboard.press('Control+Shift+F');
             await page.waitForTimeout(600);
@@ -187,44 +222,68 @@ const SCREENSHOTS = [
     // --- Section 5: For Writers ---
     {
         filename: 'writer-character-manager.png',
-        description: 'Characters tab with characters listed',
+        description: 'Characters tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Characters');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Story', 'Characters');
+        },
+    },
+    {
+        filename: 'writer-variables.png',
+        description: 'Variables sub-tab',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Story', 'Variables');
         },
     },
     {
         filename: 'writer-menu-builder.png',
-        description: 'Menu Builder / Menus tab',
+        description: 'Menus sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Menus');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Tools', 'Menus');
         },
     },
 
     // --- Section 6: For Artists ---
     {
         filename: 'artist-images-tab.png',
-        description: 'Image Asset Manager',
+        description: 'Images sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Images');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Assets', 'Images');
         },
     },
     {
         filename: 'artist-audio-tab.png',
-        description: 'Audio Asset Manager',
+        description: 'Audio sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Audio');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Assets', 'Audio');
         },
     },
     {
-        filename: 'artist-composers-tab.png',
-        description: 'Composers tab',
+        filename: 'artist-scenes-composer.png',
+        description: 'Scene Composer tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Composers');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Compose', 'Scenes');
+        },
+    },
+    {
+        filename: 'artist-imagemaps-composer.png',
+        description: 'ImageMaps composer tab',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Compose', 'ImageMaps');
+        },
+    },
+    {
+        filename: 'artist-screen-layouts-composer.png',
+        description: 'Screen Layouts composer tab',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Compose', 'Screen Layouts');
         },
     },
 
@@ -233,29 +292,24 @@ const SCREENSHOTS = [
         filename: 'dev-snippets-tab.png',
         description: 'Snippets tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Snippets');
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Tools', 'Snippets');
+        },
+    },
+    {
+        filename: 'dev-colors-tab.png',
+        description: 'Colors (color picker) tab',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Tools', 'Colors');
         },
     },
     {
         filename: 'dev-screens-tab.png',
-        description: 'Screens tab',
+        description: 'Screens sub-tab',
         setup: async (page) => {
-            await waitForReady(page);
-            await clickSidebarTab(page, 'Screens');
-        },
-    },
-    {
-        filename: 'stats-panel.png',
-        description: 'Project statistics',
-        setup: async (page) => {
-            await waitForReady(page);
-            // Stats may be in the toolbar or a menu; try toolbar button first
-            const statsBtn = page.locator('button[title*="Stats"], button[title*="Statistics"]');
-            if (await statsBtn.count() > 0) {
-                await statsBtn.first().click();
-                await page.waitForTimeout(1000);
-            }
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Story', 'Screens');
         },
     },
 ];
@@ -268,27 +322,22 @@ async function ensureDir(dir) {
     await fs.mkdir(dir, { recursive: true });
 }
 
-async function launchApp(extraArgs = []) {
-    const electronApp = await electron.launch({
-        args: [
-            path.join(ROOT, 'electron.js'),
-            '--user-data-dir', USER_DATA_DIR,
-            ...extraArgs,
-        ],
+async function launchApp(productionSettings, extraArgs = []) {
+    const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
+    if (productionSettings) {
+        env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify(productionSettings);
+    }
+    return electron.launch({
+        args: [path.join(ROOT, 'electron.js'), ...extraArgs],
         cwd: ROOT,
-        env: {
-            ...process.env,
-            ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
-        },
+        env,
     });
-    return electronApp;
 }
 
-/** Get the first window and resize the BrowserWindow to a known good size */
+/** Get the main window and resize the BrowserWindow to a fixed known-good size */
 async function getMainPage(electronApp) {
     const page = await electronApp.firstWindow();
-
-    // Resize the actual BrowserWindow — setViewportSize has no effect in Electron
+    // setViewportSize has no effect in Electron; resize via the BrowserWindow API
     await electronApp.evaluate(({ BrowserWindow }) => {
         const [win] = BrowserWindow.getAllWindows();
         if (win) {
@@ -296,7 +345,6 @@ async function getMainPage(electronApp) {
             win.center();
         }
     });
-
     return page;
 }
 
@@ -307,34 +355,31 @@ async function getMainPage(electronApp) {
 async function main() {
     if (!existsSync(PROJECT_PATH)) {
         console.error(`Project not found: ${PROJECT_PATH}`);
-        console.error('Pass --project /path/to/renpyproject or ensure DemoProject exists.');
         process.exit(1);
     }
 
     await ensureDir(OUT_DIR);
-    console.log(`Saving screenshots to:  ${OUT_DIR}`);
-    console.log(`Using project:          ${PROJECT_PATH}`);
-    console.log(`Using userData:         ${USER_DATA_DIR}`);
-    if (!existsSync(USER_DATA_DIR)) {
-        console.warn(`  WARNING: userData dir not found — app will use defaults (theme may differ)`);
-    }
+    console.log(`\nSaving screenshots to: ${OUT_DIR}`);
+    console.log(`Using project:         ${PROJECT_PATH}`);
 
-    // --- Welcome screen (no project, no user-data-dir needed) ---
+    const productionSettings = loadProductionSettings();
+
+    // --- Welcome screen (no project loaded) ---
     const welcomeEntry = SCREENSHOTS.find(s => s.welcomeOnly);
     if (welcomeEntry) {
         console.log(`\n  [welcome] ${welcomeEntry.filename}`);
-        const appNoProject = await launchApp([]);
+        const appNoProject = await launchApp(productionSettings);
         const page = await getMainPage(appNoProject);
-        // Wait for settings to load so the correct theme is shown
-        await page.waitForSelector('[data-app-ready="true"]', { timeout: 15000 });
-        await page.waitForTimeout(500);
+        await waitForAppReady(page);
+        await page.waitForTimeout(600);
         await page.screenshot({ path: path.join(OUT_DIR, welcomeEntry.filename) });
         await appNoProject.close();
         console.log(`    saved.`);
     }
 
     // --- All other screenshots with a loaded project ---
-    const electronApp = await launchApp(['--project', PROJECT_PATH]);
+    console.log('');
+    const electronApp = await launchApp(productionSettings, ['--project', PROJECT_PATH]);
     const page = await getMainPage(electronApp);
 
     let captured = 0;
@@ -343,15 +388,11 @@ async function main() {
     for (const entry of SCREENSHOTS) {
         if (entry.welcomeOnly) continue;
 
-        process.stdout.write(`  [${String(captured + failed + 1).padStart(2)}] ${entry.filename} ... `);
+        const num = String(captured + failed + 1).padStart(2);
+        process.stdout.write(`  [${num}] ${entry.filename.padEnd(40)} `);
         try {
             if (entry.setup) await entry.setup(page);
-            if (entry.waitFor) {
-                await page.waitForSelector(entry.waitFor, { timeout: 10000 });
-            }
-
-            const outPath = path.join(OUT_DIR, entry.filename);
-            await page.screenshot({ path: outPath });
+            await page.screenshot({ path: path.join(OUT_DIR, entry.filename) });
             captured++;
             console.log('ok');
         } catch (err) {

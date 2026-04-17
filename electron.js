@@ -42,13 +42,10 @@ const startupProjectPath = (_projectArgIdx !== -1 && _projectArgIdx + 1 < proces
     ? process.argv[_projectArgIdx + 1]
     : null;
 
-// Allow overriding the userData directory before the app is ready.
-// Playwright uses this to point at the production app's settings so
-// the correct theme and layout preferences are loaded.
-const _userDataArgIdx = process.argv.indexOf('--user-data-dir');
-if (_userDataArgIdx !== -1 && _userDataArgIdx + 1 < process.argv.length) {
-    app.setPath('userData', process.argv[_userDataArgIdx + 1]);
-}
+// Allow overriding settings via env var (used by Playwright screenshot capture).
+// RENIDE_SETTINGS_OVERRIDE: JSON string of AppSettings to merge over the saved file.
+// More reliable than --user-data-dir because Chromium intercepts that flag at the
+// C++ level before process.argv is readable in Node.js code.
 
 // --- Game Process Management ---
 let gameProcess = null;
@@ -130,12 +127,22 @@ function saveWindowState(window) {
 const appSettingsPath = path.join(app.getPath('userData'), 'app-settings.json');
 
 async function loadAppSettings() {
+    let settings = null;
     try {
         const data = await fs.readFile(appSettingsPath, 'utf-8');
-        return JSON.parse(data);
+        settings = JSON.parse(data);
     } catch {
-        return null;
+        // No saved settings yet
     }
+    // Playwright screenshot capture injects the production app's settings via
+    // this env var so the correct theme and layout prefs are used.
+    if (process.env.RENIDE_SETTINGS_OVERRIDE) {
+        try {
+            const override = JSON.parse(process.env.RENIDE_SETTINGS_OVERRIDE);
+            settings = { ...settings, ...override };
+        } catch { /* ignore malformed override */ }
+    }
+    return settings;
 }
 
 async function saveAppSettings(settings) {

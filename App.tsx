@@ -3843,6 +3843,7 @@ const App: React.FC = () => {
     >
     <div
       data-app-ready={appSettingsLoaded ? "true" : undefined}
+      data-project-ready={(!isLoading && !isInitialAnalysisPending && !!projectRootPath) ? "true" : undefined}
       className={`fixed inset-0 flex flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${appSettings.theme}`}>
       <Toolbar
         activeCanvasType={activeCanvasType}
