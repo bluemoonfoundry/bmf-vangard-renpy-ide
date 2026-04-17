@@ -7,7 +7,7 @@
 
 > **The IDE that lets you see your story.**
 
-Vangard is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and AI generation are all built in.
+Vangard is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and a color picker are all built in.
 
 It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. No lock-in.
 
@@ -65,18 +65,21 @@ A full Monaco editor (the VS Code engine) built right in. Split panes let you ed
 
 ### Story Elements
 
-The right sidebar analyzes your entire project continuously. Tabs are organized in a two-level layout — a primary row of section tabs with a scrollable content area below — for efficient use of vertical space.
+The right sidebar analyzes your entire project continuously. Tabs are organized in a two-level layout — primary category tabs across the top, then sub-tabs within each category — for efficient use of vertical space.
 
-| Tab | What it shows |
-|-----|---------------|
-| **Characters** | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
-| **Variables** | All `define`/`default` globals. Find usages. |
-| **Images**  | Image asset manager |
-| **Snd** | Audio asset manager |
-| **Screens** | All `screen` definitions. Jump to definition. Add with boilerplate. |
-| **Composers** | Scene, Imagemap, and Screen Layout and Composition |
-| **Menus** | Visual menu and choice designer |
-| **Snippets** | Library of Ren'Py code patterns. User snippets with custom trigger prefixes. |
+| Category | Sub-tabs | What it shows |
+|----------|----------|---------------|
+| **Story Data** | Characters | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
+| | Variables | All `define`/`default` globals. Find usages. |
+| | Screens | All `screen` definitions. Jump to definition. Add with boilerplate. |
+| **Assets** | Images | Image asset manager with thumbnails and folder tree. |
+| | Audio | Audio asset manager with built-in player. |
+| **Composers** | Scenes | Scene Composer — layer backgrounds and sprites, export PNG. |
+| | ImageMaps | ImageMap Composer — draw hotspots, generate imagemap screen code. |
+| | Screen Layouts | Screen Layout Composer — visual DSL builder for Ren'Py screens. |
+| **Tools** | Snippets | Grid-browsable snippet library with fuzzy search and category filters. Built-in snippets + user global + project-specific. |
+| | Menus | Visual menu and choice designer with custom code block support. |
+| | Colors | Color picker with four built-in palettes (Ren'Py Standard, HTML Named, Material 500, Pastel) and a live Project Theme palette scanned from your `.rpy` files. Insert at cursor, wrap in `{color}` tags, or copy hex. |
 
 ### Asset Managers
 
@@ -133,7 +136,9 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 - **Project-wide Search & Replace** — full-text search with regex. Replace individually or bulk with confirmation.
 - **New Project Wizard** — 3-step flow: name + location, resolution presets, theme + color picker. Generates a complete SDK-compatible Ren'Py project.
 - **Markdown Preview** — double-click any `.md` file for GitHub-style rendered preview with toggle to Monaco edit mode.
-- **AI Story Generator** — generate content with Google Gemini, OpenAI, or Anthropic. API keys stored encrypted via Electron's `safeStorage`.
+- **First-run Tutorial** — a 6-step guided tour on first launch with SVG spotlight effects and keyboard navigation. Replay at any time via **Help → Show Tutorial**.
+- **Bundled User Guide** — a complete HTML user guide ships with the app. Open it from **Help → User Guide** in the menu bar.
+- **External File Change Detection** — detects when `.rpy` files are modified outside the app. Non-dirty files reload silently; dirty files show a persistent warning bar with Reload / Keep options.
 - **Undo/Redo** — full history for canvas moves, block creation/deletion, and composition edits (`Ctrl+Z` / `Ctrl+Y`).
 - **Drafting Mode** — adds placeholders for missing images and audio so the game runs during development.
 - **Run Game** — launch Ren'Py as a child process directly from the toolbar.
@@ -233,4 +238,4 @@ Output goes to `release/`. On Windows: run the `.exe` installer. On Mac: open th
 
 ---
 
-*Vangard Ren'Py IDE — v0.7.1 Public Beta 4 (not yet released) · last release: v0.6.0 Public Beta 3*
+*Ren'IDE — v0.7.1 Public Beta 4 (not yet released) · last release: v0.6.0 Public Beta 3*

@@ -55,6 +55,55 @@ All notable changes to Vangard Ren'Py IDE are documented here. Note that this is
 - **Find-usages highlight not clearing on canvas click** — clicking on a dimmed block (30% opacity, indistinguishable from empty space) left `interactionState` as `idle` in `handlePointerDown`, so `handlePointerUp` never reached the rubber-band branch that cleared the highlight. Added a general distance ≤ 5 check at the end of `handlePointerUp` that fires regardless of interaction state.
 - **Go-to-label modal not finding "start"** — the score function used negative values (exact = −1000, substring ≈ 0) but sorted descending, making exact matches rank last and get cut off by the 10-result limit. Redesigned with positive scores (exact = 1000, prefix ≈ 500+, contains ≈ 200 − idx, fuzzy = 10).
 - **Choice Canvas go-to not zooming** — `centerOnChoiceNode` and `centerOnStart` preserved the current zoom level; navigating to a node while zoomed out left it invisible. Both now snap up to at least scale 1.0.
+- **Choice Canvas not centering on start node at initial open** — fixed a race condition where the canvas attempted to center before the layout was fully computed on first open.
+
+---
+
+### New Features (post-CHANGELOG update)
+
+#### Removed: AI Story Generator
+- The AI content generation feature (Google Gemini, OpenAI, Anthropic) has been removed from the app. The AI Generator tab, model selection, API key storage, and all related settings have been deleted. This may be revisited in a future release.
+
+#### First-Run Interactive Tutorial
+- A 6-step guided tour appears on first app launch. Steps cover: welcome, project creation, the three canvas types, Story Canvas overview, scene creation, and the Story Elements panel.
+- **SVG spotlight effect** — an animated pulsing border highlights the relevant UI element for each step.
+- **Keyboard navigation** — Escape skips, Enter / arrow keys advance or dismiss.
+- **Show once** — stored in `localStorage`; replaying is available at any time via **Help → Show Tutorial** in the menu bar.
+- Full accessibility and dark mode support.
+
+#### Bundled HTML User Guide
+- A complete user guide is bundled with the app and opens in the system default browser via **Help → User Guide**. The guide is auto-generated during the distribution build from Markdown source.
+
+#### Color Picker Pane (Tools → Colors)
+- A dedicated color picker panel in the Tools sidebar tab. Four built-in palettes: Ren'Py Standard, HTML Named, Material 500, and Pastel. A fifth **Project Theme** palette is scanned live from `.rpy` files in the project, deduped and sorted by frequency.
+- Three editor actions per swatch: **Insert at cursor**, **Wrap selection in `{color}` tags**, and **Copy hex**.
+- Fixed-position tooltips (name + hex) escape all overflow clipping.
+
+#### External File Change Detection
+- The app now watches the open project directory for changes made by external tools (e.g., another editor, git checkout, scripts).
+- A 400ms debounce suppresses noise; writes the IDE itself made within the last 3 seconds are ignored.
+- Non-dirty files reload silently. Dirty files show a persistent warning bar above the editor with **Reload** and **Keep current** actions.
+
+#### Snippet Grid Layout and Multi-Source Loading
+- The Snippets tab is now a responsive 2-column grid with real-time fuzzy search across titles, descriptions, and code bodies, plus multi-select category filter chips and expandable code preview.
+- Snippets are loaded from three sources with priority-based merging: (1) built-in (bundled), (2) user global (`~/.vangard-ide/snippets/custom.json`), (3) project-specific (`<project>/.vangard/snippets.json`). A **Reload** button refreshes snippets without restarting the app.
+
+#### File Menu — Project Explorer Actions
+- **File** menu now exposes project explorer actions: New File, New Folder, and Rename for the selected item — so keyboard-focused workflows don't require the right-click context menu.
+
+### Improvements (post-CHANGELOG update)
+
+#### Performance
+- **RouteCanvas drag via RAF + direct DOM** — node positions and arrow paths during drag are updated via `requestAnimationFrame` and direct DOM style/attribute mutations instead of React state updates. React state is committed only once on pointer-up, eliminating per-mousemove re-renders. Route analysis memo in `App.tsx` is split so dragging only runs the cheap position-override step, not a full layout pass.
+- **App.tsx memoization** — `useMemo` added for `allStickyNotes`, `analysisLabelKeys`, `scenesArray`, `imagemapsArray`, `screenLayoutsArray`, `settingsMerged`, `menuLabels`, and `menuVariables`. Twelve inline JSX callbacks extracted into stable `useCallback`s so memoized children bail out correctly.
+
+#### Animations
+- **Block creation** — fade-in + scale (0.95→1.0) over 200ms via a `.block-enter` CSS animation.
+- **Block deletion** — fade-out + shrink (1.0→0.95) over 150ms; block stays visible during the animation before state removal.
+- **Arrow draw-in** — SVG `stroke-dashoffset` animation (`pathLength=1`) over 300ms for newly created connections; skipped during initial project load to avoid mass-animating.
+
+#### Language and Tone
+- UI copy throughout the app has been shifted from developer IDE terminology to more conversational, welcoming creative-tool language (Issue #104). Technical jargon has been replaced with plain language that addresses writers directly.
 
 ---
 
