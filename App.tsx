@@ -59,7 +59,7 @@ import type {
   ToastMessage, Theme, ProjectImage, RenpyAudio,
   ClipboardState, ImageMetadata, AudioMetadata, Character,
   AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  SerializedSprite, SerializedSceneComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate, MenuChoice
+  SerializedSprite, SerializedSceneComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
 } from './types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -341,7 +341,7 @@ const App: React.FC = () => {
   const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
 
   // --- Utility Functions ---
-  const getCurrentContext = useCallback(() => {
+  const _getCurrentContext = useCallback(() => {
     // Find the currently active editor tab
     const activeEditorTab = openTabs.find(t => t.id === activeTabId && t.type === 'editor');
     if (activeEditorTab && activeEditorTab.blockId) {
@@ -362,7 +362,7 @@ const App: React.FC = () => {
     return '';
   }, [activeTabId, openTabs]);
 
-  const getCurrentBlockId = useCallback(() => {
+  const _getCurrentBlockId = useCallback(() => {
     // Find the currently active editor tab
     const activeEditorTab = openTabs.find(t => t.id === activeTabId && t.type === 'editor');
     return activeEditorTab?.blockId || '';
@@ -1566,7 +1566,7 @@ const App: React.FC = () => {
   }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
 
   const handleOpenRouteCanvasTab = useCallback(() => handleOpenStaticTab('route-canvas'), [handleOpenStaticTab]);
-  const handleOpenChoiceCanvasTab = useCallback(() => handleOpenStaticTab('choice-canvas'), [handleOpenStaticTab]);
+  const _handleOpenChoiceCanvasTab = useCallback(() => handleOpenStaticTab('choice-canvas'), [handleOpenStaticTab]);
 
   // --- File System Integration ---
   
@@ -1988,7 +1988,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -2400,7 +2400,7 @@ const App: React.FC = () => {
       console.error("Failed to save IDE settings:", e);
       addToast('Failed to save workspace settings', 'error');
     }
-  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics]);
+  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics]);
 
 
   const handleSaveAll = useCallback(async () => {

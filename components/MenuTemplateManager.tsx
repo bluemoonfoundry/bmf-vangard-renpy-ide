@@ -17,7 +17,7 @@ interface MenuTemplateManagerProps {
 
 export function MenuTemplateManager({
   templates,
-  onCreateTemplate,
+  onCreateTemplate: _onCreateTemplate,
   onEditTemplate,
   onDeleteTemplate,
 }: MenuTemplateManagerProps) {

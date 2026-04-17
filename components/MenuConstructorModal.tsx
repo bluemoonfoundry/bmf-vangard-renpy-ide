@@ -62,6 +62,7 @@ function CodeBlockEditor({ value, onChange, hasError }: CodeBlockEditorProps) {
       disposable.dispose();
       editor.dispose();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update editor value when prop changes (but not from editor itself)
