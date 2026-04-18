@@ -742,6 +742,13 @@ export interface SceneSprite {
   blur: number;
   visible?: boolean;
   locked?: boolean;
+  colorMode?: 'none' | 'tint' | 'colorize';
+  tintColor?: string;
+  colorizeBlack?: string;
+  colorizeWhite?: string;
+  saturation?: number;
+  activeShader?: string;
+  shaderUniforms?: Record<string, number>;
 }
 
 /**
