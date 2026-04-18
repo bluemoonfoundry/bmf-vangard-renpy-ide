@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { SceneSprite } from '../types';
+import MatrixPresetPopover from './MatrixPresetPopover';
 
 interface Props {
     activeSprite: SceneSprite | null;
@@ -102,6 +103,9 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
 
     const colorMode = activeSprite.colorMode ?? 'none';
     const saturation = activeSprite.saturation ?? 1.0;
+    const brightness = activeSprite.brightness ?? 0;
+    const contrast = activeSprite.contrast ?? 1.0;
+    const invert = activeSprite.invert ?? 0;
     const activeShader = activeSprite.activeShader ?? '';
     const shaderUniforms = activeSprite.shaderUniforms ?? {};
     const isCustomShader = activeShader !== '' && !PREDEFINED_SHADERS.includes(activeShader);
@@ -247,17 +251,22 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
             {/* Color Effects */}
             <ControlGroup label="Color Effects">
                 <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-[9px] text-gray-400 w-12 flex-shrink-0">Mode</span>
-                        <select
-                            value={colorMode}
-                            onChange={e => u({ colorMode: e.target.value as 'none' | 'tint' | 'colorize' })}
-                            className="text-xs p-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-                        >
-                            <option value="none">None</option>
-                            <option value="tint">Tint</option>
-                            <option value="colorize">Colorize</option>
-                        </select>
+
+                    {/* Preset picker + mode selector */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <MatrixPresetPopover onApply={u} />
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] text-gray-400 flex-shrink-0">Mode</span>
+                            <select
+                                value={colorMode}
+                                onChange={e => u({ colorMode: e.target.value as 'none' | 'tint' | 'colorize' })}
+                                className="text-xs p-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                            >
+                                <option value="none">None</option>
+                                <option value="tint">Tint</option>
+                                <option value="colorize">Colorize</option>
+                            </select>
+                        </div>
                     </div>
 
                     {colorMode === 'tint' && (
@@ -291,6 +300,27 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
                             width="w-40"
                         />
                     )}
+
+                    {/* Brightness / Contrast / Invert — always visible */}
+                    <div className="flex items-start gap-3 pt-1.5 border-t border-gray-200 dark:border-gray-600 flex-wrap">
+                        <SliderRow
+                            label="Brightness" min={-1} max={1} step={0.05}
+                            value={brightness}
+                            onChange={v => u({ brightness: v })}
+                        />
+                        <SliderRow
+                            label="Contrast" min={0.1} max={3} step={0.05}
+                            value={contrast}
+                            onChange={v => u({ contrast: v })}
+                        />
+                        <SliderRow
+                            label="Invert" min={0} max={1} step={0.1}
+                            value={invert}
+                            onChange={v => u({ invert: v })}
+                            width="w-20"
+                        />
+                    </div>
+
                 </div>
             </ControlGroup>
 

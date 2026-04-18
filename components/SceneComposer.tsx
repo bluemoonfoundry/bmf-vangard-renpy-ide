@@ -33,6 +33,9 @@ function spriteVisualFilter(sprite: SceneSprite): string {
     const parts: string[] = [];
     const colorMode = sprite.colorMode ?? 'none';
     const saturation = sprite.saturation ?? 1.0;
+    const brightness = sprite.brightness ?? 0;
+    const contrast = sprite.contrast ?? 1.0;
+    const invert = sprite.invert ?? 0;
     const activeShader = sprite.activeShader ?? '';
     const uniforms = sprite.shaderUniforms ?? {};
 
@@ -52,6 +55,10 @@ function spriteVisualFilter(sprite: SceneSprite): string {
         parts.push(`saturate(${saturation})`);
     }
 
+    if (brightness !== 0) parts.push(`brightness(${(1 + brightness).toFixed(2)})`);
+    if (contrast !== 1.0) parts.push(`contrast(${contrast.toFixed(2)})`);
+    if (invert !== 0) parts.push(`invert(${invert.toFixed(2)})`);
+
     return parts.length > 0 ? parts.join(' ') : 'none';
 }
 
@@ -60,27 +67,23 @@ function spriteEffectCode(sprite: SceneSprite, indent = '    '): string {
     let code = '';
     const colorMode = sprite.colorMode ?? 'none';
     const saturation = sprite.saturation ?? 1.0;
+    const brightness = sprite.brightness ?? 0;
+    const contrast = sprite.contrast ?? 1.0;
+    const invert = sprite.invert ?? 0;
     const activeShader = sprite.activeShader ?? '';
     const uniforms = sprite.shaderUniforms ?? {};
 
-    if (colorMode !== 'none') {
-        let matrixExpr = '';
-        if (colorMode === 'tint' && sprite.tintColor) {
-            matrixExpr = `TintMatrix("${sprite.tintColor}")`;
-        } else if (colorMode === 'colorize') {
-            const black = sprite.colorizeBlack ?? '#000000';
-            const white = sprite.colorizeWhite ?? '#ffffff';
-            matrixExpr = `ColorizeMatrix("${black}", "${white}")`;
-        }
-        if (matrixExpr && saturation !== 1.0) {
-            matrixExpr += ` * SaturationMatrix(${saturation.toFixed(2)})`;
-        } else if (!matrixExpr && saturation !== 1.0) {
-            matrixExpr = `SaturationMatrix(${saturation.toFixed(2)})`;
-        }
-        if (matrixExpr) code += `${indent}matrixcolor ${matrixExpr}\n`;
-    } else if (saturation !== 1.0) {
-        code += `${indent}matrixcolor SaturationMatrix(${saturation.toFixed(2)})\n`;
+    const matrixParts: string[] = [];
+    if (colorMode === 'tint' && sprite.tintColor) {
+        matrixParts.push(`TintMatrix("${sprite.tintColor}")`);
+    } else if (colorMode === 'colorize') {
+        matrixParts.push(`ColorizeMatrix("${sprite.colorizeBlack ?? '#000000'}", "${sprite.colorizeWhite ?? '#ffffff'}")`);
     }
+    if (saturation !== 1.0) matrixParts.push(`SaturationMatrix(${saturation.toFixed(2)})`);
+    if (brightness !== 0) matrixParts.push(`BrightnessMatrix(${brightness.toFixed(2)})`);
+    if (contrast !== 1.0) matrixParts.push(`ContrastMatrix(${contrast.toFixed(2)})`);
+    if (invert !== 0) matrixParts.push(`InvertMatrix(${invert.toFixed(2)})`);
+    if (matrixParts.length > 0) code += `${indent}matrixcolor ${matrixParts.join(' * ')}\n`;
 
     if (activeShader) {
         code += `${indent}shader "${activeShader}"\n`;

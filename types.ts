@@ -747,6 +747,9 @@ export interface SceneSprite {
   colorizeBlack?: string;
   colorizeWhite?: string;
   saturation?: number;
+  brightness?: number;
+  contrast?: number;
+  invert?: number;
   activeShader?: string;
   shaderUniforms?: Record<string, number>;
 }
