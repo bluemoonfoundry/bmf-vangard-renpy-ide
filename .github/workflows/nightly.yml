@@ -1,0 +1,125 @@
+name: Nightly Build
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # 4am UTC daily
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest, macos-15-intel]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build and package
+        run: npm run dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.zip
+
+  publish:
+    name: Publish Nightly Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CHANGES=$(git log --since="25 hours ago" --pretty=format:"- %s (%h)" --no-merges)
+          if [ -z "$CHANGES" ]; then
+            CHANGES="- No new commits in the last 24 hours"
+          fi
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Compute SHA256 checksums
+        run: sha256sum artifacts/* > artifacts/SHA256SUMS.txt
+
+      - name: Publish rolling nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "Nightly — ${{ github.run_number }} (${{ github.sha && github.sha || 'main' }})"
+          prerelease: true
+          make_latest: false
+          body: |
+            > ⚠️ **Pre-release for power users.** Built from `main` at `${{ github.sha }}`. May be unstable.
+
+            ## Changes in the last 24 hours
+            ${{ steps.changelog.outputs.changes }}
+
+            ## Platform downloads
+            | Platform | Installer |
+            |---|---|
+            | macOS (Apple Silicon) | `.dmg` from `macos-latest` |
+            | macOS (Intel) | `.dmg` from `macos-15-intel` |
+            | Windows | `.exe` |
+            | Linux | `.AppImage` |
+
+            Checksums: `SHA256SUMS.txt`
+          files: artifacts/*
