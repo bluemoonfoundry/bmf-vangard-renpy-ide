@@ -9,7 +9,7 @@
 
 import React from 'react';
 import packageJson from '../package.json';
-import logo from '../vangard-renide-512x512.png';
+import logo from '../renide-512x512.png';
 
 interface WelcomeScreenProps {
   onOpenProject: () => void;

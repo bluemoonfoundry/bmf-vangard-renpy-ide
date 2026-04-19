@@ -1,5 +1,5 @@
 {
-  "name": "Vangard-RenPy-IDE",
+  "name": "renide",
   "version": "0.7.1",
   "author": "Blue Moon Foundry Software",
   "license": "AGPL-3.0-only",
@@ -77,9 +77,9 @@
     "vitest": "^4.0.18"
   },
   "build": {
-    "appId": "com.vangard.renpy.renide",
-    "productName": "Ren'IDE",
-    "executableName": "Vangard-RenPy-renide",
+    "appId": "com.bluemoonfoundry.renide",
+    "productName": "RenIDE",
+    "executableName": "renide",
     "publish": {
       "provider": "github",
       "owner": "bluemoonfoundry",
@@ -89,7 +89,7 @@
       "dist/**/*",
       "electron.js",
       "preload.js",
-      "vangard-renide-512x512.png",
+      "renide-512x512.png",
       "lib/**/*"
     ],
     "asarUnpack": [
@@ -100,7 +100,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "vangard-renide-512x512.png",
+      "icon": "renide-512x512.png",
       "artifactName": "${name}-Setup-${version}.${ext}"
     },
     "nsis": {
@@ -108,16 +108,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Ren'IDE"
+      "shortcutName": "RenIDE"
     },
     "mac": {
       "target": "dmg",
-      "icon": "vangard-renide-512x512.png",
+      "icon": "renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "vangard-renide-512x512.png",
+      "icon": "renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}"
     },
     "extraResources": [

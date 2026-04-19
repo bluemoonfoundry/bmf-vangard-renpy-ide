@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import Toolbar from './Toolbar';
 
 // Mock the logo import — jsdom can't handle image imports
-vi.mock('../vangard-renide-512x512.png', () => ({ default: 'logo.png' }));
+vi.mock('../renide-512x512.png', () => ({ default: 'logo.png' }));
 
 describe('Toolbar', () => {
   const createProps = (overrides?: Partial<Parameters<typeof Toolbar>[0]>) => ({
