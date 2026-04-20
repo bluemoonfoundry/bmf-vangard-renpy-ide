@@ -11,6 +11,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid,
 } from 'recharts';
 import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute, ProjectImage, ImageMetadata, RenpyAudio } from '../types';
+import type { PerformanceSnapshot } from '../hooks/usePerformanceMetrics';
+import { useCanvasFps } from '../hooks/useCanvasFps';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -21,6 +23,7 @@ interface StatsViewProps {
   projectAudios: Map<string, RenpyAudio>;
   diagnosticsErrorCount: number;
   onOpenDiagnostics: () => void;
+  performanceMetrics?: PerformanceSnapshot;
 }
 
 // ── Coverage types ────────────────────────────────────────────────────────────
@@ -264,6 +267,57 @@ const CharacterTable: React.FC<{
   );
 };
 
+// ── Performance helpers ───────────────────────────────────────────────────────
+
+import type { MemorySample } from '../hooks/usePerformanceMetrics';
+
+function formatMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`;
+}
+
+const PerfStatCard: React.FC<{ label: string; valueMs: number | null; targetMs?: number }> = ({ label, valueMs, targetMs }) => {
+  const met = targetMs !== null && targetMs !== undefined && valueMs !== null && valueMs <= targetMs;
+  const exceeded = targetMs !== null && targetMs !== undefined && valueMs !== null && valueMs > targetMs;
+  return (
+    <div className="bg-secondary rounded-lg p-4 flex flex-col gap-1">
+      <p className="text-xs text-secondary uppercase tracking-wide font-medium">{label}</p>
+      <p className="text-2xl font-bold tabular-nums">
+        {valueMs !== null ? formatMs(valueMs) : <span className="text-secondary text-base font-normal">—</span>}
+      </p>
+      {targetMs !== undefined && (
+        <p className="text-xs">
+          {valueMs === null
+            ? <span className="text-secondary">target: {formatMs(targetMs)}</span>
+            : met
+              ? <span className="text-green-500">target {formatMs(targetMs)} ✓</span>
+              : exceeded
+                ? <span className="text-red-500">over target ({formatMs(targetMs)})</span>
+                : null}
+        </p>
+      )}
+      {targetMs === undefined && <p className="text-xs text-secondary">session latest</p>}
+    </div>
+  );
+};
+
+const MemorySparkline: React.FC<{ samples: MemorySample[] }> = ({ samples }) => {
+  const W = 400;
+  const H = 48;
+  const min = Math.min(...samples.map(s => s.mb));
+  const max = Math.max(...samples.map(s => s.mb));
+  const range = Math.max(max - min, 1);
+  const pts = samples.map((s, i) => {
+    const x = (i / (samples.length - 1)) * W;
+    const y = H - ((s.mb - min) / range) * (H - 4) - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 // ── File limit toggle ─────────────────────────────────────────────────────────
 
 const FILE_LIMITS = [15, 30, 'all'] as const;
@@ -283,7 +337,9 @@ const StatsView: React.FC<StatsViewProps> = ({
   projectAudios,
   diagnosticsErrorCount,
   onOpenDiagnostics,
+  performanceMetrics,
 }) => {
+  const fps = useCanvasFps(!!performanceMetrics);
   const [fileLimit, setFileLimit] = useState<FileLimit>(15);
   const [charLimit, setCharLimit] = useState<CharLimit>(5);
   const [coverageTypeFilter, setCoverageTypeFilter] = useState<CoverageTypeFilter>('all');
@@ -964,6 +1020,51 @@ const StatsView: React.FC<StatsViewProps> = ({
           </div>
         </>)}
       </section>
+
+      {performanceMetrics && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-1">IDE Performance</h2>
+          <p className="text-xs text-secondary mb-4">Internal metrics — measured since this session started. Not project content.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <PerfStatCard
+              label="Project Load"
+              valueMs={performanceMetrics.lastLoadMs}
+              targetMs={5000}
+            />
+            <PerfStatCard
+              label="Last Analysis"
+              valueMs={performanceMetrics.lastAnalysisMs}
+            />
+            <PerfStatCard
+              label="Last Asset Scan"
+              valueMs={performanceMetrics.lastScanMs}
+            />
+            <div className="bg-secondary rounded-lg p-4 flex flex-col gap-1">
+              <p className="text-xs text-secondary uppercase tracking-wide font-medium">Canvas FPS</p>
+              <p className="text-2xl font-bold tabular-nums">
+                {fps !== null ? fps : <span className="text-secondary text-base font-normal">—</span>}
+              </p>
+              <p className="text-xs text-secondary">
+                {fps !== null
+                  ? fps >= 55 ? <span className="text-green-500">60 fps target ✓</span> : fps >= 30 ? <span className="text-yellow-500">below 60 fps</span> : <span className="text-red-500">low fps</span>
+                  : 'live while tab is open'}
+              </p>
+            </div>
+          </div>
+          {performanceMetrics.memorySamples.length >= 2 && (
+            <div className="bg-secondary rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-secondary uppercase tracking-wide font-medium">JS Heap Memory</p>
+                <p className="text-xs text-secondary tabular-nums">
+                  {performanceMetrics.memorySamples[performanceMetrics.memorySamples.length - 1].mb.toFixed(1)} MB now
+                  {' · '}peak {Math.max(...performanceMetrics.memorySamples.map(s => s.mb)).toFixed(1)} MB
+                </p>
+              </div>
+              <MemorySparkline samples={performanceMetrics.memorySamples} />
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };

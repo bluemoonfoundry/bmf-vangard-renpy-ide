@@ -41,6 +41,7 @@ import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
 import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
 import { useHistory } from './hooks/useHistory';
 import { useProjectColorScan } from './hooks/useProjectColorScan';
+import { usePerformanceMetrics } from './hooks/usePerformanceMetrics';
 import { createId } from './lib/createId';
 import { formatErrorMessage } from './lib/formatErrorMessage';
 import {
@@ -288,7 +289,8 @@ const App: React.FC = () => {
     [debouncedBlocks],
   );
 
-  const [analysisResult, isWorkerPending, analysisProgress] = useRenpyAnalysis(analysisBlocks, 0);
+  const [perfSnapshot, perfRecorders] = usePerformanceMetrics();
+  const [analysisResult, isWorkerPending, analysisProgress] = useRenpyAnalysis(analysisBlocks, 0, perfRecorders.recordAnalysis);
   // Pending covers both: the 500ms debounce window AND the worker's async computation
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
   const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata, ignoredDiagnostics);
@@ -1572,6 +1574,7 @@ const App: React.FC = () => {
   
   const loadProject = useCallback(async (path: string) => {
       loadCancelRef.current = false;
+      const loadStartTime = performance.now();
       setIsLoading(true);
       setLoadingProgress(5);
       setLoadingMessage('Reading project files...');
@@ -1805,6 +1808,7 @@ const App: React.FC = () => {
 
                   // Trigger scan
                   if (window.electronAPI) {
+                       perfRecorders.recordScanStart();
                        setIsScanningAssets(true);
                        Promise.all(paths.map((dirPath) =>
                            window.electronAPI!.scanDirectory(dirPath).then(({ images: scanned }) => {
@@ -1830,7 +1834,7 @@ const App: React.FC = () => {
                                    return next;
                                });
                            })
-                       )).finally(() => setIsScanningAssets(false));
+                       )).finally(() => { perfRecorders.recordScanEnd(); setIsScanningAssets(false); });
                   }
               }
               
@@ -1842,6 +1846,7 @@ const App: React.FC = () => {
 
                   // Trigger scan
                   if (window.electronAPI) {
+                       perfRecorders.recordScanStart();
                        setIsScanningAssets(true);
                        Promise.all(paths.map((dirPath) =>
                            window.electronAPI!.scanDirectory(dirPath).then(({ audios: scanned }) => {
@@ -1867,7 +1872,7 @@ const App: React.FC = () => {
                                    return next;
                                });
                            })
-                       )).finally(() => setIsScanningAssets(false));
+                       )).finally(() => { perfRecorders.recordScanEnd(); setIsScanningAssets(false); });
                   }
               }
 
@@ -1971,6 +1976,7 @@ const App: React.FC = () => {
           setLoadingMessage('Done');
           setIsInitialAnalysisPending(true);
           setHasUnsavedSettings(false);
+          perfRecorders.recordLoad(performance.now() - loadStartTime);
           addToast('Project loaded successfully', 'success');
           setStatusBarMessage('Project loaded.');
           setTimeout(() => setStatusBarMessage(''), 3000);
@@ -1988,7 +1994,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -3591,6 +3597,7 @@ const App: React.FC = () => {
         const path = await window.electronAPI.openDirectory();
         if (path) {
           setImageScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          perfRecorders.recordScanStart();
           setIsScanningAssets(true);
           try {
             const { images: scanned } = await window.electronAPI.scanDirectory(path);
@@ -3602,6 +3609,7 @@ const App: React.FC = () => {
               return next;
             });
           } finally {
+            perfRecorders.recordScanEnd();
             setIsScanningAssets(false);
           }
           setHasUnsavedSettings(true);
@@ -3645,6 +3653,7 @@ const App: React.FC = () => {
         const path = await window.electronAPI.openDirectory();
         if (path) {
           setAudioScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          perfRecorders.recordScanStart();
           setIsScanningAssets(true);
           try {
             const { audios: scanned } = await window.electronAPI.scanDirectory(path);
@@ -3656,6 +3665,7 @@ const App: React.FC = () => {
               return next;
             });
           } finally {
+            perfRecorders.recordScanEnd();
             setIsScanningAssets(false);
           }
           setHasUnsavedSettings(true);
@@ -3814,6 +3824,7 @@ const App: React.FC = () => {
         projectAudios={audios}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onOpenDiagnostics={() => handleOpenStaticTab('diagnostics')}
+        performanceMetrics={perfSnapshot}
       />;
     }
     if (tab.type === 'editor' && tab.blockId) {

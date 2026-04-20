@@ -704,11 +704,13 @@ export interface AnalysisProgress {
  * is computing; `progress` carries the latest phase/percent reported by the worker.
  * Falls back to synchronous analysis if Web Workers are unavailable (e.g. test env).
  */
-export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [RenpyAnalysisResult, boolean, AnalysisProgress | null] => {
+export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onComplete?: (ms: number) => void): [RenpyAnalysisResult, boolean, AnalysisProgress | null] => {
   const [result, setResult] = useState<RenpyAnalysisResult>(EMPTY_ANALYSIS_RESULT);
   const [isPending, setIsPending] = useState(false);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const requestIdRef = useRef(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const currentId = ++requestIdRef.current;
@@ -730,6 +732,8 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [Ren
       return;
     }
 
+    const startTime = performance.now();
+
     const handleMessage = (e: MessageEvent) => {
       if (e.data.id !== currentId) return; // stale — a newer request superseded this one
 
@@ -742,6 +746,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number): [Ren
       worker.removeEventListener('message', handleMessage);
       if (!e.data.error) {
         setResult(e.data.result);
+        onCompleteRef.current?.(performance.now() - startTime);
       }
       setProgress(null);
       setIsPending(false);
