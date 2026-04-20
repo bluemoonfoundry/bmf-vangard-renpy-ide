@@ -2952,6 +2952,20 @@ This prevents the app from freezing when you open Stats.
 - **Audio:** Number of audio files defined vs. number used
 - Identifies unused assets (clutter) and missing assets (errors)
 
+### IDE Performance Metrics
+
+The bottom of the Stats tab shows a live **IDE Performance** section with diagnostic counters collected during normal use:
+
+| Metric | What it measures |
+|--------|-----------------|
+| **Project load time** | How long the initial project scan took (ms) |
+| **Analysis duration** | How long the last Ren'Py analysis worker run took (ms) |
+| **Asset scan time** | How long the last image/audio directory scan took (ms) |
+| **Canvas FPS** | Frames per second on the active canvas (higher is smoother) |
+| **JS heap memory** | Current JavaScript heap usage reported by the browser |
+
+These metrics update automatically as you work. They are useful for understanding whether a large project is stressing the IDE, and for diagnosing performance regressions.
+
 ### Interpreting Stats
 
 **High word count but short play time estimate:**
@@ -6484,6 +6498,10 @@ project-name/
 | | Zoom Canvas | `Mouse Scroll` | `Mouse Scroll` |
 | | Multi-Select Blocks | `Ctrl+Click` | `Cmd+Click` |
 | | Rubber-Band Selection | `Drag on empty canvas` | `Drag on empty canvas` |
+| | Focus Next Block/Node | `Tab` | `Tab` |
+| | Navigate Spatially | `Arrow Keys` | `Arrow Keys` |
+| | Open Focused Block in Editor | `Enter` | `Enter` |
+| | Clear Selection | `Escape` | `Escape` |
 | **Code Editor** | | | |
 | | Find in File | `Ctrl+F` | `Cmd+F` |
 | | Replace in File | `Ctrl+H` | `Cmd+H` |

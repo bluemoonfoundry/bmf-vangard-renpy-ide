@@ -91,6 +91,19 @@ All notable changes to Vangard Ren'Py IDE are documented here. Note that this is
 #### File Menu — Project Explorer Actions
 - **File** menu now exposes project explorer actions: New File, New Folder, and Rename for the selected item — so keyboard-focused workflows don't require the right-click context menu.
 
+#### Canvas Accessibility — Keyboard Navigation and Screen Reader Support
+- All three canvases (Story, Route, Choice) now support full keyboard navigation and screen reader access.
+- **Tab to move focus** — Tab cycles through every block and label node on the canvas. Each element has an accessible label read aloud by screen readers, describing its title, type, unsaved state, and structural role (story start, story end, has errors, selected, etc.).
+- **Arrow keys to navigate spatially** — when a block or node is focused, Arrow keys move focus to the nearest block or node in that direction across the canvas. Works identically on all three canvases.
+- **Enter to open in editor** — press Enter on a focused block or node to open it in the code editor.
+- **Escape to deselect** — press Escape to clear the current selection. Screen reader live announcements are made when focus moves or selection changes.
+- **Visible focus ring** — focused blocks display a visible indigo outline (`:focus-visible`) for keyboard-only and high-contrast users.
+- Each canvas container is marked `role="application"` with a descriptive label and includes a hidden `aria-live="polite"` region for state change announcements.
+
+#### Stats Tab — IDE Performance Metrics
+- A new **IDE Performance** section at the bottom of the Stats tab surfaces live diagnostics: project load time, analysis worker duration, asset scan time, canvas frames per second (FPS), and JS heap memory usage.
+- Metrics are collected passively; no configuration required.
+
 ### Improvements (post-CHANGELOG update)
 
 #### Performance
@@ -104,6 +117,9 @@ All notable changes to Vangard Ren'Py IDE are documented here. Note that this is
 
 #### Language and Tone
 - UI copy throughout the app has been shifted from developer IDE terminology to more conversational, welcoming creative-tool language (Issue #104). Technical jargon has been replaced with plain language that addresses writers directly.
+
+#### Toolbar — Icon-Only Buttons
+- All toolbar buttons now use icon-only display with descriptive tooltips on hover. The Drafting Mode toggle uses a pencil icon. This prevents button label clipping on narrower windows and gives the toolbar a cleaner, more compact appearance.
 
 ---
 

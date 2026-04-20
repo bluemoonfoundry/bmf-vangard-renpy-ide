@@ -126,7 +126,7 @@ Click any issue to jump directly to the source. Filter by severity (error / warn
 
 ### Project Statistics
 
-Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores. Statistics are computed asynchronously after the tab opens — each metric shows an inline spinner until ready, so the Stats tab appears instantly even for large projects.
+Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores. Statistics are computed asynchronously after the tab opens — each metric shows an inline spinner until ready, so the Stats tab appears instantly even for large projects. An **IDE Performance** section at the bottom of the Stats tab shows live diagnostics: project load time, analysis worker duration, asset scan time, canvas FPS, and JS heap memory.
 
 ---
 
@@ -142,6 +142,7 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 - **Undo/Redo** — full history for canvas moves, block creation/deletion, and composition edits (`Ctrl+Z` / `Ctrl+Y`).
 - **Drafting Mode** — adds placeholders for missing images and audio so the game runs during development.
 - **Run Game** — launch Ren'Py as a child process directly from the toolbar.
+- **Keyboard-accessible canvases** — Tab to move focus between blocks/nodes, Arrow keys for spatial navigation, Enter to open in editor, Escape to deselect. Every canvas element has an `aria-label` for screen readers (NVDA, VoiceOver, JAWS). Visible focus indicators for keyboard-only users.
 - **10 Themes** — system, light, dark, solarized light/dark, colorful light/dark, neon dark, ocean dark, candy light, forest light.
 - **Auto-updater** — checks for new releases on launch and prompts to install.
 - **Version in status bar** — the app version is always visible at the right end of the status bar.
