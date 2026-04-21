@@ -201,6 +201,18 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
         setRedoStack([]);
     }, [scene]);
 
+    // Prevents saving many undo snapshots during a continuous range slider drag
+    const rangeSliderDraggingRef = useRef(false);
+    const handleRangeSliderStart = useCallback(() => {
+        if (!rangeSliderDraggingRef.current) {
+            saveUndo();
+            rangeSliderDraggingRef.current = true;
+        }
+    }, [saveUndo]);
+    const handleRangeSliderEnd = useCallback(() => {
+        rangeSliderDraggingRef.current = false;
+    }, []);
+
     const handleUndo = useCallback(() => {
         if (undoStack.length === 0) return;
         const prev = undoStack[undoStack.length - 1];
@@ -342,8 +354,8 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
 
     // Sprite Manipulation
     const updateSprite = useCallback((id: string, updates: Partial<SceneSprite>) => {
-        // Skip undo snapshot during pointer drag — handlePointerDown already captured it
-        if (!draggingId) saveUndo();
+        // Skip undo snapshot during canvas drag (handlePointerDown captured it) or range slider drag
+        if (!draggingId && !rangeSliderDraggingRef.current) saveUndo();
         if (id === 'background') {
             onSceneChange(prev => prev.background ? ({ ...prev, background: { ...prev.background, ...updates } }) : prev);
         } else {
@@ -388,16 +400,22 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     }, [onSceneChange, selectedSpriteId, saveUndo]);
 
     // Keyboard Shortcuts
+    // Undo/redo on document so it fires regardless of which child has focus (range inputs, number inputs, etc.)
+    useEffect(() => {
+        const handleUndoRedo = (e: KeyboardEvent) => {
+            if (!containerRef.current?.contains(document.activeElement)) return;
+            const mod = e.ctrlKey || e.metaKey;
+            if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+            else if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
+        };
+        document.addEventListener('keydown', handleUndoRedo);
+        return () => document.removeEventListener('keydown', handleUndoRedo);
+    }, [handleUndo, handleRedo]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in an input
+            // Suppress all shortcuts when an input is focused
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-            const mod = e.ctrlKey || e.metaKey;
-
-            // Undo / Redo (handled regardless of selection)
-            if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); return; }
-            if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); return; }
 
             if (!selectedSpriteId) return;
 
@@ -450,7 +468,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
         return () => {
             if (container) container.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onSceneChange, removeSprite, selectedSpriteId, handleUndo, handleRedo, saveUndo]);
+    }, [onSceneChange, removeSprite, selectedSpriteId, saveUndo]);
 
     const moveSpriteToGap = (fromIndex: number, gapIndex: number) => {
         saveUndo();
@@ -480,15 +498,15 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                 x: 0.5, y: 0.5,
                 zIndex: 0,
             };
-            
+
+            // Remove the promoted sprite; if there was a previous background, demote it to a sprite at the bottom
             const newSprites = prev.sprites.filter(s => s.id !== id);
+            if (prev.background) {
+                newSprites.unshift({ ...prev.background, id: `sprite-${Date.now()}`, zIndex: 0 });
+            }
             newSprites.forEach((s, i) => s.zIndex = i + 1);
 
-            return {
-                ...prev,
-                background: newBg,
-                sprites: newSprites
-            };
+            return { ...prev, background: newBg, sprites: newSprites };
         });
         setSelectedSpriteId('background');
     };
@@ -969,8 +987,8 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                             activeSprite={activeSprite}
                             selectedSpriteId={selectedSpriteId}
                             onUpdate={updateSprite}
-                            onRemove={removeSprite}
-                            onSetBackground={setSpriteAsBackground}
+                            onRangeSliderStart={handleRangeSliderStart}
+                            onRangeSliderEnd={handleRangeSliderEnd}
                         />
                     </div>
                 </div>
@@ -1053,6 +1071,26 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                                                 {getRenpyTag(sprite.image)}
                                             </p>
                                         </div>
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setSpriteAsBackground(sprite.id); }}
+                                                className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                                title="Set as Background"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); removeSprite(sprite.id); }}
+                                                className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                                title="Delete Layer"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Bottom Drop Indicator Line */}
@@ -1067,7 +1105,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                         {scene.background ? (
                             <div 
                                 onClick={() => setSelectedSpriteId('background')}
-                                className={`flex items-center p-2 rounded cursor-pointer mt-2 border-t-2 border-dashed border-gray-200 dark:border-gray-700 pt-2 ${selectedSpriteId === 'background' ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                                className={`flex items-center p-2 rounded cursor-pointer mt-2 border-t-2 border-dashed border-gray-200 dark:border-gray-700 pt-2 group ${selectedSpriteId === 'background' ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                             >
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); toggleVisibility('background'); }}
@@ -1111,6 +1149,15 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                                         {getRenpyTag(scene.background.image)}
                                     </p>
                                 </div>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); removeSprite('background'); }}
+                                    className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
+                                    title="Clear Background"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
                             </div>
                         ) : (
                             <div className="p-4 text-center text-xs text-gray-400 italic border-t-2 border-dashed border-gray-200 dark:border-gray-700 mt-2">

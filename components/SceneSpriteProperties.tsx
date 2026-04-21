@@ -7,8 +7,8 @@ interface Props {
     activeSprite: SceneSprite | null;
     selectedSpriteId: string | null;
     onUpdate: (id: string, updates: Partial<SceneSprite>) => void;
-    onRemove: (id: string) => void;
-    onSetBackground: (id: string) => void;
+    onRangeSliderStart: () => void;
+    onRangeSliderEnd: () => void;
 }
 
 const SHADER_DEFS: Record<string, Array<{ name: string; label: string; min: number; max: number; step: number; default: number }>> = {
@@ -50,7 +50,9 @@ const SliderRow: React.FC<{
     value: number;
     onChange: (v: number) => void;
     width?: string;
-}> = ({ label, min, max, step, value, onChange, width = 'w-28' }) => (
+    onRangeSliderStart?: () => void;
+    onRangeSliderEnd?: () => void;
+}> = ({ label, min, max, step, value, onChange, width = 'w-28', onRangeSliderStart, onRangeSliderEnd }) => (
     <div className={`flex flex-col ${width}`}>
         <div className="flex justify-between items-center mb-1">
             <span className="text-[9px] text-gray-400">{label}</span>
@@ -63,6 +65,8 @@ const SliderRow: React.FC<{
         <input
             type="range" min={min} max={max} step={step} value={value}
             onChange={e => onChange(parseFloat(e.target.value))}
+            onPointerDown={onRangeSliderStart}
+            onPointerUp={onRangeSliderEnd}
             className="h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-600 w-full"
         />
     </div>
@@ -87,7 +91,7 @@ const ColorSwatch: React.FC<{ label: string; value: string; onChange: (hex: stri
     </div>
 );
 
-const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId, onUpdate, onRemove, onSetBackground }) => {
+const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId, onUpdate, onRangeSliderStart, onRangeSliderEnd }) => {
     const [customShaderName, setCustomShaderName] = useState('');
     const [customUniforms, setCustomUnforms] = useState<Array<{ key: string; value: number }>>([]);
 
@@ -221,27 +225,16 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
                         label="Opacity" min={0} max={1} step={0.05}
                         value={activeSprite.alpha ?? 1}
                         onChange={v => u({ alpha: v })}
+                        onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                     />
                     <SliderRow
                         label="Blur (px)" min={0} max={50} step={1}
                         value={activeSprite.blur ?? 0}
                         onChange={v => u({ blur: v })}
+                        onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                     />
                 </div>
             </ControlGroup>
-
-            {/* Actions */}
-            <div className="flex items-center space-x-2 border-l border-gray-200 dark:border-gray-700 pl-4 ml-auto flex-shrink-0 self-center">
-                {selectedSpriteId !== 'background' && (
-                    <>
-                        <button onClick={() => onSetBackground(activeSprite.id)} className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 font-medium whitespace-nowrap">Make BG</button>
-                        <button onClick={() => onRemove(activeSprite.id)} className="px-3 py-1.5 text-xs bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-900/50 font-medium">Delete</button>
-                    </>
-                )}
-                {selectedSpriteId === 'background' && (
-                    <button onClick={() => onRemove('background')} className="px-3 py-1.5 text-xs bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-900/50 font-medium">Clear BG</button>
-                )}
-            </div>
 
         </div>{/* end Row 1 */}
 
@@ -298,6 +291,7 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
                             value={saturation}
                             onChange={v => u({ saturation: v })}
                             width="w-40"
+                            onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                         />
                     )}
 
@@ -307,17 +301,20 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
                             label="Brightness" min={-1} max={1} step={0.05}
                             value={brightness}
                             onChange={v => u({ brightness: v })}
+                            onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                         />
                         <SliderRow
                             label="Contrast" min={0.1} max={3} step={0.05}
                             value={contrast}
                             onChange={v => u({ contrast: v })}
+                            onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                         />
                         <SliderRow
                             label="Invert" min={0} max={1} step={0.1}
                             value={invert}
                             onChange={v => u({ invert: v })}
                             width="w-20"
+                            onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                         />
                     </div>
 
@@ -369,6 +366,7 @@ const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId
                             value={shaderUniforms[def.name] ?? def.default}
                             onChange={v => handleUniformChange(def.name, v)}
                             width="w-40"
+                            onRangeSliderStart={onRangeSliderStart} onRangeSliderEnd={onRangeSliderEnd}
                         />
                     ))}
 
