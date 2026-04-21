@@ -51,6 +51,27 @@ export default function CodeActionButtons({
             const position = activeEditor.getPosition();
             if (!position) return;
 
+            const model = activeEditor.getModel();
+            if (!model) return;
+
+            // Get current line text to detect indentation
+            const currentLineText = model.getLineContent(position.lineNumber);
+            const currentIndent = currentLineText.match(/^[\t ]*/)?.[0] || '';
+
+            // Smart indentation logic:
+            // - If cursor is at column 1 (start of line), insert code as-is
+            // - If cursor is indented or mid-line, prepend current line's indentation to all lines
+            let textToInsert = code;
+            if (position.column > 1 && currentIndent) {
+                const codeLines = code.split('\n');
+                textToInsert = codeLines.map((line, idx) => {
+                    // Don't add indentation to the first line (it goes where cursor is)
+                    // Add current line's indentation to subsequent lines
+                    if (idx === 0) return line;
+                    return line ? currentIndent + line : line;
+                }).join('\n');
+            }
+
             activeEditor.executeEdits('insert-generated-code', [
                 {
                     range: {
@@ -59,12 +80,13 @@ export default function CodeActionButtons({
                         endLineNumber: position.lineNumber,
                         endColumn: position.column,
                     },
-                    text: code,
+                    text: textToInsert,
+                    forceMoveMarkers: true,
                 },
             ]);
 
             // Move cursor to end of inserted text
-            const lines = code.split('\n');
+            const lines = textToInsert.split('\n');
             const lastLineLength = lines[lines.length - 1].length;
             activeEditor.setPosition({
                 lineNumber: position.lineNumber + lines.length - 1,
