@@ -74,7 +74,7 @@ jobs:
         run: |
           PLATFORM="${{ matrix.platform }}"
           mkdir -p final-artifacts
-          # Move and rename files to static names to ensure they overwrite on the Release page
+          # We move files to a new folder with generic names (no version, no date)
           for f in release/*.exe release/*.dmg release/*.AppImage release/*.zip; do
             [ -f "$f" ] || continue
             ext="${f##*.}"
@@ -84,8 +84,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          # Using a static name here ensures artifacts are grouped together in the UI
-          name: nightly-build-${{ matrix.platform }}
+          # This name is internal to this specific workflow run
+          name: build-artifacts-${{ matrix.platform }}
           path: final-artifacts/*
 
   publish:
@@ -108,6 +108,8 @@ jobs:
       - name: Compute SHA256 checksums
         run: |
           cd artifacts
+          # Generates a file named exactly "SHA256SUMS.txt" 
+          # It contains hashes, but the FILENAME is static.
           sha256sum * > SHA256SUMS.txt
 
       - name: Generate changelog
@@ -128,11 +130,11 @@ jobs:
           name: "Nightly Build (Latest)"
           prerelease: true
           make_latest: false
-          # This setting ensures existing files with the same name are overwritten
+          # CRITICAL: This ensures existing files on the 'nightly' tag are replaced
           overwrite: true 
           body: |
-            > ⚠️ **Pre-release for power users.** Built from `main` at `${{ github.sha }}`. 
-            > This release is updated daily. Existing files are overwritten.
+            > ⚠️ **Pre-release for power users.** 
+            > This release is updated every 24 hours. Files here always reflect the latest `main` branch.
 
             ## Changes in the last 24 hours
             ${{ steps.changelog.outputs.changes }}
