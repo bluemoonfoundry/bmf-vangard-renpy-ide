@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   loadProject: (rootPath) => ipcRenderer.invoke('project:load', rootPath),
   refreshProjectTree: (rootPath) => ipcRenderer.invoke('project:refresh-tree', rootPath),
+  refreshProject: (rootPath) => ipcRenderer.invoke('project:refresh', rootPath),
   readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
   fileExists: (filePath) => ipcRenderer.invoke('fs:fileExists', filePath),
   writeFile: (filePath, content, encoding) => ipcRenderer.invoke('fs:writeFile', filePath, content, encoding),

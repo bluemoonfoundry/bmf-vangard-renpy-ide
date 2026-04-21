@@ -14,7 +14,7 @@ interface ImageEditorViewProps {
   image: ProjectImage;
   allImages: ProjectImage[];
   metadata?: ImageMetadata;
-  onUpdateMetadata: (projectFilePath: string, newMetadata: ImageMetadata) => void;
+  onSaveMetadata: (currentFilePath: string, newMetadata: ImageMetadata) => Promise<void>;
   onCopyToProject: (sourceFilePath: string, metadata: ImageMetadata) => void;
 }
 
@@ -38,10 +38,12 @@ const MetadataRow: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
     </div>
 );
 
-const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, metadata, onUpdateMetadata, onCopyToProject }) => {
+const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, metadata, onSaveMetadata, onCopyToProject }) => {
   const [renpyName, setRenpyName] = useState('');
   const [tags, setTags] = useState('');
   const [subfolder, setSubfolder] = useState('');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [dimensions, setDimensions] = useState<{ w: number, h: number } | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
@@ -62,10 +64,13 @@ const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, met
   // Refs for use inside non-reactive event listeners
   const fitZoomRef = useRef(1);
 
+  useEffect(() => () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); }, []);
+
   useEffect(() => {
     setRenpyName(metadata?.renpyName || image.fileName.split('.').slice(0, -1).join('.'));
     setTags((metadata?.tags || []).join(', '));
     setSubfolder(metadata?.projectSubfolder || '');
+    setSaveState('idle');
     setDimensions(null);
     setFileSize(null);
     setMimeType(null);
@@ -180,13 +185,21 @@ const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, met
   const zoomIn  = () => setZoom(z => Math.min(MAX_ZOOM, (z ?? fitZoom) * ZOOM_FACTOR));
   const zoomOut = () => setZoom(z => Math.max(MIN_ZOOM, (z ?? fitZoom) / ZOOM_FACTOR));
 
-  const handleSaveMetadata = () => {
-    if (!image.projectFilePath) return;
-    onUpdateMetadata(image.projectFilePath, {
-        renpyName: renpyName.trim().replace(/\s+/g, '_'),
-        tags: tags.split(',').map(t => t.trim().replace(/\s+/g, '_')).filter(Boolean),
-        projectSubfolder: subfolder.trim(),
-    });
+  const handleSaveMetadata = async () => {
+    const currentFilePath = image.projectFilePath || image.filePath;
+    setSaveState('saving');
+    try {
+        await onSaveMetadata(currentFilePath, {
+            renpyName: renpyName.trim().replace(/\s+/g, '_'),
+            tags: tags.split(',').map(t => t.trim().replace(/\s+/g, '_')).filter(Boolean),
+            projectSubfolder: subfolder.trim(),
+        });
+        setSaveState('saved');
+        savedTimerRef.current = setTimeout(() => setSaveState('idle'), 2000);
+    } catch {
+        setSaveState('error');
+        savedTimerRef.current = setTimeout(() => setSaveState('idle'), 2000);
+    }
   };
 
   const handleCopyToProject = () => {
@@ -441,8 +454,16 @@ const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, met
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Optional subfolder to copy this image into.</p>
             </div>
             {image.isInProject ? (
-                <button onClick={handleSaveMetadata} className="w-full py-2 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors">
-                    Save Metadata
+                <button
+                    onClick={handleSaveMetadata}
+                    disabled={saveState === 'saving'}
+                    className={`w-full py-2 px-4 rounded-md font-bold transition-colors disabled:cursor-not-allowed ${
+                        saveState === 'saved' ? 'bg-green-600 text-white' :
+                        saveState === 'error' ? 'bg-red-600 text-white' :
+                        'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
+                >
+                    {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? 'Error — try again' : 'Save Metadata'}
                 </button>
             ) : image.projectFilePath ? (
                 <div className="text-center text-sm text-green-600 dark:text-green-400 font-bold p-2 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 rounded">

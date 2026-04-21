@@ -11,7 +11,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { RenpyAudio, AudioMetadata } from '../types';
 import { useVirtualList } from '../hooks/useVirtualList';
 
-const AUDIO_ITEM_HEIGHT = 44; // p-2 (16px) + h-5 icon (20px) + border-2 (4px) + space-y-2 gap (8px)
+const AUDIO_ITEM_HEIGHT = 56; // card: p-2 (16px) + border-2 (4px) + h-5 icon (20px) = 40px; slot: height - 8 = 48px (fits card + ring-offset); 8px gap between rows
 import AudioContextMenu from './AudioContextMenu';
 
 interface AudioManagerProps {

@@ -20,6 +20,7 @@ interface ContextMenuProps {
   clipboard: ClipboardState;
   selectionSize: number;
   onClose: () => void;
+  onRefresh: (path: string) => void;
   onNewFile: (parentPath: string) => void;
   onNewFolder: (parentPath: string) => void;
   onRename: (path: string) => void;
@@ -30,8 +31,8 @@ interface ContextMenuProps {
   onCenterOnBlock: (path: string) => void;
 }
 
-const FileExplorerContextMenu: React.FC<ContextMenuProps> = ({ 
-    x, y, node, clipboard, selectionSize, onClose, onNewFile, onNewFolder, 
+const FileExplorerContextMenu: React.FC<ContextMenuProps> = ({
+    x, y, node, clipboard, selectionSize, onClose, onRefresh, onNewFile, onNewFolder,
     onRename, onDelete, onCut, onCopy, onPaste, onCenterOnBlock
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -63,6 +64,13 @@ const FileExplorerContextMenu: React.FC<ContextMenuProps> = ({
       onClick={(e) => e.stopPropagation()}
     >
       <div className="p-1 space-y-1">
+        <button
+          onClick={() => handleAction(() => onRefresh(node.path))}
+          className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded"
+        >
+          Refresh
+        </button>
+        <div className="border-t border-gray-200 dark:border-gray-700 -mx-1 my-1"></div>
         {isRpyFile && selectionSize === 1 && (
             <>
                 <button

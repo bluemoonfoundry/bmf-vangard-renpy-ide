@@ -204,6 +204,8 @@ const App: React.FC = () => {
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
+  // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
+  const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
   
   // --- State: View Transforms ---
   const [storyCanvasTransform, setStoryCanvasTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -2064,14 +2066,63 @@ const App: React.FC = () => {
   // These are extracted from the inline renderTabContent so React.memo on the
   // tab components can bail out when switching tabs (instead of re-rendering
   // with 14,000 image DOM nodes every time).
-  const handleUpdateImageMetadata = useCallback((path: string, newMeta: ImageMetadata) => {
-      setImageMetadata(prev => {
-          const next = new Map(prev);
-          next.set(path, newMeta);
-          return next;
-      });
+  // Saves metadata for an in-project image, moving the file if the subfolder changed.
+  // currentFilePath is the metadata-map key: relative "game/images/..." for native project
+  // files, or an absolute external path for files copied in the current session.
+  const handleSaveImageMetadata = useCallback(async (currentFilePath: string, newMeta: ImageMetadata) => {
+      if (!projectRootPath || !window.electronAPI) return;
+
+      const isRelative = currentFilePath.startsWith('game/images');
+      const fileName = currentFilePath.split(/[/\\]/).pop()!;
+      const newSubfolder = newMeta.projectSubfolder?.trim() || '';
+      const newRelPath = newSubfolder ? `game/images/${newSubfolder}/${fileName}` : `game/images/${fileName}`;
+
+      const absCurrentPath = isRelative
+          ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
+          : currentFilePath;
+      const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
+      const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
+
+      if (needsMove) {
+          const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/images/${newSubfolder}` : 'game/images') as string;
+          await window.electronAPI.createDirectory(absNewDir);
+          const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
+          if (!res.success) throw new Error(res.error || 'Move failed');
+
+          // Find the images-map key (may be the external sourcePath, not the project path)
+          const mapKey = isRelative ? currentFilePath
+              : ([...images.keys()].find(k => {
+                  const v = images.get(k)!;
+                  return (v.projectFilePath || v.filePath) === currentFilePath;
+              }) ?? currentFilePath);
+
+          setImages(prev => {
+              const next = new Map(prev);
+              const existing = next.get(mapKey);
+              next.delete(mapKey);
+              if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
+              return next;
+          });
+          setImageMetadata(prev => {
+              const next = new Map(prev);
+              next.delete(currentFilePath);
+              next.set(newRelPath, newMeta);
+              return next;
+          });
+          const oldTabId = `img-${mapKey}`;
+          const newTabId = `img-${newRelPath}`;
+          setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+          setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+          setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+          setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+      } else {
+          setImageMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
+      }
+
       setHasUnsavedSettings(true);
-  }, []);
+      const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+      setFileSystemTree(freshTree);
+  }, [projectRootPath, images]);
 
   const handleCopyImageToProject = useCallback(async (sourcePath: string, meta: ImageMetadata) => {
       try {
@@ -2081,22 +2132,78 @@ const App: React.FC = () => {
               const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images', subfolder);
               const destPath = await window.electronAPI.path.join(destDir, fileName);
               await window.electronAPI.copyEntry(sourcePath, destPath);
-              await loadProject(projectRootPath);
+              setImages(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(sourcePath);
+                  if (existing) {
+                      next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
+                  }
+                  return next;
+              });
+              addToast('Image copied to project', 'success');
+              const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+              setFileSystemTree(freshTree);
           }
       } catch (err) {
           console.error('Failed to copy image to project:', err);
           addToast('Failed to copy image to project', 'error');
       }
-  }, [projectRootPath, loadProject, addToast]);
+  }, [projectRootPath, addToast]);
 
-  const handleUpdateAudioMetadata = useCallback((path: string, newMeta: AudioMetadata) => {
-      setAudioMetadata(prev => {
-          const next = new Map(prev);
-          next.set(path, newMeta);
-          return next;
-      });
+  // Saves metadata for an in-project audio file, moving it if the subfolder changed.
+  const handleSaveAudioMetadata = useCallback(async (currentFilePath: string, newMeta: AudioMetadata) => {
+      if (!projectRootPath || !window.electronAPI) return;
+
+      const isRelative = currentFilePath.startsWith('game/audio');
+      const fileName = currentFilePath.split(/[/\\]/).pop()!;
+      const newSubfolder = newMeta.projectSubfolder?.trim() || '';
+      const newRelPath = newSubfolder ? `game/audio/${newSubfolder}/${fileName}` : `game/audio/${fileName}`;
+
+      const absCurrentPath = isRelative
+          ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
+          : currentFilePath;
+      const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
+      const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
+
+      if (needsMove) {
+          const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/audio/${newSubfolder}` : 'game/audio') as string;
+          await window.electronAPI.createDirectory(absNewDir);
+          const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
+          if (!res.success) throw new Error(res.error || 'Move failed');
+
+          const mapKey = isRelative ? currentFilePath
+              : ([...audios.keys()].find(k => {
+                  const v = audios.get(k)!;
+                  return (v.projectFilePath || v.filePath) === currentFilePath;
+              }) ?? currentFilePath);
+
+          setAudios(prev => {
+              const next = new Map(prev);
+              const existing = next.get(mapKey);
+              next.delete(mapKey);
+              if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
+              return next;
+          });
+          setAudioMetadata(prev => {
+              const next = new Map(prev);
+              next.delete(currentFilePath);
+              next.set(newRelPath, newMeta);
+              return next;
+          });
+          const oldTabId = `aud-${mapKey}`;
+          const newTabId = `aud-${newRelPath}`;
+          setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+          setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+          setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+          setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+      } else {
+          setAudioMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
+      }
+
       setHasUnsavedSettings(true);
-  }, []);
+      const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+      setFileSystemTree(freshTree);
+  }, [projectRootPath, audios]);
 
   const handleCopyAudioToProject = useCallback(async (sourcePath: string, meta: AudioMetadata) => {
       try {
@@ -2106,13 +2213,23 @@ const App: React.FC = () => {
               const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio', subfolder);
               const destPath = await window.electronAPI.path.join(destDir, fileName);
               await window.electronAPI.copyEntry(sourcePath, destPath);
-              await loadProject(projectRootPath);
+              setAudios(prev => {
+                  const next = new Map(prev);
+                  const existing = next.get(sourcePath);
+                  if (existing) {
+                      next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
+                  }
+                  return next;
+              });
+              addToast('Audio copied to project', 'success');
+              const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+              setFileSystemTree(freshTree);
           }
       } catch (err) {
           console.error('Failed to copy audio to project:', err);
           addToast('Failed to copy audio to project', 'error');
       }
-  }, [projectRootPath, loadProject, addToast]);
+  }, [projectRootPath, addToast]);
 
   // --- Drafting Mode Logic ---
   const updateDraftingArtifacts = useCallback(async () => {
@@ -2303,48 +2420,49 @@ const App: React.FC = () => {
     if (!editor) return;
 
     const contentToSave = editor.getValue();
+    const block = blocksRef.current.find(b => b.id === blockId);
 
-    // Save to disk first
-    try {
-    if (window.electronAPI && projectRootPath) {
-        const block = blocksRef.current.find(b => b.id === blockId);
-        if (block && block.filePath) {
-             const absPath = await window.electronAPI.path.join(projectRootPath, block.filePath) as string;
-             const res = await window.electronAPI.writeFile(absPath, contentToSave);
-             if (res.success) {
-                 addToast(`Saved ${block.title || 'file'}`, 'success');
-             } else {
-                 addToast(`Failed to save: ${String(res.error)}`, 'error');
-                 return; // Abort if saving failed
-             }
+    const doSave = async () => {
+      try {
+        if (window.electronAPI && projectRootPath) {
+          const b = blocksRef.current.find(b => b.id === blockId);
+          if (b?.filePath) {
+            const absPath = await window.electronAPI.path.join(projectRootPath, b.filePath) as string;
+            const res = await window.electronAPI.writeFile(absPath, contentToSave);
+            if (res.success) {
+              addToast(`Saved ${b.title || 'file'}`, 'success');
+              setFilesWithDiskConflict(prev => { const next = new Set(prev); next.delete(b.filePath!); return next; });
+            } else {
+              addToast(`Failed to save: ${String(res.error)}`, 'error');
+              return;
+            }
+          }
         }
-    }
-
-    // After successful save, update state and clear dirty flags.
-    // This ensures React state matches the saved state on disk.
-    setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, content: contentToSave } : b));
-    
-    // Clear ALL dirty flags for this block.
-    setDirtyBlockIds(prev => {
-        const next = new Set(prev);
-        next.delete(blockId);
-        return next;
-    });
-    setDirtyEditors(prev => {
-        const next = new Set(prev);
-        next.delete(blockId);
-        return next;
-    });
-
-    if (projectSettings.draftingMode) {
-        updateDraftingArtifacts();
-    }
-
-    } catch (err) {
+        setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, content: contentToSave } : b));
+        setDirtyBlockIds(prev => { const next = new Set(prev); next.delete(blockId); return next; });
+        setDirtyEditors(prev => { const next = new Set(prev); next.delete(blockId); return next; });
+        if (projectSettings.draftingMode) updateDraftingArtifacts();
+      } catch (err) {
         console.error('Failed to save block:', err);
         addToast('Failed to save file', 'error');
+      }
+    };
+
+    if (block?.filePath && filesWithDiskConflict.has(block.filePath)) {
+      setUnsavedChangesModalInfo({
+        title: 'Overwrite External Changes?',
+        message: `"${block.title || block.filePath}" was changed on disk after you last loaded it. Your editor version will overwrite those changes.`,
+        confirmText: 'Overwrite and Save',
+        dontSaveText: 'Cancel',
+        onConfirm: async () => { setUnsavedChangesModalInfo(null); await doSave(); },
+        onDontSave: () => setUnsavedChangesModalInfo(null),
+        onCancel: () => setUnsavedChangesModalInfo(null),
+      });
+      return;
     }
-  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts]);
+
+    await doSave();
+  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict]);
   
   const handleSaveProjectSettings = useCallback(async () => {
     if (!projectRootPath || !window.electronAPI) return;
@@ -2412,77 +2530,102 @@ const App: React.FC = () => {
 
 
   const handleSaveAll = useCallback(async () => {
-    setSaveStatus('saving');
-    setStatusBarMessage('Saving files...');
-    try {
-        const currentBlocks = [...blocks];
-        const editorUpdates = new Map<string, string>();
+    const dirtyIds = new Set([...dirtyBlockIds, ...dirtyEditors]);
+    const conflictingPaths = blocks
+      .filter(b => dirtyIds.has(b.id) && b.filePath && filesWithDiskConflict.has(b.filePath))
+      .map(b => b.filePath!);
 
-        for (const blockId of dirtyEditors) {
-             const editor = editorInstances.current.get(blockId);
-             if (editor) {
-                 const content = editor.getValue();
-                 editorUpdates.set(blockId, content);
-                 const idx = currentBlocks.findIndex(b => b.id === blockId);
-                 if (idx !== -1) {
-                     currentBlocks[idx] = { ...currentBlocks[idx], content };
-                 }
-             }
-        }
+    const doSaveAll = async () => {
+      setSaveStatus('saving');
+      setStatusBarMessage('Saving files...');
+      try {
+          const currentBlocks = [...blocks];
+          const editorUpdates = new Map<string, string>();
 
-        if (editorUpdates.size > 0) {
-            setBlocks(prev => prev.map(b => {
-                if(editorUpdates.has(b.id)) {
-                    return { ...b, content: editorUpdates.get(b.id)! };
-                }
-                return b;
-            }));
-        }
+          for (const blockId of dirtyEditors) {
+               const editor = editorInstances.current.get(blockId);
+               if (editor) {
+                   const content = editor.getValue();
+                   editorUpdates.set(blockId, content);
+                   const idx = currentBlocks.findIndex(b => b.id === blockId);
+                   if (idx !== -1) {
+                       currentBlocks[idx] = { ...currentBlocks[idx], content };
+                   }
+               }
+          }
 
-        const blocksToSave = new Set([...dirtyBlockIds, ...dirtyEditors]);
+          if (editorUpdates.size > 0) {
+              setBlocks(prev => prev.map(b => {
+                  if(editorUpdates.has(b.id)) {
+                      return { ...b, content: editorUpdates.get(b.id)! };
+                  }
+                  return b;
+              }));
+          }
 
-        if (!projectRootPath && !directoryHandle) {
-             setDirtyBlockIds(new Set());
-             setDirtyEditors(new Set());
-             setHasUnsavedSettings(false);
-             setSaveStatus('saved');
-             addToast('Changes saved to memory', 'success');
-             setStatusBarMessage('Saved to memory.');
-             setTimeout(() => { setSaveStatus('saved'); setStatusBarMessage(''); }, 2000);
-             return;
-        }
+          const blocksToSave = new Set([...dirtyBlockIds, ...dirtyEditors]);
 
-        if (window.electronAPI) {
-            for (const blockId of blocksToSave) {
-                const block = currentBlocks.find(b => b.id === blockId);
-                if (block && block.filePath) {
-                    const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
-                    const res = await window.electronAPI.writeFile(absPath, block.content);
-                    if (!res.success) throw new Error((res.error as string) || 'Unknown error saving file');
-                }
-            }
-            // Update placeholders if needed on save all
-            if (projectSettings.draftingMode) {
-                // We need to wait for the block updates to settle, but we passed currentBlocks to save function.
-                // updateDraftingArtifacts uses 'blocks' from scope, which might be stale inside this callback if not careful.
-                // But the useEffect hook on blocks + draftingMode will catch the state update and run it.
-            }
-            await handleSaveProjectSettings();
-        } 
+          if (!projectRootPath && !directoryHandle) {
+               setDirtyBlockIds(new Set());
+               setDirtyEditors(new Set());
+               setHasUnsavedSettings(false);
+               setSaveStatus('saved');
+               addToast('Changes saved to memory', 'success');
+               setStatusBarMessage('Saved to memory.');
+               setTimeout(() => { setSaveStatus('saved'); setStatusBarMessage(''); }, 2000);
+               return;
+          }
 
-        setDirtyBlockIds(new Set());
-        setDirtyEditors(new Set());
-        setSaveStatus('saved');
-        addToast('All changes saved', 'success');
-        setStatusBarMessage('All files saved.');
-        setTimeout(() => { setSaveStatus('saved'); setStatusBarMessage(''); }, 2000);
-    } catch (err) {
-        console.error(err);
-        setSaveStatus('error');
-        addToast('Failed to save changes', 'error');
-        setStatusBarMessage('Error saving files.');
+          if (window.electronAPI) {
+              for (const blockId of blocksToSave) {
+                  const block = currentBlocks.find(b => b.id === blockId);
+                  if (block && block.filePath) {
+                      const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
+                      const res = await window.electronAPI.writeFile(absPath, block.content);
+                      if (!res.success) throw new Error((res.error as string) || 'Unknown error saving file');
+                  }
+              }
+              await handleSaveProjectSettings();
+          }
+
+          setDirtyBlockIds(new Set());
+          setDirtyEditors(new Set());
+          setSaveStatus('saved');
+          addToast('All changes saved', 'success');
+          setStatusBarMessage('All files saved.');
+          setTimeout(() => { setSaveStatus('saved'); setStatusBarMessage(''); }, 2000);
+      } catch (err) {
+          console.error(err);
+          setSaveStatus('error');
+          addToast('Failed to save changes', 'error');
+          setStatusBarMessage('Error saving files.');
+      }
+    };
+
+    if (conflictingPaths.length > 0) {
+      const names = conflictingPaths.map(p => p.split('/').pop()).join(', ');
+      setUnsavedChangesModalInfo({
+        title: 'Overwrite External Changes?',
+        message: `${conflictingPaths.length} file(s) were modified on disk: ${names}. Save All will overwrite those changes with your editor versions.`,
+        confirmText: 'Save All',
+        dontSaveText: 'Cancel',
+        onConfirm: async () => {
+          setUnsavedChangesModalInfo(null);
+          setFilesWithDiskConflict(prev => {
+            const next = new Set(prev);
+            conflictingPaths.forEach(p => next.delete(p));
+            return next;
+          });
+          await doSaveAll();
+        },
+        onDontSave: () => setUnsavedChangesModalInfo(null),
+        onCancel: () => setUnsavedChangesModalInfo(null),
+      });
+      return;
     }
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, projectSettings.draftingMode]);
+
+    await doSaveAll();
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict]);
   
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);
@@ -2498,6 +2641,7 @@ const App: React.FC = () => {
               if (model) model.setValue(content);
           }
           setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== item.relativePath));
+          setFilesWithDiskConflict(prev => { const next = new Set(prev); next.delete(item.relativePath); return next; });
       } catch (err) {
           console.error(err);
           addToast(`Failed to reload ${item.relativePath}`, 'error');
@@ -2506,7 +2650,140 @@ const App: React.FC = () => {
 
   const handleKeepCurrentFile = useCallback((relativePath: string) => {
       setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== relativePath));
+      setFilesWithDiskConflict(prev => { const next = new Set(prev); next.add(relativePath); return next; });
   }, []);
+
+  const handleRefreshProject = useCallback(async () => {
+      if (!projectRootPath || !window.electronAPI) return;
+      try {
+          const freshData = await window.electronAPI.refreshProject(projectRootPath);
+
+          // 1. Update the file system tree
+          setFileSystemTree(freshData.tree);
+
+          // 2. Reconcile .rpy blocks
+          const freshByPath = new Map(freshData.files.map(f => [f.path, f.content]));
+          const currentByPath = new Map(
+              blocksRef.current.filter(b => b.filePath).map(b => [b.filePath!, b])
+          );
+
+          // Removed files → close tabs and drop blocks
+          const removedPaths = new Set(
+              [...currentByPath.keys()].filter(p => !freshByPath.has(p))
+          );
+          if (removedPaths.size > 0) {
+              setBlocks(prev => prev.filter(b => !b.filePath || !removedPaths.has(b.filePath)));
+              setOpenTabs(prev => prev.filter(t => {
+                  if (t.type !== 'editor') return true;
+                  const b = blocksRef.current.find(bl => bl.id === t.id);
+                  return !b?.filePath || !removedPaths.has(b.filePath);
+              }));
+          }
+
+          // Changed files → silent update if clean, queue if dirty
+          const dirtyIds = new Set([...dirtyBlockIdsRef.current, ...dirtyEditorsRef.current]);
+          const silentUpdates: { id: string; content: string }[] = [];
+          const toQueue: { relativePath: string; absolutePath: string }[] = [];
+
+          for (const [path, freshContent] of freshByPath) {
+              const existing = currentByPath.get(path);
+              if (!existing || existing.content === freshContent) continue;
+              if (dirtyIds.has(existing.id)) {
+                  const absPath = await window.electronAPI.path.join(projectRootPath, path) as string;
+                  toQueue.push({ relativePath: path, absolutePath: absPath });
+              } else {
+                  silentUpdates.push({ id: existing.id, content: freshContent });
+              }
+          }
+
+          if (silentUpdates.length > 0) {
+              setBlocks(prev => prev.map(b => {
+                  const u = silentUpdates.find(s => s.id === b.id);
+                  if (!u) return b;
+                  const editor = editorInstances.current.get(b.id);
+                  if (editor) {
+                      const model = editor.getModel();
+                      if (model && model.getValue() !== u.content) model.setValue(u.content);
+                  }
+                  return { ...b, content: u.content };
+              }));
+          }
+
+          for (const item of toQueue) {
+              setExternallyChangedFiles(prev =>
+                  prev.some(f => f.relativePath === item.relativePath) ? prev : [...prev, item]
+              );
+          }
+
+          // New files → add blocks below the current layout
+          const newFiles = freshData.files.filter(f => !currentByPath.has(f.path));
+          if (newFiles.length > 0) {
+              const maxY = blocksRef.current.reduce((m, b) => Math.max(m, b.position.y + (b.height ?? 200)), 0);
+              setBlocks(prev => [
+                  ...prev,
+                  ...newFiles.map((f, i) => ({
+                      id: `block-${Date.now()}-${i}`,
+                      content: f.content,
+                      filePath: f.path,
+                      position: { x: 50 + (i % 5) * 370, y: maxY + 80 },
+                      width: 320,
+                      height: 200,
+                      title: f.path.split('/').pop(),
+                  })),
+              ]);
+          }
+
+          // 3. Reconcile project images (replace in-project entries with fresh scan)
+          setImages(prev => {
+              const next = new Map(prev);
+              for (const [key, img] of next.entries()) {
+                  if (img.isInProject) next.delete(key);
+              }
+              freshData.images.forEach(img => {
+                  next.set(img.path, {
+                      filePath: img.path,
+                      fileName: img.path.split('/').pop() ?? '',
+                      dataUrl: img.dataUrl,
+                      fileHandle: null,
+                      isInProject: true,
+                      lastModified: img.lastModified,
+                      size: img.size,
+                  });
+              });
+              return next;
+          });
+
+          // 4. Reconcile project audios
+          setAudios(prev => {
+              const next = new Map(prev);
+              for (const [key, aud] of next.entries()) {
+                  if (aud.isInProject) next.delete(key);
+              }
+              freshData.audios.forEach(aud => {
+                  next.set(aud.path, {
+                      filePath: aud.path,
+                      fileName: aud.path.split('/').pop() ?? '',
+                      dataUrl: aud.dataUrl,
+                      fileHandle: null,
+                      isInProject: true,
+                      lastModified: aud.lastModified,
+                      size: aud.size,
+                  });
+              });
+              return next;
+          });
+
+          const summary: string[] = [];
+          if (newFiles.length) summary.push(`${newFiles.length} new`);
+          if (removedPaths.size) summary.push(`${removedPaths.size} removed`);
+          if (silentUpdates.length) summary.push(`${silentUpdates.length} updated`);
+          if (toQueue.length) summary.push(`${toQueue.length} conflict(s) need review`);
+          addToast(summary.length ? `Refreshed: ${summary.join(', ')}` : 'Project is up to date', 'success');
+      } catch (err) {
+          console.error('Failed to refresh project:', err);
+          addToast('Failed to refresh project', 'error');
+      }
+  }, [projectRootPath, addToast, setBlocks, setFileSystemTree, setImages, setAudios]);
 
   const handleNewProjectRequest = useCallback(() => {
     const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
@@ -3448,9 +3725,10 @@ const App: React.FC = () => {
             if (data.command === 'explorer-new-folder') setExplorerExternalAction({ type: 'new-folder', key: Date.now() });
             if (data.command === 'explorer-rename') setExplorerExternalAction({ type: 'rename', key: Date.now() });
             if (data.command === 'explorer-delete') handleDeleteNode(Array.from(explorerSelectedPaths));
+            if (data.command === 'explorer-refresh') handleRefreshProject();
         });
         return removeListener;
-  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths]);
+  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths, handleRefreshProject]);
 
   // --- Game Running State ---
   useEffect(() => {
@@ -3665,19 +3943,32 @@ const App: React.FC = () => {
   const handleCopyImagesToProjectBulk = useCallback(async (sourcePaths: string[]) => {
     if (window.electronAPI && projectRootPath) {
       try {
+        const copied: { src: string; dest: string }[] = [];
         for (const src of sourcePaths) {
           const fileName = src.split('/').pop() || 'image.png';
           const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images');
           const destPath = await window.electronAPI.path.join(destDir, fileName);
           await window.electronAPI.copyEntry(src, destPath);
+          copied.push({ src, dest: destPath });
         }
-        await loadProject(projectRootPath);
+        setImages(prev => {
+          const next = new Map(prev);
+          copied.forEach(({ src, dest }) => {
+            const existing = next.get(src);
+            if (existing) {
+              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
+            }
+          });
+          return next;
+        });
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
       } catch (err) {
         console.error('Failed to copy images to project:', err);
         addToast('Failed to copy images to project', 'error');
       }
     }
-  }, [projectRootPath, loadProject, addToast]);
+  }, [projectRootPath, addToast]);
 
   const handleAddAudioScanDirectory = useCallback(async () => {
     if (window.electronAPI) {
@@ -3751,19 +4042,32 @@ const App: React.FC = () => {
   const handleCopyAudiosToProjectBulk = useCallback(async (sourcePaths: string[]) => {
     if (window.electronAPI && projectRootPath) {
       try {
+        const copied: { src: string; dest: string }[] = [];
         for (const src of sourcePaths) {
           const fileName = src.split('/').pop() || 'audio.ogg';
           const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio');
           const destPath = await window.electronAPI.path.join(destDir, fileName);
           await window.electronAPI.copyEntry(src, destPath);
+          copied.push({ src, dest: destPath });
         }
-        await loadProject(projectRootPath);
+        setAudios(prev => {
+          const next = new Map(prev);
+          copied.forEach(({ src, dest }) => {
+            const existing = next.get(src);
+            if (existing) {
+              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
+            }
+          });
+          return next;
+        });
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
       } catch (err) {
         console.error('Failed to copy audio to project:', err);
         addToast('Failed to copy audio to project', 'error');
       }
     }
-  }, [projectRootPath, loadProject, addToast]);
+  }, [projectRootPath, addToast]);
 
   const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
     const tabId = `aud-${filePath}`;
@@ -3912,7 +4216,7 @@ const App: React.FC = () => {
       const img = images.get(tab.filePath);
       if (img) { const meta = imageMetadata.get(img.projectFilePath || img.filePath); return <ImageEditorView
         image={img} allImages={imagesArray} metadata={meta}
-        onUpdateMetadata={handleUpdateImageMetadata}
+        onSaveMetadata={handleSaveImageMetadata}
         onCopyToProject={handleCopyImageToProject}
       />; }
     }
@@ -3920,7 +4224,7 @@ const App: React.FC = () => {
       const aud = audios.get(tab.filePath);
       if (aud) { const meta = audioMetadata.get(aud.projectFilePath || aud.filePath); return <AudioEditorView
         audio={aud} metadata={meta}
-        onUpdateMetadata={handleUpdateAudioMetadata}
+        onSaveMetadata={handleSaveAudioMetadata}
         onCopyToProject={handleCopyAudioToProject}
       />; }
     }
@@ -4190,6 +4494,7 @@ const App: React.FC = () => {
                     onCopy={handleCopy}
                     onPaste={handlePaste}
                     onCenterOnBlock={handleCenterOnBlock}
+                    onRefresh={handleRefreshProject}
                     selectedPaths={explorerSelectedPaths}
                     setSelectedPaths={setExplorerSelectedPaths}
                     lastClickedPath={explorerLastClickedPath}

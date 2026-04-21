@@ -200,6 +200,7 @@ interface FileExplorerPanelProps {
   onCopy: (paths: string[]) => void;
   onPaste: (targetPath: string) => void;
   onCenterOnBlock: (filePath: string) => void;
+  onRefresh: (path?: string) => void;
   // Selection
   selectedPaths: Set<string>;
   setSelectedPaths: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -214,7 +215,7 @@ interface FileExplorerPanelProps {
 
 const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({
     tree, onFileOpen, onCreateNode, onRenameNode, onDeleteNode, onMoveNode,
-    clipboard, onCut, onCopy, onPaste, onCenterOnBlock,
+    clipboard, onCut, onCopy, onPaste, onCenterOnBlock, onRefresh,
     selectedPaths, setSelectedPaths, lastClickedPath, setLastClickedPath,
     expandedPaths, onToggleExpand,
     externalAction,
@@ -457,6 +458,7 @@ const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({
             clipboard={clipboard}
             selectionSize={selectedPaths.size}
             onClose={() => setContextMenu(null)}
+            onRefresh={(path) => { setContextMenu(null); onRefresh(path); }}
             onNewFile={(path) => handleStartCreate(path, 'file')}
             onNewFolder={(path) => handleStartCreate(path, 'folder')}
             onRename={handleStartRename}

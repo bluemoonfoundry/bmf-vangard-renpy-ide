@@ -476,6 +476,12 @@ async function updateApplicationMenu() {
                 accelerator: 'CmdOrCtrl+S',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'save-all' }); }
             },
+            {
+                id: 'explorer-refresh',
+                label: 'Refresh',
+                enabled: false,
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'explorer-refresh' }); }
+            },
             { type: 'separator' },
             {
                 id: 'explorer-new-file',
@@ -999,7 +1005,12 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('project:refresh-tree', async (event, rootPath) => {
-    return await readProjectFiles(rootPath, { readContent: false });
+    const result = await readProjectFiles(rootPath, { readContent: false });
+    return result.tree;
+  });
+
+  ipcMain.handle('project:refresh', async (event, rootPath) => {
+    return await readProjectFiles(rootPath, { readContent: true });
   });
 
   ipcMain.handle('fs:writeFile', async (event, filePath, content, encoding) => {
@@ -1120,10 +1131,10 @@ app.whenReady().then(() => {
     if (stopItem) stopItem.enabled = running;
   }
 
-  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete }) {
+  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete, canRefresh }) {
     const menu = Menu.getApplicationMenu();
     if (!menu) return;
-    const ids = { 'explorer-new-file': canNewFile, 'explorer-new-folder': canNewFolder, 'explorer-rename': canRename, 'explorer-delete': canDelete };
+    const ids = { 'explorer-new-file': canNewFile, 'explorer-new-folder': canNewFolder, 'explorer-rename': canRename, 'explorer-delete': canDelete, 'explorer-refresh': canRefresh ?? canNewFile };
     for (const [id, enabled] of Object.entries(ids)) {
       const item = menu.getMenuItemById(id);
       if (item) item.enabled = enabled;

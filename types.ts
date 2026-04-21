@@ -1143,6 +1143,7 @@ declare global {
           onLoadProgress?: (callback: (value: number, message: string) => void) => () => void;
           loadProject: (path: string) => Promise<ProjectLoadResult>;
           refreshProjectTree: (path: string) => Promise<FileSystemTreeNode>;
+          refreshProject: (path: string) => Promise<ProjectLoadResult>;
           readFile: (path: string) => Promise<string>;
           fileExists: (path: string) => Promise<boolean>;
           writeFile: (path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>;
