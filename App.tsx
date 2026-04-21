@@ -3678,12 +3678,35 @@ const App: React.FC = () => {
       setHasUnsavedSettings(true);
   };
 
-  // --- Color Picker Actions ---
-  const getActiveColorPickerEditor = useCallback(() => {
-      const activeEditorTab = openTabs.find(t => t.id === activeTabId && t.type === 'editor');
-      if (!activeEditorTab?.blockId) return null;
-      return editorInstances.current.get(activeEditorTab.blockId) ?? null;
-  }, [openTabs, activeTabId]);
+  // --- Active Editor Helper ---
+  // Returns the currently active editor instance from either primary or secondary panel
+  // Prioritizes the currently active pane, then falls back to the other pane
+  const getActiveEditor = useCallback(() => {
+      // Helper to check a specific panel for an editor
+      const getEditorFromPanel = (tabs: EditorTab[], tabId: string) => {
+          const editorTab = tabs.find(t => t.id === tabId && t.type === 'editor');
+          if (editorTab?.blockId) {
+              return editorInstances.current.get(editorTab.blockId) ?? null;
+          }
+          return null;
+      };
+
+      // Check active pane first
+      if (activePaneId === 'primary') {
+          const editor = getEditorFromPanel(openTabs, activeTabId);
+          if (editor) return editor;
+          // Fallback to secondary panel
+          return getEditorFromPanel(secondaryOpenTabs, secondaryActiveTabId);
+      } else {
+          const editor = getEditorFromPanel(secondaryOpenTabs, secondaryActiveTabId);
+          if (editor) return editor;
+          // Fallback to primary panel
+          return getEditorFromPanel(openTabs, activeTabId);
+      }
+  }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, activePaneId]);
+
+  // Legacy alias for color picker (uses same logic)
+  const getActiveColorPickerEditor = getActiveEditor;
 
   const handleInsertColor = useCallback((hex: string) => {
       const editor = getActiveColorPickerEditor();
@@ -4298,6 +4321,7 @@ const App: React.FC = () => {
         onSceneChange={(val) => handleSceneUpdate(tab.sceneId!, val)} sceneName={name}
         onRenameScene={(newName) => handleRenameScene(tab.sceneId!, newName)}
         addToast={addToast}
+        activeEditor={getActiveEditor()}
       />;
     }
     if (tab.type === 'imagemap-composer' && tab.imagemapId) {
@@ -4314,6 +4338,7 @@ const App: React.FC = () => {
         imagemapName={composition.screenName}
         onRenameImageMap={(newName) => handleRenameImageMap(tab.imagemapId!, newName)}
         labels={analysisLabelKeys}
+        activeEditor={getActiveEditor()}
       />;
     }
     if (tab.type === 'screen-layout-composer' && tab.layoutId) {
@@ -4338,6 +4363,7 @@ const App: React.FC = () => {
             const def = analysisResult.screens.get(composition.screenName);
             if (def) handleOpenEditor(def.definedInBlockId, def.line);
         } : undefined}
+        activeEditor={getActiveEditor()}
       />;
     }
     if (tab.type === 'markdown' && tab.filePath) {
@@ -4974,6 +5000,7 @@ const App: React.FC = () => {
         labels={menuLabels}
         variables={menuVariables}
         mode="edit-template"
+        activeEditor={getActiveEditor()}
       />
 
       <NewProjectWizardModal

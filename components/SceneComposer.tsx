@@ -8,8 +8,9 @@
  */
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite } from '../types';
-import CopyButton from './CopyButton';
+import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
+import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 // Returns the hue-rotate degrees needed to tint an image from sepia baseline (~38°) to the target hex color
 function hexToHueDeg(hex: string): number {
@@ -184,9 +185,10 @@ interface SceneComposerProps {
     sceneName: string;
     onRenameScene: (newName: string) => void;
     addToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+    activeEditor?: monaco.editor.IStandaloneCodeEditor | null;
 }
 
-const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, onSceneChange, sceneName, onRenameScene, addToast }) => {
+const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, onSceneChange, sceneName, onRenameScene, addToast, activeEditor }) => {
     const [selectedSpriteId, setSelectedSpriteId] = useState<string | null>(null);
     const [draggingId, setDraggingId] = useState<string | null>(null);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -1171,7 +1173,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                     <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200 dark:border-gray-700">
                         <div className="flex-none flex justify-between items-center px-2 py-1 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                             <span className="text-[10px] font-bold text-gray-400 uppercase">Code Preview</span>
-                            <CopyButton text={generatedCode} size="xs" />
+                            <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="xs" />
                         </div>
                         <pre className="flex-1 p-3 font-mono text-xs overflow-auto text-gray-600 dark:text-gray-400 select-text bg-white dark:bg-gray-800 min-h-0">
                             {generatedCode}

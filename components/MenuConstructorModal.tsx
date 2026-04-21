@@ -11,6 +11,7 @@ import type { MenuChoice, MenuTemplate } from '@/types';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import { createId } from '@/lib/createId';
 import * as monaco from 'monaco-editor';
+import CodeActionButtons from './CodeActionButtons';
 
 interface CodeBlockEditorProps {
   value: string;
@@ -89,6 +90,7 @@ interface MenuConstructorModalProps {
   labels: Set<string>;
   variables: Set<string>;
   mode: 'create' | 'edit-template';
+  activeEditor?: monaco.editor.IStandaloneCodeEditor | null;
 }
 
 export function MenuConstructorModal({
@@ -99,6 +101,7 @@ export function MenuConstructorModal({
   labels,
   variables,
   mode,
+  activeEditor,
 }: MenuConstructorModalProps) {
   const { contentRef: modalRef } = useModalAccessibility({ isOpen, onClose });
 
@@ -557,7 +560,10 @@ export function MenuConstructorModal({
 
           {/* Right: Preview */}
           <div className="w-80 flex flex-col p-4 bg-tertiary">
-            <h3 className="text-xs font-semibold mb-2 text-secondary">Generated Code</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-secondary">Generated Code</h3>
+              <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="xs" />
+            </div>
             <pre className="flex-1 p-2.5 bg-secondary rounded border border-primary overflow-auto text-xs font-mono text-primary leading-relaxed">
               {generatedCode}
             </pre>
