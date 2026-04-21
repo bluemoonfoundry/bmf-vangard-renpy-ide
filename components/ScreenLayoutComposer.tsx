@@ -10,7 +10,8 @@ import React, { useState, useCallback } from 'react';
 import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '../types';
 import { generateScreenCode } from '../lib/screenCodeGenerator';
 import { createId } from '../lib/createId';
-import CopyButton from './CopyButton';
+import CodeActionButtons from './CodeActionButtons';
+import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 interface ScreenLayoutComposerProps {
     composition: ScreenLayoutComposition;
@@ -21,6 +22,7 @@ interface ScreenLayoutComposerProps {
     isLocked?: boolean;
     onDuplicate?: () => void;
     onGoToCode?: () => void;
+    activeEditor?: monaco.editor.IStandaloneCodeEditor | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -823,6 +825,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
     isLocked = false,
     onDuplicate,
     onGoToCode,
+    activeEditor,
 }) => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [codeOpen, setCodeOpen] = useState(false);
@@ -1252,7 +1255,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
                             </svg>
                             <span className="text-xs font-bold text-secondary">Generated Code</span>
                         </div>
-                        <CopyButton text={generatedCode} size="sm" label="Copy" />
+                        <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="sm" />
                     </div>
                     <pre className="flex-grow overflow-auto p-3 text-xs font-mono text-primary bg-primary leading-relaxed">
                         {generatedCode}

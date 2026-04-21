@@ -1268,6 +1268,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         labels={new Set(Object.keys(analysisResult.labels))}
         variables={new Set(Array.from(analysisResult.variables.keys()))}
         mode="create"
+        activeEditor={editorRef.current}
       />
 
       {/* Menu Template Picker Modal */}

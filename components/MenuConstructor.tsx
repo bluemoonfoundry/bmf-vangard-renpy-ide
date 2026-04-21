@@ -9,10 +9,12 @@
 
 import React, { useState, useEffect } from 'react';
 import type { RenpyAnalysisResult } from '../types';
-import CopyButton from './CopyButton';
+import CodeActionButtons from './CodeActionButtons';
+import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 interface MenuConstructorProps {
     analysisResult: RenpyAnalysisResult;
+    activeEditor?: monaco.editor.IStandaloneCodeEditor | null;
 }
 
 interface MenuChoice {
@@ -22,7 +24,7 @@ interface MenuChoice {
     logic: string;
 }
 
-const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult }) => {
+const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult, activeEditor }) => {
     const [caption, setCaption] = useState('');
     const [choices, setChoices] = useState<MenuChoice[]>([
         { id: '1', text: 'Option 1', condition: '', logic: 'jump label_1' },
@@ -361,7 +363,7 @@ const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult }) => 
             <div className="h-1/3 bg-gray-50 dark:bg-gray-950 flex flex-col border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center px-3 py-1 bg-gray-200 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
                     <span className="text-xs font-bold text-gray-500 uppercase">Generated Code</span>
-                    <CopyButton text={code} size="xs" />
+                    <CodeActionButtons code={code} activeEditor={activeEditor} size="xs" />
                 </div>
                 <textarea 
                     value={code}
