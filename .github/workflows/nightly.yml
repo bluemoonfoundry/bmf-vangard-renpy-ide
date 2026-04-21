@@ -102,14 +102,21 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          # This downloads ALL artifacts from the 'build' jobs
+          path: artifacts
           merge-multiple: true
+
+      - name: Verify and List Artifacts
+        # This step helps you see in the logs exactly what was downloaded
+        run: |
+          echo "Files downloaded:"
+          ls -R artifacts/
 
       - name: Compute SHA256 checksums
         run: |
           cd artifacts
-          # Generates a file named exactly "SHA256SUMS.txt" 
-          # It contains hashes, but the FILENAME is static.
+          # Use a clean list to avoid self-referencing if this runs twice
+          rm -f SHA256SUMS.txt
           sha256sum * > SHA256SUMS.txt
 
       - name: Generate changelog
@@ -126,12 +133,16 @@ jobs:
       - name: Publish rolling nightly release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: nightly
+          # Forces the tag to point to the current commit of the nightly run
+          target_commitish: ${{ github.sha }}
           name: "Nightly Build (Latest)"
           prerelease: true
           make_latest: false
-          # CRITICAL: This ensures existing files on the 'nightly' tag are replaced
-          overwrite: true 
+          overwrite: true
+          # If no files are found, the job will fail (helping you debug)
+          fail_on_unmatched_files: true 
           body: |
             > ⚠️ **Pre-release for power users.** 
             > This release is updated every 24 hours. Files here always reflect the latest `main` branch.
@@ -148,4 +159,9 @@ jobs:
             | Linux | `renide-nightly-linux.AppImage` |
 
             **Checksums:** See `SHA256SUMS.txt` below.
-          files: artifacts/*
+          files: |
+            artifacts/*.exe
+            artifacts/*.dmg
+            artifacts/*.AppImage
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
