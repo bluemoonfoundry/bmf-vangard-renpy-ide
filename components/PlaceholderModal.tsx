@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import ColorDropTarget from './ColorDropTarget';
 
 interface PlaceholderModalProps {
   isOpen: boolean;
@@ -136,13 +137,13 @@ const PlaceholderModal: React.FC<PlaceholderModalProps> = ({ isOpen, onClose, on
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Background</label>
                         <div className="flex items-center space-x-2">
-                            <input type="color" value={color} onChange={e => setColor(e.target.value)} className="h-10 w-full rounded cursor-pointer" />
+                            <ColorDropTarget value={color} onChange={setColor} wrapperClassName="relative w-full" className="h-10 w-full rounded cursor-pointer" />
                         </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Text Color</label>
                         <div className="flex items-center space-x-2">
-                            <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="h-10 w-full rounded cursor-pointer" />
+                            <ColorDropTarget value={textColor} onChange={setTextColor} wrapperClassName="relative w-full" className="h-10 w-full rounded cursor-pointer" />
                         </div>
                     </div>
                 </div>

@@ -21,54 +21,73 @@ import ScreenManager from './ScreenManager';
 import { MenuTemplateManager } from './MenuTemplateManager';
 import ColorPickerPane from './ColorPickerPane';
 
-type CategoryId = 'storyData' | 'assets' | 'composers' | 'tools';
 type SubTabId =
-    | 'characters' | 'variables' | 'screens'  // storyData
-    | 'images' | 'audio'                       // assets
-    | 'scenes' | 'imagemaps' | 'screenLayouts' // composers
-    | 'snippets' | 'menuTemplates' | 'colorPalette'; // tools
+    | 'characters' | 'variables' | 'screens'
+    | 'images' | 'audio'
+    | 'scenes' | 'imagemaps' | 'screenLayouts'
+    | 'snippets' | 'menuTemplates' | 'colorPalette';
 
-interface TabCategory {
-    id: CategoryId;
-    label: string;
-    subTabs: { id: SubTabId; label: string }[];
+interface SubPane {
+    id: SubTabId;
+    tooltip: string;
+    icon: React.ReactNode;
 }
 
-const TAB_CATEGORIES: TabCategory[] = [
+const SUB_PANES: SubPane[] = [
     {
-        id: 'storyData',
-        label: 'Story',
-        subTabs: [
-            { id: 'characters', label: 'Characters' },
-            { id: 'variables', label: 'Variables' },
-            { id: 'screens', label: 'Screens' },
-        ],
+        id: 'characters',
+        tooltip: 'Characters',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
     },
     {
-        id: 'assets',
-        label: 'Assets',
-        subTabs: [
-            { id: 'images', label: 'Images' },
-            { id: 'audio', label: 'Audio' },
-        ],
+        id: 'variables',
+        tooltip: 'Variables',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.745 3A23.933 23.933 0 003 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.782 1.5 5.771 1.5 9s-.533 6.218-1.5 9M8.25 8.885l1.444-.89a.75.75 0 011.105.402l2.402 7.206a.75.75 0 001.104.401l1.445-.889m-8.25.75l.213.09a1.687 1.687 0 002.062-.617l4.45-6.676a1.688 1.688 0 012.062-.618l.213.09" /></svg>,
     },
     {
-        id: 'composers',
-        label: 'Compose',
-        subTabs: [
-            { id: 'scenes', label: 'Scenes' },
-            { id: 'imagemaps', label: 'ImageMaps' },
-            { id: 'screenLayouts', label: 'Screen Layouts' },
-        ],
+        id: 'screens',
+        tooltip: 'Screens',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" /></svg>,
     },
     {
-        id: 'tools',
-        label: 'Tools',
-        subTabs: [
-            { id: 'snippets', label: 'Snippets' },
-            { id: 'menuTemplates', label: 'Menus' },
-            { id: 'colorPalette', label: 'Colors' },
-        ],
+        id: 'images',
+        tooltip: 'Images',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>,
+    },
+    {
+        id: 'audio',
+        tooltip: 'Audio',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" /></svg>,
+    },
+    {
+        id: 'scenes',
+        tooltip: 'Scene Compositions',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-1.5-3.75h-6" /></svg>,
+    },
+    {
+        id: 'imagemaps',
+        tooltip: 'Image Maps',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>,
+    },
+    {
+        id: 'screenLayouts',
+        tooltip: 'Screen Layouts',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-2.25z" /></svg>,
+    },
+    {
+        id: 'snippets',
+        tooltip: 'Code Snippets',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875c-1.243 0-2.25.84-2.25 1.875 0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.401.604-.401.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.036 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.369 0 .713.128 1.003.349.283.215.604.401.959.401v0a.656.656 0 00.658-.663 48.422 48.422 0 00-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 01-.61-.58v0z" /></svg>,
+    },
+    {
+        id: 'menuTemplates',
+        tooltip: 'Menu Templates',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>,
+    },
+    {
+        id: 'colorPalette',
+        tooltip: 'Color Palette',
+        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" /></svg>,
     },
 ];
 
@@ -173,27 +192,16 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     projectColors,
     projectSettings, onUpdateProjectSettings, hasProject,
 }) => {
-    const [activeCategory, setActiveCategory] = useState<CategoryId>(
-        projectSettings.storyElementsTabState?.activeTab ?? 'storyData'
-    );
     const [activeSubTab, setActiveSubTab] = useState<SubTabId>(
         projectSettings.storyElementsTabState?.activeSubTab ?? 'characters'
     );
 
     useEffect(() => {
         onUpdateProjectSettings(draft => {
-            draft.storyElementsTabState = { activeTab: activeCategory, activeSubTab };
+            if (!draft.storyElementsTabState) draft.storyElementsTabState = {} as typeof draft.storyElementsTabState;
+            draft.storyElementsTabState.activeSubTab = activeSubTab;
         });
-    }, [activeCategory, activeSubTab, onUpdateProjectSettings]);
-
-    // When category changes, switch to first sub-tab of that category
-    const handleCategoryChange = (categoryId: CategoryId) => {
-        setActiveCategory(categoryId);
-        const category = TAB_CATEGORIES.find(c => c.id === categoryId);
-        if (category && category.subTabs.length > 0) {
-            setActiveSubTab(category.subTabs[0].id);
-        }
-    };
+    }, [activeSubTab, onUpdateProjectSettings]);
 
     const imagesArray = useMemo(() => Array.from(projectImages.values()), [projectImages]);
     const audiosArray = useMemo(() => Array.from(projectAudios.values()), [projectAudios]);
@@ -211,54 +219,35 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
         e.dataTransfer.effectAllowed = 'copy';
     };
 
-    const activeTabCategory = TAB_CATEGORIES.find(c => c.id === activeCategory);
-
     return (
-        <div className="h-full bg-secondary text-primary flex flex-col min-h-0" data-tutorial="story-elements">
-            {/* Category bar */}
-            <div className="flex-none border-b border-primary flex" role="tablist" aria-label="Story Elements categories">
-                {TAB_CATEGORIES.map(category => (
-                    <button
-                        key={category.id}
-                        role="tab"
-                        aria-selected={activeCategory === category.id}
-                        disabled={!hasProject}
-                        onClick={() => hasProject && handleCategoryChange(category.id)}
-                        className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${
-                            !hasProject
-                                ? 'opacity-40 cursor-not-allowed border-transparent text-secondary'
-                                : activeCategory === category.id
-                                    ? 'border-accent text-accent'
-                                    : 'border-transparent text-secondary hover:text-primary hover:border-primary'
-                        }`}
-                    >
-                        {category.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Sub-tab bar */}
-            {activeTabCategory && (
-                <div className="flex-none border-b border-primary flex bg-tertiary" role="tablist" aria-label={`${activeTabCategory.label} sections`}>
-                    {activeTabCategory.subTabs.map(subTab => (
+        <div className="h-full bg-secondary text-primary flex flex-row min-h-0" data-tutorial="story-elements">
+            {/* Vertical icon nav */}
+            <nav className="flex-none w-12 border-r border-primary flex flex-col overflow-y-auto" role="tablist" aria-label="Story Elements">
+                <div className="flex flex-col mx-auto mt-14 mb-4">
+                    {SUB_PANES.map(pane => (
                         <button
-                            key={subTab.id}
+                            key={pane.id}
                             role="tab"
-                            aria-selected={activeSubTab === subTab.id}
-                            onClick={() => setActiveSubTab(subTab.id)}
-                            className={`flex-1 py-2 text-xs transition-colors ${
-                                activeSubTab === subTab.id
-                                    ? 'bg-secondary text-primary font-semibold'
-                                    : 'text-secondary hover:text-primary hover:bg-secondary/50'
+                            aria-selected={activeSubTab === pane.id}
+                            disabled={!hasProject}
+                            onClick={() => hasProject && setActiveSubTab(pane.id)}
+                            title={pane.tooltip}
+                            aria-label={pane.tooltip}
+                            className={`flex-none w-full h-12 flex items-center justify-center transition-colors border-l-2 ${
+                                !hasProject
+                                    ? 'opacity-40 cursor-not-allowed border-transparent text-secondary'
+                                    : activeSubTab === pane.id
+                                        ? 'border-accent text-accent bg-accent/10'
+                                        : 'border-transparent text-secondary hover:text-primary hover:bg-primary/5'
                             }`}
                         >
-                            {subTab.label}
+                            <span className="[&>svg]:h-8 [&>svg]:w-8">{pane.icon}</span>
                         </button>
                     ))}
                 </div>
-            )}
+            </nav>
 
-            {/* Tab content — full remaining height. Colors tab manages its own scroll internally. */}
+            {/* Pane content — full remaining height. Colors pane manages its own scroll internally. */}
             <div className={`flex-1 min-h-0 ${activeSubTab === 'colorPalette' ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain p-4'}`}>
                 {/* Characters */}
                 {activeSubTab === 'characters' && (

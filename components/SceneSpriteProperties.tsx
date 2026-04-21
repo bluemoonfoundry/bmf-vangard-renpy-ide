@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { SceneSprite } from '../types';
 import MatrixPresetPopover from './MatrixPresetPopover';
+import ColorDropTarget from './ColorDropTarget';
 
 interface Props {
     activeSprite: SceneSprite | null;
@@ -71,10 +72,9 @@ const ColorSwatch: React.FC<{ label: string; value: string; onChange: (hex: stri
     <div className="flex flex-col items-start space-y-1">
         <span className="text-[9px] text-gray-400">{label}</span>
         <div className="flex items-center space-x-1.5">
-            <input
-                type="color"
+            <ColorDropTarget
                 value={value || '#ffffff'}
-                onChange={e => onChange(e.target.value)}
+                onChange={onChange}
                 className="w-7 h-7 rounded cursor-pointer border border-gray-300 dark:border-gray-600 p-0.5 bg-white dark:bg-gray-800"
             />
             <input

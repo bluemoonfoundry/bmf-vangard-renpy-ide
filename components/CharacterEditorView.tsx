@@ -7,6 +7,7 @@
  */
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import type { Character, ProjectImage, ImageMetadata } from '../types';
+import ColorDropTarget from './ColorDropTarget';
 
 interface CharacterEditorViewProps {
   character?: Character;
@@ -193,7 +194,7 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
                     <div className="flex items-start gap-4">
                         <div className="flex-1">
                             <label className="text-sm font-medium">Name Color</label>
-                            <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                            <ColorDropTarget value={color} onChange={setColor}
                                 className="w-full mt-1 h-10 p-1 rounded border border-gray-300 dark:border-gray-600" />
                         </div>
                         <div className="flex-1">
@@ -210,7 +211,7 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
                                 </label>
                             </label>
                             {overrideWhatColor ? (
-                                <input type="color" value={what_color} onChange={e => setWhatColor(e.target.value)}
+                                <ColorDropTarget value={what_color} onChange={setWhatColor}
                                     className="w-full mt-1 h-10 p-1 rounded border border-gray-300 dark:border-gray-600" />
                             ) : (
                                 <div className="w-full mt-1 h-10 rounded border border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 select-none">

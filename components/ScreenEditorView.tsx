@@ -8,6 +8,7 @@
  */
 import React, { useState } from 'react';
 import { ScreenModel, ScreenComponent, ProjectImage } from '../types';
+import ColorDropTarget from './ColorDropTarget';
 import CopyButton from './CopyButton';
 import { createId } from '../lib/createId';
 
@@ -514,10 +515,9 @@ export default function ScreenEditorView({ screenModel, onChange, projectImages 
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500">Color</label>
-                    <input 
-                      type="color" 
+                    <ColorDropTarget
                       value={selectedComponent.props.color || '#ffffff'}
-                      onChange={(e) => handleUpdateProps(selectedComponent.id, { color: e.target.value })}
+                      onChange={(hex) => handleUpdateProps(selectedComponent.id, { color: hex })}
                       className="w-full h-8 p-1 border rounded dark:bg-gray-700 dark:border-gray-600"
                     />
                   </div>
@@ -625,10 +625,9 @@ export default function ScreenEditorView({ screenModel, onChange, projectImages 
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500">Background Color</label>
-                  <input 
-                    type="color" 
+                  <ColorDropTarget
                     value={screenModel.backgroundColor || '#000000'}
-                    onChange={(e) => onChange({ ...screenModel, backgroundColor: e.target.value })}
+                    onChange={(hex) => onChange({ ...screenModel, backgroundColor: hex })}
                     className="w-full h-8 p-1 border rounded dark:bg-gray-700 dark:border-gray-600"
                   />
                 </div>

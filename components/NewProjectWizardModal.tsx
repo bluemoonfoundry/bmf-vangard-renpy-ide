@@ -11,6 +11,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CreateProjectOptions } from '../types';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import ColorDropTarget from './ColorDropTarget';
 
 interface NewProjectWizardModalProps {
   isOpen: boolean;
@@ -436,11 +437,10 @@ const NewProjectWizardModal: React.FC<NewProjectWizardModalProps> = ({
                     Or Choose Custom Color
                   </label>
                   <div className="flex items-center space-x-3">
-                    <input
+                    <ColorDropTarget
                       id="custom-color"
-                      type="color"
                       value={accentColor}
-                      onChange={e => setAccentColor(e.target.value)}
+                      onChange={setAccentColor}
                       className="w-20 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <div className="flex-1">

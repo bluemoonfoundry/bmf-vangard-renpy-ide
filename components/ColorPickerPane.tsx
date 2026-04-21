@@ -118,12 +118,14 @@ const ColorPickerPane: React.FC<ColorPickerPaneProps> = ({
                                 return (
                                     <button
                                         key={color.hex + color.name}
+                                        draggable
                                         role="option"
                                         aria-selected={isSelected}
                                         aria-label={tooltipText}
                                         className={`
                                             w-full aspect-square rounded transition-transform duration-100
                                             hover:scale-110 hover:z-10 relative
+                                            cursor-grab active:cursor-grabbing
                                             focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1
                                             ${isSelected
                                                 ? 'ring-2 ring-white ring-offset-1 ring-offset-zinc-700 scale-110 z-10'
@@ -135,6 +137,11 @@ const ColorPickerPane: React.FC<ColorPickerPaneProps> = ({
                                         onDoubleClick={() => handleSwatchDoubleClick(color)}
                                         onMouseEnter={e => handleSwatchEnter(e, tooltipText)}
                                         onMouseLeave={handleSwatchLeave}
+                                        onDragStart={e => {
+                                            e.dataTransfer.setData('application/renpy-color', expandHex(color.hex));
+                                            e.dataTransfer.effectAllowed = 'copy';
+                                            handleSwatchLeave(); // hide tooltip while dragging
+                                        }}
                                     />
                                 );
                             })}
@@ -142,7 +149,7 @@ const ColorPickerPane: React.FC<ColorPickerPaneProps> = ({
                     </div>
                 </div>
                 <p className="flex-none text-xs text-secondary mt-1">
-                    Click to select · Double-click to insert
+                    Click to select · Double-click to insert · Drag to color pickers
                 </p>
             </div>
 
