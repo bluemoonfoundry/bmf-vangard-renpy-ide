@@ -31,7 +31,7 @@ interface StoryCanvasProps {
   updateStickyNote: (id: string, data: Partial<StickyNoteType>) => void;
   deleteStickyNote: (id: string) => void;
   onInteractionEnd: () => void;
-  deleteBlock: (id: string) => void;
+  deleteBlock: (id: string) => void | Promise<void>;
   onOpenEditor: (id: string, line?: number) => void;
   selectedBlockIds: string[];
   setSelectedBlockIds: (ids: string[] | ((prev: string[]) => string[])) => void;
