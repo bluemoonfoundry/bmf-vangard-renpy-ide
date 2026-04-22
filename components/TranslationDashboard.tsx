@@ -210,6 +210,30 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
   // Auto-select first language if none selected
   const activeLang = selectedLanguage && detectedLanguages.includes(selectedLanguage) ? selectedLanguage : detectedLanguages[0] ?? null;
 
+  const getTranslationForLanguage = useCallback((stringId: string, language: string) => {
+    return stringTranslations.get(stringId)?.get(language) ?? null;
+  }, [stringTranslations]);
+
+  const openTranslationForString = useCallback((stringId: string, sourceBlockId: string, sourceLine: number, preferredLanguage?: string | null) => {
+    const preferredTranslation = preferredLanguage ? getTranslationForLanguage(stringId, preferredLanguage) : null;
+    if (preferredTranslation) {
+      setSelectedLanguage(preferredLanguage);
+      onOpenBlock(preferredTranslation.blockId, preferredTranslation.line);
+      return;
+    }
+
+    for (const language of detectedLanguages) {
+      const translation = getTranslationForLanguage(stringId, language);
+      if (translation) {
+        setSelectedLanguage(language);
+        onOpenBlock(translation.blockId, translation.line);
+        return;
+      }
+    }
+
+    onOpenBlock(sourceBlockId, sourceLine);
+  }, [detectedLanguages, getTranslationForLanguage, onOpenBlock]);
+
   const activeCoverage: LanguageCoverage | null = useMemo(
     () => languageCoverages.find(c => c.language === activeLang) ?? null,
     [languageCoverages, activeLang],
@@ -446,10 +470,10 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
                     key={s.id}
                     className="absolute left-0 right-0 flex items-center gap-3 px-3 border-b border-primary hover:bg-tertiary-hover cursor-pointer"
                     style={{ top: offsetTop, height: 56 }}
-                    onClick={() => onOpenBlock(s.blockId, s.line)}
+                    onClick={() => openTranslationForString(s.id, s.blockId, s.line, activeLang)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={e => { if (e.key === 'Enter') onOpenBlock(s.blockId, s.line); }}
+                    onKeyDown={e => { if (e.key === 'Enter') openTranslationForString(s.id, s.blockId, s.line, activeLang); }}
                     data-testid={`string-row-${index}`}
                   >
                     {/* Type badge */}
@@ -481,9 +505,23 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
                             : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                           : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
                         return (
-                          <span key={lang} className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded ${color}`} title={t ? (isStale ? `${lang}: stale` : `${lang}: ${t.translatedText}`) : `${lang}: missing`}>
+                          <button
+                            key={lang}
+                            type="button"
+                            disabled={!t}
+                            className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400 ${color} ${t ? 'cursor-pointer hover:brightness-95' : 'cursor-not-allowed opacity-60'}`}
+                            title={t ? (isStale ? `${lang}: stale` : `${lang}: ${t.translatedText}`) : `${lang}: missing`}
+                            aria-label={t ? `Open ${lang} translation` : `${lang} translation missing`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (t) {
+                                setSelectedLanguage(lang);
+                                onOpenBlock(t.blockId, t.line);
+                              }
+                            }}
+                          >
                             {lang.slice(0, 2)}
-                          </span>
+                          </button>
                         );
                       })}
                     </div>

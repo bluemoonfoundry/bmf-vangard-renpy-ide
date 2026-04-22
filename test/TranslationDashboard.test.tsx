@@ -36,6 +36,7 @@ function makeSampleTranslationData(): TranslationAnalysisResult {
   const stringTranslations = new Map();
   stringTranslations.set('id1', new Map([
     ['french', { id: 'id1', translatedText: 'Bonjour', blockId: 'tl1', filePath: 'game/tl/french/script.rpy', line: 2, language: 'french' }],
+    ['german', { id: 'id1', translatedText: 'Hallo', blockId: 'tl2', filePath: 'game/tl/german/script.rpy', line: 3, language: 'german' }],
   ]));
 
   return {
@@ -45,6 +46,7 @@ function makeSampleTranslationData(): TranslationAnalysisResult {
     ],
     translatedStrings: new Map([
       ['french', [{ id: 'id1', translatedText: 'Bonjour', blockId: 'tl1', filePath: 'game/tl/french/script.rpy', line: 2, language: 'french' }]],
+      ['german', [{ id: 'id1', translatedText: 'Hallo', blockId: 'tl2', filePath: 'game/tl/german/script.rpy', line: 3, language: 'german' }]],
     ]),
     languageCoverages: [
       {
@@ -59,7 +61,7 @@ function makeSampleTranslationData(): TranslationAnalysisResult {
         ],
       },
     ],
-    detectedLanguages: ['french'],
+    detectedLanguages: ['french', 'german'],
     stringTranslations,
   };
 }
@@ -158,7 +160,7 @@ describe('TranslationDashboard', () => {
     expect(screen.getByText(/Translatable Strings/)).toBeInTheDocument();
   });
 
-  it('calls onOpenBlock when clicking a string row', () => {
+  it('opens the active language translation when clicking a string row', () => {
     const onOpenBlock = vi.fn();
     const data = makeSampleTranslationData();
     render(
@@ -166,7 +168,18 @@ describe('TranslationDashboard', () => {
     );
     const row = screen.getByTestId('string-row-0');
     fireEvent.click(row);
-    expect(onOpenBlock).toHaveBeenCalledWith('b1', 1);
+    expect(onOpenBlock).toHaveBeenCalledWith('tl1', 2);
+  });
+
+  it('opens the clicked language translation when clicking a language tag', () => {
+    const onOpenBlock = vi.fn();
+    const data = makeSampleTranslationData();
+    render(
+      <TranslationDashboard translationData={data} blocks={makeSampleBlocks()} onOpenBlock={onOpenBlock} {...defaultGenerateProps} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open german translation' }));
+    expect(onOpenBlock).toHaveBeenCalledWith('tl2', 3);
   });
 
   it('filters by status pill', () => {
