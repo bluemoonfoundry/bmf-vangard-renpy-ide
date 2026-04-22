@@ -208,6 +208,9 @@ const App: React.FC = () => {
   
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{ paths: string[]; onConfirm: () => void; } | null>(null);
   const [createBlockModalOpen, setCreateBlockModalOpen] = useState(false);
+  const [createBlockModalType, setCreateBlockModalType] = useState<BlockType>('story');
+  const [createBlockModalPosition, setCreateBlockModalPosition] = useState<Position | undefined>(undefined);
+  const [createBlockModalFolderPath, setCreateBlockModalFolderPath] = useState('');
   const [unsavedChangesModalInfo, setUnsavedChangesModalInfo] = useState<UnsavedChangesModalInfo | null>(null);
   const [contextMenuInfo, setContextMenuInfo] = useState<{ x: number; y: number; tabId: string; paneId: 'primary' | 'secondary' } | null>(null);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -862,6 +865,17 @@ const App: React.FC = () => {
     setToasts(prev => [...prev, { id, message, type }]);
   }, []);
 
+  const buildNewBlockContent = useCallback((name: string, type: BlockType) => {
+    switch (type) {
+      case 'story':
+        return `label ${name}:\n    "Start writing your story here..."\n    return\n`;
+      case 'screen':
+      case 'config':
+        return '';
+    }
+    return '';
+  }, []);
+
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
@@ -984,22 +998,10 @@ const App: React.FC = () => {
     return id;
   }, [setBlocks, fileSystemTree, storyCanvasTransform, appSettings]);
 
-  const handleCreateBlockConfirm = async (name: string, type: BlockType, folderPath: string) => {
-    let content = '';
+  const handleCreateBlockConfirm = async (name: string, type: BlockType, folderPath: string, initialPosition?: Position) => {
     const safeName = name.replace(/\.rpy$/, '');
     const fileName = `${safeName}.rpy`;
-    
-    switch (type) {
-        case 'story':
-            content = `label ${safeName}:\n    "Start writing your story here..."\n    return\n`;
-            break;
-        case 'screen':
-            content = `screen ${safeName}():\n    zorder 100\n    frame:\n        align (0.5, 0.5)\n        text "New Screen"\n`;
-            break;
-        case 'config':
-            content = `# Configuration for ${safeName}\ndefine ${safeName}_enabled = True\n`;
-            break;
-    }
+    const content = buildNewBlockContent(safeName, type);
 
     if (window.electronAPI && projectRootPath) {
         try {
@@ -1009,7 +1011,7 @@ const App: React.FC = () => {
             
             const res = await window.electronAPI.writeFile(fullPath, content);
             if (res.success) {
-                addBlock(relativePath, content);
+                addBlock(relativePath, content, initialPosition);
                 addToast(`Created ${fileName} in ${cleanFolderPath || 'root'}`, 'success');
                 const projData = await window.electronAPI.loadProject(projectRootPath!);
                 setFileSystemTree(projData.tree);
@@ -1023,55 +1025,10 @@ const App: React.FC = () => {
             addToast(`Failed to create file: ${errorMessage}`, 'error');
         }
     } else {
-        addBlock(fileName, content);
+        addBlock(fileName, content, initialPosition);
         addToast(`Created block ${fileName}`, 'success');
     }
   };
-
-  const handleCreateBlockFromCanvas = useCallback(async (type: BlockType, position: Position) => {
-      const timestamp = Date.now();
-      const defaultName = `${type}_${timestamp}`;
-      const fileName = `${defaultName}.rpy`;
-      
-      let content = '';
-      switch (type) {
-        case 'story':
-            content = `label ${defaultName}:\n    "Start writing your story here..."\n    return\n`;
-            break;
-        case 'screen':
-            content = `screen ${defaultName}():\n    zorder 100\n    frame:\n        align (0.5, 0.5)\n        text "New Screen"\n`;
-            break;
-        case 'config':
-            content = `# Configuration for ${defaultName}\ndefine ${defaultName}_enabled = True\n`;
-            break;
-      }
-
-      if (window.electronAPI && projectRootPath) {
-          try {
-              const folderPath = 'game';
-              const fullPath = await window.electronAPI.path.join(projectRootPath!, folderPath, fileName) as string;
-              const relativePath = `game/${fileName}`;
-              
-              const res = await window.electronAPI.writeFile(fullPath, content);
-              if (res.success) {
-                  addBlock(relativePath, content, position);
-                  addToast(`Created ${fileName}`, 'success');
-                  const projData = await window.electronAPI.loadProject(projectRootPath);
-                  setFileSystemTree(projData.tree);
-              } else {
-                  const errorMsg = typeof res.error === 'string' ? res.error : 'Unknown error occurred during file creation';
-                  throw new Error(errorMsg);
-              }
-          } catch(e) {
-              console.error(e);
-              const errorMessage = formatErrorMessage(e);
-              addToast(`Failed to create file: ${errorMessage}`, 'error');
-          }
-      } else {
-          addBlock(fileName, content, position);
-          addToast(`Created block ${fileName}`, 'success');
-      }
-  }, [addBlock, projectRootPath, addToast]);
 
   // --- Sticky Note Management ---
   const addStickyNote = useCallback((initialPosition?: Position) => {
@@ -1208,6 +1165,17 @@ const App: React.FC = () => {
     }
     return 'game/';
   }, [explorerSelectedPaths, fileSystemTree]);
+
+  const openCreateBlockModal = useCallback((type: BlockType, position?: Position) => {
+    setCreateBlockModalType(type);
+    setCreateBlockModalPosition(position);
+    setCreateBlockModalFolderPath(getSelectedFolderForNewBlock());
+    setCreateBlockModalOpen(true);
+  }, [getSelectedFolderForNewBlock]);
+
+  const handleCreateBlockFromCanvas = useCallback((type: BlockType, position: Position) => {
+      openCreateBlockModal(type, position);
+  }, [openCreateBlockModal]);
 
   const deleteBlock = useCallback((id: string) => {
     setGroups(draft => {
@@ -4806,7 +4774,7 @@ const App: React.FC = () => {
         undo={undo}
         redo={redo}
         hideUndoRedo={openTabs.find(t => t.id === activeTabId)?.type === 'scene-composer'}
-        addBlock={() => setCreateBlockModalOpen(true)}
+        addBlock={() => openCreateBlockModal('story')}
         handleTidyUp={handleActiveCanvasTidyUp}
         handleSave={handleSaveAll}
         onOpenSettings={() => setSettingsModalOpen(true)}
@@ -5176,9 +5144,13 @@ const App: React.FC = () => {
 
       <CreateBlockModal
         isOpen={createBlockModalOpen}
-        onClose={() => setCreateBlockModalOpen(false)}
-        onConfirm={(name, type) => handleCreateBlockConfirm(name, type, getSelectedFolderForNewBlock())}
-        defaultPath={getSelectedFolderForNewBlock()}
+        onClose={() => {
+          setCreateBlockModalOpen(false);
+          setCreateBlockModalPosition(undefined);
+        }}
+        onConfirm={(name, type) => handleCreateBlockConfirm(name, type, createBlockModalFolderPath, createBlockModalPosition)}
+        defaultPath={createBlockModalFolderPath || getSelectedFolderForNewBlock()}
+        initialType={createBlockModalType}
       />
 
       <ConfigureRenpyModal

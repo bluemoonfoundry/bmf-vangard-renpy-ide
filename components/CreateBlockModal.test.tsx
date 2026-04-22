@@ -8,6 +8,7 @@ describe('CreateBlockModal', () => {
     onClose: vi.fn(),
     onConfirm: vi.fn(),
     defaultPath: 'game/scenes',
+    initialType: 'story' as const,
   };
 
   beforeEach(() => {
@@ -78,6 +79,13 @@ describe('CreateBlockModal', () => {
     await user.click(screen.getByText('Create Scene'));
 
     expect(defaultProps.onConfirm).toHaveBeenCalledWith('menu_screen', 'screen');
+  });
+
+  it('opens with the provided initial type', () => {
+    render(<CreateBlockModal {...defaultProps} initialType="config" />);
+
+    expect(screen.getByRole('button', { name: 'Config' })).toHaveClass('border-red-500');
+    expect(screen.getByText('No default content will be added.')).toBeInTheDocument();
   });
 
   it('allows selecting config type', async () => {

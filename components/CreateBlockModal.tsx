@@ -17,9 +17,10 @@ interface CreateBlockModalProps {
   onClose: () => void;
   onConfirm: (name: string, type: BlockType) => void;
   defaultPath: string;
+  initialType?: BlockType;
 }
 
-const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, onConfirm, defaultPath }) => {
+const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, onConfirm, defaultPath, initialType = 'story' }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<BlockType>('story');
   const [error, setError] = useState('');
@@ -29,12 +30,12 @@ const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, on
   useEffect(() => {
     if (isOpen) {
         setName('');
-        setType('story');
+        setType(initialType);
         setError('');
         // Small timeout to allow render
         setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [isOpen]);
+  }, [initialType, isOpen]);
 
   const handleConfirm = () => {
     const trimmedName = name.trim();
@@ -117,8 +118,8 @@ const CreateBlockModal: React.FC<CreateBlockModalProps> = ({ isOpen, onClose, on
             
             <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded text-xs text-gray-600 dark:text-gray-400 font-mono">
                 {type === 'story' && `label ${name || 'name'}:\n    "Write your story here..."\n    return`}
-                {type === 'screen' && `screen ${name || 'name'}():\n    frame:\n        text "New Screen"`}
-                {type === 'config' && `# Configuration definitions\ndefine ${name || 'name'}_enabled = True`}
+                {type === 'screen' && 'No default content will be added.'}
+                {type === 'config' && 'No default content will be added.'}
             </div>
         </main>
 
