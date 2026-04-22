@@ -56,6 +56,7 @@ import {
   computeRouteCanvasLayoutFingerprint,
   getRouteCanvasLayoutVersion,
 } from './lib/routeCanvasLayout';
+import { resolveWarpTarget } from './lib/warpTarget';
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, Theme, ProjectImage, RenpyAudio, Variable,
@@ -269,6 +270,7 @@ const App: React.FC = () => {
   const [centerOnRouteNodeRequest, setCenterOnRouteNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
   const [centerOnChoiceNodeRequest, setCenterOnChoiceNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
   const [isGoToLabelOpen, setIsGoToLabelOpen] = useState(false);
+  const [isWarpToLabelOpen, setIsWarpToLabelOpen] = useState(false);
   const [flashBlockRequest, setFlashBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
   const [canvasFilters, setCanvasFilters] = useState({ story: true, screens: true, config: false, notes: true, minimap: true });
   const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
@@ -3257,6 +3259,13 @@ const App: React.FC = () => {
     : activeCanvasTabId === 'choice-canvas' ? 'Choice'
     : '';
 
+  const warpLabelItems = useMemo<GoToLabelItem[]>(() => {
+    return Object.values(analysisResult.labels)
+      .slice()
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map(loc => ({ label: loc.label, id: loc.label }));
+  }, [analysisResult.labels]);
+
   const handleGoToLabel = useCallback((id: string) => {
     setIsGoToLabelOpen(false);
     if (activeCanvasTabId === 'canvas') {
@@ -3268,9 +3277,36 @@ const App: React.FC = () => {
     }
   }, [activeCanvasTabId]);
 
+  const handleRunGame = useCallback(() => {
+    if (!window.electronAPI || !projectRootPath) return;
+    window.electronAPI.runGame(appSettings.renpyPath, projectRootPath);
+  }, [appSettings.renpyPath, projectRootPath]);
+
+  const handleWarpToLabel = useCallback((labelName: string) => {
+    if (!window.electronAPI || !projectRootPath) return;
+
+    const warpTarget = resolveWarpTarget(blocks, analysisResult.labels, labelName);
+    setIsWarpToLabelOpen(false);
+
+    if (!warpTarget) {
+      addToast(`Could not resolve warp target for "${labelName}"`, 'warning');
+      return;
+    }
+
+    window.electronAPI.runGame(appSettings.renpyPath, projectRootPath, warpTarget);
+  }, [addToast, analysisResult.labels, appSettings.renpyPath, blocks, projectRootPath]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+      const isMetaShortcut = e.ctrlKey || e.metaKey;
+      const isG = e.key.toLowerCase() === 'g';
+      if (isMetaShortcut && e.shiftKey && isG) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        if (!projectRootPath) return;
+        e.preventDefault();
+        setIsWarpToLabelOpen(true);
+      } else if (isMetaShortcut && isG) {
         const tag = (e.target as HTMLElement).tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (!activeCanvasTabId) return;
@@ -3290,11 +3326,12 @@ const App: React.FC = () => {
       }
       if (e.key === 'Escape') {
         setIsGoToLabelOpen(false);
+        setIsWarpToLabelOpen(false);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeCanvasTabId, activePaneId, activeTabId, secondaryActiveTabId, handleCloseTab]);
+  }, [activeCanvasTabId, activePaneId, activeTabId, secondaryActiveTabId, handleCloseTab, projectRootPath]);
 
   // DnD Handlers for Tabs
   const handleTabDragStart = (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
@@ -4381,6 +4418,7 @@ const App: React.FC = () => {
         groupingMode={projectSettings.routeCanvasGroupingMode ?? 'none'}
         onChangeLayoutMode={handleChangeRouteCanvasLayoutMode}
         onChangeGroupingMode={handleChangeRouteCanvasGroupingMode}
+        onWarpToLabel={handleWarpToLabel}
         centerOnStartRequest={centerOnRouteStartRequest}
         centerOnNodeRequest={centerOnRouteNodeRequest}
       />;
@@ -4401,6 +4439,7 @@ const App: React.FC = () => {
         groupingMode={projectSettings.choiceCanvasGroupingMode ?? 'none'}
         onChangeLayoutMode={handleChangeChoiceCanvasLayoutMode}
         onChangeGroupingMode={handleChangeChoiceCanvasGroupingMode}
+        onWarpToLabel={handleWarpToLabel}
         centerOnStartRequest={centerOnChoiceStartRequest}
         centerOnNodeRequest={centerOnChoiceNodeRequest}
       />;
@@ -4452,6 +4491,7 @@ const App: React.FC = () => {
         onEditorMount={(id, editor) => editorInstances.current.set(id, editor)}
         onEditorUnmount={(id) => { const editor = editorInstances.current.get(id); if (editor) { const block = blocksRef.current.find(b => b.id === id); if (block && editor.getValue() !== block.content) { syncEditorToStateAndMarkDirty(id, editor.getValue()); } } editorInstances.current.delete(id); }}
         onCursorPositionChange={setEditorCursorPosition}
+        onWarpToLabel={handleWarpToLabel}
         draftingMode={projectSettings.draftingMode} existingImageTags={existingImageTags} existingAudioPaths={existingAudioPaths}
         userSnippets={appSettings.userSnippets}
         menuTemplates={appSettings.menuTemplates}
@@ -4692,7 +4732,8 @@ const App: React.FC = () => {
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}
-        onRunGame={() => window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath!)}
+        onRunGame={handleRunGame}
+        onWarpToLabel={() => setIsWarpToLabelOpen(true)}
         onStopGame={() => window.electronAPI?.stopGame()}
         isRenpyPathValid={isRenpyPathValid}
         draftingMode={projectSettings.draftingMode}
@@ -5200,6 +5241,16 @@ const App: React.FC = () => {
         canvasName={goToLabelCanvasName}
         onSelect={handleGoToLabel}
         onClose={() => setIsGoToLabelOpen(false)}
+      />
+      <GoToLabelModal
+        isOpen={isWarpToLabelOpen}
+        items={warpLabelItems}
+        canvasName="Warp"
+        title="Warp to Label"
+        placeholder="Warp to label…"
+        emptyStateText="No labels available"
+        onSelect={handleWarpToLabel}
+        onClose={() => setIsWarpToLabelOpen(false)}
       />
 
       <FirstRunTutorial
