@@ -16,6 +16,7 @@ const VAR_ITEM_HEIGHT = 76;
 interface VariableManagerProps {
     analysisResult: RenpyAnalysisResult;
     onAddVariable: (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
+    onEditVariable: (oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onFindUsages: (variableName: string) => void;
     onHoverHighlightStart: (key: string, type: 'character' | 'variable') => void;
     onHoverHighlightEnd: () => void;
@@ -61,20 +62,24 @@ const VariableEditor: React.FC<{
     onSave: (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onCancel: () => void;
     existingNames: string[];
-}> = ({ onSave, onCancel, existingNames }) => {
-    const [name, setName] = useState('');
-    const [type, setType] = useState<'define' | 'default'>('default');
-    const [initialValue, setInitialValue] = useState('False');
+    editing?: Variable;
+}> = ({ onSave, onCancel, existingNames, editing }) => {
+    const [name, setName] = useState(editing?.name ?? '');
+    const [type, setType] = useState<'define' | 'default'>(editing?.type ?? 'default');
+    const [initialValue, setInitialValue] = useState(editing?.initialValue ?? 'False');
     const [nameError, setNameError] = useState('');
 
+    const isRename = editing && name !== editing.name;
+
     const handleSave = () => {
-        const isNameUnique = !existingNames.includes(name);
-        const isNameValid = /^[a-zA-Z0-9_.]+$/.test(name) && name.length > 0;
+        const isNameValid = /^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(name) && name.length > 0;
 
         if (!isNameValid) {
             setNameError('Name must be a valid variable name (letters, numbers, underscores, dots).');
             return;
         }
+        // Allow keeping the same name when editing; otherwise check uniqueness
+        const isNameUnique = (editing && name === editing.name) || !existingNames.includes(name);
         if (!isNameUnique) {
             setNameError('This variable name is already in use.');
             return;
@@ -89,7 +94,13 @@ const VariableEditor: React.FC<{
 
     return (
         <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg space-y-3">
-            <h3 className="font-semibold text-lg">Add New Variable</h3>
+            <h3 className="font-semibold text-lg">{editing ? 'Edit Variable' : 'Add New Variable'}</h3>
+            {isRename && (
+                <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span>Saving will rename <code className="font-mono font-semibold">{editing.name}</code> to <code className="font-mono font-semibold">{name}</code> across all project files.</span>
+                </div>
+            )}
             <div>
                 <label className="text-sm font-medium">Type</label>
                 <select value={type} onChange={e => setType(e.target.value as 'define' | 'default')} className="w-full mt-1 p-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
@@ -116,9 +127,10 @@ const VariableEditor: React.FC<{
 };
 
 
-const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAddVariable, onFindUsages, onHoverHighlightStart, onHoverHighlightEnd }) => {
+const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAddVariable, onEditVariable, onFindUsages, onHoverHighlightStart, onHoverHighlightEnd }) => {
     const { variables, variableUsages, storyBlockIds } = analysisResult;
-    const [mode, setMode] = useState<'list' | 'add'>('list');
+    const [mode, setMode] = useState<'list' | 'add' | 'edit'>('list');
+    const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
     const [filterStoryVars, setFilterStoryVars] = useState(true);
 
     const filteredVariables = useMemo(() => {
@@ -145,6 +157,19 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
     const handleSave = (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => {
         onAddVariable(variable);
         setMode('list');
+    };
+
+    const handleEditSave = (updated: Omit<Variable, 'definedInBlockId' | 'line'>) => {
+        if (editingVariable) {
+            onEditVariable(editingVariable.name, updated);
+        }
+        setEditingVariable(null);
+        setMode('list');
+    };
+
+    const enterEditMode = (variable: Variable) => {
+        setEditingVariable(variable);
+        setMode('edit');
     };
 
     const VariableList: React.FC<{ title: string; kind: 'persistent' | 'default' | 'define'; vars: Variable[] }> = ({ title, kind, vars }) => {
@@ -185,6 +210,7 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
                                                 className="p-2 rounded-md bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between"
                                                 onMouseEnter={() => onHoverHighlightStart(variable.name, 'variable')}
                                                 onMouseLeave={onHoverHighlightEnd}
+                                                onDoubleClick={() => enterEditMode(variable)}
                                             >
                                                 <div className="flex-grow min-w-0">
                                                     <p className="font-semibold font-mono text-sm truncate" title={variable.name}>{variable.name}</p>
@@ -211,6 +237,13 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
                                                         className="p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => enterEditMode(variable)}
+                                                        title="Edit Variable"
+                                                        className="p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
                                                     </button>
                                                 </div>
                                             </div>
@@ -265,6 +298,15 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
                     onSave={handleSave}
                     onCancel={() => setMode('list')}
                     existingNames={Array.from(variables.keys())}
+                />
+            )}
+
+            {mode === 'edit' && editingVariable && (
+                <VariableEditor
+                    onSave={handleEditSave}
+                    onCancel={() => { setEditingVariable(null); setMode('list'); }}
+                    existingNames={Array.from(variables.keys())}
+                    editing={editingVariable}
                 />
             )}
         </>

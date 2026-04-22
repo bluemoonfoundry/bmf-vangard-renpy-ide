@@ -98,6 +98,7 @@ interface StoryElementsPanelProps {
     onFindCharacterUsages: (tag: string) => void;
     // Variable callbacks
     onAddVariable: (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
+    onEditVariable: (oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onFindVariableUsages: (variableName: string) => void;
     // Screen callbacks
     onFindScreenDefinition: (screenName: string) => void;
@@ -175,7 +176,7 @@ interface StoryElementsPanelProps {
 const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     analysisResult,
     onOpenCharacterEditor, onFindCharacterUsages,
-    onAddVariable, onFindVariableUsages,
+    onAddVariable, onEditVariable, onFindVariableUsages,
     onFindScreenDefinition,
     projectImages, imageMetadata, onAddImageScanDirectory, onRemoveImageScanDirectory, imageScanDirectories, onCopyImagesToProject, onOpenImageEditor, imagesLastScanned, isRefreshingImages, onRefreshImages,
     projectAudios, audioMetadata, onAddAudioScanDirectory, onRemoveAudioScanDirectory, audioScanDirectories, onCopyAudiosToProject, onOpenAudioEditor, audiosLastScanned, isRefreshingAudios, onRefreshAudios,
@@ -308,6 +309,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                         <VariableManager
                             analysisResult={analysisResult}
                             onAddVariable={onAddVariable}
+                            onEditVariable={onEditVariable}
                             onFindUsages={onFindVariableUsages}
                             onHoverHighlightStart={onHoverHighlightStart}
                             onHoverHighlightEnd={onHoverHighlightEnd}

@@ -57,7 +57,7 @@ import {
 } from './lib/routeCanvasLayout';
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
-  ToastMessage, Theme, ProjectImage, RenpyAudio,
+  ToastMessage, Theme, ProjectImage, RenpyAudio, Variable,
   ClipboardState, ImageMetadata, AudioMetadata, Character,
   AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   SerializedSprite, SerializedSceneComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
@@ -4013,6 +4013,69 @@ const App: React.FC = () => {
     }
   }, [blocks, updateBlock, addToast, projectRootPath, addBlock, setFileSystemTree]);
 
+  const handleEditVariable = useCallback((oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => {
+    const escapeForRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const oldVar = analysisResult.variables.get(oldName);
+    if (!oldVar) {
+        addToast(`Error: Cannot find definition for variable '${oldName}'.`, 'error');
+        return;
+    }
+
+    const defBlock = blocks.find(b => b.id === oldVar.definedInBlockId);
+    if (!defBlock) {
+        addToast(`Error: Cannot find the file containing variable '${oldName}'.`, 'error');
+        return;
+    }
+
+    // Build regex for the definition line: `default oldName = ...` or `define oldName = ...`
+    const defRegex = new RegExp(
+        `^(\\s*(?:define|default)\\s+)${escapeForRegex(oldName)}(\\s*=)`,
+        'm'
+    );
+
+    if (!defRegex.test(defBlock.content)) {
+        addToast(`Error: Could not locate the declaration of '${oldName}' in the source file.`, 'error');
+        return;
+    }
+
+    // Update the definition line: replace name, and if the type changed, replace the keyword too
+    const newName = updated.name;
+    const newType = updated.type; // 'define' or 'default'
+    const newInitialValue = updated.initialValue;
+
+    // Replace the full definition line (keyword + name + = + value)
+    const fullDefRegex = new RegExp(
+        `^(\\s*)(?:define|default)\\s+${escapeForRegex(oldName)}\\s*=\\s*(.*)$`,
+        'm'
+    );
+    let newDefContent = defBlock.content.replace(fullDefRegex, `$1${newType} ${newName} = ${newInitialValue}`);
+
+    if (oldName !== newName) {
+        // Rename all references across all blocks
+        const usageRegex = new RegExp(`\\b${escapeForRegex(oldName)}\\b`, 'g');
+        let renamedFileCount = 0;
+
+        blocks.forEach(block => {
+            const base = block.id === defBlock.id ? newDefContent : block.content;
+            const replaced = base.replace(usageRegex, newName);
+
+            if (block.id === defBlock.id) {
+                updateBlock(block.id, { content: replaced });
+                renamedFileCount++;
+            } else if (replaced !== base) {
+                updateBlock(block.id, { content: replaced });
+                renamedFileCount++;
+            }
+        });
+
+        addToast(`Renamed "${oldName}" to "${newName}" in ${renamedFileCount} file(s).`, 'success');
+    } else {
+        // Only type or initial value changed — update just the definition block
+        updateBlock(defBlock.id, { content: newDefContent });
+        addToast(`Variable "${oldName}" updated.`, 'success');
+    }
+  }, [analysisResult.variables, blocks, updateBlock, addToast]);
+
   const handleFindScreenDefinition = useCallback((name: string) => {
     const def = analysisResult.screens.get(name);
     if (def) handleOpenEditor(def.definedInBlockId, def.line);
@@ -4840,6 +4903,7 @@ const App: React.FC = () => {
                 onOpenCharacterEditor={handleOpenCharacterEditor}
                 onFindCharacterUsages={(tag) => handleFindUsages(tag, 'character')}
                 onAddVariable={handleAddVariable}
+                onEditVariable={handleEditVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
                 onFindScreenDefinition={handleFindScreenDefinition}
                 // Image Props
