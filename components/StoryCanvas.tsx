@@ -113,11 +113,13 @@ const getOptimalPath = (
 const Arrow = forwardRef<SVGGElement, {
   pathData: string;
   isDimmed: boolean;
-  onHighlight: (startNodeId: string) => void;
+  onSelect: (linkKey: string) => void;
+  linkKey: string;
   targetId: string;
   linkType?: 'jump' | 'call';
   isNewArrow?: boolean;
-}>(({ pathData, isDimmed, onHighlight, targetId, linkType, isNewArrow }, ref) => {
+  isSelected?: boolean;
+}>(({ pathData, isDimmed, onSelect, linkKey, targetId, linkType, isNewArrow, isSelected }, ref) => {
   const [isDrawing, setIsDrawing] = useState(isNewArrow ?? false);
 
   useEffect(() => {
@@ -127,7 +129,7 @@ const Arrow = forwardRef<SVGGElement, {
   }, [isDrawing]);
     const handlePointerDown = (e: React.PointerEvent) => {
         e.stopPropagation();
-        onHighlight(targetId);
+        onSelect(linkKey);
     };
 
     // For call arrows, parse the source attachment point from the M command
@@ -147,12 +149,23 @@ const Arrow = forwardRef<SVGGElement, {
               fill="none"
               className="cursor-pointer"
           />
+          {isSelected && (
+            <path
+              d={pathData}
+              stroke="#818cf8"
+              strokeWidth="10"
+              strokeOpacity="0.45"
+              strokeLinecap="round"
+              fill="none"
+              className="pointer-events-none"
+            />
+          )}
           <path
               d={pathData}
-              stroke="#4f46e5"
-              strokeWidth="3"
+              stroke={isSelected ? "#6366f1" : "#4f46e5"}
+              strokeWidth={isSelected ? 3.5 : 3}
               fill="none"
-              markerEnd="url(#arrowhead)"
+              markerEnd={isSelected ? "url(#arrowhead-selected)" : "url(#arrowhead)"}
               pathLength={isDrawing ? 1 : undefined}
               className={`pointer-events-none${isDrawing ? ' arrow-draw-in' : ''}`}
           />
@@ -162,7 +175,7 @@ const Arrow = forwardRef<SVGGElement, {
               cy={callCirclePos.y}
               r={5}
               fill="none"
-              stroke="#4f46e5"
+              stroke={isSelected ? "#6366f1" : "#4f46e5"}
               strokeWidth={2.5}
               className="pointer-events-none"
             />
@@ -246,6 +259,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
 
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
   const [highlightedPath, setHighlightedPath] = useState<Set<string> | null>(null);
+  const [selectedLinkKey, setSelectedLinkKey] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const interactionState = useRef<InteractionState>({ type: 'idle' });
   const pointerStartPos = useRef<Position>({ x: 0, y: 0 });
@@ -354,17 +368,6 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     return () => clearTimeout(timer);
   }, [blocks]);
 
-  const adjacencyMap = useMemo(() => {
-    const adj = new Map<string, string[]>();
-    blocks.forEach(b => adj.set(b.id, []));
-    analysisResult.links.forEach(link => {
-      if (adj.has(link.sourceId)) {
-        adj.get(link.sourceId)!.push(link.targetId);
-      }
-    });
-    return adj;
-  }, [blocks, analysisResult.links]);
-
   // Wrap deleteBlock to play exit animation before actual deletion
   const handleDeleteBlock = useCallback((id: string) => {
     if (exitingBlocksRef.current.has(id)) return; // already animating out
@@ -379,36 +382,9 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     }, 160);
   }, [blocks, deleteBlock]);
 
-  const handleHighlightPath = useCallback((startNodeId: string) => {
-    const path = new Set<string>([startNodeId]);
-    const queue = [startNodeId];
-    const visited = new Set<string>([startNodeId]);
-
-    while (queue.length > 0) {
-      const u = queue.shift()!;
-      path.add(u);
-      const neighbors = adjacencyMap.get(u) || [];
-      for (const v of neighbors) {
-        if (!visited.has(v)) {
-          visited.add(v);
-          queue.push(v);
-        }
-      }
-    }
-
-    let hasChanged = true;
-    while(hasChanged) {
-        hasChanged = false;
-        for(const link of analysisResult.links) {
-            if(path.has(link.targetId) && !path.has(link.sourceId)){
-                path.add(link.sourceId);
-                hasChanged = true;
-            }
-        }
-    }
-
-    setHighlightedPath(path);
-  }, [adjacencyMap, analysisResult.links]);
+  const handleSelectLink = useCallback((linkKey: string) => {
+    setSelectedLinkKey(prev => prev === linkKey ? null : linkKey);
+  }, []);
 
 
   const getPointInWorldSpace = useCallback((clientX: number, clientY: number) => {
@@ -520,6 +496,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             setSelectedGroupIds([]);
             setSelectedNoteIds([]);
         }
+        setSelectedLinkKey(null);
     } else if (group && groupId) {
         if (targetEl.closest('.resize-handle')) {
             interactionState.current = { type: 'resizing-group', group };
@@ -743,6 +720,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
                 setSelectedGroupIds([]);
                 setSelectedNoteIds([]);
                 if (highlightedPath) setHighlightedPath(null);
+                setSelectedLinkKey(null);
                 if (canvasContextMenu) setCanvasContextMenu(null);
             }
         }
@@ -974,6 +952,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
       e.preventDefault();
       setSelectedBlockIds([]);
       setSelectedGroupIds([]);
+      setSelectedLinkKey(null);
       announce('Selection cleared');
       return;
     }
@@ -1033,6 +1012,13 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
           visibleBlockIds.has(link.sourceId) && visibleBlockIds.has(link.targetId)
       );
   }, [analysisResult.links, visibleBlockIds]);
+
+  const selectedLinkEndpointIds = useMemo(() => {
+    if (!selectedLinkKey) return null;
+    const link = visibleLinks.find(l => `${l.sourceId}-${l.targetId}` === selectedLinkKey);
+    if (!link) return null;
+    return new Set([link.sourceId, link.targetId]);
+  }, [selectedLinkKey, visibleLinks]);
 
   // Track newly added arrows (skip initial load to avoid mass-animating on project open)
   useEffect(() => {
@@ -1313,6 +1299,18 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             >
               <polygon points="-14 0, 0 5, -14 10" fill="#4f46e5" />
             </marker>
+            <marker
+              id="arrowhead-selected"
+              viewBox="-14 0 14 10"
+              markerWidth="14"
+              markerHeight="10"
+              refX="0"
+              refY="5"
+              orient="auto"
+              markerUnits="userSpaceOnUse"
+            >
+              <polygon points="-14 0, 0 5, -14 10" fill="#6366f1" />
+            </marker>
           </defs>
           <g transform={`translate(${-svgBounds.left}, ${-svgBounds.top})`}>
             {visibleLinks.map((link, _index) => {
@@ -1337,10 +1335,12 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
                     }}
                     pathData={pathData}
                     isDimmed={isDimmed}
-                    onHighlight={handleHighlightPath}
+                    onSelect={handleSelectLink}
+                    linkKey={linkKey}
                     targetId={link.targetId}
                     linkType={link.type}
                     isNewArrow={newArrowKeys.has(linkKey)}
+                    isSelected={selectedLinkKey === linkKey}
                 />
               );
             })}
@@ -1401,6 +1401,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               isConfigBlock={isConfigBlock}
               isFlashing={flashingBlockId === block.id}
               isEntering={enteringBlockIds.includes(block.id)}
+              isLinkEndpoint={selectedLinkEndpointIds?.has(block.id) ?? false}
               diagnosticSeverity={blockDiagnosticSeverity.get(block.id) ?? null}
             />
           );
