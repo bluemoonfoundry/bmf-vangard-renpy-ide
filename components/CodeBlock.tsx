@@ -30,6 +30,7 @@ interface CodeBlockProps {
   isFlashing: boolean;
   isEntering?: boolean;
   isExiting?: boolean;
+  isLinkEndpoint?: boolean;
   diagnosticSeverity?: 'error' | 'warning' | null;
 }
 
@@ -83,6 +84,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
   isFlashing,
   isEntering,
   isExiting,
+  isLinkEndpoint,
   diagnosticSeverity,
 }, ref) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -186,6 +188,8 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
       else borderClass = 'border-indigo-500 dark:border-indigo-400';
   } else if (isUsageHighlighted) {
       borderClass = 'border-sky-500 dark:border-sky-400';
+  } else if (isLinkEndpoint) {
+      borderClass = 'border-indigo-500 dark:border-indigo-400';
   } else if (hasInvalidJumps) {
       borderClass = 'border-red-500';
   } else if (customColor) {
@@ -256,7 +260,9 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
           ? '0 0 0 2px rgba(239,68,68,0.55), 0 0 22px 8px rgba(239,68,68,0.28), 0 25px 50px -12px rgb(0 0 0 / 0.25)'
           : diagnosticSeverity === 'warning'
             ? '0 0 0 2px rgba(234,179,8,0.5), 0 0 16px 6px rgba(234,179,8,0.22), 0 25px 50px -12px rgb(0 0 0 / 0.25)'
-            : undefined,
+            : isLinkEndpoint
+              ? '0 0 0 2px rgba(99,102,241,0.65), 0 0 20px 8px rgba(99,102,241,0.3), 0 25px 50px -12px rgb(0 0 0 / 0.25)'
+              : undefined,
       }}
       onDoubleClick={() => onOpenEditor(block.id)}
     >
