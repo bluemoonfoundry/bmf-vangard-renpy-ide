@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import UserSnippetModal from './UserSnippetModal';
@@ -49,7 +49,7 @@ describe('UserSnippetModal', () => {
     const user = userEvent.setup();
     render(<UserSnippetModal {...defaultProps} />);
     await user.type(screen.getByPlaceholderText('My Custom Snippet'), 'Test');
-    await user.type(screen.getByPlaceholderText('mysnippet'), 'bad@prefix');
+    await user.type(screen.getByPlaceholderText('mysnippet'), 'bad-prefix');
     await user.type(screen.getByPlaceholderText(/Hello, world/), 'show test');
     await user.click(screen.getByText('Create Snippet'));
     expect(screen.getByText('Prefix should only contain letters, numbers, and underscores.')).toBeInTheDocument();
@@ -102,9 +102,7 @@ it('shows error when code is empty', async () => {
 
     await user.type(screen.getByPlaceholderText('My Custom Snippet'), 'Labeled');
     await user.type(screen.getByPlaceholderText('mysnippet'), 'labeled');
-    // Use escaped braces ({{ = literal {, }} = literal }) and {Enter} for newline
-    // to avoid userEvent interpreting $ { } as special sequences
-    await user.type(screen.getByPlaceholderText(/Hello, world/), 'label ${{1:name}:{Enter}    $0');
+    fireEvent.change(screen.getByPlaceholderText(/Hello, world/), { target: { value: 'label ${1:name}:\n    $0' } });
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByText('Create Snippet'));
 
