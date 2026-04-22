@@ -122,11 +122,28 @@ function serializeWarpValue(value: string): string {
   }
 
   if (
-    /^([\"']).*\1$/.test(trimmed) ||
+    /^(['"]).*\1$/.test(trimmed) ||
     /^(?:-?\d+(?:\.\d+)?)$/.test(trimmed) ||
     /^(?:True|False|None)$/.test(trimmed) ||
-    /^[\[{(].*[\]})]$/.test(trimmed) ||
-    /[.()\[\]{},:+\-*/%<>!=]/.test(trimmed)
+    /^[[{(].*[\]})]$/.test(trimmed) ||
+    trimmed.includes('.') ||
+    trimmed.includes('(') ||
+    trimmed.includes(')') ||
+    trimmed.includes('{') ||
+    trimmed.includes('}') ||
+    trimmed.includes('[') ||
+    trimmed.includes(']') ||
+    trimmed.includes(',') ||
+    trimmed.includes(':') ||
+    trimmed.includes('+') ||
+    trimmed.includes('-') ||
+    trimmed.includes('*') ||
+    trimmed.includes('/') ||
+    trimmed.includes('%') ||
+    trimmed.includes('<') ||
+    trimmed.includes('>') ||
+    trimmed.includes('=') ||
+    trimmed.includes('!')
   ) {
     return trimmed;
   }

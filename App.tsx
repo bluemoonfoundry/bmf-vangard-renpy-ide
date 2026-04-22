@@ -3348,7 +3348,7 @@ const App: React.FC = () => {
       console.error('Failed to launch warped game:', error);
       addToast(`Failed to launch warp: ${formatErrorMessage(error)}`, 'error');
     }
-  }, [analysisResult.labels, analysisResult.variables, addToast, appSettings.renpyPath, cleanupWarpTempFile, pendingWarpTarget, projectRootPath, resetWarpLaunchState]);
+  }, [analysisResult.labels, addToast, appSettings.renpyPath, cleanupWarpTempFile, pendingWarpTarget, projectRootPath, resetWarpLaunchState]);
 
   const handleWarpToLabel = useCallback((labelName: string) => {
     if (!window.electronAPI || !projectRootPath) return;
