@@ -577,6 +577,10 @@ async function updateApplicationMenu() {
                 label: 'Stats',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'stats' }); }
             },
+            {
+                label: 'Translation Dashboard',
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'translations' }); }
+            },
             { type: 'separator' },
             {
                 label: 'Toggle Left Sidebar',
@@ -846,6 +850,47 @@ app.whenReady().then(() => {
     } catch {
       return false;
     }
+  });
+
+  ipcMain.handle('renpy:generate-translations', async (event, sdkDir, projectPath, language) => {
+    const executable = getRenpyExecutable(sdkDir);
+    if (!executable) return { success: false, output: '', error: 'Ren\'Py SDK path is not configured' };
+
+    return new Promise((resolve) => {
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+      const proc = spawn(executable, [projectPath, 'translate', language]);
+
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        proc.kill();
+        resolve({ success: false, output: '', error: 'Translation generation timed out after 60 seconds' });
+      }, 60000);
+
+      proc.stdout.on('data', (data) => { stdout += data.toString(); });
+      proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+      proc.on('close', (code) => {
+        clearTimeout(timeout);
+        if (settled) return;
+        settled = true;
+        if (code === 0) {
+          resolve({ success: true, output: stdout });
+        } else {
+          const combined = [stderr, stdout].filter(Boolean).join('\n').trim();
+          resolve({ success: false, output: stdout, error: combined || `Process exited with code ${code}` });
+        }
+      });
+
+      proc.on('error', (err) => {
+        clearTimeout(timeout);
+        if (settled) return;
+        settled = true;
+        resolve({ success: false, output: '', error: `Failed to start Ren'Py: ${err.message}` });
+      });
+    });
   });
 
   ipcMain.handle('dialog:createProject', async () => {

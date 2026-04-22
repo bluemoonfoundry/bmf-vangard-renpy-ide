@@ -37,6 +37,7 @@ import { MenuConstructorModal } from './components/MenuConstructorModal';
 import FirstRunTutorial from './components/FirstRunTutorial';
 import { SearchProvider } from './contexts/SearchContext';
 import StatsView from './components/StatsView';
+import TranslationDashboard from './components/TranslationDashboard';
 import GoToLabelModal, { GoToLabelItem } from './components/GoToLabelModal';
 import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis';
 import { useHistory } from './hooks/useHistory';
@@ -246,6 +247,7 @@ const App: React.FC = () => {
     lastProjectDir: '',
   });
   const [isRenpyPathValid, setIsRenpyPathValid] = useState(false);
+  const [isGeneratingTranslations, setIsGeneratingTranslations] = useState(false);
   const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
     draftingMode: false,
     storyCanvasLayoutMode: 'flow-lr',
@@ -1582,7 +1584,7 @@ const App: React.FC = () => {
   }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes]);
 
   // --- Tab Management Helpers ---
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats') => {
+  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations') => {
         const id = type;
         // If already open in primary, activate it there
         if (openTabs.find(t => t.id === id)) {
@@ -1939,7 +1941,7 @@ const App: React.FC = () => {
                   if (tab.type === 'markdown' && tab.filePath) {
                       return true; // File existence checked on tab render
                   }
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations';
               });
 
               const rehydratedTabs = validTabs.map(tab => {
@@ -1974,7 +1976,7 @@ const App: React.FC = () => {
                   if (tab.type === 'audio' && tab.filePath) return audioMap.has(tab.filePath);
                   if (tab.type === 'character' && tab.characterTag) return true;
                   if (tab.type === 'markdown' && tab.filePath) return true;
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'scene-composer';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'scene-composer';
               });
               setSplitLayout(validSecondary.length > 0 ? savedSplitLayout : 'none');
               setSplitPrimarySize(projectData.settings.splitPrimarySize ?? 600);
@@ -2821,6 +2823,29 @@ const App: React.FC = () => {
           addToast('Failed to refresh project', 'error');
       }
   }, [projectRootPath, addToast, setBlocks, setFileSystemTree, setImages, setAudios]);
+
+  const handleGenerateTranslations = useCallback(async (language: string) => {
+    if (!appSettings.renpyPath || !projectRootPath) return;
+    setIsGeneratingTranslations(true);
+    try {
+      const result = await window.electronAPI!.generateTranslations(appSettings.renpyPath, projectRootPath, language);
+      if (result.success) {
+        addToast(`Translation files generated for "${language}"`, 'success');
+        await handleRefreshProject();
+      } else {
+        const detail = result.error || 'Unknown error';
+        console.error('Generate translations failed:\n', detail);
+        // Show first meaningful line in the toast, full output is in the console
+        const firstLine = detail.split('\n').find(l => l.trim().length > 0) || detail;
+        addToast(`Translation generation failed: ${firstLine}`, 'error');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast(`Failed to generate translations: ${msg}`, 'error');
+    } finally {
+      setIsGeneratingTranslations(false);
+    }
+  }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject]);
 
   const handleNewProjectRequest = useCallback(() => {
     const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
@@ -3835,7 +3860,7 @@ const App: React.FC = () => {
             if (data.command === 'save-all') handleSaveAll();
             if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
             if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics');
+            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations');
             if (data.command === 'toggle-search') handleToggleSearch();
             if (data.command === 'open-settings') setSettingsModalOpen(true);
             if (data.command === 'open-shortcuts') setShortcutsModalOpen(true);
@@ -4311,6 +4336,7 @@ const App: React.FC = () => {
     if (tab.id === 'choice-canvas') return 'Choices Canvas';
     if (tab.id === 'diagnostics' || tab.id === 'punchlist') return 'Diagnostics';
     if (tab.id === 'stats') return 'Stats';
+    if (tab.id === 'translations') return 'Translations';
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
     if (tab.type === 'screen-layout-composer') return screenLayoutCompositions[tab.layoutId!]?.screenName || 'Screen Layout';
@@ -4401,6 +4427,16 @@ const App: React.FC = () => {
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onOpenDiagnostics={() => handleOpenStaticTab('diagnostics')}
         performanceMetrics={perfSnapshot}
+      />;
+    }
+    if (tab.id === 'translations') {
+      return <TranslationDashboard
+        translationData={analysisResult.translationData}
+        blocks={blocks}
+        onOpenBlock={handleOpenEditor}
+        onGenerateTranslations={handleGenerateTranslations}
+        isGenerating={isGeneratingTranslations}
+        isRenpyPathValid={isRenpyPathValid}
       />;
     }
     if (tab.type === 'editor' && tab.blockId) {
@@ -4652,7 +4688,7 @@ const App: React.FC = () => {
         handleTidyUp={handleActiveCanvasTidyUp}
         handleSave={handleSaveAll}
         onOpenSettings={() => setSettingsModalOpen(true)}
-        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics') => void}
+        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}

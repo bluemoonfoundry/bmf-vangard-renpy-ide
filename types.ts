@@ -530,7 +530,64 @@ export interface IdentifiedRoute {
  * @property {RouteLink[]} routeLinks - All connections in Flow Canvas
  * @property {IdentifiedRoute[]} identifiedRoutes - Identified narrative paths
  * @property {boolean} routesTruncated - True when route enumeration hit the hard cap
+ * @property {TranslationAnalysisResult} translationData - Translation coverage data
  */
+
+/** A source string that can be translated (dialogue, narration, or menu choice). */
+export interface TranslatableString {
+  id: string;
+  sourceText: string;
+  blockId: string;
+  filePath: string;
+  line: number;
+  labelScope: string | null;
+  characterTag: string | null;
+  type: 'dialogue' | 'narration' | 'menu-choice';
+}
+
+/** A translated string extracted from a `translate` block. */
+export interface TranslatedString {
+  id: string;
+  translatedText: string;
+  blockId: string;
+  filePath: string;
+  line: number;
+  language: string;
+  /** Character tag from dialogue translation, null for narration/string-table entries. */
+  characterTag: string | null;
+  /** Source text from old/new string tables, null for block translations. */
+  sourceText: string | null;
+}
+
+/** Per-language translation coverage statistics. */
+export interface LanguageCoverage {
+  language: string;
+  totalStrings: number;
+  translatedCount: number;
+  staleCount: number;
+  untranslatedCount: number;
+  completionPercent: number;
+  fileBreakdown: TranslationFileBreakdown[];
+}
+
+/** Per-file translation breakdown within a language. */
+export interface TranslationFileBreakdown {
+  sourceFilePath: string;
+  totalStrings: number;
+  translatedCount: number;
+  staleCount: number;
+  completionPercent: number;
+}
+
+/** Top-level translation analysis result. */
+export interface TranslationAnalysisResult {
+  translatableStrings: TranslatableString[];
+  translatedStrings: Map<string, TranslatedString[]>;
+  languageCoverages: LanguageCoverage[];
+  detectedLanguages: string[];
+  stringTranslations: Map<string, Map<string, TranslatedString>>;
+}
+
 export interface RenpyAnalysisResult {
   links: Link[];
   invalidJumps: { [blockId: string]: string[] };
@@ -555,6 +612,7 @@ export interface RenpyAnalysisResult {
   routeLinks: RouteLink[];
   identifiedRoutes: IdentifiedRoute[];
   routesTruncated: boolean;
+  translationData: TranslationAnalysisResult;
 }
 
 
@@ -574,7 +632,7 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'stats' | 'markdown';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'stats' | 'markdown' | 'translations';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
@@ -1077,6 +1135,7 @@ declare global {
           runGame: (renpyPath: string, projectPath: string) => void;
           stopGame: () => void;
           checkRenpyPath: (path: string) => Promise<boolean>;
+          generateTranslations: (sdkDir: string, projectPath: string, language: string) => Promise<{ success: boolean; output: string; error?: string }>;
           onGameStarted: (callback: () => void) => () => void;
           onGameStopped: (callback: () => void) => () => void;
           onGameError: (callback: (error: string) => void) => () => void;
