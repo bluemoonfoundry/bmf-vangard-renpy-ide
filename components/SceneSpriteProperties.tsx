@@ -91,7 +91,7 @@ const ColorSwatch: React.FC<{ label: string; value: string; onChange: (hex: stri
     </div>
 );
 
-const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId, onUpdate, onRangeSliderStart, onRangeSliderEnd }) => {
+const SceneSpriteProperties: React.FC<Props> = ({ activeSprite, selectedSpriteId: _selectedSpriteId, onUpdate, onRangeSliderStart, onRangeSliderEnd }) => {
     const [customShaderName, setCustomShaderName] = useState('');
     const [customUniforms, setCustomUnforms] = useState<Array<{ key: string; value: number }>>([]);
 

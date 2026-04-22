@@ -119,7 +119,7 @@ const Arrow = forwardRef<SVGGElement, {
   linkType?: 'jump' | 'call';
   isNewArrow?: boolean;
   isSelected?: boolean;
-}>(({ pathData, isDimmed, onSelect, linkKey, targetId, linkType, isNewArrow, isSelected }, ref) => {
+}>(({ pathData, isDimmed, onSelect, linkKey, targetId: _targetId, linkType, isNewArrow, isSelected }, ref) => {
   const [isDrawing, setIsDrawing] = useState(isNewArrow ?? false);
 
   useEffect(() => {

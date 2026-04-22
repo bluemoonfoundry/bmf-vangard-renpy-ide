@@ -4048,7 +4048,7 @@ const App: React.FC = () => {
         `^(\\s*)(?:define|default)\\s+${escapeForRegex(oldName)}\\s*=\\s*(.*)$`,
         'm'
     );
-    let newDefContent = defBlock.content.replace(fullDefRegex, `$1${newType} ${newName} = ${newInitialValue}`);
+    const newDefContent = defBlock.content.replace(fullDefRegex, `$1${newType} ${newName} = ${newInitialValue}`);
 
     if (oldName !== newName) {
         // Rename all references across all blocks
@@ -4112,7 +4112,7 @@ const App: React.FC = () => {
         addToast('Failed to scan image directory', 'error');
       }
     }
-  }, [addToast]);
+  }, [addToast, perfRecorders]);
 
   const handleRefreshImages = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -4139,7 +4139,7 @@ const App: React.FC = () => {
       setIsRefreshingImages(false);
       setImagesLastScanned(Date.now());
     }
-  }, [imageScanDirectories]);
+  }, [imageScanDirectories, perfRecorders]);
 
   const handleRemoveImageScanDirectory = useCallback((path: string) => {
     setImageScanDirectories(prev => {
@@ -4211,7 +4211,7 @@ const App: React.FC = () => {
         addToast('Failed to scan audio directory', 'error');
       }
     }
-  }, [addToast]);
+  }, [addToast, perfRecorders]);
 
   const handleRefreshAudios = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -4238,7 +4238,7 @@ const App: React.FC = () => {
       setIsRefreshingAudios(false);
       setAudiosLastScanned(Date.now());
     }
-  }, [audioScanDirectories]);
+  }, [audioScanDirectories, perfRecorders]);
 
   const handleRemoveAudioScanDirectory = useCallback((path: string) => {
     setAudioScanDirectories(prev => {
