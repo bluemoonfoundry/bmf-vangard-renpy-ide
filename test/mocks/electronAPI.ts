@@ -84,7 +84,7 @@ export interface MockElectronAPI {
   runGame: Mock<(renpyPath: string, projectPath: string) => void>;
   stopGame: Mock<() => void>;
   checkRenpyPath: Mock<(path: string) => Promise<boolean>>;
-  generateTranslations: Mock<(sdkDir: string, projectPath: string, language: string) => Promise<{ success: boolean; output: string }>>;
+  generateTranslations: Mock<(sdkDir: string, projectPath: string, language: string) => Promise<{ success: boolean; output: string; error?: string }>>;
   onGameStarted: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
   onGameStopped: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
   onGameError: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;

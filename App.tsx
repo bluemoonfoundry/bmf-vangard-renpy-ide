@@ -2828,9 +2828,13 @@ const App: React.FC = () => {
     if (!appSettings.renpyPath || !projectRootPath) return;
     setIsGeneratingTranslations(true);
     try {
-      await window.electronAPI!.generateTranslations(appSettings.renpyPath, projectRootPath, language);
-      addToast(`Translation files generated for "${language}"`, 'success');
-      await handleRefreshProject();
+      const result = await window.electronAPI!.generateTranslations(appSettings.renpyPath, projectRootPath, language);
+      if (result.success) {
+        addToast(`Translation files generated for "${language}"`, 'success');
+        await handleRefreshProject();
+      } else {
+        addToast(`Failed to generate translations: ${result.error || 'Unknown error'}`, 'error');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       addToast(`Failed to generate translations: ${msg}`, 'error');
