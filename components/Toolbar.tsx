@@ -25,7 +25,7 @@ interface ToolbarProps {
   handleTidyUp: () => void;
   handleSave: () => void;
   onOpenSettings: () => void;
-  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics') => void;
+  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void;
   diagnosticsErrorCount: number;
   /** null = disabled (no canvas active that supports notes) */
   onAddStickyNote: (() => void) | null;
@@ -191,6 +191,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
         <ToolbarButton onClick={() => onOpenStaticTab('stats')} title="Script Statistics" aria-label="Script Statistics">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
             <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+          </svg>
+        </ToolbarButton>
+
+        <ToolbarButton onClick={() => onOpenStaticTab('translations')} title="Translation Dashboard" aria-label="Translation Dashboard">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495A18.023 18.023 0 0114.999 17" />
           </svg>
         </ToolbarButton>
 

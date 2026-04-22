@@ -577,6 +577,10 @@ async function updateApplicationMenu() {
                 label: 'Stats',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'stats' }); }
             },
+            {
+                label: 'Translation Dashboard',
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-static-tab', type: 'translations' }); }
+            },
             { type: 'separator' },
             {
                 label: 'Toggle Left Sidebar',

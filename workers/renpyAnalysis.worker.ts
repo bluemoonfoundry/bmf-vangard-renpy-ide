@@ -12,6 +12,7 @@ import { performRenpyAnalysis, performRouteAnalysis } from '../hooks/useRenpyAna
 import type { AnalysisBlock } from '../hooks/useRenpyAnalysis';
 import type { RenpyAnalysisResult } from '../types';
 import { formatErrorMessage } from '../lib/formatErrorMessage';
+import { performTranslationAnalysis } from '../lib/renpyTranslationParser';
 
 interface WorkerRequest {
   id: number;
@@ -74,6 +75,10 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     result.routeLinks = routeData.routeLinks;
     result.identifiedRoutes = routeData.identifiedRoutes;
     result.routesTruncated = routeData.routesTruncated;
+
+    self.postMessage({ id, type: 'progress', phase: 'Analyzing translations', percent: 80 });
+    const translationData = performTranslationAnalysis(blocks, result.dialogueLines, result.labels);
+    result.translationData = translationData;
 
     self.postMessage({ id, type: 'progress', phase: 'Finalizing', percent: 95 });
 

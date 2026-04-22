@@ -152,6 +152,13 @@ export function createEmptyAnalysisResult(overrides: Partial<RenpyAnalysisResult
     routeLinks: [],
     identifiedRoutes: [],
     routesTruncated: false,
+    translationData: {
+      translatableStrings: [],
+      translatedStrings: new Map(),
+      languageCoverages: [],
+      detectedLanguages: [],
+      stringTranslations: new Map(),
+    },
     ...overrides,
   };
 }

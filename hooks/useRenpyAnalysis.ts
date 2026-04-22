@@ -195,6 +195,13 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
     routeLinks: [],
     identifiedRoutes: [],
     routesTruncated: false,
+    translationData: {
+      translatableStrings: [],
+      translatedStrings: new Map(),
+      languageCoverages: [],
+      detectedLanguages: [],
+      stringTranslations: new Map(),
+    },
   };
 
   blocks.forEach(block => {
@@ -672,6 +679,13 @@ export const EMPTY_ANALYSIS_RESULT: RenpyAnalysisResult = {
   routeLinks: [],
   identifiedRoutes: [],
   routesTruncated: false,
+  translationData: {
+    translatableStrings: [],
+    translatedStrings: new Map(),
+    languageCoverages: [],
+    detectedLanguages: [],
+    stringTranslations: new Map(),
+  },
 };
 
 /** Module-level worker singleton — created once, reused across re-renders. */
