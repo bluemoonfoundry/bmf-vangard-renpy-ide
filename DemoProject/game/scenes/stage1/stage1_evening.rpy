@@ -8,6 +8,8 @@ label stage1_evening:
 
     "What started as a simple theft is clearly something more complex."
 
+
+
     if "prism_is_seal" in clues_found:
         "Professor Sterling's words echo in your mind: 'It was a seal.'"
         "What was being sealed? And what happens now that it's broken?"
@@ -30,6 +32,8 @@ label stage1_evening:
 
     hide h with dissolve
 
+    
+
     "As Hasper leaves, you notice something odd in the garden."
     "The statue at the center seems to shimmer, as if viewed through heat waves."
     "But the evening air is cool."
@@ -38,8 +42,6 @@ label stage1_evening:
     $ current_stage = 2
 
     "Tomorrow, the real investigation begins."
-
-    call TestScriptX
 
     # Stage 1 complete - proceed to Stage 2
     jump stage2_begin

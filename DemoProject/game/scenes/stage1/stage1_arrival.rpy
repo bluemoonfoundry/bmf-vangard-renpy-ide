@@ -3,7 +3,7 @@
 
 label stage1_arrival:
     scene bg academy_gate with fade
-
+  
     $ current_stage = 1
 
     "The autumn morning greets you as you approach Aetheria Academy's main gate."
@@ -22,3 +22,15 @@ label stage1_arrival:
 
         "Walk toward the library where a crowd has gathered":
             jump stage1_library_notice
+
+        "Check on Zed":
+            jump chapter_zed
+
+    scene garden:
+        blur 3
+    show m zorder 1:
+        xcenter 0.76 ycenter 0.80 zoom 0.7 alpha 0.7
+    show s zorder 2:
+    xcenter 0.22 ycenter 0.81 zoom 0.7 xzoom -1.0
+
+

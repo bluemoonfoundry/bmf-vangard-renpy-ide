@@ -14,6 +14,9 @@ label stage1_announcement:
     $ met_h = True
     $ relationship_h += 10
 
+
+    
+
     mc "What's going on? Everyone seems worried."
 
     h "The Celestial Prism has vanished from the academy museum."
