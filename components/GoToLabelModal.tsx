@@ -8,6 +8,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 
 export interface GoToLabelItem {
   label: string;
@@ -64,6 +65,15 @@ const GoToLabelModal: React.FC<GoToLabelModalProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Accessibility: focus trap and ESC handling
+  const modalAccessibilityProps = useModalAccessibility({
+    isOpen,
+    onClose,
+    contentRef: modalRef,
+    titleId: 'goto-modal-title',
+  });
 
   // Reset on open
   useEffect(() => {
@@ -119,22 +129,27 @@ const GoToLabelModal: React.FC<GoToLabelModalProps> = ({
       className="fixed inset-0 z-[200] flex justify-center"
       style={{ paddingTop: '10vh' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      {...modalAccessibilityProps}
     >
       {/* Subtle backdrop */}
       <div className="absolute inset-0 bg-black/40" />
 
       {/* Palette panel */}
       <div
+        ref={modalRef}
         className="relative bg-gray-900 border border-gray-600 rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden"
         style={{ height: 'fit-content', maxHeight: '60vh' }}
         onMouseDown={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="goto-modal-title"
       >
         {/* Header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 flex-shrink-0">
+          <span id="goto-modal-title" className="text-xs font-semibold uppercase tracking-widest text-gray-400 flex-shrink-0">
             {title}
           </span>
           <input

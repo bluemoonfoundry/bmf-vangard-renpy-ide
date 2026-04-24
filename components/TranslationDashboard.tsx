@@ -4,10 +4,11 @@
  * detected languages. Three sections: language overview cards, file breakdown
  * table, and a virtual string-level view.
  */
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TranslationAnalysisResult, LanguageCoverage, TranslationFileBreakdown, Block } from '../types';
 import { useVirtualList } from '../hooks/useVirtualList';
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -85,8 +86,20 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
   const [fileSortDir, setFileSortDir] = useState<SortDir>('asc');
   const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [languageInput, setLanguageInput] = useState('');
+  const generateModalRef = useRef<HTMLDivElement>(null);
 
   const isLanguageValid = LANGUAGE_PATTERN.test(languageInput);
+
+  // Accessibility: focus trap and ESC handling for generate modal
+  const generateModalAccessibilityProps = useModalAccessibility({
+    isOpen: showGenerateForm,
+    onClose: () => {
+      setShowGenerateForm(false);
+      setLanguageInput('');
+    },
+    contentRef: generateModalRef,
+    titleId: 'generate-translation-title',
+  });
 
   useEffect(() => {
     if (!showGenerateForm || typeof document === 'undefined') return;
@@ -140,8 +153,10 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
             setLanguageInput('');
           }}
           data-testid="generate-modal"
+          {...generateModalAccessibilityProps}
         >
           <div
+            ref={generateModalRef}
             className="w-full max-w-md rounded-xl border border-primary bg-secondary shadow-2xl p-5"
             role="dialog"
             aria-modal="true"

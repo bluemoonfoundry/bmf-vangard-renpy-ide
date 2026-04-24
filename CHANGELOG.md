@@ -17,6 +17,10 @@ All notable changes to Ren'IDE are documented here.
 ### Changed
 - **IMPROVED:** Console logging replaced with structured file-based logging system for better debugging and support
 
+### Accessibility
+- **IMPROVED:** GoToLabelModal now uses useModalAccessibility hook for proper focus management and ESC handling (#140)
+- **IMPROVED:** TranslationDashboard generate modal now uses useModalAccessibility hook for better keyboard accessibility (#140)
+
 ## [v0.8.0] - Current Feature Set
 
 ### Added
