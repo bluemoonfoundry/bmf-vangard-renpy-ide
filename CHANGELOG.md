@@ -2,7 +2,7 @@
 
 All notable changes to Ren'IDE are documented here.
 
-## [v0.7.1] - Current Feature Set
+## [v0.8.0] - Current Feature Set
 
 ### Added
 
