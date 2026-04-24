@@ -1260,7 +1260,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
                             </svg>
                             <span className="text-xs font-bold text-secondary">Generated Code</span>
                         </div>
-                        <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="sm" />
+                        <CodeActionButtons code={generatedCode} size="sm" />
                     </div>
                     <pre className="flex-grow overflow-auto p-3 text-xs font-mono text-primary bg-primary leading-relaxed">
                         {generatedCode}

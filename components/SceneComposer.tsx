@@ -1180,7 +1180,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                     <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200 dark:border-gray-700">
                         <div className="flex-none flex justify-between items-center px-2 py-1 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                             <span className="text-[10px] font-bold text-gray-400 uppercase">Code Preview</span>
-                            <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="xs" />
+                            <CodeActionButtons code={generatedCode} size="xs" />
                         </div>
                         <pre className="flex-1 p-3 font-mono text-xs overflow-auto text-gray-600 dark:text-gray-400 select-text bg-white dark:bg-gray-800 min-h-0">
                             {generatedCode}

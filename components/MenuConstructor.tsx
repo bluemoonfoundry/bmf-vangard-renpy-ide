@@ -369,7 +369,7 @@ const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult, activ
             <div className="h-1/3 bg-gray-50 dark:bg-gray-950 flex flex-col border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center px-3 py-1 bg-gray-200 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
                     <span className="text-xs font-bold text-gray-500 uppercase">Generated Code</span>
-                    <CodeActionButtons code={code} activeEditor={activeEditor} size="xs" />
+                    <CodeActionButtons code={code} size="xs" />
                 </div>
                 <textarea 
                     value={code}

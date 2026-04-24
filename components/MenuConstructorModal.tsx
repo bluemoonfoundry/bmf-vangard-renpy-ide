@@ -562,7 +562,7 @@ export function MenuConstructorModal({
           <div className="w-80 flex flex-col p-4 bg-tertiary">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-secondary">Generated Code</h3>
-              <CodeActionButtons code={generatedCode} activeEditor={activeEditor} size="xs" />
+              <CodeActionButtons code={generatedCode} size="xs" />
             </div>
             <pre className="flex-1 p-2.5 bg-secondary rounded border border-primary overflow-auto text-xs font-mono text-primary leading-relaxed">
               {generatedCode}

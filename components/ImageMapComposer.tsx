@@ -462,7 +462,7 @@ const ImageMapComposer: React.FC<ImageMapComposerProps> = ({
                     <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                         <div className="flex justify-between items-center px-2 py-1">
                             <span className="text-[10px] font-bold text-gray-400 uppercase">Code Preview</span>
-                            <CodeActionButtons code={generateCode()} activeEditor={activeEditor} size="xs" />
+                            <CodeActionButtons code={generateCode()} size="xs" />
                         </div>
                         <pre className="p-3 font-mono text-xs overflow-auto text-gray-600 dark:text-gray-400 select-text max-h-24 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                             {generateCode()}
