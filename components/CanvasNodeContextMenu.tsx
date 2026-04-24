@@ -24,16 +24,23 @@ const CanvasNodeContextMenu: React.FC<CanvasNodeContextMenuProps> = ({
   onWarpToHere,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
 
+  // Keep the ref up to date
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Set up click-outside listener with stable dependency
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
+        onCloseRef.current();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  }, []); // Empty dependency array - listener is stable
 
   const handleAction = (action: () => void) => {
     action();

@@ -7,6 +7,9 @@ All notable changes to Ren'IDE are documented here.
 ### Security
 - **FIXED:** XSS vulnerability in Markdown preview - Added DOMPurify sanitization to prevent potential script injection through user-controlled Markdown files (#134)
 
+### Fixed
+- **FIXED:** Memory leak in CanvasNodeContextMenu - Event listeners no longer re-register on every prop change, preventing memory leaks during canvas interactions (#138)
+
 ## [v0.8.0] - Current Feature Set
 
 ### Added
