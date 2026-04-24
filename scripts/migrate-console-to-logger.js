@@ -27,12 +27,12 @@ const filesToMigrate = [
 ];
 
 // Files to skip (legitimate console usage)
-const filesToSkip = [
-  'version.js',
-  'docs/capture_screenshots.js',
-  'lib/guiImageGenerator.js',
-  'lib/templateProcessor.js',
-];
+// const filesToSkip = [
+//   'version.js',
+//   'docs/capture_screenshots.js',
+//   'lib/guiImageGenerator.js',
+//   'lib/templateProcessor.js',
+// ];
 
 async function migrateFile(filePath) {
   const fullPath = path.join(projectRoot, filePath);
@@ -49,9 +49,9 @@ async function migrateFile(filePath) {
 
     // For .js files (CommonJS), use require
     const isJS = filePath.endsWith('.js');
-    const loggerImport = isJS
-      ? "const { logger } = require('./lib/logger.js');\n"
-      : "import { logger } from '../lib/logger';\n";
+    // const loggerImport = isJS
+    //   ? "const { logger } = require('./lib/logger.js');\n"
+    //   : "import { logger } from '../lib/logger';\n";
 
     // Calculate correct relative path for import
     const depth = filePath.split('/').length - 1;

@@ -3,8 +3,7 @@
  * @description Tests for Markdown preview component, including XSS prevention
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { marked } from 'marked';
+import { render, waitFor } from '@testing-library/react';
 import DOMPurify from 'dompurify';
 import MarkdownPreviewView from '../components/MarkdownPreviewView';
 import { installElectronAPI, uninstallElectronAPI, createMockElectronAPI } from './mocks/electronAPI';

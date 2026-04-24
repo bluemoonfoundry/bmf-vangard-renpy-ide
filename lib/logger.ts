@@ -21,11 +21,12 @@
 
 // Import electron-log
 // Note: This file is imported by both main and renderer processes
-let electronLog: any;
+let electronLog: unknown;
 
 // Dynamically import based on environment
 if (typeof window === 'undefined') {
   // Main process
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   electronLog = require('electron-log');
 
   // Configure log file
@@ -38,20 +39,20 @@ if (typeof window === 'undefined') {
 } else {
   // Renderer process - use remote logging via IPC
   electronLog = {
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
       if (import.meta.env.DEV) console.error(...args);
       // Send to main process for file logging
       window.electronAPI?.log?.('error', ...args);
     },
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
       if (import.meta.env.DEV) console.warn(...args);
       window.electronAPI?.log?.('warn', ...args);
     },
-    info: (...args: any[]) => {
+    info: (...args: unknown[]) => {
       if (import.meta.env.DEV) console.info(...args);
       window.electronAPI?.log?.('info', ...args);
     },
-    debug: (...args: any[]) => {
+    debug: (...args: unknown[]) => {
       if (import.meta.env.DEV) console.debug(...args);
       window.electronAPI?.log?.('debug', ...args);
     },

@@ -1165,7 +1165,7 @@ declare global {
           openExternal?: (url: string) => Promise<void>;
           updateExplorerMenuState?: (state: { canNewFile: boolean; canNewFolder: boolean; canRename: boolean; canDelete: boolean }) => void;
           onFileChangedExternally?: (callback: (data: { relativePath: string; absolutePath: string }) => void) => () => void;
-          log?: (level: 'error' | 'warn' | 'info' | 'debug', ...args: any[]) => void;
+          log?: (level: 'error' | 'warn' | 'info' | 'debug', ...args: unknown[]) => void;
           getLogPath?: () => Promise<string | null>;
           openLogDirectory?: () => Promise<{ success: boolean; error?: string }>;
           addToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;

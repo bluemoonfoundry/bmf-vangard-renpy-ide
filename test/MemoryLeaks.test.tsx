@@ -106,7 +106,7 @@ describe('Memory Leak Prevention', () => {
       const onOpenEditor = vi.fn();
       const onWarpToHere = vi.fn();
 
-      const { rerender, container } = render(
+      const { rerender } = render(
         <CanvasNodeContextMenu
           x={100}
           y={100}
