@@ -851,6 +851,57 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         },
     });
 
+    editor.addAction({
+        id: 'insert-copied-code',
+        label: 'Insert Copied Code',
+        contextMenuGroupId: 'renpy',
+        contextMenuOrder: 4,
+        run: async (ed) => {
+            const text = await navigator.clipboard.readText();
+            if (!text) return;
+
+            const position = ed.getPosition();
+            if (!position) return;
+
+            const model = ed.getModel();
+            if (!model) return;
+
+            const currentIndent = model.getLineContent(position.lineNumber).match(/^[\t ]*/)?.[0] || '';
+            let textToInsert = text;
+            if (currentIndent) {
+                const lines = text.split('\n');
+                const nonEmpty = lines.slice(1).filter(l => l.trim().length > 0);
+                const baseLen = nonEmpty.length > 0
+                    ? Math.min(...nonEmpty.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
+                    : 0;
+                textToInsert = lines.map((line, idx) => {
+                    if (idx === 0) return line;
+                    if (!line.trim()) return line;
+                    return currentIndent + line.slice(baseLen);
+                }).join('\n');
+            }
+
+            ed.executeEdits('insert-copied-code', [{
+                range: {
+                    startLineNumber: position.lineNumber,
+                    startColumn: position.column,
+                    endLineNumber: position.lineNumber,
+                    endColumn: position.column,
+                },
+                text: textToInsert,
+                forceMoveMarkers: true,
+            }]);
+
+            const insertedLines = textToInsert.split('\n');
+            const lastLen = insertedLines[insertedLines.length - 1].length;
+            ed.setPosition({
+                lineNumber: position.lineNumber + insertedLines.length - 1,
+                column: insertedLines.length === 1 ? position.column + lastLen : lastLen + 1,
+            });
+            ed.focus();
+        },
+    });
+
     editor.onMouseDown((e) => {
       if (e.target.type !== monacoInstance.editor.MouseTargetType.CONTENT_TEXT || !e.target.position) return;
       if (!e.event.ctrlKey && !e.event.metaKey) return;
