@@ -19,45 +19,27 @@
  *   logger.debug('Detailed debugging info');
  */
 
-// Import electron-log
-// Note: This file is imported by both main and renderer processes
-let electronLog: unknown;
+// Renderer-process logger — forwards to main process via IPC for file logging
+const isDev = import.meta.env.DEV;
 
-// Dynamically import based on environment
-if (typeof window === 'undefined') {
-  // Main process
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  electronLog = require('electron-log');
-
-  // Configure log file
-  electronLog.transports.file.level = 'info';
-  electronLog.transports.file.maxSize = 5 * 1024 * 1024; // 5MB rotation
-  electronLog.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}] [{level}] {text}';
-
-  // Console only in development
-  electronLog.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : false;
-} else {
-  // Renderer process - use remote logging via IPC
-  electronLog = {
-    error: (...args: unknown[]) => {
-      if (import.meta.env.DEV) console.error(...args);
-      // Send to main process for file logging
-      window.electronAPI?.log?.('error', ...args);
-    },
-    warn: (...args: unknown[]) => {
-      if (import.meta.env.DEV) console.warn(...args);
-      window.electronAPI?.log?.('warn', ...args);
-    },
-    info: (...args: unknown[]) => {
-      if (import.meta.env.DEV) console.info(...args);
-      window.electronAPI?.log?.('info', ...args);
-    },
-    debug: (...args: unknown[]) => {
-      if (import.meta.env.DEV) console.debug(...args);
-      window.electronAPI?.log?.('debug', ...args);
-    },
-  };
-}
+const electronLog = {
+  error: (...args: unknown[]) => {
+    if (isDev) console.error(...args);
+    window.electronAPI?.log?.('error', ...args);
+  },
+  warn: (...args: unknown[]) => {
+    if (isDev) console.warn(...args);
+    window.electronAPI?.log?.('warn', ...args);
+  },
+  info: (...args: unknown[]) => {
+    if (isDev) console.info(...args);
+    window.electronAPI?.log?.('info', ...args);
+  },
+  debug: (...args: unknown[]) => {
+    if (isDev) console.debug(...args);
+    window.electronAPI?.log?.('debug', ...args);
+  },
+};
 
 interface LogOptions {
   /** Show a user-facing toast notification */
@@ -114,13 +96,7 @@ export const logger = {
     electronLog.debug(message, data);
   },
 
-  /**
-   * Get the path to the log file (main process only)
-   */
   getLogPath(): string | null {
-    if (typeof window === 'undefined' && electronLog.transports?.file) {
-      return electronLog.transports.file.getFile()?.path || null;
-    }
     return null;
   }
 };

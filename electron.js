@@ -10,7 +10,7 @@ import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './lib/colorUtils.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './lib/templateProcessor.js';
-import { logger, electronLog } from './lib/logger.js';
+import { logger, electronLog } from './lib/logger.main.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
