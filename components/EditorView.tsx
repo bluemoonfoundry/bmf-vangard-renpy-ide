@@ -694,10 +694,11 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
 
-    // Ensure language is set correctly
+    // Ensure language is set correctly and detect the file's indentation style
     const model = editor.getModel();
     if (model) {
         monacoInstance.editor.setModelLanguage(model, 'renpy');
+        model.updateOptions({ detectIndentation: true });
     }
 
     onEditorMount(block.id, editor);
@@ -1155,7 +1156,21 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     const model = editor.getModel();
     if (!model) return;
 
-    // Insert the code at the stored position
+    const currentIndent = model.getLineContent(insertionPosition.lineNumber).match(/^[\t ]*/)?.[0] || '';
+    let text = code;
+    if (currentIndent) {
+      const lines = code.split('\n');
+      const nonEmpty = lines.slice(1).filter(l => l.trim().length > 0);
+      const baseLen = nonEmpty.length > 0
+        ? Math.min(...nonEmpty.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
+        : 0;
+      text = lines.map((line, idx) => {
+        if (idx === 0) return line;
+        if (!line.trim()) return line;
+        return currentIndent + line.slice(baseLen);
+      }).join('\n');
+    }
+
     const range = new monaco.Range(
       insertionPosition.lineNumber,
       insertionPosition.column,
@@ -1165,7 +1180,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
 
     editor.executeEdits('', [{
       range,
-      text: code,
+      text,
     }]);
 
     // If saving as template, call the callback
@@ -1194,7 +1209,11 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     const model = editor.getModel();
     if (!model) return;
 
-    // Generate code from template
+    const monacoOpts = model.getOptions();
+    const ind = monacoOpts.insertSpaces ? ' '.repeat(monacoOpts.tabSize) : '\t';
+    const currentIndent = model.getLineContent(insertionPosition.lineNumber).match(/^[\t ]*/)?.[0] || '';
+
+    // Generate code from template using the file's own indent style
     let code = 'menu';
     if (template.menuStatement?.trim()) {
       code += ` "${template.menuStatement.trim().replace(/"/g, '\\"')}"`;
@@ -1204,7 +1223,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     template.choices.forEach(choice => {
       if (!choice.text.trim()) return;
 
-      let line = '    "';
+      let line = `${ind}"`;
       line += choice.text.replace(/"/g, '\\"');
       line += '"';
 
@@ -1217,26 +1236,40 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
       switch (choice.action) {
         case 'jump':
           if (choice.target?.trim()) {
-            line += `        jump ${choice.target.trim()}\n`;
+            line += `${ind}${ind}jump ${choice.target.trim()}\n`;
           }
           break;
         case 'call':
           if (choice.target?.trim()) {
-            line += `        call ${choice.target.trim()}\n`;
+            line += `${ind}${ind}call ${choice.target.trim()}\n`;
           }
           break;
         case 'pass':
-          line += '        pass\n';
+          line += `${ind}${ind}pass\n`;
           break;
         case 'return':
-          line += '        return\n';
+          line += `${ind}${ind}return\n`;
           break;
       }
 
       code += line;
     });
 
-    // Insert at stored position
+    // Re-anchor to cursor indentation (same dedent logic as handleInsertMenu)
+    let text = code;
+    if (currentIndent) {
+      const lines = code.split('\n');
+      const nonEmpty = lines.slice(1).filter(l => l.trim().length > 0);
+      const baseLen = nonEmpty.length > 0
+        ? Math.min(...nonEmpty.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
+        : 0;
+      text = lines.map((line, idx) => {
+        if (idx === 0) return line;
+        if (!line.trim()) return line;
+        return currentIndent + line.slice(baseLen);
+      }).join('\n');
+    }
+
     const range = new monaco.Range(
       insertionPosition.lineNumber,
       insertionPosition.column,
@@ -1246,7 +1279,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
 
     editor.executeEdits('', [{
       range,
-      text: code,
+      text,
     }]);
 
     setShowMenuTemplatePicker(false);

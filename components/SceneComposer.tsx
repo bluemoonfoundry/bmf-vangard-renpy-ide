@@ -696,6 +696,9 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
 
     // Code Generation
     const generatedCode = useMemo(() => {
+        const opts = activeEditor?.getModel()?.getOptions();
+        const ind = opts ? (opts.insertSpaces ? ' '.repeat(opts.tabSize) : '\t') : '    ';
+
         let code = '';
         if (scene.background) {
             const bg = scene.background;
@@ -708,10 +711,10 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             if (bg.alpha !== 1.0) transforms.push(`alpha ${bg.alpha}`);
             if (bg.blur > 0) transforms.push(`blur ${bg.blur}`);
 
-            const bgEffects = spriteEffectCode(bg);
+            const bgEffects = spriteEffectCode(bg, ind);
             let bgCode: string;
             if (transforms.length > 0 || bgEffects) {
-                bgCode = `scene ${tag}:\n    ${transforms.join('\n    ')}${transforms.length > 0 ? '\n' : ''}${bgEffects}`;
+                bgCode = `scene ${tag}:\n${ind}${transforms.join(`\n${ind}`)}${transforms.length > 0 ? '\n' : ''}${bgEffects}`;
                 if (!bgCode.endsWith('\n')) bgCode += '\n';
             } else {
                 bgCode = `scene ${tag}\n`;
@@ -729,27 +732,26 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             const tag = getRenpyTag(sprite.image);
             const x = sprite.x.toFixed(2);
             const y = sprite.y.toFixed(2);
-            
+
             const zoomStr = (sprite.zoom !== 1) ? ` zoom ${sprite.zoom}` : '';
             const xzoomStr = sprite.flipH ? ` xzoom -1.0` : '';
             const yzoomStr = sprite.flipV ? ` yzoom -1.0` : '';
             const rotateStr = sprite.rotation !== 0 ? ` rotate ${sprite.rotation}` : '';
             const alphaStr = sprite.alpha !== 1.0 ? ` alpha ${sprite.alpha}` : '';
             const blurStr = sprite.blur > 0 ? ` blur ${sprite.blur}` : '';
-            
+
             const zStr = ` zorder ${index + 1}`;
-            
-            // Ren'Py xcenter/ycenter aligns with the visual editor's center point logic
-            const effectCode = spriteEffectCode(sprite);
-            let spriteCode = `show ${tag}${zStr}:\n    xcenter ${x} ycenter ${y}${zoomStr}${xzoomStr}${yzoomStr}${rotateStr}${alphaStr}${blurStr}\n${effectCode}`;
-            
+
+            const effectCode = spriteEffectCode(sprite, ind);
+            let spriteCode = `show ${tag}${zStr}:\n${ind}xcenter ${x} ycenter ${y}${zoomStr}${xzoomStr}${yzoomStr}${rotateStr}${alphaStr}${blurStr}\n${effectCode}`;
+
             if (sprite.visible === false) {
                 spriteCode = spriteCode.split('\n').map(l => l.trim() ? `# ${l}` : l).join('\n');
             }
             code += spriteCode;
         });
         return code;
-    }, [getRenpyTag, scene]);
+    }, [getRenpyTag, scene, activeEditor]);
 
     const activeSprite = useMemo(() => {
         if (selectedSpriteId === 'background') return scene.background;

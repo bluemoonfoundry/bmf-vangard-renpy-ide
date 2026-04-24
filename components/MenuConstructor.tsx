@@ -131,7 +131,13 @@ const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult, activ
             const cond = choice.condition ? ` if ${choice.condition}` : '';
             output += `    "${choice.text}"${cond}:\n`;
             
-            const logicLines = choice.logic.split('\n').map(l => l.trim()).filter(l => l);
+            // Dedent: strip only the common leading whitespace so intentional
+            // nesting (e.g. an if block) is preserved as relative indentation.
+            const rawLogicLines = choice.logic.split('\n').filter(l => l.trim().length > 0);
+            const baseIndentLen = rawLogicLines.length > 0
+                ? Math.min(...rawLogicLines.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
+                : 0;
+            const logicLines = rawLogicLines.map(l => l.slice(baseIndentLen));
             if (logicLines.length === 0) {
                 output += `        pass\n`;
             } else {

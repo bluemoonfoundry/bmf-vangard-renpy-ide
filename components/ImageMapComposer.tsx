@@ -211,15 +211,18 @@ const ImageMapComposer: React.FC<ImageMapComposerProps> = ({
             return '# Add a ground image to generate code';
         }
 
+        const opts = activeEditor?.getModel()?.getOptions();
+        const ind = opts ? (opts.insertSpaces ? ' '.repeat(opts.tabSize) : '\t') : '    ';
+
         const groundPath = imagemap.groundImage.filePath.replace(/\\/g, '/');
         const hoverPath = imagemap.hoverImage?.filePath.replace(/\\/g, '/');
 
         let code = `screen ${imagemap.screenName}:\n`;
-        code += `    imagemap:\n`;
-        code += `        ground "${groundPath}"\n`;
+        code += `${ind}imagemap:\n`;
+        code += `${ind}${ind}ground "${groundPath}"\n`;
 
         if (hoverPath) {
-            code += `        hover "${hoverPath}"\n`;
+            code += `${ind}${ind}hover "${hoverPath}"\n`;
         }
 
         code += `\n`;
@@ -227,7 +230,7 @@ const ImageMapComposer: React.FC<ImageMapComposerProps> = ({
         for (const hotspot of imagemap.hotspots) {
             const action = hotspot.actionType === 'jump' ? 'Jump' : 'Call';
             const target = hotspot.targetLabel || 'label_name';
-            code += `        hotspot (${Math.round(hotspot.x)}, ${Math.round(hotspot.y)}, ${Math.round(hotspot.width)}, ${Math.round(hotspot.height)}) action ${action}("${target}")\n`;
+            code += `${ind}${ind}hotspot (${Math.round(hotspot.x)}, ${Math.round(hotspot.y)}, ${Math.round(hotspot.width)}, ${Math.round(hotspot.height)}) action ${action}("${target}")\n`;
         }
 
         return code;

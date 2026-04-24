@@ -64,11 +64,16 @@ export default function CodeActionButtons({
             let textToInsert = code;
             if (position.column > 1 && currentIndent) {
                 const codeLines = code.split('\n');
+                // Strip the common base indentation already present in generated code
+                // so we don't double-indent lines that already carry absolute indentation.
+                const nonEmptyTrailing = codeLines.slice(1).filter(l => l.trim().length > 0);
+                const baseIndentLen = nonEmptyTrailing.length > 0
+                    ? Math.min(...nonEmptyTrailing.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
+                    : 0;
                 textToInsert = codeLines.map((line, idx) => {
-                    // Don't add indentation to the first line (it goes where cursor is)
-                    // Add current line's indentation to subsequent lines
                     if (idx === 0) return line;
-                    return line ? currentIndent + line : line;
+                    if (!line.trim()) return line;
+                    return currentIndent + line.slice(baseIndentLen);
                 }).join('\n');
             }
 

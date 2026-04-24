@@ -962,7 +962,12 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
 
     const rootDropActive = dragState.dropTarget?.id === '__root__';
     const aspectRatio = `${composition.gameWidth} / ${composition.gameHeight}`;
-    const generatedCode = generateScreenCode(composition);
+    const editorIndent = (() => {
+        const opts = activeEditor?.getModel()?.getOptions();
+        if (!opts) return '    ';
+        return opts.insertSpaces ? ' '.repeat(opts.tabSize) : '\t';
+    })();
+    const generatedCode = generateScreenCode(composition, editorIndent);
 
 
     return (

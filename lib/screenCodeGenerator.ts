@@ -1,9 +1,7 @@
 import type { ScreenLayoutComposition, ScreenWidget } from '../types';
 
-const INDENT = '    ';
-
-function generateWidget(widget: ScreenWidget, depth: number, insideContainer: boolean): string {
-    const pad = INDENT.repeat(depth);
+function generateWidget(widget: ScreenWidget, depth: number, insideContainer: boolean, indent: string): string {
+    const pad = indent.repeat(depth);
     const lines: string[] = [];
 
     const posAttrs: string[] = [];
@@ -41,7 +39,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
             if (hasChildren) {
                 lines.push(`${pad}button${allAttrs ? ' ' + allAttrs : ''}:`);
                 for (const child of widget.children!) {
-                    lines.push(generateWidget(child, depth + 1, true));
+                    lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
                 lines.push(`${pad}button${allAttrs ? ' ' + allAttrs : ''}`);
@@ -74,10 +72,10 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
             lines.push(`${pad}${widget.type}${containerAttrs ? ' ' + containerAttrs : ''}:`);
             if (hasChildren) {
                 for (const child of widget.children!) {
-                    lines.push(generateWidget(child, depth + 1, true));
+                    lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
-                lines.push(`${pad}${INDENT}pass`);
+                lines.push(`${pad}${indent}pass`);
             }
             break;
         }
@@ -86,7 +84,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
     return lines.join('\n');
 }
 
-export function generateScreenCode(comp: ScreenLayoutComposition): string {
+export function generateScreenCode(comp: ScreenLayoutComposition, indent = '    '): string {
     const lines: string[] = [];
 
     const screenAttrs: string[] = [];
@@ -96,10 +94,10 @@ export function generateScreenCode(comp: ScreenLayoutComposition): string {
     lines.push(`screen ${comp.screenName}()${screenAttrs.length ? ' ' + screenAttrs.join(' ') : ''}:`);
 
     if (comp.widgets.length === 0) {
-        lines.push(`${INDENT}pass`);
+        lines.push(`${indent}pass`);
     } else {
         for (const widget of comp.widgets) {
-            lines.push(generateWidget(widget, 1, false));
+            lines.push(generateWidget(widget, 1, false, indent));
         }
     }
 
