@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useState, useCallback, useContext, useMemo } from 'react';
+import { logger } from '../lib/logger';
 import { useImmer } from 'use-immer';
 import type { SearchResult, Block } from '../types';
 
@@ -84,7 +85,7 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
         });
         setSearchResults(results);
       } catch (err) {
-        console.error('Search failed:', err);
+        logger.error('Search failed:', err);
         addToast('Search failed', 'error');
       } finally {
         setIsSearching(false);

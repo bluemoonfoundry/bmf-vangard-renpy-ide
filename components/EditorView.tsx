@@ -7,6 +7,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
 import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } from '../types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -409,7 +410,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
           }
         }
       }).catch((err) => {
-        console.error('TextMate init failed, keeping Monarch fallback:', err);
+        logger.error('TextMate init failed, keeping Monarch fallback:', err);
       });
 
       // ------------------------------------------------------------------
@@ -743,7 +744,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
               editor.focus();
             }
           } catch (err) {
-            console.error("Failed to parse drop data", err);
+            logger.error("Failed to parse drop data", err);
           }
         }
       });

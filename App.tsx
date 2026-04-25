@@ -58,6 +58,7 @@ import {
   getRouteCanvasLayoutVersion,
 } from './lib/routeCanvasLayout';
 import { resolveWarpTarget } from './lib/warpTarget';
+import { logger } from './lib/logger';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
@@ -771,7 +772,7 @@ const App: React.FC = () => {
           });
         }
       }).catch(err => {
-        console.error('Failed to load app settings:', err);
+        logger.error('Failed to load app settings:', err);
       }).finally(() => {
         setAppSettingsLoaded(true);
       });
@@ -785,7 +786,7 @@ const App: React.FC = () => {
               if (!draft.editorFontFamily) draft.editorFontFamily = "'Consolas', 'Courier New', monospace";
               if (!draft.editorFontSize) draft.editorFontSize = 14;
           });
-        } catch (e) { console.error("Failed to load app settings from localStorage", e); }
+        } catch (e) { logger.error("Failed to load app settings from localStorage", e); }
       }
       setAppSettingsLoaded(true);
     }
@@ -797,7 +798,7 @@ const App: React.FC = () => {
     if (!appSettingsLoaded || !window.electronAPI?.getStartupArgs) return;
     window.electronAPI.getStartupArgs().then(({ projectPath }) => {
       if (projectPath) loadProject(projectPath);
-    }).catch(err => console.error('Failed to read startup args:', err));
+    }).catch(err => logger.error('Failed to read startup args:', err));
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -807,10 +808,10 @@ const App: React.FC = () => {
       window.electronAPI.saveAppSettings(appSettings)
         .then(result => {
             if (!result || !result.success) {
-                console.error('Failed to save app settings:', result?.error);
+                logger.error('Failed to save app settings:', result?.error);
             }
         })
-        .catch(err => console.error('Failed to save app settings:', err));
+        .catch(err => logger.error('Failed to save app settings:', err));
     } else {
       localStorage.setItem('renpy-ide-app-settings', JSON.stringify(appSettings));
     }
@@ -1020,7 +1021,7 @@ const App: React.FC = () => {
                 throw new Error(errorMsg);
             }
         } catch (e) {
-            console.error(e);
+            logger.error('File creation error', e);
             const errorMessage = formatErrorMessage(e);
             addToast(`Failed to create file: ${errorMessage}`, 'error');
         }
@@ -1216,7 +1217,7 @@ const App: React.FC = () => {
 
           addToast(`Deleted ${block.filePath}`, 'success');
         } catch (err) {
-          console.error('Failed to delete file:', err);
+          logger.error('Failed to delete file:', err);
           addToast(`Failed to delete ${block.filePath}`, 'error');
         }
       }
@@ -1255,7 +1256,7 @@ const App: React.FC = () => {
         setStatusBarMessage(options?.statusMessage ?? 'Layout organized.');
         setTimeout(() => setStatusBarMessage(''), 2000);
     } catch (e) {
-        console.error("Failed to tidy up layout:", e);
+        logger.error("Failed to tidy up layout:", e);
         if (options?.showToast ?? true) {
             addToast('Failed to organize layout', 'error');
         }
@@ -1358,7 +1359,7 @@ const App: React.FC = () => {
         setStatusBarMessage(options?.statusMessage ?? 'Route layout organized.');
         setTimeout(() => setStatusBarMessage(''), 2000);
     } catch (error) {
-        console.error('Failed to organize route layout:', error);
+        logger.error('Failed to organize route layout:', error);
         if (options?.showToast ?? true) {
             addToast('Failed to organize route layout', 'error');
         }
@@ -2010,7 +2011,7 @@ const App: React.FC = () => {
               setStatusBarMessage('');
               return;
           }
-          console.error(err);
+          logger.error('Failed to load project', err);
           addToast('Failed to load project', 'error');
           setStatusBarMessage('Error loading project.');
       } finally {
@@ -2046,7 +2047,7 @@ const App: React.FC = () => {
           }
           await loadProject(path);
       } catch (err) {
-          console.error('Failed to open project:', err);
+          logger.error('Failed to open project:', err);
           addToast('Failed to open project', 'error');
       }
   }, [loadProject, addToast]);
@@ -2062,7 +2063,7 @@ const App: React.FC = () => {
             addToast('Local file system features require the Electron app or a compatible browser with File System Access support.', 'warning');
         }
     } catch (err) {
-        console.error(err);
+        logger.error('Failed to open project', err);
         addToast('Failed to open project', 'error');
     }
   }, [handleOpenWithRenpyCheck, addToast]);
@@ -2078,7 +2079,7 @@ const App: React.FC = () => {
           await loadProject(projectPath);
           addToast('Project created successfully', 'success');
       } catch (err) {
-          console.error(err);
+          logger.error('Failed to load newly created project', err);
           addToast('Failed to load the newly created project', 'error');
       }
   }, [loadProject, addToast]);
@@ -2166,7 +2167,7 @@ const App: React.FC = () => {
               setFileSystemTree(freshTree);
           }
       } catch (err) {
-          console.error('Failed to copy image to project:', err);
+          logger.error('Failed to copy image to project:', err);
           addToast('Failed to copy image to project', 'error');
       }
   }, [projectRootPath, addToast]);
@@ -2247,7 +2248,7 @@ const App: React.FC = () => {
               setFileSystemTree(freshTree);
           }
       } catch (err) {
-          console.error('Failed to copy audio to project:', err);
+          logger.error('Failed to copy audio to project:', err);
           addToast('Failed to copy audio to project', 'error');
       }
   }, [projectRootPath, addToast]);
@@ -2384,7 +2385,7 @@ const App: React.FC = () => {
       await window.electronAPI.writeFile(rpyPath, rpyContent);
 
       } catch (err) {
-          console.error('Failed to update drafting artifacts:', err);
+          logger.error('Failed to update drafting artifacts:', err);
       }
   }, [blocks, projectRootPath, projectSettings.draftingMode, analysisResult.definedImages, analysisResult.variables, existingImageTags, existingAudioPaths]);
 
@@ -2398,7 +2399,7 @@ const App: React.FC = () => {
           const rpycPath = await window.electronAPI.path.join(String(projectRootPath), 'game/debug_placeholders.rpyc') as string;
           await window.electronAPI.removeEntry(rpycPath);
       } catch (err) {
-          console.error('Failed to clean up drafting artifacts:', err);
+          logger.error('Failed to clean up drafting artifacts:', err);
       }
       // We leave the renide_assets folder as it might contain valid cache or be reused
   }, [projectRootPath]);
@@ -2464,7 +2465,7 @@ const App: React.FC = () => {
         setDirtyEditors(prev => { const next = new Set(prev); next.delete(blockId); return next; });
         if (projectSettings.draftingMode) updateDraftingArtifacts();
       } catch (err) {
-        console.error('Failed to save block:', err);
+        logger.error('Failed to save block:', err);
         addToast('Failed to save file', 'error');
       }
     };
@@ -2544,7 +2545,7 @@ const App: React.FC = () => {
       await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
       setHasUnsavedSettings(false);
     } catch (e) {
-      console.error("Failed to save IDE settings:", e);
+      logger.error("Failed to save IDE settings:", e);
       addToast('Failed to save workspace settings', 'error');
     }
   }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics]);
@@ -2616,7 +2617,7 @@ const App: React.FC = () => {
           setStatusBarMessage('All files saved.');
           setTimeout(() => { setSaveStatus('saved'); setStatusBarMessage(''); }, 2000);
       } catch (err) {
-          console.error(err);
+          logger.error('Failed to save changes', err);
           setSaveStatus('error');
           addToast('Failed to save changes', 'error');
           setStatusBarMessage('Error saving files.');
@@ -2664,7 +2665,7 @@ const App: React.FC = () => {
           setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== item.relativePath));
           setFilesWithDiskConflict(prev => { const next = new Set(prev); next.delete(item.relativePath); return next; });
       } catch (err) {
-          console.error(err);
+          logger.error('Failed to reload externally changed file', err);
           addToast(`Failed to reload ${item.relativePath}`, 'error');
       }
   }, [blocks, setBlocks, addToast]);
@@ -2801,7 +2802,7 @@ const App: React.FC = () => {
           if (toQueue.length) summary.push(`${toQueue.length} conflict(s) need review`);
           addToast(summary.length ? `Refreshed: ${summary.join(', ')}` : 'Project is up to date', 'success');
       } catch (err) {
-          console.error('Failed to refresh project:', err);
+          logger.error('Failed to refresh project:', err);
           addToast('Failed to refresh project', 'error');
       }
   }, [projectRootPath, addToast, setBlocks, setFileSystemTree, setImages, setAudios]);
@@ -2816,7 +2817,7 @@ const App: React.FC = () => {
         await handleRefreshProject();
       } else {
         const detail = result.error || 'Unknown error';
-        console.error('Generate translations failed:\n', detail);
+        logger.error('Generate translations failed:\n', detail);
         // Show first meaningful line in the toast, full output is in the console
         const firstLine = detail.split('\n').find(l => l.trim().length > 0) || detail;
         addToast(`Translation generation failed: ${firstLine}`, 'error');
@@ -3273,7 +3274,7 @@ const App: React.FC = () => {
         await window.electronAPI.removeEntry(tempPath);
       }
     } catch (error) {
-      console.error('Failed to clean up temporary warp file:', error);
+      logger.error('Failed to clean up temporary warp file:', error);
     } finally {
       if (warpTempFilePathRef.current === tempPath) {
         warpTempFilePathRef.current = null;
@@ -3313,7 +3314,7 @@ const App: React.FC = () => {
       resetWarpLaunchState();
       window.electronAPI.runGame(appSettings.renpyPath, projectRootPath, warpTarget);
     } catch (error) {
-      console.error('Failed to launch warped game:', error);
+      logger.error('Failed to launch warped game:', error);
       addToast(`Failed to launch warp: ${formatErrorMessage(error)}`, 'error');
     }
   }, [analysisResult.labels, addToast, appSettings.renpyPath, cleanupWarpTempFile, pendingWarpTarget, projectRootPath, resetWarpLaunchState]);
@@ -3680,7 +3681,7 @@ const App: React.FC = () => {
         const projData = await window.electronAPI.loadProject(projectRootPath);
         setFileSystemTree(projData.tree);
     } catch (err) {
-        console.error('Failed to create file/folder:', err);
+        logger.error('Failed to create file/folder:', err);
         addToast(`Failed to create ${type}: ${name}`, 'error');
     }
   }, [projectRootPath, addBlock, addToast]);
@@ -3695,7 +3696,7 @@ const App: React.FC = () => {
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
       } catch (err) {
-          console.error('Failed to rename:', err);
+          logger.error('Failed to rename:', err);
           addToast('Failed to rename file', 'error');
       }
   }, [projectRootPath, addToast]);
@@ -3737,7 +3738,7 @@ const App: React.FC = () => {
                       addToast(`Deleted ${paths.length} file(s)`, 'success');
                   }
               } catch (err) {
-                  console.error('Failed to delete:', err);
+                  logger.error('Failed to delete:', err);
                   addToast('Failed to delete file(s)', 'error');
               }
           }
@@ -3757,7 +3758,7 @@ const App: React.FC = () => {
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
       } catch (err) {
-          console.error('Failed to move file(s):', err);
+          logger.error('Failed to move file(s):', err);
           addToast('Failed to move file(s)', 'error');
       }
   }, [projectRootPath, addToast]);
@@ -3785,7 +3786,7 @@ const App: React.FC = () => {
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
       } catch (err) {
-          console.error('Failed to paste:', err);
+          logger.error('Failed to paste:', err);
           addToast('Failed to paste file(s)', 'error');
       }
   }, [clipboard, projectRootPath, addToast]);
@@ -4022,7 +4023,7 @@ const App: React.FC = () => {
                           model.setValue(content);
                       }
                   }
-              }).catch(console.error);
+              }).catch(err => logger.error('Failed to reload externally changed file', err));
           } else {
               // Has unsaved edits — queue for user decision
               setExternallyChangedFiles(prev =>
@@ -4065,7 +4066,7 @@ const App: React.FC = () => {
                   try {
                       await handleSaveAllRef.current();
                   } catch (err) {
-                      console.error('Failed to save before exit:', err);
+                      logger.error('Failed to save before exit:', err);
                   }
                   window.electronAPI!.ideStateSavedForQuit();
               },
@@ -4082,7 +4083,7 @@ const App: React.FC = () => {
           try {
               await handleSaveProjectSettingsRef.current();
           } catch (err) {
-              console.error('Failed to save IDE state before quit:', err);
+              logger.error('Failed to save IDE state before quit:', err);
           }
           window.electronAPI!.ideStateSavedForQuit();
       });
@@ -4220,7 +4221,7 @@ const App: React.FC = () => {
           setHasUnsavedSettings(true);
         }
       } catch (err) {
-        console.error('Failed to scan image directory:', err);
+        logger.error('Failed to scan image directory:', err);
         addToast('Failed to scan image directory', 'error');
       }
     }
@@ -4286,7 +4287,7 @@ const App: React.FC = () => {
         const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
         setFileSystemTree(freshTree);
       } catch (err) {
-        console.error('Failed to copy images to project:', err);
+        logger.error('Failed to copy images to project:', err);
         addToast('Failed to copy images to project', 'error');
       }
     }
@@ -4319,7 +4320,7 @@ const App: React.FC = () => {
           setHasUnsavedSettings(true);
         }
       } catch (err) {
-        console.error('Failed to scan audio directory:', err);
+        logger.error('Failed to scan audio directory:', err);
         addToast('Failed to scan audio directory', 'error');
       }
     }
@@ -4385,7 +4386,7 @@ const App: React.FC = () => {
         const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
         setFileSystemTree(freshTree);
       } catch (err) {
-        console.error('Failed to copy audio to project:', err);
+        logger.error('Failed to copy audio to project:', err);
         addToast('Failed to copy audio to project', 'error');
       }
     }

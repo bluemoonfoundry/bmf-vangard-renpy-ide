@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import defaultSnippetsData from '../snippets/default-snippets.json';
 
 interface Snippet {
@@ -79,13 +80,13 @@ async function loadSnippetsFromFile(filePath: string): Promise<SnippetCategory[]
     const data = JSON.parse(content) as SnippetData;
 
     if (!data.categories || !Array.isArray(data.categories)) {
-      console.warn(`Invalid snippet file format: ${filePath}`);
+      logger.warn(`Invalid snippet file format: ${filePath}`);
       return null;
     }
 
     return data.categories;
   } catch (error) {
-    console.error(`Failed to load snippets from ${filePath}:`, error);
+    logger.error(`Failed to load snippets from ${filePath}:`, error);
     return null;
   }
 }
@@ -119,7 +120,7 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
         const userGlobalPath = await window.electronAPI.path.join(userDataPath, 'snippets', 'custom.json');
         userGlobalCategories = await loadSnippetsFromFile(userGlobalPath);
       } catch (err) {
-        console.warn('Could not load user global snippets:', err);
+        logger.warn('Could not load user global snippets:', err);
       }
 
       // 3. Project-specific snippets (<project>/.vangard/snippets.json)
@@ -133,7 +134,7 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
           );
           projectCategories = await loadSnippetsFromFile(projectSnippetsPath);
         } catch (err) {
-          console.warn('Could not load project snippets:', err);
+          logger.warn('Could not load project snippets:', err);
         }
       }
 
@@ -149,7 +150,7 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load snippets';
       setError(errorMessage);
-      console.error('Snippet loading error:', err);
+      logger.error('Snippet loading error:', err);
 
       // Fallback to built-in snippets on error
       setCategories((defaultSnippetsData as SnippetData).categories);

@@ -6,6 +6,7 @@
  * Integration: wraps the root `<App>` in `main.tsx`; logs errors to the console.
  */
 import React from 'react';
+import { logger } from '../lib/logger';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -31,7 +32,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('Ren\'IDE: Unhandled render error', error, info.componentStack);
+    logger.error(`Ren'IDE: Unhandled render error\nComponent stack: ${info.componentStack}`, error);
   }
 
   handleReload = () => {

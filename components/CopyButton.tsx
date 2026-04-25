@@ -6,6 +6,7 @@
  * `SnippetManager`, `SceneComposer`, `ImageMapComposer`, and others.
  */
 import React, { useState } from 'react';
+import { logger } from '../lib/logger';
 
 interface CopyButtonProps {
     /** Text to write to the clipboard */
@@ -36,7 +37,7 @@ export default function CopyButton({ text, label = 'Copy to Clipboard', size = '
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
-            console.error('Failed to copy to clipboard:', err);
+            logger.error('Failed to copy to clipboard:', err);
         }
     };
 

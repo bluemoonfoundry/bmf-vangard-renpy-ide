@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../lib/logger';
 
 interface CodeActionButtonsProps {
     code: string;
@@ -16,7 +17,7 @@ export default function CodeActionButtons({ code, size = 'sm', className = '' }:
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
-            console.error('Failed to copy to clipboard:', err);
+            logger.error('Failed to copy to clipboard:', err);
         }
     };
 

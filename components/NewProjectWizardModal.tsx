@@ -8,6 +8,7 @@
  * `onComplete(projectPath)`.
  */
 import React, { useState, useCallback, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import { createPortal } from 'react-dom';
 import { CreateProjectOptions } from '../types';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
@@ -170,7 +171,7 @@ const NewProjectWizardModal: React.FC<NewProjectWizardModalProps> = ({
         setIsCreating(false);
       }
     } catch (err) {
-      console.error('Project creation error:', err);
+      logger.error('Project creation error:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       setIsCreating(false);
     }

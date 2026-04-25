@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { logger } from '../lib/logger';
 import type { RenpyAudio, AudioMetadata } from '../types';
 import { useVirtualList } from '../hooks/useVirtualList';
 
@@ -201,13 +202,13 @@ const AudioManager: React.FC<AudioManagerProps> = ({ audios, metadata, scanDirec
               setPlayingFile(null);
           };
           newAudio.onerror = (e) => {
-              console.error("Audio playback error", e);
+              logger.error("Audio playback error", e);
               setPlayingFile(null);
           };
           
           newAudio.src = audio.dataUrl;
           newAudio.play().catch(e => {
-              console.error("Playback failed", e);
+              logger.error("Playback failed", e);
               setPlayingFile(null);
           });
           

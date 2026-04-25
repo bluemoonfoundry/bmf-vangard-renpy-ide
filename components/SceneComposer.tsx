@@ -7,6 +7,7 @@
  * code via ; updates composition state via .
  */
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite } from '../types';
 import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
@@ -606,7 +607,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             }
 
         } catch (error) {
-            console.error("Export failed:", error);
+            logger.error("Export failed:", error);
             addToast('Failed to export image.', 'error');
         } finally {
             setIsExporting(false);

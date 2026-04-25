@@ -94,7 +94,7 @@ function startProjectWatcher(rootPath) {
             }, WATCH_DEBOUNCE_MS));
         });
     } catch (err) {
-        console.error('Failed to start file watcher:', err);
+        logger.error('Failed to start file watcher:', err);
     }
 }
 
@@ -120,7 +120,7 @@ function saveWindowState(window) {
         const bounds = window.getBounds();
         fs.writeFile(windowStatePath, JSON.stringify(bounds));
     } catch (error) {
-        console.error('Failed to save window state:', error);
+        logger.error('Failed to save window state:', error);
     }
 }
 
@@ -151,7 +151,7 @@ async function saveAppSettings(settings) {
         await fs.writeFile(appSettingsPath, JSON.stringify(settings, null, 2));
         return { success: true };
     } catch (error) {
-        console.error('Failed to save app settings:', error);
+        logger.error('Failed to save app settings:', error);
         return { success: false, error: error.message };
     }
 }
@@ -184,7 +184,7 @@ async function saveApiKey(provider, key) {
         await fs.writeFile(apiKeysPath, encryptedData);
         return { success: true };
     } catch (error) {
-        console.error('Failed to save API key:', error);
+        logger.error('Failed to save API key:', error);
         return { success: false, error: error.message };
     }
 }
@@ -194,7 +194,7 @@ async function getApiKey(provider) {
         const keys = await loadApiKeys();
         return keys[provider] || null;
     } catch (error) {
-        console.error('Failed to get API key:', error);
+        logger.error('Failed to get API key:', error);
         return null;
     }
 }
@@ -626,7 +626,7 @@ async function updateApplicationMenu() {
                         ? path.join(process.resourcesPath, 'docs', 'Ren-IDE_User_Guide.html')
                         : path.join(__dirname, 'docs', 'Ren-IDE_User_Guide.html');
                     shell.openPath(userGuidePath).catch(err => {
-                        console.error('Failed to open user guide:', err);
+                        logger.error('Failed to open user guide:', err);
                         dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');
                     });
                 }
@@ -664,7 +664,7 @@ async function updateApplicationMenu() {
                 label: 'Check for Updates',
                 click: () => {
                     if (app.isPackaged) {
-                        autoUpdater.checkForUpdates().catch(err => console.error('Auto-update check failed:', err));
+                        autoUpdater.checkForUpdates().catch(err => logger.error('Auto-update check failed:', err));
                     }
                 }
             },
@@ -753,7 +753,7 @@ async function searchInDirectory(directory, query, options) {
                   }
               }
             } catch (e) {
-              console.error(`Invalid regex for file ${relativePath}:`, e.message);
+              logger.error(`Invalid regex for file ${relativePath}:`, e.message);
             }
 
             if (matches.length > 0) {
@@ -810,7 +810,7 @@ app.whenReady().then(() => {
             }
         });
     } catch (e) {
-        console.error('Media protocol error for URL:', request.url, e);
+        logger.error(`Media protocol error for URL: ${request.url}`, e);
         return new Response('Not Found', { status: 404 });
     }
   });
@@ -828,7 +828,7 @@ app.whenReady().then(() => {
         return filePaths[0];
       }
     } catch (error) {
-      console.error('Failed to open directory dialog:', error);
+      logger.error('Failed to open directory dialog:', error);
       return null;
     }
   });
@@ -855,7 +855,7 @@ app.whenReady().then(() => {
           return filePaths[0];
       }
     } catch (error) {
-      console.error('Failed to open Ren\'Py SDK selection dialog:', error);
+      logger.error('Failed to open Ren\'Py SDK selection dialog:', error);
       return null;
     }
   });
@@ -927,7 +927,7 @@ app.whenReady().then(() => {
         await fs.mkdir(path.join(filePath, 'game', 'audio'), { recursive: true });
         return filePath;
     } catch (error) {
-        console.error('Failed to create project directory:', error);
+        logger.error('Failed to create project directory:', error);
         dialog.showErrorBox('Project Creation Failed', `Could not create project directory: ${error.message}`);
         return null;
     }
@@ -943,17 +943,17 @@ app.whenReady().then(() => {
       try {
         // Check if SDK template exists synchronously
         require('fs').accessSync(sdkTemplate, require('fs').constants.R_OK);
-        console.log('Using SDK template:', sdkTemplate);
+        logger.info('Using SDK template:', sdkTemplate);
         return sdkTemplate;
       } catch {
-        console.log('SDK template not found, falling back to bundled template');
+        logger.info('SDK template not found, falling back to bundled template');
       }
     }
     // Fallback to bundled template (extraResources places it at resourcesPath in packaged builds)
     const bundledTemplate = app.isPackaged
       ? path.join(process.resourcesPath, 'renpy-template')
       : path.join(__dirname, 'resources', 'renpy-template');
-    console.log('Using bundled template:', bundledTemplate);
+    logger.info('Using bundled template:', bundledTemplate);
     return bundledTemplate;
   }
 
@@ -961,7 +961,7 @@ app.whenReady().then(() => {
     const { projectDir, projectName, width, height, accentColor, isLight, sdkPath } = options;
 
     try {
-      console.log('Creating project from template:', { projectDir, projectName, width, height, accentColor, isLight });
+      logger.info('Creating project from template:', { projectDir, projectName, width, height, accentColor, isLight });
 
       // 1. Resolve template source (SDK or bundled)
       const templateSource = getTemplateSource(sdkPath);
@@ -973,22 +973,22 @@ app.whenReady().then(() => {
       const gameDir = path.join(projectDir, 'game');
       try {
         await fs.cp(templateSource, gameDir, { recursive: true });
-        console.log('Template copied successfully');
+        logger.info('Template copied successfully');
       } catch (copyError) {
-        console.error('Failed to copy template:', copyError);
+        logger.error('Failed to copy template:', copyError);
         throw new Error(`Failed to copy template: ${copyError.message}`);
       }
 
       // 4. Derive GUI colors from accent + theme
       const colors = deriveGuiColors(accentColor, isLight);
-      console.log('Derived colors:', colors);
+      logger.info('Derived colors:', colors);
 
       // 5. Update gui.rpy (gui.init + all color defines)
       const guiRpyPath = path.join(gameDir, 'gui.rpy');
       try {
         await updateGuiRpy(guiRpyPath, width, height, colors);
       } catch (guiError) {
-        console.error('Failed to update gui.rpy:', guiError);
+        logger.error('Failed to update gui.rpy:', guiError);
         throw new Error(`Failed to update gui.rpy: ${guiError.message}`);
       }
 
@@ -998,7 +998,7 @@ app.whenReady().then(() => {
       try {
         await updateOptionsRpy(optionsRpyPath, projectName, saveDir);
       } catch (optionsError) {
-        console.error('Failed to update options.rpy:', optionsError);
+        logger.error('Failed to update options.rpy:', optionsError);
         throw new Error(`Failed to update options.rpy: ${optionsError.message}`);
       }
 
@@ -1009,34 +1009,34 @@ app.whenReady().then(() => {
           try {
             const imageGenModule = await import('./lib/guiImageGenerator.js');
             generateGuiImages = imageGenModule.generateGuiImages;
-            console.log('Successfully loaded Sharp for GUI image generation');
+            logger.info('Successfully loaded Sharp for GUI image generation');
           } catch (loadError) {
             sharpLoadError = loadError;
-            console.warn('Failed to load Sharp module:', loadError.message);
-            console.warn('GUI images will use template defaults. This is not critical.');
+            logger.warn('Failed to load Sharp module:', loadError.message);
+            logger.warn('GUI images will use template defaults. This is not critical.');
           }
         }
 
         if (generateGuiImages) {
           await generateGuiImages(projectDir, colors, width, height);
-          console.log('Custom GUI images generated successfully');
+          logger.info('Custom GUI images generated successfully');
         } else {
-          console.log('Skipping GUI image generation - using template defaults');
+          logger.info('Skipping GUI image generation - using template defaults');
         }
       } catch (imageError) {
-        console.error('Failed to generate GUI images:', imageError);
+        logger.error('Failed to generate GUI images:', imageError);
         // Don't fail the entire operation - images are optional
-        console.log('Continuing with template default images');
+        logger.info('Continuing with template default images');
       }
 
       // 8. Ensure images/ and audio/ directories exist
       await fs.mkdir(path.join(gameDir, 'images'), { recursive: true });
       await fs.mkdir(path.join(gameDir, 'audio'), { recursive: true });
 
-      console.log('Project created successfully');
+      logger.info('Project created successfully');
       return { success: true, path: projectDir };
     } catch (error) {
-      console.error('Failed to create project from template:', error);
+      logger.error('Failed to create project from template:', error);
       return { success: false, error: error.message };
     }
   });
@@ -1047,7 +1047,7 @@ app.whenReady().then(() => {
       if (canceled) return null;
       return filePath;
     } catch (error) {
-      console.error('Failed to open save dialog:', error);
+      logger.error('Failed to open save dialog:', error);
       return null;
     }
   });
@@ -1140,7 +1140,7 @@ app.whenReady().then(() => {
       try {
           return await scanDirectoryForAssets(dirPath);
       } catch (error) {
-          console.error("Scan directory failed:", error);
+          logger.error("Scan directory failed:", error);
           return { images: [], audios: [], error: error.message };
       }
   });
@@ -1150,7 +1150,7 @@ app.whenReady().then(() => {
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
-      console.error("Read file failed:", error);
+      logger.error("Read file failed:", error);
       throw error;
     }
   });
@@ -1248,14 +1248,14 @@ app.whenReady().then(() => {
       });
 
       gameProcess.on('error', (err) => {
-        console.error('Failed to start game process:', err);
+        logger.error('Failed to start game process:', err);
         event.sender.send('game-error', err.message);
         gameProcess = null;
         setGameRunningMenuState(false);
       });
 
     } catch (err) {
-      console.error('Spawn error:', err);
+      logger.error('Spawn error:', err);
       event.sender.send('game-error', err.message);
       gameProcess = null;
       setGameRunningMenuState(false);
@@ -1267,7 +1267,7 @@ app.whenReady().then(() => {
       try {
         gameProcess.kill();
       } catch (error) {
-        console.error('Failed to kill game process:', error);
+        logger.error('Failed to kill game process:', error);
       }
       gameProcess = null;
       event.sender.send('game-stopped');
@@ -1305,7 +1305,7 @@ app.whenReady().then(() => {
         const results = await searchInDirectory(projectPath, query, { projectPath, ...options });
         return results;
     } catch (error) {
-        console.error('Search failed:', error);
+        logger.error('Search failed:', error);
         return [];
     }
   });
@@ -1325,7 +1325,7 @@ app.whenReady().then(() => {
       if (mainWindowRef) mainWindowRef.webContents.send('update-downloaded', info.version);
     });
     autoUpdater.on('error', (err) => {
-      console.error('Auto-updater error:', err);
+      logger.error('Auto-updater error:', err);
       // If the release channel has no latest.yml yet (e.g. a pre-builder release),
       // treat it the same as "no update available" rather than showing a raw error.
       const isNoRelease = err && err.message && err.message.includes('latest.yml');
@@ -1341,7 +1341,7 @@ app.whenReady().then(() => {
     try {
       autoUpdater.quitAndInstall();
     } catch (error) {
-      console.error('Failed to install update:', error);
+      logger.error('Failed to install update:', error);
       dialog.showErrorBox('Update Failed', `Could not install update: ${error.message}`);
     }
   });
