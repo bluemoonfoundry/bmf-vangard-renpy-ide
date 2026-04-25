@@ -1325,10 +1325,16 @@ app.whenReady().then(() => {
       if (mainWindowRef) mainWindowRef.webContents.send('update-downloaded', info.version);
     });
     autoUpdater.on('error', (err) => {
+      const msg = err?.message ?? '';
+      // Transient server errors (5xx) from GitHub — log as warning, don't surface to user.
+      const isTransient = /HttpError:\s*5\d{2}/.test(msg);
+      // No latest.yml means no release on this channel yet — treat as up to date.
+      const isNoRelease = msg.includes('latest.yml');
+      if (isTransient) {
+        logger.warn('Auto-updater: transient server error, will retry next launch', err);
+        return;
+      }
       logger.error('Auto-updater error:', err);
-      // If the release channel has no latest.yml yet (e.g. a pre-builder release),
-      // treat it the same as "no update available" rather than showing a raw error.
-      const isNoRelease = err && err.message && err.message.includes('latest.yml');
       if (mainWindowRef) {
         mainWindowRef.webContents.send(isNoRelease ? 'update-not-available' : 'update-error');
       }
