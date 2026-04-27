@@ -7,7 +7,7 @@
  * false or from Settings; calls `window.electronAPI.selectRenpy()`.
  */
 import React, { useState } from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 interface ConfigureRenpyModalProps {
   isOpen: boolean;

@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useVirtualList } from '../hooks/useVirtualList';
+import { useVirtualList } from '@/hooks/useVirtualList';
 
 // py-1 (4+4) + h-5 icon (20px) = 28px per row
 const TREE_ROW_HEIGHT = 28;

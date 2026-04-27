@@ -11,8 +11,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { logger } from '../lib/logger';
-import defaultSnippetsData from '../snippets/default-snippets.json';
+import { logger } from '@/lib/logger';
+import defaultSnippetsData from '../../snippets/default-snippets.json';
 
 interface Snippet {
   title: string;

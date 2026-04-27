@@ -6,7 +6,7 @@
  * Integration: uses `useModalAccessibility`; opened from `Toolbar` help menu.
  */
 import React from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import type { MouseGestureSettings, CanvasPanGesture } from '@/types';
 
 interface KeyboardShortcutsModalProps {

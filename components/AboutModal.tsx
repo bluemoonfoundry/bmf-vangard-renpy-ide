@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import packageJson from '../package.json';
 const BUILD_NUMBER = process.env.BUILD_NUMBER || 'dev';
 import logo from '../renide-512x512.png';

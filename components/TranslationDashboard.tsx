@@ -7,8 +7,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TranslationAnalysisResult, LanguageCoverage, TranslationFileBreakdown, Block } from '@/types';
-import { useVirtualList } from '../hooks/useVirtualList';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useVirtualList } from '@/hooks/useVirtualList';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 // ---------------------------------------------------------------------------
 // Props

@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MenuTemplate } from '@/types';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 interface MenuTemplatePickerModalProps {
   isOpen: boolean;

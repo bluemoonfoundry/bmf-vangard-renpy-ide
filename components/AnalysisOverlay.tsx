@@ -7,7 +7,7 @@
  * `AnalysisProgress` emitted by `useRenpyAnalysis`.
  */
 import React from 'react';
-import type { AnalysisProgress } from '../hooks/useRenpyAnalysis';
+import type { AnalysisProgress } from '@/hooks/useRenpyAnalysis';
 
 interface AnalysisOverlayProps {
   blockCount: number;

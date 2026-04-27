@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 const TUTORIAL_STORAGE_KEY = 'renpy-ide-tutorial-completed';
 

@@ -7,7 +7,7 @@
  * wherever a destructive action requires user confirmation.
  */
 import React from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 
 interface ConfirmModalProps {
   title: string;

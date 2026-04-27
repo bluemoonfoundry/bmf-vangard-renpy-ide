@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import type { Variable, RenpyAnalysisResult } from '@/types';
-import { useVirtualList } from '../hooks/useVirtualList';
+import { useVirtualList } from '@/hooks/useVirtualList';
 
 // p-2 (16px) + name line (20px) + value line (16px) + badges line (20px) + space-y-2 gap (8px)
 const VAR_ITEM_HEIGHT = 76;

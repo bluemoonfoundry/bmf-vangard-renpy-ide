@@ -9,7 +9,7 @@
 
 import React, { useMemo } from 'react';
 import type { RenpyScreen } from '@/types';
-import { useVirtualList } from '../hooks/useVirtualList';
+import { useVirtualList } from '@/hooks/useVirtualList';
 
 // p-2 (16px) + main text line (20px) + optional param line (16px) + space-y-2 gap (8px)
 const SCREEN_ITEM_HEIGHT = 60;

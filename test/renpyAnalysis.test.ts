@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { performRenpyAnalysis } from '../hooks/useRenpyAnalysis';
+import { performRenpyAnalysis } from '@/hooks/useRenpyAnalysis';
 import { createBlock } from './mocks/sampleData';
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@
  * back via `onSave` for storage in `ProjectSettings`.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { useModalAccessibility } from '../hooks/useModalAccessibility';
+import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import type { UserSnippet } from '@/types';
 import { createId } from '@/lib/createId';
 

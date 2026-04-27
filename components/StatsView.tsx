@@ -11,8 +11,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid,
 } from 'recharts';
 import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute, ProjectImage, ImageMetadata, RenpyAudio } from '@/types';
-import type { PerformanceSnapshot } from '../hooks/usePerformanceMetrics';
-import { useCanvasFps } from '../hooks/useCanvasFps';
+import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
+import { useCanvasFps } from '@/hooks/useCanvasFps';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -269,7 +269,7 @@ const CharacterTable: React.FC<{
 
 // ── Performance helpers ───────────────────────────────────────────────────────
 
-import type { MemorySample } from '../hooks/usePerformanceMetrics';
+import type { MemorySample } from '@/hooks/usePerformanceMetrics';
 
 function formatMs(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${Math.round(ms)} ms`;
