@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import type { UserSnippet } from '@/types';
-import { createId } from '../lib/createId';
+import { createId } from '@/lib/createId';
 
 interface UserSnippetModalProps {
   isOpen: boolean;

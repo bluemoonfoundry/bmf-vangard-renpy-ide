@@ -8,10 +8,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { RenpyAnalysisResult, LabelLocation, JumpLocation, Character, Variable, RenpyScreen, LabelNode, RouteLink, IdentifiedRoute } from '@/types';
-import { getTripleQuotedLineMask } from '../lib/renpyTripleQuotes';
-import { isReservedRenpyName } from '../lib/renpyNames';
-import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '../lib/renpyLabelGuards';
-import { buildRouteGraph, computeLayeredLayoutGeneric, type LayoutConfig } from '../lib/graphLayout';
+import { getTripleQuotedLineMask } from '@/lib/renpyTripleQuotes';
+import { isReservedRenpyName } from '@/lib/renpyNames';
+import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '@/lib/renpyLabelGuards';
+import { buildRouteGraph, computeLayeredLayoutGeneric, type LayoutConfig } from '@/lib/graphLayout';
 
 /**
  * Minimal block shape used by the analysis engine — only the fields it actually reads.

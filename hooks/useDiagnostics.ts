@@ -12,8 +12,8 @@ import type {
   IgnoredDiagnosticRule,
   PunchlistMetadata,
 } from '@/types';
-import { validateRenpyCode } from '../lib/renpyValidator';
-import { matchesIgnoredDiagnostic } from '../lib/diagnosticIgnores';
+import { validateRenpyCode } from '@/lib/renpyValidator';
+import { matchesIgnoredDiagnostic } from '@/lib/diagnosticIgnores';
 
 // ---------------------------------------------------------------------------
 // Ren'Py statement keywords — these should not be treated as character names

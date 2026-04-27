@@ -1,4 +1,4 @@
-import { getLabelAtLine, resolveWarpTarget } from '../lib/warpTarget';
+import { getLabelAtLine, resolveWarpTarget } from '@/lib/warpTarget';
 import { createBlock, createEmptyAnalysisResult } from './mocks/sampleData';
 
 describe('resolveWarpTarget', () => {

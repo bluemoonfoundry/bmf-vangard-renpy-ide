@@ -11,20 +11,20 @@ import { logger } from '../lib/logger';
 import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
 import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { detectContext, getRenpyCompletions } from '../lib/renpyCompletionProvider';
-import type { RenpyCompletionData } from '../lib/renpyCompletionProvider';
-import { validateRenpyCode } from '../lib/renpyValidator';
-import { initTextMate, createTextMateTokensProvider } from '../lib/textmateGrammar';
-import { getTripleQuotedLineMask } from '../lib/renpyTripleQuotes';
-import { isReservedRenpyName } from '../lib/renpyNames';
-import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '../lib/renpyLabelGuards';
-import { getLabelAtLine } from '../lib/warpTarget';
+import { detectContext, getRenpyCompletions } from '@/lib/renpyCompletionProvider';
+import type { RenpyCompletionData } from '@/lib/renpyCompletionProvider';
+import { validateRenpyCode } from '@/lib/renpyValidator';
+import { initTextMate, createTextMateTokensProvider } from '@/lib/textmateGrammar';
+import { getTripleQuotedLineMask } from '@/lib/renpyTripleQuotes';
+import { isReservedRenpyName } from '@/lib/renpyNames';
+import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '@/lib/renpyLabelGuards';
+import { getLabelAtLine } from '@/lib/warpTarget';
 import {
   getSemanticTokensLegend,
   computeSemanticTokens,
   SEMANTIC_DARK_RULES,
   SEMANTIC_LIGHT_RULES,
-} from '../lib/renpySemanticTokens';
+} from '@/lib/renpySemanticTokens';
 import DialoguePreview from './DialoguePreview';
 import type { DialoguePreviewData, MenuChoice } from './DialoguePreview';
 import { MenuConstructorModal } from './MenuConstructorModal';

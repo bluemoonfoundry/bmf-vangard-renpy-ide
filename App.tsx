@@ -44,27 +44,27 @@ import { useRenpyAnalysis, performRouteAnalysis } from './hooks/useRenpyAnalysis
 import { useHistory } from './hooks/useHistory';
 import { useProjectColorScan } from './hooks/useProjectColorScan';
 import { usePerformanceMetrics } from './hooks/usePerformanceMetrics';
-import { createId } from './lib/createId';
-import { formatErrorMessage } from './lib/formatErrorMessage';
+import { createId } from '@/lib/createId';
+import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
   computeStoryLayout,
   computeStoryLayoutFingerprint,
   getStoryLayoutVersion,
-} from './lib/storyCanvasLayout';
+} from '@/lib/storyCanvasLayout';
 import {
   computeRouteCanvasLayout,
   computeRouteCanvasLayoutFingerprint,
   getRouteCanvasLayoutVersion,
-} from './lib/routeCanvasLayout';
-import { resolveWarpTarget } from './lib/warpTarget';
-import { logger } from './lib/logger';
+} from '@/lib/routeCanvasLayout';
+import { resolveWarpTarget } from '@/lib/warpTarget';
+import { logger } from '@/lib/logger';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
   hasAfterWarpLabel,
   type WarpVariableDraft,
-} from './lib/warpAfterWarp';
+} from '@/lib/warpAfterWarp';
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, Theme, ProjectImage, RenpyAudio, Variable,

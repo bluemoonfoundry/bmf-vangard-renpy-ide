@@ -8,8 +8,8 @@ import {
   buildStringTranslationMap,
   computeLanguageCoverages,
   performTranslationAnalysis,
-} from '../lib/renpyTranslationParser';
-import type { AnalysisBlock } from '../lib/renpyTranslationParser';
+} from '@/lib/renpyTranslationParser';
+import type { AnalysisBlock } from '@/lib/renpyTranslationParser';
 
 // ---------------------------------------------------------------------------
 // Helpers

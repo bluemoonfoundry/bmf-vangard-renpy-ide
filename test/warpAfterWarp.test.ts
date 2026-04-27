@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAfterWarpScript, getInterpolatedVariableNames, getWarpVariableDrafts, hasAfterWarpLabel } from '../lib/warpAfterWarp';
+import { buildAfterWarpScript, getInterpolatedVariableNames, getWarpVariableDrafts, hasAfterWarpLabel } from '@/lib/warpAfterWarp';
 
 describe('warpAfterWarp helpers', () => {
   it('collects only default variables in a stable order', () => {

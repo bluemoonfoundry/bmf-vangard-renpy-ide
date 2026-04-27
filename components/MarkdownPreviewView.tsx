@@ -10,7 +10,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import Editor from '@monaco-editor/react';
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 
 interface MarkdownPreviewViewProps {
   filePath: string;

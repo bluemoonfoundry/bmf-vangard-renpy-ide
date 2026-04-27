@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Block } from '@/types';
-import { expandHex } from '../lib/colorPalettes';
-import type { PaletteColor } from '../lib/colorPalettes';
+import { expandHex } from '@/lib/colorPalettes';
+import type { PaletteColor } from '@/lib/colorPalettes';
 
 /**
  * Scans all block content for hex color literals and returns them as a

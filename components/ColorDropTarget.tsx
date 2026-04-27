@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { expandHex } from '../lib/colorPalettes';
+import { expandHex } from '@/lib/colorPalettes';
 
 interface ColorDropTargetProps {
     value: string;

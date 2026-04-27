@@ -9,8 +9,8 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { BUILT_IN_PALETTES, expandHex } from '../lib/colorPalettes';
-import type { PaletteColor, ColorPalette } from '../lib/colorPalettes';
+import { BUILT_IN_PALETTES, expandHex } from '@/lib/colorPalettes';
+import type { PaletteColor, ColorPalette } from '@/lib/colorPalettes';
 
 interface ColorPickerPaneProps {
     /** Inserts the hex code at the active editor cursor position. */

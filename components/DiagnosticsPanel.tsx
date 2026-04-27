@@ -16,7 +16,7 @@ import type {
   DiagnosticsTask,
   IgnoredDiagnosticRule,
 } from '@/types';
-import { createIgnoredDiagnosticRule } from '../lib/diagnosticIgnores';
+import { createIgnoredDiagnosticRule } from '@/lib/diagnosticIgnores';
 
 interface DiagnosticsPanelProps {
   diagnostics: DiagnosticsResult;

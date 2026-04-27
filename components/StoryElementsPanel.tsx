@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Character, Variable, ProjectImage, ImageMetadata, RenpyAudio, AudioMetadata, RenpyAnalysisResult, UserSnippet, MenuTemplate, ProjectSettings } from '@/types';
-import type { PaletteColor } from '../lib/colorPalettes';
+import type { PaletteColor } from '@/lib/colorPalettes';
 import { useVirtualList } from '../hooks/useVirtualList';
 
 // p-2 (16px) + color dot/name/tag rows (~36px) + space-y-2 gap (8px)
