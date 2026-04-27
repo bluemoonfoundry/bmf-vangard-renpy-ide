@@ -45,6 +45,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { useProjectColorScan } from '@/hooks/useProjectColorScan';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useToasts } from '@/hooks/useToasts';
+import { useModalState } from '@/hooks/useModalState';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
@@ -90,16 +91,6 @@ interface SerializedImageMapComposition {
 }
 
 // --- Main App Component ---
-
-interface UnsavedChangesModalInfo {
-    title: string;
-    message: string;
-    confirmText: string;
-    dontSaveText: string;
-    onConfirm: () => Promise<void> | void;
-    onDontSave: () => void;
-    onCancel: () => void;
-}
 
 interface PendingStoryLayoutRefresh {
     hasSavedLayouts: boolean;
@@ -200,22 +191,66 @@ const App: React.FC = () => {
 
   // Toast notifications
   const { toasts, addToast, removeToast } = useToasts();
+
+  // Modal state
+  const {
+    createBlockModalOpen,
+    createBlockModalType,
+    createBlockModalPosition,
+    createBlockModalFolderPath,
+    openCreateBlockModal,
+    closeCreateBlockModal,
+    deleteConfirmInfo,
+    openDeleteConfirmModal,
+    closeDeleteConfirmModal,
+    unsavedChangesModalInfo,
+    openUnsavedChangesModal,
+    closeUnsavedChangesModal,
+    contextMenuInfo,
+    openContextMenu,
+    closeContextMenu,
+    settingsModalOpen,
+    openSettingsModal,
+    closeSettingsModal,
+    shortcutsModalOpen,
+    openShortcutsModal,
+    closeShortcutsModal,
+    aboutModalOpen,
+    openAboutModal,
+    closeAboutModal,
+    showConfigureRenpyModal,
+    closeConfigureRenpyModal,
+    wizardModalOpen,
+    openWizardModal,
+    closeWizardModal,
+    showTutorial,
+    openTutorial,
+    closeTutorial,
+    isGoToLabelOpen,
+    openGoToLabelModal,
+    closeGoToLabelModal,
+    isWarpToLabelOpen,
+    openWarpToLabelModal,
+    closeWarpToLabelModal,
+    isWarpVariablesOpen,
+    openWarpVariablesModal,
+    closeWarpVariablesModal,
+    userSnippetModalOpen,
+    editingSnippet,
+    openUserSnippetModal,
+    closeUserSnippetModal,
+    menuConstructorModalOpen,
+    editingMenuTemplate,
+    openMenuConstructorModal,
+    closeMenuConstructorModal,
+  } = useModalState();
+
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialAnalysisPending, setIsInitialAnalysisPending] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const loadCancelRef = useRef(false);
   const [nonRenpyWarningPath, setNonRenpyWarningPath] = useState<string | null>(null);
-  
-  const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{ paths: string[]; onConfirm: () => void; } | null>(null);
-  const [createBlockModalOpen, setCreateBlockModalOpen] = useState(false);
-  const [createBlockModalType, setCreateBlockModalType] = useState<BlockType>('story');
-  const [createBlockModalPosition, setCreateBlockModalPosition] = useState<Position | undefined>(undefined);
-  const [createBlockModalFolderPath, setCreateBlockModalFolderPath] = useState('');
-  const [unsavedChangesModalInfo, setUnsavedChangesModalInfo] = useState<UnsavedChangesModalInfo | null>(null);
-  const [contextMenuInfo, setContextMenuInfo] = useState<{ x: number; y: number; tabId: string; paneId: 'primary' | 'secondary' } | null>(null);
-  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
-  const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
   // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
   const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
@@ -227,22 +262,8 @@ const App: React.FC = () => {
 
   // --- State: Game Execution ---
   const [isGameRunning, setIsGameRunning] = useState(false);
-  const [showConfigureRenpyModal, setShowConfigureRenpyModal] = useState(false);
-
-  // --- State: User Snippet Modal ---
-  const [userSnippetModalOpen, setUserSnippetModalOpen] = useState(false);
-  const [editingSnippet, setEditingSnippet] = useState<UserSnippet | null>(null);
-
-  // --- State: Menu Constructor Modal ---
-  const [menuConstructorModalOpen, setMenuConstructorModalOpen] = useState(false);
-  const [editingMenuTemplate, setEditingMenuTemplate] = useState<MenuTemplate | null>(null);
-
-  // --- State: First Run Tutorial ---
-  const [showTutorial, setShowTutorial] = useState(false);
 
   // --- State: Application and Project Settings ---
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [wizardModalOpen, setWizardModalOpen] = useState(false);
   const [appSettingsLoaded, setAppSettingsLoaded] = useState(false);
   const [characterProfiles, setCharacterProfiles] = useImmer<Record<string, string>>({});
   const [appSettings, updateAppSettings] = useImmer<AppSettings>({
@@ -280,9 +301,6 @@ const App: React.FC = () => {
   const [centerOnChoiceStartRequest, setCenterOnChoiceStartRequest] = useState<{ key: number } | null>(null);
   const [centerOnRouteNodeRequest, setCenterOnRouteNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
   const [centerOnChoiceNodeRequest, setCenterOnChoiceNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
-  const [isGoToLabelOpen, setIsGoToLabelOpen] = useState(false);
-  const [isWarpToLabelOpen, setIsWarpToLabelOpen] = useState(false);
-  const [isWarpVariablesOpen, setIsWarpVariablesOpen] = useState(false);
   const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
   const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
   const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
@@ -1157,16 +1175,9 @@ const App: React.FC = () => {
     return 'game/';
   }, [explorerSelectedPaths, fileSystemTree]);
 
-  const openCreateBlockModal = useCallback((type: BlockType, position?: Position) => {
-    setCreateBlockModalType(type);
-    setCreateBlockModalPosition(position);
-    setCreateBlockModalFolderPath(getSelectedFolderForNewBlock());
-    setCreateBlockModalOpen(true);
-  }, [getSelectedFolderForNewBlock]);
-
   const handleCreateBlockFromCanvas = useCallback((type: BlockType, position: Position) => {
-      openCreateBlockModal(type, position);
-  }, [openCreateBlockModal]);
+      openCreateBlockModal(type, position, getSelectedFolderForNewBlock());
+  }, [openCreateBlockModal, getSelectedFolderForNewBlock]);
 
   const deleteBlock = useCallback((id: string) => {
     setGroups(draft => {
@@ -1190,9 +1201,7 @@ const App: React.FC = () => {
     }
 
     // Show confirmation modal
-    setDeleteConfirmInfo({
-      paths: [block.filePath],
-      onConfirm: async () => {
+    openDeleteConfirmModal([block.filePath], async () => {
         try {
           // Delete the file from disk
           const fullPath = await window.electronAPI.path.join(projectRootPath, block.filePath) as string;
@@ -1210,7 +1219,6 @@ const App: React.FC = () => {
           logger.error('Failed to delete file:', err);
           addToast(`Failed to delete ${block.filePath}`, 'error');
         }
-      }
     });
   }, [blocks, projectRootPath, deleteBlock, addToast]);
 
@@ -2046,11 +2054,11 @@ const App: React.FC = () => {
 
   const handleCreateProject = useCallback(() => {
       // Open the new project wizard modal
-      setWizardModalOpen(true);
+      openWizardModal();
   }, []);
 
   const handleWizardComplete = useCallback(async (projectPath: string) => {
-      setWizardModalOpen(false);
+      closeWizardModal();
       try {
           await loadProject(projectPath);
           addToast('Project created successfully', 'success');
@@ -2447,14 +2455,14 @@ const App: React.FC = () => {
     };
 
     if (block?.filePath && filesWithDiskConflict.has(block.filePath)) {
-      setUnsavedChangesModalInfo({
+      openUnsavedChangesModal({
         title: 'Overwrite External Changes?',
         message: `"${block.title || block.filePath}" was changed on disk after you last loaded it. Your editor version will overwrite those changes.`,
         confirmText: 'Overwrite and Save',
         dontSaveText: 'Cancel',
-        onConfirm: async () => { setUnsavedChangesModalInfo(null); await doSave(); },
-        onDontSave: () => setUnsavedChangesModalInfo(null),
-        onCancel: () => setUnsavedChangesModalInfo(null),
+        onConfirm: async () => { closeUnsavedChangesModal(); await doSave(); },
+        onDontSave: () => closeUnsavedChangesModal(),
+        onCancel: () => closeUnsavedChangesModal(),
       });
       return;
     }
@@ -2596,13 +2604,13 @@ const App: React.FC = () => {
 
     if (conflictingPaths.length > 0) {
       const names = conflictingPaths.map(p => p.split('/').pop()).join(', ');
-      setUnsavedChangesModalInfo({
+      openUnsavedChangesModal({
         title: 'Overwrite External Changes?',
         message: `${conflictingPaths.length} file(s) were modified on disk: ${names}. Save All will overwrite those changes with your editor versions.`,
         confirmText: 'Save All',
         dontSaveText: 'Cancel',
         onConfirm: async () => {
-          setUnsavedChangesModalInfo(null);
+          closeUnsavedChangesModal();
           setFilesWithDiskConflict(prev => {
             const next = new Set(prev);
             conflictingPaths.forEach(p => next.delete(p));
@@ -2610,8 +2618,8 @@ const App: React.FC = () => {
           });
           await doSaveAll();
         },
-        onDontSave: () => setUnsavedChangesModalInfo(null),
-        onCancel: () => setUnsavedChangesModalInfo(null),
+        onDontSave: () => closeUnsavedChangesModal(),
+        onCancel: () => closeUnsavedChangesModal(),
       });
       return;
     }
@@ -2804,7 +2812,7 @@ const App: React.FC = () => {
     const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
     
     if (hasUnsaved) {
-      setUnsavedChangesModalInfo({
+      openUnsavedChangesModal({
         title: 'Unsaved Changes',
         message: 'You have unsaved changes. Do you want to save them before creating a new project?',
         confirmText: 'Save & Create',
@@ -2812,14 +2820,14 @@ const App: React.FC = () => {
         onConfirm: async () => {
           await handleSaveAll();
           handleCreateProject();
-          setUnsavedChangesModalInfo(null);
+          closeUnsavedChangesModal();
         },
         onDontSave: () => {
           handleCreateProject();
-          setUnsavedChangesModalInfo(null);
+          closeUnsavedChangesModal();
         },
         onCancel: () => {
-          setUnsavedChangesModalInfo(null);
+          closeUnsavedChangesModal();
         }
       });
     } else {
@@ -2932,7 +2940,7 @@ const App: React.FC = () => {
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
-      setContextMenuInfo({ x: e.clientX, y: e.clientY, tabId, paneId });
+      openContextMenu(e.clientX, e.clientY, tabId, paneId);
   }, []);
 
   const processTabCloseRequest = useCallback((tabsToClose: EditorTab[], fallbackTabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
@@ -2968,7 +2976,7 @@ const App: React.FC = () => {
     };
 
     if (hasUnsaved) {
-        setUnsavedChangesModalInfo({
+        openUnsavedChangesModal({
             title: `Close ${tabsToClose.length > 1 ? 'Tabs' : 'Tab'}`,
             message: `You have unsaved changes in ${tabsToClose.length > 1 ? 'some tabs' : 'this tab'}. Do you want to save them before closing?`,
             confirmText: 'Save & Close',
@@ -2976,7 +2984,7 @@ const App: React.FC = () => {
             onConfirm: async () => {
                 await handleSaveAll();
                 performClose();
-                setUnsavedChangesModalInfo(null);
+                closeUnsavedChangesModal();
             },
             onDontSave: () => {
                 // Clear dirty state for closed tabs without saving
@@ -2992,10 +3000,10 @@ const App: React.FC = () => {
                     return next;
                 });
                 performClose();
-                setUnsavedChangesModalInfo(null);
+                closeUnsavedChangesModal();
             },
             onCancel: () => {
-                setUnsavedChangesModalInfo(null);
+                closeUnsavedChangesModal();
             }
         });
     } else {
@@ -3218,7 +3226,7 @@ const App: React.FC = () => {
   }, [analysisResult.labels]);
 
   const handleGoToLabel = useCallback((id: string) => {
-    setIsGoToLabelOpen(false);
+    closeGoToLabelModal();
     if (activeCanvasTabId === 'canvas') {
       setCenterOnBlockRequest({ blockId: id, key: Date.now() });
     } else if (activeCanvasTabId === 'route-canvas') {
@@ -3253,7 +3261,7 @@ const App: React.FC = () => {
   }, [projectRootPath]);
 
   const resetWarpLaunchState = useCallback(() => {
-    setIsWarpVariablesOpen(false);
+    closeWarpVariablesModal();
     setPendingWarpLabelName(null);
     setPendingWarpTarget(null);
     setPendingWarpVariableDrafts([]);
@@ -3293,7 +3301,7 @@ const App: React.FC = () => {
     if (!window.electronAPI || !projectRootPath) return;
 
     const warpTarget = resolveWarpTarget(blocks, analysisResult.labels, labelName);
-    setIsWarpToLabelOpen(false);
+    closeWarpToLabelModal();
 
     if (!warpTarget) {
       addToast(`Could not resolve warp target for "${labelName}"`, 'warning');
@@ -3306,7 +3314,7 @@ const App: React.FC = () => {
       analysisResult.variables,
       analysisResult.translationData.translatableStrings,
     ));
-    setIsWarpVariablesOpen(true);
+    openWarpVariablesModal();
   }, [analysisResult.labels, analysisResult.translationData.translatableStrings, analysisResult.variables, addToast, blocks, projectRootPath]);
 
   useEffect(() => {
@@ -3318,13 +3326,17 @@ const App: React.FC = () => {
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (!projectRootPath) return;
         e.preventDefault();
-        setIsWarpToLabelOpen(true);
+        openWarpToLabelModal();
       } else if (isMetaShortcut && isG) {
         const tag = (e.target as HTMLElement).tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (!activeCanvasTabId) return;
         e.preventDefault();
-        setIsGoToLabelOpen(prev => !prev);
+        if (isGoToLabelOpen) {
+          closeGoToLabelModal();
+        } else {
+          openGoToLabelModal();
+        }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
         // Close the currently active tab
@@ -3338,8 +3350,8 @@ const App: React.FC = () => {
         }
       }
       if (e.key === 'Escape') {
-        setIsGoToLabelOpen(false);
-        setIsWarpToLabelOpen(false);
+        closeGoToLabelModal();
+        closeWarpToLabelModal();
         resetWarpLaunchState();
       }
     };
@@ -3681,9 +3693,7 @@ const App: React.FC = () => {
       ).filter(Boolean) as Block[];
       
       // Show confirmation modal
-      setDeleteConfirmInfo({
-          paths,
-          onConfirm: async () => {
+      openDeleteConfirmModal(paths, async () => {
               try {
                   // Delete the files
                   for (const p of paths) {
@@ -3711,7 +3721,6 @@ const App: React.FC = () => {
                   logger.error('Failed to delete:', err);
                   addToast('Failed to delete file(s)', 'error');
               }
-          }
       });
   }, [projectRootPath, blocks, deleteBlock, addToast]);
 
@@ -3913,10 +3922,10 @@ const App: React.FC = () => {
             if (data.command === 'stop-project') window.electronAPI?.stopGame();
             if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations');
             if (data.command === 'toggle-search') handleToggleSearch();
-            if (data.command === 'open-settings') setSettingsModalOpen(true);
-            if (data.command === 'open-shortcuts') setShortcutsModalOpen(true);
-            if (data.command === 'open-about') setAboutModalOpen(true);
-            if (data.command === 'show-tutorial') setShowTutorial(true);
+            if (data.command === 'open-settings') openSettingsModal();
+            if (data.command === 'open-shortcuts') openShortcutsModal();
+            if (data.command === 'open-about') openAboutModal();
+            if (data.command === 'show-tutorial') openTutorial();
             if (data.command === 'toggle-left-sidebar') updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; });
             if (data.command === 'toggle-right-sidebar') updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; });
             if (data.command === 'explorer-new-file') setExplorerExternalAction({ type: 'new-file', key: Date.now() });
@@ -4027,7 +4036,7 @@ const App: React.FC = () => {
       });
 
       const removeShowModal = window.electronAPI.onShowExitModal(() => {
-          setUnsavedChangesModalInfo({
+          openUnsavedChangesModal({
               title: 'Unsaved Changes',
               message: 'You have unsaved changes. Do you want to save them before exiting?',
               confirmText: 'Save & Exit',
@@ -4044,7 +4053,7 @@ const App: React.FC = () => {
                   window.electronAPI!.ideStateSavedForQuit();
               },
               onCancel: () => {
-                  setUnsavedChangesModalInfo(null);
+                  closeUnsavedChangesModal();
               }
           });
       });
@@ -4748,13 +4757,13 @@ const App: React.FC = () => {
         addBlock={() => openCreateBlockModal('story')}
         handleTidyUp={handleActiveCanvasTidyUp}
         handleSave={handleSaveAll}
-        onOpenSettings={() => setSettingsModalOpen(true)}
+        onOpenSettings={() => openSettingsModal()}
         onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}
         onRunGame={handleRunGame}
-        onWarpToLabel={() => setIsWarpToLabelOpen(true)}
+        onWarpToLabel={() => openWarpToLabelModal()}
         onStopGame={() => window.electronAPI?.stopGame()}
         isRenpyPathValid={isRenpyPathValid}
         draftingMode={projectSettings.draftingMode}
@@ -5048,14 +5057,14 @@ const App: React.FC = () => {
                 onDuplicateScreenLayout={handleDuplicateScreenLayout}
                 // Snippet Props
                 userSnippets={appSettings.userSnippets}
-                onCreateSnippet={() => { setEditingSnippet(null); setUserSnippetModalOpen(true); }}
-                onEditSnippet={(snippet) => { setEditingSnippet(snippet); setUserSnippetModalOpen(true); }}
+                onCreateSnippet={() => openUserSnippetModal()}
+                onEditSnippet={(snippet) => openUserSnippetModal(snippet)}
                 onDeleteSnippet={handleDeleteSnippet}
                 projectRootPath={projectRootPath}
                 // Menu Template Props
                 menuTemplates={appSettings.menuTemplates || []}
-                onCreateMenuTemplate={() => { setEditingMenuTemplate(null); setMenuConstructorModalOpen(true); }}
-                onEditMenuTemplate={(template) => { setEditingMenuTemplate(template); setMenuConstructorModalOpen(true); }}
+                onCreateMenuTemplate={() => openMenuConstructorModal()}
+                onEditMenuTemplate={(template) => openMenuConstructorModal(template)}
                 onDeleteMenuTemplate={handleDeleteMenuTemplate}
                 // Color Picker
                 onInsertColorAtCursor={handleInsertColor}
@@ -5115,10 +5124,7 @@ const App: React.FC = () => {
 
       <CreateBlockModal
         isOpen={createBlockModalOpen}
-        onClose={() => {
-          setCreateBlockModalOpen(false);
-          setCreateBlockModalPosition(undefined);
-        }}
+        onClose={closeCreateBlockModal}
         onConfirm={(name, type) => handleCreateBlockConfirm(name, type, createBlockModalFolderPath, createBlockModalPosition)}
         defaultPath={createBlockModalFolderPath || getSelectedFolderForNewBlock()}
         initialType={createBlockModalType}
@@ -5126,10 +5132,10 @@ const App: React.FC = () => {
 
       <ConfigureRenpyModal
         isOpen={showConfigureRenpyModal}
-        onClose={() => setShowConfigureRenpyModal(false)}
+        onClose={() => closeConfigureRenpyModal()}
         onSave={(path) => {
             updateAppSettings(draft => { draft.renpyPath = path; });
-            setShowConfigureRenpyModal(false);
+            closeConfigureRenpyModal();
             if (projectRootPath && window.electronAPI) {
                 window.electronAPI.runGame(path, projectRootPath);
             }
@@ -5159,9 +5165,9 @@ const App: React.FC = () => {
             title="Confirm Deletion"
             onConfirm={() => {
                 deleteConfirmInfo.onConfirm();
-                setDeleteConfirmInfo(null);
+                closeDeleteConfirmModal();
             }}
-            onClose={() => setDeleteConfirmInfo(null)}
+            onClose={() => closeDeleteConfirmModal()}
             confirmText="Delete"
             confirmClassName="bg-red-600 hover:bg-red-700"
           >
@@ -5176,7 +5182,7 @@ const App: React.FC = () => {
               tabId={contextMenuInfo.tabId}
               paneId={contextMenuInfo.paneId}
               splitLayout={splitLayout}
-              onClose={() => setContextMenuInfo(null)}
+              onClose={() => closeContextMenu()}
               onCloseTab={(id) => handleCloseTab(id, contextMenuInfo.paneId)}
               onCloseOthers={(id) => handleCloseOthersRequest(id, contextMenuInfo.paneId)}
               onCloseLeft={(id) => handleCloseLeftRequest(id, contextMenuInfo.paneId)}
@@ -5191,7 +5197,7 @@ const App: React.FC = () => {
 
       <SettingsModal 
         isOpen={settingsModalOpen} 
-        onClose={() => setSettingsModalOpen(false)}
+        onClose={() => closeSettingsModal()}
         settings={settingsMerged}
         onSettingsChange={(key, value) => {
             if (key in appSettings) {
@@ -5209,21 +5215,21 @@ const App: React.FC = () => {
 
       <KeyboardShortcutsModal
         isOpen={shortcutsModalOpen}
-        onClose={() => setShortcutsModalOpen(false)}
+        onClose={() => closeShortcutsModal()}
         mouseGestures={appSettings.mouseGestures}
-        onOpenSettings={() => { setShortcutsModalOpen(false); setSettingsModalOpen(true); }}
+        onOpenSettings={() => { closeShortcutsModal(); openSettingsModal(); }}
       />
 
       <UserSnippetModal
         isOpen={userSnippetModalOpen}
-        onClose={() => setUserSnippetModalOpen(false)}
+        onClose={() => closeUserSnippetModal()}
         onSave={handleSaveSnippet}
         existingSnippet={editingSnippet}
       />
 
       <MenuConstructorModal
         isOpen={menuConstructorModalOpen}
-        onClose={() => setMenuConstructorModalOpen(false)}
+        onClose={() => closeMenuConstructorModal()}
         onInsert={(code, templateData) => {
           if (templateData) {
             const now = Date.now();
@@ -5238,7 +5244,7 @@ const App: React.FC = () => {
             };
             handleSaveMenuTemplate(template);
           }
-          setMenuConstructorModalOpen(false);
+          closeMenuConstructorModal();
         }}
         initialTemplate={editingMenuTemplate || undefined}
         labels={menuLabels}
@@ -5249,7 +5255,7 @@ const App: React.FC = () => {
 
       <NewProjectWizardModal
         isOpen={wizardModalOpen}
-        onClose={() => setWizardModalOpen(false)}
+        onClose={() => closeWizardModal()}
         onComplete={handleWizardComplete}
         sdkPath={appSettings.renpyPath}
         lastProjectDir={appSettings.lastProjectDir || ''}
@@ -5258,14 +5264,14 @@ const App: React.FC = () => {
 
       <AboutModal
         isOpen={aboutModalOpen}
-        onClose={() => setAboutModalOpen(false)}
+        onClose={() => closeAboutModal()}
       />
       <GoToLabelModal
         isOpen={isGoToLabelOpen}
         items={goToLabelItems}
         canvasName={goToLabelCanvasName}
         onSelect={handleGoToLabel}
-        onClose={() => setIsGoToLabelOpen(false)}
+        onClose={() => closeGoToLabelModal()}
       />
       <GoToLabelModal
         isOpen={isWarpToLabelOpen}
@@ -5275,7 +5281,7 @@ const App: React.FC = () => {
         placeholder="Warp to label…"
         emptyStateText="No labels available"
         onSelect={handleWarpToLabel}
-        onClose={() => setIsWarpToLabelOpen(false)}
+        onClose={() => closeWarpToLabelModal()}
       />
       <WarpVariablesModal
         isOpen={isWarpVariablesOpen}
@@ -5288,7 +5294,7 @@ const App: React.FC = () => {
 
       <FirstRunTutorial
         forceShow={showTutorial}
-        onComplete={() => setShowTutorial(false)}
+        onComplete={() => closeTutorial()}
       />
     </div>
     </SearchProvider>
