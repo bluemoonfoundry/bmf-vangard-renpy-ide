@@ -5,6 +5,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Vangard Ren'Py IDE (Ren'IDE) is an Electron + React/TypeScript desktop application for visual novel development. It maps `.rpy` files to draggable blocks on a canvas, provides integrated Monaco editors, and includes visual composers for scenes, image maps, and screens. Current version: **0.7.1 Public Beta 4**.
 
+## Project Structure
+
+All source code is organized under `src/` with path aliases configured for clean imports:
+
+```
+src/
+├── App.tsx                 # Main application component (5,320 lines - state hub)
+├── index.tsx               # React entry point
+├── types.ts                # TypeScript type definitions (single source of truth)
+├── components/             # React UI components (79 files)
+├── hooks/                  # Custom React hooks (17 files)
+├── lib/                    # Utility functions and algorithms (29 files)
+├── contexts/               # React context providers (SearchContext)
+├── test/                   # Test setup, mocks, and test files
+└── workers/                # Web Workers (renpyAnalysis.worker.ts)
+```
+
+**Import Convention:** Use the `@/` path alias for all imports:
+```typescript
+import type { Block } from '@/types';
+import { useHistory } from '@/hooks/useHistory';
+import Toolbar from '@/components/Toolbar';
+import { createId } from '@/lib/createId';
+```
+
+Root-level files (outside src/):
+- `electron.js` - Electron main process (Node.js runtime)
+- `preload.js` - Electron preload script (IPC bridge)
+- `vite.config.ts`, `tsconfig.json`, `eslint.config.js` - Build configuration
+- `package.json`, `.gitignore`, `README.md`, etc.
+
 ## Commands
 ```bash
 npm run dev                        # Vite dev server (http://localhost:5173)
@@ -13,7 +44,7 @@ npm run build                      # Production build to dist/
 npm run dist                       # Package to release/ (DMG/NSIS/AppImage)
 npm test                           # Vitest once
 npm run test:watch                 # Vitest watch mode
-npx vitest run hooks/useHistory.test.ts  # Run a single test file
+npx vitest run src/hooks/useHistory.test.ts  # Run a single test file
 npm run test:coverage              # Coverage report (v8)
 npm run lint:fix                   # ESLint auto-fix
 ```
@@ -199,18 +230,19 @@ Visual menu designer with:
 - `project:refresh` IPC handler reads all file contents
 
 ## Conventions
+- **Imports**: Use `@/` path alias for all source imports: `import { Block } from '@/types';` not `import { Block } from '../types';`. Avoid relative imports (`../`, `../../`) except for local sibling files.
 - **State mutation**: Always use `useImmer` drafts; never mutate state directly.
 - **IPC**: Use `namespace:action` pattern in both `preload.js` and `electron.js`.
 - **Modals**: Use `createPortal()` to `document.body` + the `useModalAccessibility` hook (focus trap, ESC, ARIA).
 - **Styling**: Tailwind CSS + dark mode via `class` strategy.
-- **Clipboard UI**: Use `components/CopyButton.tsx`.
+- **Clipboard UI**: Use `@/components/CopyButton`.
 - **Sticky notes**: Three separate arrays (`stickyNotes`, `routeStickyNotes`, `choiceStickyNotes`), one per canvas. Content renders as Markdown via `marked`. Notes can be promoted to `DiagnosticsTask` via checkbox.
-- **Color swatches**: Use `ColorDropTarget.tsx` component for drag-and-drop color input (wraps `<input type="color">`).
+- **Color swatches**: Use `ColorDropTarget` component for drag-and-drop color input (wraps `<input type="color">`).
 - **Diagnostics tasks**: Use `DiagnosticsTask` interface (migrated from legacy "punchlist"). Tasks persist in `.renide/project.json`.
-- **Tests**: Vitest + JSDOM. Setup in `test/setup.ts`. Test files match `**/*.test.{ts,tsx}`.
-- **Data models**: `types.ts` is the single source of truth for all interfaces (Block, Link, Diagnostic, Composition, etc.).
+- **Tests**: Vitest + JSDOM. Setup in `src/test/setup.ts`. Test files match `**/*.test.{ts,tsx}`.
+- **Data models**: `src/types.ts` is the single source of truth for all interfaces (Block, Link, Diagnostic, Composition, etc.).
 - **Canvas drag**: Use native pointer events (`pointerdown`/`pointermove`/`pointerup`) with global listeners — do not use React synthetic events for drag performance.
 - **Components**: Canvas block components (`CodeBlock`, `LabelBlock`, `GroupContainer`) use `forwardRef` + `React.memo`. Elements with class `.drag-handle` initiate canvas drag; `button`/`input` children do not propagate drag.
 
 ## Testing
-`test/mocks/electronAPI.ts` exports `createMockElectronAPI()` (fully-stubbed API with Promise defaults) and `installElectronAPI()` / `uninstallElectronAPI()` for test setup/teardown. `test/mocks/sampleData.ts` exports factory functions (`createBlock()`, `createBlockGroup()`, `createSampleAnalysisResult()`, `createAppSettings()`, etc.) used across unit and integration tests.
+`src/test/mocks/electronAPI.ts` exports `createMockElectronAPI()` (fully-stubbed API with Promise defaults) and `installElectronAPI()` / `uninstallElectronAPI()` for test setup/teardown. `src/test/mocks/sampleData.ts` exports factory functions (`createBlock()`, `createBlockGroup()`, `createSampleAnalysisResult()`, `createAppSettings()`, etc.) used across unit and integration tests.
