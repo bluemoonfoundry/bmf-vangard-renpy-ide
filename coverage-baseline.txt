@@ -1,0 +1,172 @@
+
+> renide@0.8.1 test:coverage
+> vitest run --coverage
+
+
+ RUN  v4.1.3 /Users/hirparag/Development/private/bmf-vangard-renpy-ide
+      Coverage enabled with v8
+
+Failed to parse file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/components/EditorView.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+ 9: import React, { useRef, useEffect, useState, useCallback } from 'react';
+10: import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
+11: import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } fro...
+                ^
+12: import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+13: import { detectContext, getRenpyCompletions } from '../lib/renpyCompletionProvider';
+    at error (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/shared/logs-D80CXhvg.mjs:147:24)
+    at normalizeParseError (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 2)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/vitest/dist/chunks/cli-api.CaPRsymo.js:13580:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 534
+}
+Failed to parse file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/components/MenuTemplatePickerModal.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+ 7: import React, { useState } from 'react';
+ 8: import { createPortal } from 'react-dom';
+ 9: import type { MenuTemplate } from '@/types';
+                ^
+10: import { useModalAccessibility } from '@/hooks/useModalAccessibility';
+    at error (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/shared/logs-D80CXhvg.mjs:147:24)
+    at normalizeParseError (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 3)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/vitest/dist/chunks/cli-api.CaPRsymo.js:13580:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 275
+}
+Failed to parse file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/components/MenuConstructorModal.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+ 8: import React, { useState, useEffect, useRef } from 'react';
+ 9: import { createPortal } from 'react-dom';
+10: import type { MenuChoice, MenuTemplate } from '@/types';
+                ^
+11: import { useModalAccessibility } from '@/hooks/useModalAccessibility';
+12: import { createId } from '@/lib/createId';
+    at error (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/shared/logs-D80CXhvg.mjs:147:24)
+    at normalizeParseError (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 0)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/hirparag/Development/private/bmf-vangard-renpy-ide/node_modules/vitest/dist/chunks/cli-api.CaPRsymo.js:13580:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 380
+}
+
+ Test Files  28 passed (28)
+      Tests  481 passed (481)
+   Start at  09:54:14
+   Duration  6.08s (transform 1.30s, setup 4.21s, import 4.66s, tests 6.32s, environment 21.71s)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |    9.63 |     8.91 |    7.99 |   10.11 |                   
+ ...gard-renpy-ide |       0 |        0 |       0 |       0 |                   
+  App.tsx          |       0 |        0 |       0 |       0 | 77-5320           
+ ...ide/components |    6.34 |     6.91 |    6.96 |    6.69 |                   
+  AboutModal.tsx   |       0 |        0 |       0 |       0 | 11-48             
+  ...isOverlay.tsx |       0 |        0 |       0 |       0 | 17-21             
+  ...ntextMenu.tsx |       0 |        0 |       0 |       0 | 18-50             
+  ...ditorView.tsx |       0 |        0 |       0 |       0 | 11-389            
+  AudioManager.tsx |       0 |        0 |       0 |       0 | 14-328            
+  ...ntextMenu.tsx |       0 |        0 |       0 |       0 | 22-79             
+  ...tControls.tsx |       0 |        0 |       0 |       0 | 32-196            
+  ...vControls.tsx |       0 |        0 |       0 |       0 | 22-28             
+  ...ntextMenu.tsx |   66.66 |       75 |   45.45 |      65 | 46-47,55-70       
+  ...asToolbox.tsx |       0 |        0 |       0 |       0 | 27-43             
+  ...ditorView.tsx |       0 |        0 |       0 |       0 | 20-327            
+  ChoiceCanvas.tsx |       0 |        0 |       0 |       0 | 28-1722           
+  ...onButtons.tsx |       0 |        0 |       0 |       0 | 34-121            
+  CodeBlock.tsx    |       0 |        0 |       0 |       0 | 37-341            
+  ...ropTarget.tsx |       0 |        0 |       0 |       0 | 20-62             
+  ...ickerPane.tsx |       0 |        0 |       0 |       0 | 34-257            
+  ...enpyModal.tsx |       0 |        0 |       0 |       0 | 18-54             
+  ConfirmModal.tsx |     100 |      100 |     100 |     100 |                   
+  CopyButton.tsx   |   42.85 |    55.55 |   33.33 |      50 | 33-39             
+  ...lockModal.tsx |   97.05 |      100 |      90 |   96.77 | 79                
+  ...ticsPanel.tsx |    52.1 |    32.91 |   33.96 |   56.43 | ...08,439,479-570 
+  ...uePreview.tsx |       0 |        0 |       0 |       0 | 47-188            
+  ...rBoundary.tsx |       0 |        0 |       0 |       0 | 25-46             
+  FileBlock.tsx    |       0 |        0 |       0 |       0 | 21-103            
+  ...ntextMenu.tsx |       0 |        0 |       0 |       0 | 34-128            
+  ...orerPanel.tsx |       0 |        0 |       0 |       0 | 14-467            
+  ...nTutorial.tsx |       0 |        0 |       0 |       0 | 12-368            
+  ...abelModal.tsx |       0 |        0 |       0 |       0 | 30-180            
+  ...Container.tsx |       0 |        0 |       0 |       0 | 20-82             
+  ...ntextMenu.tsx |       0 |        0 |       0 |       0 | 18-50             
+  ...ditorView.tsx |       0 |        0 |       0 |       0 | 21-449            
+  ImageManager.tsx |       0 |        0 |       0 |       0 | 30-300            
+  ...pComposer.tsx |       0 |        0 |       0 |       0 | 24-604            
+  ...Thumbnail.tsx |       0 |        0 |       0 |       0 | 21-32             
+  ...cutsModal.tsx |       0 |        0 |       0 |       0 | 19-116            
+  LabelBlock.tsx   |       0 |        0 |       0 |       0 | 29-140            
+  ...ngOverlay.tsx |       0 |        0 |       0 |       0 | 17-25             
+  ...eviewView.tsx |   59.32 |    32.35 |   54.54 |   60.71 | ...00,115,141-152 
+  ...etPopover.tsx |       0 |        0 |       0 |       0 | 16-144            
+  ...nstructor.tsx |       0 |        0 |       0 |       0 | 27-342            
+  ...ctorPanel.tsx |       0 |        0 |       0 |       0 | 45-127            
+  ...teManager.tsx |       0 |        0 |       0 |       0 | 24-137            
+  Minimap.tsx      |       0 |        0 |       0 |       0 | 28-190            
+  ...zardModal.tsx |       0 |        0 |       0 |       0 | 26-450            
+  RouteCanvas.tsx  |       0 |        0 |       0 |       0 | 69-2130           
+  Sash.tsx         |       0 |        0 |       0 |       0 | 16-45             
+  ...eComposer.tsx |       0 |        0 |       0 |       0 | 17-1155           
+  ...roperties.tsx |       0 |        0 |       0 |       0 | 14-403            
+  ...tComposer.tsx |       0 |        0 |       0 |       0 | 31-1209           
+  ...enManager.tsx |       0 |        0 |       0 |       0 | 15-52             
+  SearchPanel.tsx  |      70 |    72.72 |      60 |   68.42 | ...13,133-136,151 
+  ...ingsModal.tsx |       0 |        0 |       0 |       0 | 20-187            
+  ...tGridView.tsx |   95.12 |    89.18 |   94.11 |   94.87 | 71,200            
+  ...etManager.tsx |     100 |    96.15 |     100 |     100 | 121               
+  StatsView.tsx    |       0 |        0 |       0 |       0 | 44-1060           
+  StatusBar.tsx    |       0 |        0 |       0 |       0 | 19-51             
+  StickyNote.tsx   |       0 |        0 |       0 |       0 | 21-85             
+  StoryCanvas.tsx  |       0 |        0 |       0 |       0 | 61-1473           
+  ...entsPanel.tsx |       0 |        0 |       0 |       0 | 15-482            
+  ...ntextMenu.tsx |       0 |        0 |       0 |       0 | 28-112            
+  Toast.tsx        |     100 |      100 |     100 |     100 |                   
+  Toolbar.tsx      |   72.41 |       70 |   53.84 |   71.42 | 105-115,180-235   
+  ...Dashboard.tsx |   68.07 |    70.42 |      60 |   71.42 | ...70,404,434,491 
+  ...ppetModal.tsx |   96.36 |     90.9 |    90.9 |   95.55 | 74,124            
+  ...leManager.tsx |       0 |        0 |       0 |       0 | 14-307            
+  ...utesPanel.tsx |       0 |        0 |       0 |       0 | 32-106            
+  ...blesModal.tsx |       0 |        0 |       0 |       0 | 15-101            
+ ...y-ide/contexts |       0 |        0 |       0 |       0 |                   
+  ...chContext.tsx |       0 |        0 |       0 |       0 | 35-118            
+ ...enpy-ide/hooks |   66.91 |    57.24 |   65.46 |   68.56 |                   
+  useCanvasFps.ts  |       0 |        0 |       0 |       0 | 3-44              
+  useDebounce.ts   |     100 |      100 |     100 |     100 |                   
+  ...iagnostics.ts |   38.74 |      8.8 |    42.3 |   43.03 | ...33-435,456-470 
+  ...temManager.ts |   93.75 |    84.37 |     100 |     100 | 16-18,41-46       
+  useHistory.ts    |     100 |      100 |     100 |     100 |                   
+  ...essibility.ts |   69.04 |       50 |   83.33 |      70 | 51-68             
+  ...nceMetrics.ts |       0 |        0 |       0 |       0 | 22-80             
+  ...tColorScan.ts |       0 |        0 |       0 |       0 | 14-32             
+  ...pyAnalysis.ts |   83.26 |    76.43 |      86 |    85.1 | ...95-706,722-778 
+  ...ppetLoader.ts |   66.66 |    41.17 |     100 |      66 | ...28-136,150-155 
+  ...irtualList.ts |   92.59 |      100 |   66.66 |    91.3 | 27,50             
+-------------------|---------|----------|---------|---------|-------------------
