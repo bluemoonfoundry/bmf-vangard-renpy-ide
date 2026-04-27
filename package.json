@@ -119,9 +119,10 @@
       "artifactName": "${name}-${version}.${ext}"
     },
     "linux": {
-      "target": "AppImage",
+      "target": ["AppImage", "deb"],
       "icon": "renide-512x512.png",
-      "artifactName": "${name}-${version}.${ext}"
+      "artifactName": "${name}-${version}.${ext}",
+      "category": "Development"
     },
     "extraResources": [
       {
