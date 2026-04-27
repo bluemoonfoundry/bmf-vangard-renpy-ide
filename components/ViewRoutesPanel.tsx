@@ -8,7 +8,7 @@
  * from `useRenpyAnalysis` route analysis.
  */
 import React, { useState } from 'react';
-import type { IdentifiedRoute } from '../types';
+import type { IdentifiedRoute } from '@/types';
 
 interface RouteLabel {
   startLabel: string;

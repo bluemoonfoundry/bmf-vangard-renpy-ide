@@ -4,7 +4,7 @@ import type {
   SavedStoryBlockLayout,
   StoryCanvasGroupingMode,
   StoryCanvasLayoutMode,
-} from '../types';
+} from '@/types';
 import {
   buildClustersGeneric,
   computeLayeredLayoutGeneric,

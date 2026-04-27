@@ -7,7 +7,7 @@
  * from toast state and calls `onDismiss` when the timer or button fires.
  */
 import React, { useEffect, useState } from 'react';
-import type { ToastMessage } from '../types';
+import type { ToastMessage } from '@/types';
 
 interface ToastProps {
   toast: ToastMessage;

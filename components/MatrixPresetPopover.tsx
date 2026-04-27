@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { SceneSprite } from '../types';
+import type { SceneSprite } from '@/types';
 
 interface MatrixPreset {
     name: string;

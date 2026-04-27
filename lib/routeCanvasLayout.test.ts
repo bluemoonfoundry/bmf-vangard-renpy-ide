@@ -1,5 +1,5 @@
 import { computeRouteCanvasLayout, computeRouteCanvasLayoutFingerprint } from './routeCanvasLayout';
-import type { LabelNode, RouteLink } from '../types';
+import type { LabelNode, RouteLink } from '@/types';
 
 const createNode = (id: string, containerName: string): LabelNode => ({
   id,

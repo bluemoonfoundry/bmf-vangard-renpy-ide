@@ -11,7 +11,7 @@ import type {
   DiagnosticsTask,
   IgnoredDiagnosticRule,
   PunchlistMetadata,
-} from '../types';
+} from '@/types';
 import { validateRenpyCode } from '../lib/renpyValidator';
 import { matchesIgnoredDiagnostic } from '../lib/diagnosticIgnores';
 

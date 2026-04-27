@@ -3,7 +3,7 @@ import type {
   RouteLink,
   StoryCanvasGroupingMode,
   StoryCanvasLayoutMode,
-} from '../types';
+} from '@/types';
 import {
   buildClustersGeneric,
   computeLayeredLayoutGeneric,

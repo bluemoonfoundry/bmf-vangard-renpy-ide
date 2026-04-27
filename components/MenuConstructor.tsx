@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import type { RenpyAnalysisResult } from '../types';
+import type { RenpyAnalysisResult } from '@/types';
 import CodeActionButtons from './CodeActionButtons';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 

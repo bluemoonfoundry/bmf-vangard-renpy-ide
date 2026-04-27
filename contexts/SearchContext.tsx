@@ -8,7 +8,7 @@
 import React, { createContext, useState, useCallback, useContext, useMemo } from 'react';
 import { logger } from '../lib/logger';
 import { useImmer } from 'use-immer';
-import type { SearchResult, Block } from '../types';
+import type { SearchResult, Block } from '@/types';
 
 interface SearchOptions {
   isCaseSensitive: boolean;

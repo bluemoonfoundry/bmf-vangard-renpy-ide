@@ -15,7 +15,7 @@ import type {
   DiagnosticSeverity,
   DiagnosticsTask,
   IgnoredDiagnosticRule,
-} from '../types';
+} from '@/types';
 import { createIgnoredDiagnosticRule } from '../lib/diagnosticIgnores';
 
 interface DiagnosticsPanelProps {

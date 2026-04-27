@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     // Use relative paths for assets (supports Electron/standalone builds)
     base: './',
+    // Path alias resolution for imports
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src'),
+      },
+    },
     // Global variable definitions for client-side code
     define: {
       /**

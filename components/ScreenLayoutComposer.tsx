@@ -7,7 +7,7 @@
  * via `composition` prop and `onCompositionChange` callback persisted in `ProjectSettings`.
  */
 import React, { useState, useCallback } from 'react';
-import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '../types';
+import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/types';
 import { generateScreenCode } from '../lib/screenCodeGenerator';
 import { createId } from '../lib/createId';
 import CodeActionButtons from './CodeActionButtons';

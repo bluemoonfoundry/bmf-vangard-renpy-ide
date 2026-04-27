@@ -12,7 +12,7 @@ import type {
   TranslationFileBreakdown,
   TranslationAnalysisResult,
   DialogueLine,
-} from '../types';
+} from '@/types';
 
 // ---------------------------------------------------------------------------
 // Regex patterns

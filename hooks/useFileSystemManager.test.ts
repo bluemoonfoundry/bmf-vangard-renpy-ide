@@ -8,7 +8,7 @@
  */
 
 import { addNodeToFileTree, removeNodeFromFileTree } from './useFileSystemManager';
-import type { FileSystemTreeNode } from '../types';
+import type { FileSystemTreeNode } from '@/types';
 
 /** Helper: create a minimal tree for testing. */
 function makeTree(): FileSystemTreeNode {

@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import type { ProjectImage } from '../types';
+import type { ProjectImage } from '@/types';
 
 interface ImageThumbnailProps {
   image: ProjectImage;

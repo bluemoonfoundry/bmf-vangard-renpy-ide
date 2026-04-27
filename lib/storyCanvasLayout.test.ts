@@ -1,5 +1,5 @@
 import { buildSavedStoryBlockLayouts, computeStoryLayout, computeStoryLayoutFingerprint } from './storyCanvasLayout';
-import type { Block, Link } from '../types';
+import type { Block, Link } from '@/types';
 
 const createBlock = (id: string, filePath: string): Block => ({
   id,

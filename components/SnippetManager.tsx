@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import type { UserSnippet } from '../types';
+import type { UserSnippet } from '@/types';
 import CopyButton from './CopyButton';
 import SnippetGridView from './SnippetGridView';
 import { useSnippetLoader } from '../hooks/useSnippetLoader';

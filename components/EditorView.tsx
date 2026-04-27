@@ -9,7 +9,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { logger } from '../lib/logger';
 import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
-import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } from '../types';
+import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { detectContext, getRenpyCompletions } from '../lib/renpyCompletionProvider';
 import type { RenpyCompletionData } from '../lib/renpyCompletionProvider';

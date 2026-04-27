@@ -16,7 +16,7 @@ import CanvasLayoutControls from './CanvasLayoutControls';
 import CanvasToolbox from './CanvasToolbox';
 import CanvasNavControls from './CanvasNavControls';
 import type { MinimapItem } from './Minimap';
-import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult } from '../types';
+import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult } from '@/types';
 import type { BlockType } from './CreateBlockModal';
 
 interface StoryCanvasProps {

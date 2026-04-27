@@ -1,4 +1,4 @@
-import type { DiagnosticIssue, IgnoredDiagnosticRule } from '../types';
+import type { DiagnosticIssue, IgnoredDiagnosticRule } from '@/types';
 
 export function createIgnoredDiagnosticRule(issue: DiagnosticIssue): IgnoredDiagnosticRule {
   return {

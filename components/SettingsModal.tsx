@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
-import type { Theme, IdeSettings, MouseGestureSettings, CanvasPanGesture } from '../types';
+import type { Theme, IdeSettings, MouseGestureSettings, CanvasPanGesture } from '@/types';
 
 interface SettingsModalProps {
   isOpen: boolean;

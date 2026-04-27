@@ -8,7 +8,7 @@
  */
 
 import React, { useState, forwardRef } from 'react';
-import type { StickyNote as StickyNoteType, NoteColor } from '../types';
+import type { StickyNote as StickyNoteType, NoteColor } from '@/types';
 
 interface StickyNoteProps {
   note: StickyNoteType;

@@ -16,7 +16,7 @@
  */
 
 import { vi, type Mock } from 'vitest';
-import type { AppSettings, SearchResult } from '../../types';
+import type { AppSettings, SearchResult } from '@/types';
 
 interface MockLoadedProject {
   blocks: unknown[];

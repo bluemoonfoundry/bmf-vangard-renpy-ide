@@ -1,7 +1,7 @@
 import DirectedGraph from 'graphology';
 import { connectedComponents } from 'graphology-components';
 import { topologicalGenerations } from 'graphology-dag';
-import type { LabelNode, Position, RouteLink, StoryCanvasGroupingMode } from '../types';
+import type { LabelNode, Position, RouteLink, StoryCanvasGroupingMode } from '@/types';
 
 export interface LayoutNode {
   id: string;

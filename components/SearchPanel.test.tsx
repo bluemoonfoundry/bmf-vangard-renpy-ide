@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SearchPanel from './SearchPanel';
-import type { SearchResult } from '../types';
+import type { SearchResult } from '@/types';
 
 // Mock the useSearch hook
 const mockUseSearch = {

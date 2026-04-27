@@ -7,7 +7,7 @@
  * from `useRenpyAnalysis`.
  */
 import React from 'react';
-import type { LabelNode } from '../types';
+import type { LabelNode } from '@/types';
 
 interface FileBlockProps {
   node: LabelNode; // id = blockId, label = cleaned containerName

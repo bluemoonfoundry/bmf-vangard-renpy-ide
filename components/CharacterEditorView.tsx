@@ -6,7 +6,7 @@
  * images from `AssetContext` passed as props.
  */
 import React, { useState, useEffect, useMemo, memo } from 'react';
-import type { Character, ProjectImage, ImageMetadata } from '../types';
+import type { Character, ProjectImage, ImageMetadata } from '@/types';
 import ColorDropTarget from './ColorDropTarget';
 
 interface CharacterEditorViewProps {

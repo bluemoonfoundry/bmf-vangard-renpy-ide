@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { SceneSprite } from '../types';
+import type { SceneSprite } from '@/types';
 import MatrixPresetPopover from './MatrixPresetPopover';
 import ColorDropTarget from './ColorDropTarget';
 

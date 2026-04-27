@@ -7,7 +7,7 @@
  * canvas via `ProjectSettings` persisted in `App.tsx`.
  */
 import React from 'react';
-import type { StoryCanvasGroupingMode, StoryCanvasLayoutMode } from '../types';
+import type { StoryCanvasGroupingMode, StoryCanvasLayoutMode } from '@/types';
 
 interface CanvasLayoutControlsProps {
   canvasLabel: string;

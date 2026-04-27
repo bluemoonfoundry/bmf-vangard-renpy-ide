@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
-import type { ProjectImage, ImageMetadata } from '../types';
+import type { ProjectImage, ImageMetadata } from '@/types';
 
 interface ImageEditorViewProps {
   image: ProjectImage;

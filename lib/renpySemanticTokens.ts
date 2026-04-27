@@ -10,7 +10,7 @@
  */
 
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import type { RenpyAnalysisResult } from '../types';
+import type { RenpyAnalysisResult } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Legend — defines the token type & modifier indices

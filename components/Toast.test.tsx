@@ -1,6 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import Toast from './Toast';
-import type { ToastMessage } from '../types';
+import type { ToastMessage } from '@/types';
 
 describe('Toast', () => {
   beforeEach(() => {

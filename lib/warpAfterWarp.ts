@@ -1,4 +1,4 @@
-import type { LabelLocation, TranslatableString, Variable } from '../types';
+import type { LabelLocation, TranslatableString, Variable } from '@/types';
 
 export interface WarpVariableDraft {
   name: string;

@@ -10,7 +10,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { logger } from '../lib/logger';
 import { createPortal } from 'react-dom';
-import { CreateProjectOptions } from '../types';
+import { CreateProjectOptions } from '@/types';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import ColorDropTarget from './ColorDropTarget';
 

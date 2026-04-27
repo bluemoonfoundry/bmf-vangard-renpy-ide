@@ -1,4 +1,4 @@
-import type { ScreenLayoutComposition, ScreenWidget } from '../types';
+import type { ScreenLayoutComposition, ScreenWidget } from '@/types';
 
 function generateWidget(widget: ScreenWidget, depth: number, insideContainer: boolean, indent: string): string {
     const pad = indent.repeat(depth);

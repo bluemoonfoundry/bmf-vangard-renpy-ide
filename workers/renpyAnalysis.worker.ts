@@ -10,7 +10,7 @@
 
 import { performRenpyAnalysis, performRouteAnalysis } from '../hooks/useRenpyAnalysis';
 import type { AnalysisBlock } from '../hooks/useRenpyAnalysis';
-import type { RenpyAnalysisResult } from '../types';
+import type { RenpyAnalysisResult } from '@/types';
 import { formatErrorMessage } from '../lib/formatErrorMessage';
 import { performTranslationAnalysis } from '../lib/renpyTranslationParser';
 

@@ -8,7 +8,7 @@ import {
   type LayoutNode,
   type LayoutEdge,
 } from './graphLayout';
-import type { LabelNode, RouteLink } from '../types';
+import type { LabelNode, RouteLink } from '@/types';
 
 const CONFIG: LayoutConfig = {
   paddingX: 150,

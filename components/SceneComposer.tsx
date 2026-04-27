@@ -8,7 +8,7 @@
  */
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { logger } from '../lib/logger';
-import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite } from '../types';
+import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite } from '@/types';
 import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';

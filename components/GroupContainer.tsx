@@ -7,7 +7,7 @@
  * propagate via `updateGroup` callback to `useImmer` state in `App.tsx`.
  */
 import React, { useState, useRef, useEffect, forwardRef } from 'react';
-import type { BlockGroup } from '../types';
+import type { BlockGroup } from '@/types';
 
 interface GroupContainerProps {
   group: BlockGroup;

@@ -71,7 +71,7 @@ import type {
   ClipboardState, ImageMetadata, AudioMetadata, Character,
   AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   SerializedSprite, SerializedSceneComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
-} from './types';
+} from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 // Minimal 1-sample silent WAV base64

@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import UserSnippetModal from './UserSnippetModal';
-import type { UserSnippet } from '../types';
+import type { UserSnippet } from '@/types';
 
 describe('UserSnippetModal', () => {
   const defaultProps = {

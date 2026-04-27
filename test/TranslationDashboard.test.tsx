@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TranslationDashboard from '../components/TranslationDashboard';
-import type { TranslationAnalysisResult, Block } from '../types';
+import type { TranslationAnalysisResult, Block } from '@/types';
 
 // ResizeObserver is not available in jsdom — provide a minimal stub.
 beforeAll(() => {

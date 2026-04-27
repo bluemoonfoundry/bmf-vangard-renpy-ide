@@ -20,7 +20,7 @@ import type {
   StickyNote,
   EditorTab,
   FileSystemTreeNode,
-} from '../../types';
+} from '@/types';
 
 // ---------------------------------------------------------------------------
 // Blocks

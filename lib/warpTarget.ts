@@ -1,4 +1,4 @@
-import type { Block, LabelLocation } from '../types';
+import type { Block, LabelLocation } from '@/types';
 
 /**
  * Resolves a Ren'Py label to the `--warp` target format Ren'Py expects.

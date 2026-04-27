@@ -1,4 +1,4 @@
-import type { FileSystemTreeNode } from '../types';
+import type { FileSystemTreeNode } from '@/types';
 import { produce } from 'immer';
 
 // Helper to add a node to the file tree immutably, creating parent directories if needed.

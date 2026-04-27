@@ -20,7 +20,7 @@ import CanvasNavControls from './CanvasNavControls';
 import Minimap from './Minimap';
 import CanvasNodeContextMenu from './CanvasNodeContextMenu';
 import type { MinimapItem } from './Minimap';
-import type { LabelNode, RouteLink, MouseGestureSettings, RenpyAnalysisResult, StickyNote, StoryCanvasLayoutMode, StoryCanvasGroupingMode } from '../types';
+import type { LabelNode, RouteLink, MouseGestureSettings, RenpyAnalysisResult, StickyNote, StoryCanvasLayoutMode, StoryCanvasGroupingMode } from '@/types';
 import { computeRouteCanvasLayout } from '../lib/routeCanvasLayout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────

@@ -13,10 +13,10 @@ import { useVirtualList } from '../hooks/useVirtualList';
 // py-1 (4+4) + h-5 icon (20px) = 28px per row
 const TREE_ROW_HEIGHT = 28;
 import { createPortal } from 'react-dom';
-import type { FileSystemTreeNode } from '../types';
+import type { FileSystemTreeNode } from '@/types';
 import FileExplorerContextMenu from './FileExplorerContextMenu';
 // FIX: Corrected import path for ClipboardState
-import type { ClipboardState } from '../types';
+import type { ClipboardState } from '@/types';
 
 const FolderIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">

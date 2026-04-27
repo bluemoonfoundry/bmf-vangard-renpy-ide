@@ -6,7 +6,7 @@
  * Integration: rendered by `RouteCanvas` for each `LabelNode` from `useRenpyAnalysis`.
  */
 import React from 'react';
-import type { LabelNode } from '../types';
+import type { LabelNode } from '@/types';
 
 interface LabelBlockProps {
   node: LabelNode;

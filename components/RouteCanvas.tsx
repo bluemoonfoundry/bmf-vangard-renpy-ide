@@ -21,7 +21,7 @@ import StickyNoteComponent from './StickyNote';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasNodeContextMenu from './CanvasNodeContextMenu';
 import type { MinimapItem } from './Minimap';
-import type { LabelNode, RouteLink, Position, IdentifiedRoute, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, StickyNote } from '../types';
+import type { LabelNode, RouteLink, Position, IdentifiedRoute, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, StickyNote } from '@/types';
 import { computeRouteCanvasLayout } from '../lib/routeCanvasLayout';
 
 interface RouteCanvasProps {

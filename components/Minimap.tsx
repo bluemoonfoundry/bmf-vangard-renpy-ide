@@ -7,7 +7,7 @@
  * `ChoiceCanvas`; reads `MinimapItem[]` and canvas `transform` from the parent canvas.
  */
 import React, { useRef, useMemo, useCallback } from 'react';
-import type { NoteColor } from '../types';
+import type { NoteColor } from '@/types';
 
 export interface MinimapItem {
   id: string;

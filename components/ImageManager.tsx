@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { ProjectImage, ImageMetadata } from '../types';
+import type { ProjectImage, ImageMetadata } from '@/types';
 import ImageContextMenu from './ImageContextMenu';
 import ImageThumbnail from './ImageThumbnail';
 

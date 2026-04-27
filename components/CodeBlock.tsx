@@ -7,7 +7,7 @@
  * forwards ref for canvas drag-event handling.
  */
 import React, { useState, useRef, useEffect, useMemo, forwardRef } from 'react';
-import type { Block, RenpyAnalysisResult, LabelLocation } from '../types';
+import type { Block, RenpyAnalysisResult, LabelLocation } from '@/types';
 
 interface CodeBlockProps {
   block: Block;

@@ -7,7 +7,7 @@
  * via `CopyButton`; updates composition state via `onImageMapChange`.
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { ProjectImage, ImageMapComposition, ImageMapHotspot, ImageMapActionType } from '../types';
+import type { ProjectImage, ImageMapComposition, ImageMapHotspot, ImageMapActionType } from '@/types';
 import CodeActionButtons from './CodeActionButtons';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 

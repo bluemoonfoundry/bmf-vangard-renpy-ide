@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DiagnosticsPanel from './DiagnosticsPanel';
 import { createBlock } from '../test/mocks/sampleData';
-import type { DiagnosticsResult, IgnoredDiagnosticRule } from '../types';
+import type { DiagnosticsResult, IgnoredDiagnosticRule } from '@/types';
 
 describe('DiagnosticsPanel', () => {
   it('uses icon buttons for ignore and navigation while the message body stays inert', async () => {

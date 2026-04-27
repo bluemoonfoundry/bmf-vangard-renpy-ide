@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import type { RenpyAudio, AudioMetadata } from '../types';
+import type { RenpyAudio, AudioMetadata } from '@/types';
 
 interface AudioEditorViewProps {
   audio: RenpyAudio;

@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
-import type { MouseGestureSettings, CanvasPanGesture } from '../types';
+import type { MouseGestureSettings, CanvasPanGesture } from '@/types';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;

@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useDiagnostics } from './useDiagnostics';
 import { createBlock, createEmptyAnalysisResult } from '../test/mocks/sampleData';
-import type { IgnoredDiagnosticRule } from '../types';
+import type { IgnoredDiagnosticRule } from '@/types';
 
 describe('useDiagnostics', () => {
   it('filters ignored diagnostics out of issues and counts', () => {

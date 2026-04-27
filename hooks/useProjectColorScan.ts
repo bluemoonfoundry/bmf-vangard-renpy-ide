@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Block } from '../types';
+import type { Block } from '@/types';
 import { expandHex } from '../lib/colorPalettes';
 import type { PaletteColor } from '../lib/colorPalettes';
 
