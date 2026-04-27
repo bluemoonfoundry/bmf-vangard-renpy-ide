@@ -47,6 +47,7 @@ import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useToasts } from '@/hooks/useToasts';
 import { useModalState } from '@/hooks/useModalState';
 import { useTabManagement } from '@/hooks/useTabManagement';
+import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
@@ -191,8 +192,47 @@ const App: React.FC = () => {
     getActiveTab,
   } = useTabManagement();
 
-  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  // Canvas interaction state
+  const {
+    storyCanvasTransform,
+    routeCanvasTransform,
+    choiceCanvasTransform,
+    setStoryCanvasTransform,
+    setRouteCanvasTransform,
+    setChoiceCanvasTransform,
+    selectedBlockIds,
+    selectedGroupIds,
+    setSelectedBlockIds,
+    setSelectedGroupIds,
+    findUsagesHighlightIds,
+    hoverHighlightIds,
+    setFindUsagesHighlightIds,
+    setHoverHighlightIds,
+    centerOnBlockRequest,
+    centerOnRouteStartRequest,
+    centerOnChoiceStartRequest,
+    centerOnRouteNodeRequest,
+    centerOnChoiceNodeRequest,
+    flashBlockRequest,
+    setCenterOnBlockRequest,
+    setCenterOnRouteStartRequest,
+    setCenterOnChoiceStartRequest,
+    setCenterOnRouteNodeRequest,
+    setCenterOnChoiceNodeRequest,
+    setFlashBlockRequest,
+    canvasFilters,
+    setCanvasFilters,
+    centerOnBlock,
+    flashBlock,
+    centerOnRouteNode,
+    centerOnChoiceNode,
+    centerOnRouteStart,
+    centerOnChoiceStart,
+    clearSelection,
+    selectBlocks,
+    selectGroups,
+    toggleBlockSelection,
+  } = useCanvasInteraction();
   
   // Scene Composer State
   const [sceneCompositions, setSceneCompositions] = useImmer<Record<string, SceneComposition>>({});
@@ -282,11 +322,6 @@ const App: React.FC = () => {
   // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
   const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
   
-  // --- State: View Transforms ---
-  const [storyCanvasTransform, setStoryCanvasTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [routeCanvasTransform, setRouteCanvasTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [choiceCanvasTransform, setChoiceCanvasTransform] = useState({ x: 0, y: 0, scale: 1 });
-
   // --- State: Game Execution ---
   const [isGameRunning, setIsGameRunning] = useState(false);
 
@@ -322,19 +357,10 @@ const App: React.FC = () => {
 
   // --- State: Clipboard & Highlights ---
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
-  const [findUsagesHighlightIds, setFindUsagesHighlightIds] = useState<Set<string> | null>(null);
-  const [centerOnBlockRequest, setCenterOnBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
-  const [centerOnRouteStartRequest, setCenterOnRouteStartRequest] = useState<{ key: number } | null>(null);
-  const [centerOnChoiceStartRequest, setCenterOnChoiceStartRequest] = useState<{ key: number } | null>(null);
-  const [centerOnRouteNodeRequest, setCenterOnRouteNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
-  const [centerOnChoiceNodeRequest, setCenterOnChoiceNodeRequest] = useState<{ nodeId: string; key: number } | null>(null);
   const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
   const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
   const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
-  const [flashBlockRequest, setFlashBlockRequest] = useState<{ blockId: string, key: number } | null>(null);
-  const [canvasFilters, setCanvasFilters] = useState({ story: true, screens: true, config: false, notes: true, minimap: true });
   const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
-  const [hoverHighlightIds, setHoverHighlightIds] = useState<Set<string> | null>(null);
   const warpTempFilePathRef = useRef<string | null>(null);
 
   // --- State: Flow Canvas (label-level flow graph) ---
