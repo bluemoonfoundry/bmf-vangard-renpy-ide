@@ -50,6 +50,7 @@ import { useTabManagement } from '@/hooks/useTabManagement';
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
 import { useAssetManagement } from '@/hooks/useAssetManagement';
 import { useCompositionState } from '@/hooks/useCompositionState';
+import { useSettingsManagement } from '@/hooks/useSettingsManagement';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
@@ -359,34 +360,30 @@ const App: React.FC = () => {
   const [isGameRunning, setIsGameRunning] = useState(false);
 
   // --- State: Application and Project Settings ---
-  const [appSettingsLoaded, setAppSettingsLoaded] = useState(false);
-  const [characterProfiles, setCharacterProfiles] = useImmer<Record<string, string>>({});
-  const [appSettings, updateAppSettings] = useImmer<AppSettings>({
-    theme: 'system',
-    isLeftSidebarOpen: true,
-    leftSidebarWidth: 250,
-    isRightSidebarOpen: true,
-    rightSidebarWidth: 300,
-    renpyPath: '',
-    recentProjects: [],
-    editorFontFamily: "'Consolas', 'Courier New', monospace",
-    editorFontSize: 14,
-    mouseGestures: { canvasPanGesture: 'shift-drag', middleMouseAlwaysPans: false, zoomScrollDirection: 'normal', zoomScrollSensitivity: 1.0 },
-    lastProjectDir: '',
-  });
-  const [isRenpyPathValid, setIsRenpyPathValid] = useState(false);
-  const [isGeneratingTranslations, setIsGeneratingTranslations] = useState(false);
-  const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
-    draftingMode: false,
-    storyCanvasLayoutMode: 'flow-lr',
-    storyCanvasGroupingMode: 'none',
-    storyCanvasLayoutVersion: getStoryLayoutVersion(),
-    storyCanvasLayoutWasUserAdjusted: false,
-    routeCanvasLayoutMode: 'flow-lr',
-    routeCanvasGroupingMode: 'none',
-    routeCanvasLayoutVersion: getRouteCanvasLayoutVersion(),
-    routeCanvasLayoutWasUserAdjusted: false,
-  });
+  const {
+    appSettings,
+    updateAppSettings,
+    appSettingsLoaded,
+    setAppSettingsLoaded,
+    projectSettings,
+    updateProjectSettings,
+    characterProfiles,
+    setCharacterProfiles,
+    isRenpyPathValid,
+    setIsRenpyPathValid,
+    isGeneratingTranslations,
+    setIsGeneratingTranslations,
+    updateTheme,
+    updateRenpyPath,
+    updateEditorFont,
+    toggleSidebar,
+    updateSidebarWidth,
+    addRecentProject,
+    removeRecentProject,
+    clearRecentProjects,
+    resetAppSettings,
+    resetProjectSettings,
+  } = useSettingsManagement();
 
   // --- State: Clipboard & Highlights ---
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
