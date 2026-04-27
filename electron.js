@@ -16,11 +16,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Fix AppImage sandbox and shared memory issues
-// AppImage sets the APPIMAGE environment variable
-if (process.env.APPIMAGE) {
+// Detect AppImage environment via APPIMAGE env var or by checking if running from /tmp/.mount_*
+const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
+if (isAppImage) {
+    console.log('[RenIDE] Running in AppImage mode - applying sandbox workarounds');
     app.commandLine.appendSwitch('no-sandbox');
-    // Fix shared memory errors in restricted AppImage environments
     app.commandLine.appendSwitch('disable-dev-shm-usage');
+} else {
+    console.log('[RenIDE] Not running in AppImage mode');
 }
 
 // Lazy-load image generator to avoid blocking app startup if Sharp fails
