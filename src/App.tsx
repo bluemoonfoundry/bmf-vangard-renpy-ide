@@ -46,6 +46,7 @@ import { useProjectColorScan } from '@/hooks/useProjectColorScan';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useToasts } from '@/hooks/useToasts';
 import { useModalState } from '@/hooks/useModalState';
+import { useTabManagement } from '@/hooks/useTabManagement';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
@@ -155,17 +156,43 @@ const App: React.FC = () => {
   const [isRefreshingAudios, setIsRefreshingAudios] = useState(false);
 
   // --- State: UI & Editor ---
-  const [openTabs, setOpenTabs] = useState<EditorTab[]>([{ id: 'canvas', type: 'canvas' }]);
-  const [activeTabId, setActiveTabId] = useState<string>('canvas');
+  const {
+    openTabs,
+    activeTabId,
+    setOpenTabs,
+    setActiveTabId,
+    secondaryOpenTabs,
+    secondaryActiveTabId,
+    activePaneId,
+    setSecondaryOpenTabs,
+    setSecondaryActiveTabId,
+    setActivePaneId,
+    splitLayout,
+    splitPrimarySize,
+    setSplitLayout,
+    setSplitPrimarySize,
+    draggedTabId,
+    dragSourcePaneId,
+    setDraggedTabId,
+    setDragSourcePaneId,
+    openTab,
+    closeTab,
+    switchTab,
+    updateTab,
+    closeTabs,
+    setTabs,
+    createSplit,
+    closeSplit,
+    setSplitSize,
+    moveTabToPane,
+    startDrag: startTabDrag,
+    endDrag: endTabDrag,
+    findTab,
+    getActiveTab,
+  } = useTabManagement();
+
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
-  const [dragSourcePaneId, setDragSourcePaneId] = useState<'primary' | 'secondary'>('primary');
-  const [splitLayout, setSplitLayout] = useState<'none' | 'right' | 'bottom'>('none');
-  const [splitPrimarySize, setSplitPrimarySize] = useState<number>(600);
-  const [secondaryOpenTabs, setSecondaryOpenTabs] = useState<EditorTab[]>([]);
-  const [secondaryActiveTabId, setSecondaryActiveTabId] = useState<string>('');
-  const [activePaneId, setActivePaneId] = useState<'primary' | 'secondary'>('primary');
   
   // Scene Composer State
   const [sceneCompositions, setSceneCompositions] = useImmer<Record<string, SceneComposition>>({});
@@ -1933,10 +1960,8 @@ const App: React.FC = () => {
                   return tab;
               });
 
-              setOpenTabs(rehydratedTabs);
-
               const activeTabIsValid = rehydratedTabs.some(t => t.id === projectData.settings.activeTabId);
-              setActiveTabId(activeTabIsValid ? projectData.settings.activeTabId : 'canvas');
+              setTabs(rehydratedTabs, activeTabIsValid ? projectData.settings.activeTabId : 'canvas', 'primary');
 
               // Restore split state
               const savedSplitLayout = projectData.settings.splitLayout ?? 'none';
