@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     // Use relative paths for assets (supports Electron/standalone builds)
     base: './',
+    // Path alias resolution for imports
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src'),
+      },
+    },
     // Global variable definitions for client-side code
     define: {
       /**
@@ -85,13 +91,13 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
-      setupFiles: ['./test/setup.ts'],
+      setupFiles: ['./src/test/setup.ts'],
       include: ['**/*.test.{ts,tsx}'],
       exclude: ['node_modules', 'dist', 'release'],
       coverage: {
         provider: 'v8',
-        include: ['components/**', 'hooks/**', 'contexts/**', 'App.tsx'],
-        exclude: ['**/*.test.{ts,tsx}', 'test/**'],
+        include: ['src/**'],
+        exclude: ['**/*.test.{ts,tsx}', 'src/test/**'],
       },
     },
   }
