@@ -6,7 +6,7 @@
  * Integration: wraps the root `<App>` in `main.tsx`; logs errors to the console.
  */
 import React from 'react';
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 
 interface ErrorBoundaryState {
   hasError: boolean;

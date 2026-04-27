@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 import type { RenpyAudio, AudioMetadata } from '@/types';
 import { useVirtualList } from '@/hooks/useVirtualList';
 

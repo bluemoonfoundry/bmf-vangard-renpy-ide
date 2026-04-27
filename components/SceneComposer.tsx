@@ -7,7 +7,7 @@
  * code via ; updates composition state via .
  */
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite } from '@/types';
 import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
