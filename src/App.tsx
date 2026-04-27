@@ -48,6 +48,7 @@ import { useToasts } from '@/hooks/useToasts';
 import { useModalState } from '@/hooks/useModalState';
 import { useTabManagement } from '@/hooks/useTabManagement';
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
+import { useAssetManagement } from '@/hooks/useAssetManagement';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   buildSavedStoryBlockLayouts,
@@ -136,25 +137,43 @@ const App: React.FC = () => {
   const [directoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [fileSystemTree, setFileSystemTree] = useState<FileSystemTreeNode | null>(null);
   
-  // Use standard useState for Maps to avoid Immer proxy issues with native Maps
-  const [images, setImages] = useState<Map<string, ProjectImage>>(new Map());
-  const [audios, setAudios] = useState<Map<string, RenpyAudio>>(new Map());
-  const [imageMetadata, setImageMetadata] = useState<Map<string, ImageMetadata>>(new Map());
-  const [audioMetadata, setAudioMetadata] = useState<Map<string, AudioMetadata>>(new Map());
-  
+  // Asset management state
+  const {
+    images,
+    imageMetadata,
+    imageScanDirectories,
+    imagesLastScanned,
+    isRefreshingImages,
+    setImages,
+    setImageMetadata,
+    setImageScanDirectories,
+    setImagesLastScanned,
+    setIsRefreshingImages,
+    audios,
+    audioMetadata,
+    audioScanDirectories,
+    audiosLastScanned,
+    isRefreshingAudios,
+    setAudios,
+    setAudioMetadata,
+    setAudioScanDirectories,
+    setAudiosLastScanned,
+    setIsRefreshingAudios,
+    addImage,
+    removeImage,
+    updateImageMetadata,
+    addAudio,
+    removeAudio,
+    updateAudioMetadata,
+    clearImages,
+    clearAudios,
+  } = useAssetManagement();
+
   // --- State: File Explorer Selection & Expansion ---
   const [explorerSelectedPaths, setExplorerSelectedPaths] = useState<Set<string>>(new Set());
   const [explorerLastClickedPath, setExplorerLastClickedPath] = useState<string | null>(null);
   const [explorerExpandedPaths, setExplorerExpandedPaths] = useState<Set<string>>(new Set());
   const [explorerExternalAction, setExplorerExternalAction] = useState<{ type: 'new-file' | 'new-folder' | 'rename'; key: number } | null>(null);
-
-  // --- State: Scanning ---
-  const [imageScanDirectories, setImageScanDirectories] = useState<Map<string, FileSystemDirectoryHandle>>(new Map());
-  const [audioScanDirectories, setAudioScanDirectories] = useState<Map<string, FileSystemDirectoryHandle>>(new Map());
-  const [imagesLastScanned, setImagesLastScanned] = useState<number | null>(null);
-  const [audiosLastScanned, setAudiosLastScanned] = useState<number | null>(null);
-  const [isRefreshingImages, setIsRefreshingImages] = useState(false);
-  const [isRefreshingAudios, setIsRefreshingAudios] = useState(false);
 
   // --- State: UI & Editor ---
   const {
