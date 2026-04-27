@@ -122,25 +122,10 @@
       "artifactName": "${name}-${version}.${ext}"
     },
     "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": ["x64"]
-        },
-        {
-          "target": "deb",
-          "arch": ["x64"]
-        }
-      ],
+      "target": ["AppImage", "deb"],
       "icon": "renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}",
       "category": "Development"
-    },
-    "appImage": {
-      "license": "LICENSE"
-    },
-    "deb": {
-      "depends": []
     },
     "extraResources": [
       {
