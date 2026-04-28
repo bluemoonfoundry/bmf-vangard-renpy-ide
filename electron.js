@@ -1,16 +1,20 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage } from 'electron';
-
 // CRITICAL: Fix AppImage sandbox and shared memory issues
-// Must be called IMMEDIATELY after importing electron, before any other initialization
-// Detect AppImage environment via APPIMAGE env var or by checking if running from /tmp/.mount_*
+// Must inject flags into process.argv BEFORE importing electron
 const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
 if (isAppImage) {
-    console.log('[RenIDE] Running in AppImage mode - applying sandbox workarounds');
-    app.commandLine.appendSwitch('no-sandbox');
-    app.commandLine.appendSwitch('disable-dev-shm-usage');
+    console.log('[RenIDE] Running in AppImage mode - injecting sandbox workarounds into process.argv');
+    if (!process.argv.includes('--no-sandbox')) {
+        process.argv.push('--no-sandbox');
+    }
+    if (!process.argv.includes('--disable-dev-shm-usage')) {
+        process.argv.push('--disable-dev-shm-usage');
+    }
+    console.log('[RenIDE] process.argv:', process.argv);
 } else {
     console.log('[RenIDE] Not running in AppImage mode');
 }
+
+import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage } from 'electron';
 
 import electronUpdaterPkg from 'electron-updater';
 const { autoUpdater } = electronUpdaterPkg;
