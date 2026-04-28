@@ -178,7 +178,7 @@ Common reasons to edit this file:
 
 Be careful: `App.tsx` has many callbacks passed into memoized components. Changing callback identity or dependencies can cause unnecessary rerenders.
 
-#### `src/main.tsx` / app entry files
+#### App entry files
 
 These mount the React app and global providers. You usually only need them when changing app-level setup.
 
