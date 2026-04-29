@@ -3676,24 +3676,12 @@ const App: React.FC = () => {
     if (!window.electronAPI?.captureScreenshot) return;
     const result = await window.electronAPI.captureScreenshot();
     if (result.success) {
-      addToast({
-        type: 'success',
-        message: `Screenshot saved: ${result.filename}`,
-        action: {
-          label: 'Show in Folder',
-          onClick: async () => {
-            await window.electronAPI.openScreenshotsFolder();
-          }
-        }
-      });
+      addToast(`Screenshot saved to .renide/screenshots/`, 'success');
       await refreshScreenshotCount();
       // Update menu state
       window.electronAPI.updateExplorerMenuState?.({ hasScreenshots: true });
     } else {
-      addToast({
-        type: 'error',
-        message: `Failed to capture screenshot: ${result.error}`
-      });
+      addToast(`Failed to capture screenshot: ${result.error}`, 'error');
     }
   }, [addToast, refreshScreenshotCount]);
 
@@ -3706,10 +3694,7 @@ const App: React.FC = () => {
     if (!window.electronAPI?.clearScreenshots) return;
     const result = await window.electronAPI.clearScreenshots();
     if (result.success) {
-      addToast({
-        type: 'success',
-        message: `Cleared ${result.count} screenshot${result.count !== 1 ? 's' : ''}`
-      });
+      addToast(`Cleared ${result.count} screenshot${result.count !== 1 ? 's' : ''}`, 'success');
       await refreshScreenshotCount();
       window.electronAPI.updateExplorerMenuState?.({ hasScreenshots: false });
     }
@@ -3720,10 +3705,7 @@ const App: React.FC = () => {
     const path = await window.electronAPI.getLatestScreenshotPath();
     if (path) {
       await navigator.clipboard.writeText(path);
-      addToast({
-        type: 'success',
-        message: 'Screenshot path copied to clipboard'
-      });
+      addToast('Screenshot path copied to clipboard', 'success');
     }
   }, [addToast]);
 
