@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Vangard Ren'Py IDE (Ren'IDE) is an Electron + React/TypeScript desktop application for visual novel development. It maps `.rpy` files to draggable blocks on a canvas, provides integrated Monaco editors, and includes visual composers for scenes, image maps, and screens. Current version: **0.7.1 Public Beta 4**.
+Vangard Ren'Py IDE (Ren'IDE) is an Electron + React/TypeScript desktop application for visual novel development. It maps `.rpy` files to draggable blocks on a canvas, provides integrated Monaco editors, and includes visual composers for scenes, image maps, and screens. Current version: **0.8.2**.
 
 ## Project Structure
 
@@ -56,14 +56,14 @@ All core state lives in `App.tsx` using `useImmer` or `useState`. Key state cate
 
 | State | Hook | Persisted To |
 |-------|------|-------------|
-| `blocks[]` | `useHistory` (undo/redo) | Individual `.rpy` files + `.renide/project.json` (positions) |
-| `groups[]`, `stickyNotes[]`, `routeStickyNotes[]`, `choiceStickyNotes[]` | `useImmer` | `.renide/project.json` |
-| `projectImages`, `projectAudios` | `useState` (Maps) | `.renide/ide-settings.json` (metadata only) |
-| `sceneCompositions`, `imagemapCompositions`, `screenLayoutCompositions` | `useImmer` | `.renide/ide-settings.json` |
-| `diagnosticsTasks`, `ignoredDiagnostics`, `characterProfiles` | `useImmer` | `.renide/project.json` |
+| `blocks[]` | `useHistory` (undo/redo) | Individual `.rpy` files (content) + `game/project.ide.json` (positions) |
+| `groups[]`, `stickyNotes[]`, `routeStickyNotes[]`, `choiceStickyNotes[]` | `useImmer` | `game/project.ide.json` |
+| `projectImages`, `projectAudios` | `useState` (Maps) | `game/project.ide.json` (metadata only) |
+| `sceneCompositions`, `imagemapCompositions`, `screenLayoutCompositions` | `useImmer` | `game/project.ide.json` |
+| `diagnosticsTasks`, `ignoredDiagnostics`, `characterProfiles` | `useImmer` | `game/project.ide.json` |
 | `analysisResult`, `diagnosticsResult` | derived/computed | Never — recalculated on change |
 | `openTabs[]`, `activeTabId`, `selectedBlockIds[]` | `useState` | Never — session-only |
-| `menuTemplates` | `useState` | `.renide/ide-settings.json` |
+| `menuTemplates` | `useState` | `game/project.ide.json` |
 
 App-level settings (theme, font, layout prefs) persist to `userData/app-settings.json`. API keys are stored via Electron's `safeStorage` (encrypted OS keychain), accessed through `app:load-api-keys` / `app:save-api-key` IPC handlers.
 
@@ -74,7 +74,7 @@ App-level settings (theme, font, layout prefs) persist to `userData/app-settings
 2. `handleCreateBlockConfirm()` writes file to disk via IPC, pushes a new `Block` to state, opens an editor tab
 3. `debouncedBlocks` (500ms debounce) feeds `useRenpyAnalysis` — **only passes `{ id, content, filePath }`**, not position/width/color, so drag events never trigger re-analysis
 4. Analysis extracts the first label name → sets `block.title`; color is deterministically derived from title via string hash
-5. Block position/size persist to `.renide/project.json` every ~2 seconds
+5. Block positions persist to `game/project.ide.json` on Save All (Ctrl+S), dirty-tab close, and app exit — not on a timer
 
 ### IPC Pattern
 All cross-process calls use `namespace:action` strings:
@@ -136,7 +136,7 @@ All three canvases share the same pointer-event drag model: global `pointermove`
 | `useFileSystemManager` | File tree CRUD, clipboard (copy/cut), drag-drop routing |
 | `usePerformanceMetrics` | Per-frame render/layout timing; records FPS spikes |
 | `useVirtualList` | Lazy-renders long lists (file explorer) |
-| `useSnippetLoader` | Loads user snippets from `.renide/snippets.json` |
+| `useSnippetLoader` | Merges snippets from three sources: built-in `snippets/default-snippets.json`, user global `~/.vangard-ide/snippets/custom.json`, project-specific `<project>/.vangard/snippets.json` |
 | `useDebounce` | Generic 500ms debounce (blocks feed into analysis via this) |
 | `useCanvasFps` | Measures canvas rendering FPS (60-frame rolling average) for IDE performance metrics |
 | `useProjectColorScan` | Scans all block content for hex color literals to populate "Project Theme" palette |
@@ -238,7 +238,7 @@ Visual menu designer with:
 - **Clipboard UI**: Use `@/components/CopyButton`.
 - **Sticky notes**: Three separate arrays (`stickyNotes`, `routeStickyNotes`, `choiceStickyNotes`), one per canvas. Content renders as Markdown via `marked`. Notes can be promoted to `DiagnosticsTask` via checkbox.
 - **Color swatches**: Use `ColorDropTarget` component for drag-and-drop color input (wraps `<input type="color">`).
-- **Diagnostics tasks**: Use `DiagnosticsTask` interface (migrated from legacy "punchlist"). Tasks persist in `.renide/project.json`.
+- **Diagnostics tasks**: Use `DiagnosticsTask` interface (migrated from legacy "punchlist"). Tasks persist in `game/project.ide.json`.
 - **Tests**: Vitest + JSDOM. Setup in `src/test/setup.ts`. Test files match `**/*.test.{ts,tsx}`.
 - **Data models**: `src/types.ts` is the single source of truth for all interfaces (Block, Link, Diagnostic, Composition, etc.).
 - **Canvas drag**: Use native pointer events (`pointerdown`/`pointermove`/`pointerup`) with global listeners — do not use React synthetic events for drag performance.

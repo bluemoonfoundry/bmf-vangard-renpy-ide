@@ -406,4 +406,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Ren'IDE — v0.7.1 Public Beta 4*
+*Ren'IDE — v0.8.0 Public Beta 4*
