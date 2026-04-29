@@ -1440,16 +1440,6 @@ const App: React.FC = () => {
     applyRouteLayout,
   ]);
 
-  const handleChangeChoiceCanvasLayoutMode = useCallback((mode: StoryCanvasLayoutMode) => {
-    updateProjectSettings(draft => { draft.choiceCanvasLayoutMode = mode; });
-    setHasUnsavedSettings(true);
-  }, [updateProjectSettings]);
-
-  const handleChangeChoiceCanvasGroupingMode = useCallback((mode: StoryCanvasGroupingMode) => {
-    updateProjectSettings(draft => { draft.choiceCanvasGroupingMode = mode; });
-    setHasUnsavedSettings(true);
-  }, [updateProjectSettings]);
-
   useEffect(() => {
     const pendingRefresh = pendingStoryLayoutRefreshRef.current;
     if (!pendingRefresh || blocks.length === 0 || isInitialAnalysisPending || isAnalysisPending) {
@@ -4549,10 +4539,6 @@ const App: React.FC = () => {
         transform={choiceCanvasTransform}
         onTransformChange={setChoiceCanvasTransform}
         mouseGestures={appSettings.mouseGestures}
-        layoutMode={projectSettings.choiceCanvasLayoutMode ?? 'flow-td'}
-        groupingMode={projectSettings.choiceCanvasGroupingMode ?? 'none'}
-        onChangeLayoutMode={handleChangeChoiceCanvasLayoutMode}
-        onChangeGroupingMode={handleChangeChoiceCanvasGroupingMode}
         onWarpToLabel={handleWarpToLabel}
         centerOnStartRequest={centerOnChoiceStartRequest}
         centerOnNodeRequest={centerOnChoiceNodeRequest}
