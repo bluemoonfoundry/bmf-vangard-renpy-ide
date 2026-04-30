@@ -24,8 +24,8 @@ export interface TreeLayoutConfig {
 }
 
 export const DEFAULT_TREE_LAYOUT_CONFIG: TreeLayoutConfig = {
-  nodeWidth:  { narrative: 240, convergence: 200, cycle: 200, terminal: 160 },
-  nodeHeight: { narrative: 92,  convergence: 40,  cycle: 40,  terminal: 32  },
+  nodeWidth:  { narrative: 240, convergence: 200, cycle: 200, terminal: 160, continuation: 200 },
+  nodeHeight: { narrative: 92,  convergence: 40,  cycle: 40,  terminal: 32,  continuation: 40  },
   horizontalGap: 32,
   verticalGap:   56,
 };

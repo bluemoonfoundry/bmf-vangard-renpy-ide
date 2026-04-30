@@ -9,7 +9,8 @@ export type PlayerTreeNode =
   | NarrativeNode
   | ConvergenceNode
   | CycleNode
-  | TerminalNode;
+  | TerminalNode
+  | ContinuationNode;
 
 /** A label the player reads — may branch into one or more outgoing groups. */
 export interface NarrativeNode {
@@ -59,7 +60,15 @@ export interface CycleNode {
 export interface TerminalNode {
   type: 'terminal';
   uid: string;
-  reason: 'no-links' | 'depth-limit' | 'unknown-label';
+  reason: 'no-links' | 'unknown-label';
+}
+
+/** A label cut off by the depth limit — the user can click it to expand that subtree. */
+export interface ContinuationNode {
+  type: 'continuation';
+  uid: string;
+  labelId: string;
+  label: string;
 }
 
 // ─── Main Function ─────────────────────────────────────────────────────────────
@@ -78,6 +87,7 @@ export function buildPlayerTree(
   routeLinks: RouteLink[],
   entryLabelId: string,
   maxDepth = DEFAULT_MAX_DEPTH,
+  expandedLabelIds: Set<string> = new Set(),
 ): PlayerTreeNode {
   const nodeMap = new Map<string, LabelNode>(labelNodes.map(n => [n.id, n]));
 
@@ -96,7 +106,12 @@ export function buildPlayerTree(
 
   function dfs(labelId: string, depth: number): PlayerTreeNode {
     if (depth > maxDepth) {
-      return { type: 'terminal', uid: uid(), reason: 'depth-limit' };
+      if (expandedLabelIds.has(labelId)) {
+        depth = 0; // reset depth budget for on-demand expanded subtrees
+      } else {
+        const n = nodeMap.get(labelId);
+        return { type: 'continuation', uid: uid(), labelId, label: n?.label ?? labelId };
+      }
     }
 
     if (ancestors.has(labelId)) {

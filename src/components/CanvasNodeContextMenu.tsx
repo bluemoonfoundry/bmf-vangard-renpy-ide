@@ -13,6 +13,7 @@ interface CanvasNodeContextMenuProps {
   onClose: () => void;
   onOpenEditor: () => void;
   onWarpToHere: () => void;
+  onSetAsRoot?: () => void;
 }
 
 const CanvasNodeContextMenu: React.FC<CanvasNodeContextMenuProps> = ({
@@ -22,6 +23,7 @@ const CanvasNodeContextMenu: React.FC<CanvasNodeContextMenuProps> = ({
   onClose,
   onOpenEditor,
   onWarpToHere,
+  onSetAsRoot,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -66,6 +68,14 @@ const CanvasNodeContextMenu: React.FC<CanvasNodeContextMenuProps> = ({
         >
           Open in editor
         </button>
+        {onSetAsRoot && (
+          <button
+            onClick={() => handleAction(onSetAsRoot)}
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors flex items-center"
+          >
+            Set as root
+          </button>
+        )}
         <button
           onClick={() => handleAction(onWarpToHere)}
           className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400 rounded transition-colors flex items-center"

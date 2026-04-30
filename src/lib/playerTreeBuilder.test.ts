@@ -6,6 +6,7 @@ import type {
   ConvergenceNode,
   CycleNode,
   TerminalNode,
+  ContinuationNode,
 } from './playerTreeBuilder';
 import type { LabelNode, RouteLink } from '@/types';
 
@@ -55,6 +56,11 @@ function asCycle(node: PlayerTreeNode): CycleNode {
 
 function asTerminal(node: PlayerTreeNode): TerminalNode {
   if (node.type !== 'terminal') throw new Error(`Expected terminal, got "${node.type}" (uid=${node.uid})`);
+  return node;
+}
+
+function asContinuation(node: PlayerTreeNode): ContinuationNode {
+  if (node.type !== 'continuation') throw new Error(`Expected continuation, got "${node.type}" (uid=${node.uid})`);
   return node;
 }
 
@@ -269,13 +275,14 @@ describe('buildPlayerTree', () => {
 
   // ── Depth limit ───────────────────────────────────────────────────────────────
 
-  it('produces depth-limit terminal for a chain exceeding maxDepth', () => {
-    // A → B → C with maxDepth=1; C is at depth 2
+  it('produces a continuation node for a chain exceeding maxDepth', () => {
+    // A → B → C with maxDepth=1; C is at depth 2 → continuation
     const nodes = [n('A'), n('B'), n('C')];
     const links = [jump('j1', 'A', 'B'), jump('j2', 'B', 'C')];
     const root = asNarrative(buildPlayerTree(nodes, links, 'A', 1));
     const b = asNarrative(root.outgoing[0].branches[0].node);
-    expect(asTerminal(b.outgoing[0].branches[0].node).reason).toBe('depth-limit');
+    const cont = asContinuation(b.outgoing[0].branches[0].node);
+    expect(cont.labelId).toBe('C');
   });
 
   it('fully expands a node at exactly maxDepth', () => {
@@ -288,11 +295,23 @@ describe('buildPlayerTree', () => {
     expect(b.outgoing).toHaveLength(0);
   });
 
-  it('with maxDepth=0 the root is expanded but its child is a depth-limit terminal', () => {
+  it('with maxDepth=0 the root is expanded but its child is a continuation node', () => {
     const nodes = [n('A'), n('B')];
     const links = [jump('j1', 'A', 'B')];
     const root = asNarrative(buildPlayerTree(nodes, links, 'A', 0));
-    expect(asTerminal(root.outgoing[0].branches[0].node).reason).toBe('depth-limit');
+    const cont = asContinuation(root.outgoing[0].branches[0].node);
+    expect(cont.labelId).toBe('B');
+  });
+
+  it('expands a continuation node when its labelId is in expandedLabelIds', () => {
+    // A → B → C with maxDepth=1; C would be a continuation, but if expanded it becomes narrative
+    const nodes = [n('A'), n('B'), n('C')];
+    const links = [jump('j1', 'A', 'B'), jump('j2', 'B', 'C')];
+    const root = asNarrative(buildPlayerTree(nodes, links, 'A', 1, new Set(['C'])));
+    const b = asNarrative(root.outgoing[0].branches[0].node);
+    const c = asNarrative(b.outgoing[0].branches[0].node);
+    expect(c.labelId).toBe('C');
+    expect(c.outgoing).toHaveLength(0);
   });
 
   it('DEFAULT_MAX_DEPTH is a positive integer', () => {

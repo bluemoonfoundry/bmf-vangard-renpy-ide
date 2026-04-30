@@ -314,8 +314,8 @@ describe('computeTreeLayout', () => {
 
   it('respects custom node dimensions', () => {
     const custom: TreeLayoutConfig = {
-      nodeWidth:  { narrative: 100, convergence: 80, cycle: 80, terminal: 60 },
-      nodeHeight: { narrative: 50,  convergence: 20, cycle: 20, terminal: 16 },
+      nodeWidth:  { narrative: 100, convergence: 80, cycle: 80, terminal: 60, continuation: 80 },
+      nodeHeight: { narrative: 50,  convergence: 20, cycle: 20, terminal: 16, continuation: 20 },
       horizontalGap: 10,
       verticalGap:   20,
     };
@@ -325,8 +325,8 @@ describe('computeTreeLayout', () => {
 
   it('respects custom gaps in a two-branch menu', () => {
     const custom: TreeLayoutConfig = {
-      nodeWidth:  { narrative: 100, convergence: 80, cycle: 80, terminal: 60 },
-      nodeHeight: { narrative: 50,  convergence: 20, cycle: 20, terminal: 16 },
+      nodeWidth:  { narrative: 100, convergence: 80, cycle: 80, terminal: 60, continuation: 80 },
+      nodeHeight: { narrative: 50,  convergence: 20, cycle: 20, terminal: 16, continuation: 20 },
       horizontalGap: 10,
       verticalGap:   20,
     };

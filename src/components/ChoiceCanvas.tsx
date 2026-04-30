@@ -8,7 +8,7 @@ import CanvasNodeContextMenu from './CanvasNodeContextMenu';
 import type { MinimapItem } from './Minimap';
 import type { LabelNode, RouteLink, MouseGestureSettings, RenpyAnalysisResult, StickyNote } from '@/types';
 import { buildPlayerTree, DEFAULT_MAX_DEPTH } from '@/lib/playerTreeBuilder';
-import type { PlayerTreeNode } from '@/lib/playerTreeBuilder';
+import type { PlayerTreeNode, ContinuationNode } from '@/lib/playerTreeBuilder';
 import { computeTreeLayout, DEFAULT_TREE_LAYOUT_CONFIG } from '@/lib/playerTreeLayout';
 import type { NodeRect, TreeLayout } from '@/lib/playerTreeLayout';
 
@@ -116,6 +116,8 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   const [entryLabelId, setEntryLabelId] = useState<string | null>(null);
   const [maxDepth, setMaxDepth] = useState(DEFAULT_MAX_DEPTH);
   const [collapsedUids, setCollapsedUids] = useState<Set<string>>(new Set());
+  const [expandedLabelIds, setExpandedLabelIds] = useState<Set<string>>(new Set());
+  const [breadcrumbStack, setBreadcrumbStack] = useState<string[]>([]);
   const [showSnippets, setShowSnippets] = useState(true);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldPos: { x: number; y: number } } | null>(null);
@@ -132,6 +134,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   const startClient   = useRef({ x: 0, y: 0 });
   const didMove       = useRef(false);
   const hasFitted     = useRef(false);
+  const lastEntryRef  = useRef<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickCountRef = useRef(0);
 
@@ -175,8 +178,8 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   // ── Tree build + layout ──
   const playerTree = useMemo(() => {
     if (!effectiveEntryId) return null;
-    return buildPlayerTree(labelNodes, routeLinks, effectiveEntryId, maxDepth);
-  }, [labelNodes, routeLinks, effectiveEntryId, maxDepth]);
+    return buildPlayerTree(labelNodes, routeLinks, effectiveEntryId, maxDepth, expandedLabelIds);
+  }, [labelNodes, routeLinks, effectiveEntryId, maxDepth, expandedLabelIds]);
 
   const treeLayout: TreeLayout = useMemo(() => {
     if (!playerTree) return new Map();
@@ -184,6 +187,38 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   }, [playerTree]);
 
   const allRects = useMemo(() => [...treeLayout.values()], [treeLayout]);
+
+  // uid → parent uid + uid → children uids (for selection highlight)
+  const { parentUidOf, childUidsOf } = useMemo(() => {
+    const parentMap = new Map<string, string>();
+    const childMap  = new Map<string, string[]>();
+    function walkRel(node: PlayerTreeNode, parentUid: string | null): void {
+      if (parentUid !== null) parentMap.set(node.uid, parentUid);
+      if (node.type === 'narrative' && !collapsedUids.has(node.uid)) {
+        const children: string[] = [];
+        for (const group of node.outgoing) {
+          for (const branch of group.branches) {
+            children.push(branch.node.uid);
+            walkRel(branch.node, node.uid);
+          }
+        }
+        childMap.set(node.uid, children);
+      }
+    }
+    if (playerTree) walkRel(playerTree, null);
+    return { parentUidOf: parentMap, childUidsOf: childMap };
+  }, [playerTree, collapsedUids]);
+
+  // When a node is selected, the highlighted set = selected + its parent + its children.
+  // null means no selection — everything is full opacity.
+  const highlightedUids = useMemo((): Set<string> | null => {
+    if (!selectedUid) return null;
+    const set = new Set<string>([selectedUid]);
+    const parentUid = parentUidOf.get(selectedUid);
+    if (parentUid) set.add(parentUid);
+    (childUidsOf.get(selectedUid) ?? []).forEach(c => set.add(c));
+    return set;
+  }, [selectedUid, parentUidOf, childUidsOf]);
 
   // labelId → first tree uid referencing that label (for external centerOn requests)
   const labelIdToUidMap = useMemo(() => {
@@ -206,6 +241,16 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
     if (!n) return;
     onOpenEditor(n.blockId, n.startLine);
   }, [labelNodeMap, onOpenEditor]);
+
+  // ── Re-root (Option A) ──
+  const changeRoot = useCallback((newLabelId: string) => {
+    if (!labelNodeMap.has(newLabelId)) return;
+    if (newLabelId === effectiveEntryId) return;
+    setBreadcrumbStack(prev => effectiveEntryId ? [...prev, effectiveEntryId] : prev);
+    setEntryLabelId(newLabelId);
+    setExpandedLabelIds(new Set());
+    setCollapsedUids(new Set());
+  }, [effectiveEntryId, labelNodeMap]);
 
   // ── Fit / center ──
   const fitToScreen = useCallback(() => {
@@ -251,13 +296,16 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
     setLabelSearchQuery('');
   }, [labelIdToUidMap, centerOnTreeNode, labelNodeMap]);
 
-  // Center on root once on first populated layout
+  // Center on root on first load and whenever the root label changes (re-root / breadcrumb nav)
   useEffect(() => {
-    if (!hasFitted.current && allRects.length > 0) {
+    if (allRects.length === 0) return;
+    const entryChanged = lastEntryRef.current !== effectiveEntryId;
+    lastEntryRef.current = effectiveEntryId;
+    if (!hasFitted.current || entryChanged) {
       hasFitted.current = true;
       setTimeout(centerOnRoot, 60);
     }
-  }, [allRects, centerOnRoot]);
+  }, [allRects, centerOnRoot, effectiveEntryId]);
 
   const lastCenterStartKey = useRef<number | null>(null);
   useEffect(() => {
@@ -361,6 +409,26 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
   }, [onTransformChange]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    // Expand continuation node (Option B)
+    const expandEl = (e.target as Element).closest('[data-ptexpand]');
+    if (expandEl) {
+      const labelId = expandEl.getAttribute('data-ptexpand')!;
+      setExpandedLabelIds(s => { const n = new Set(s); n.add(labelId); return n; });
+      istate.current = { type: 'idle' };
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      return;
+    }
+
+    // Re-root on convergence node click
+    const convergeEl = (e.target as Element).closest('[data-ptconverge]');
+    if (convergeEl) {
+      const labelId = convergeEl.getAttribute('data-ptconverge')!;
+      changeRoot(labelId);
+      istate.current = { type: 'idle' };
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      return;
+    }
+
     const collapseEl = (e.target as Element).closest('[data-ptcollapse]');
     if (collapseEl) {
       const uid = collapseEl.getAttribute('data-ptcollapse')!;
@@ -380,7 +448,8 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
         const count = clickCountRef.current;
         clickCountRef.current = 0;
         if (count >= 2) {
-          if (labelId) openNodeEditor(labelId);
+          // Double-click: re-root to this node (Option A)
+          if (labelId) changeRoot(labelId);
         } else {
           setSelectedUid(prev => prev === uid ? null : uid);
           setNodeContextMenu(null);
@@ -391,7 +460,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
     }
     istate.current = { type: 'idle' };
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  }, [openNodeEditor]);
+  }, [changeRoot]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -475,6 +544,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
       choiceText: string | undefined,
       condition: string | undefined,
       isCall: boolean,
+      parentUid: string,
     ): void {
       const sx = parentRect.x + parentRect.width / 2;
       const sy = parentRect.y + parentRect.height;
@@ -487,8 +557,9 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
       const my = sy + dy * 0.38;
       const colors = PILL_COLORS[colorIdx % PILL_COLORS.length];
 
+      const isLit = !highlightedUids || (highlightedUids.has(parentUid) && highlightedUids.has(node.uid));
       arms.push(
-        <g key={`arm-${node.uid}`}>
+        <g key={`arm-${node.uid}`} style={{ opacity: isLit ? 1 : 0.15 }}>
           <path
             d={d}
             className={`fill-none ${isChoice ? colors.arrow : 'stroke-gray-300 dark:stroke-gray-500'}`}
@@ -559,7 +630,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             role="button"
             aria-label={`Label: ${node.label}`}
             aria-pressed={isSelected}
-            style={{ cursor: 'pointer', outline: 'none' }}
+            style={{ cursor: 'pointer', outline: 'none', opacity: !highlightedUids || highlightedUids.has(node.uid) ? 1 : 0.15 }}
           >
             <rect x={rect.x + 1} y={rect.y + 2} width={rect.width} height={rect.height} rx={8} className="fill-black/[.05] dark:fill-black/20" />
             <rect
@@ -614,34 +685,47 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             for (const branch of group.branches) {
               const childRect = treeLayout.get(branch.node.uid);
               if (childRect) {
-                renderArm(rect, childRect, branch.node, branch.colorIdx, isChoice, branch.choiceText, branch.condition, branch.isCall);
+                renderArm(rect, childRect, branch.node, branch.colorIdx, isChoice, branch.choiceText, branch.condition, branch.isCall, node.uid);
               }
               walk(branch.node);
             }
           }
         }
       } else if (node.type === 'convergence') {
-        const cx = rect.x + rect.width / 2;
-        const cy = rect.y + rect.height / 2;
+        const ncx = rect.x + rect.width / 2;
+        const ncy = rect.y + rect.height / 2;
         nodeEls.push(
-          <g key={node.uid}>
-            <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={rect.height / 2}
-              className="fill-teal-50 dark:fill-teal-950 stroke-teal-400 dark:stroke-teal-600"
-              strokeWidth={1}
+          <g
+            key={node.uid}
+            data-ptuid={node.uid}
+            data-ptconverge={node.labelId}
+            data-labelid={node.labelId}
+            data-label={node.label}
+            style={{ cursor: 'pointer', opacity: !highlightedUids || highlightedUids.has(node.uid) ? 1 : 0.15 }}
+            role="button"
+            aria-label={`Navigate to: ${node.label}`}
+          >
+            <rect
+              x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={rect.height / 2}
+              className="fill-teal-50 dark:fill-teal-950 stroke-teal-300 dark:stroke-teal-600"
+              strokeWidth={1} strokeDasharray="4 3"
             />
-            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
+            <text
+              x={ncx} y={ncy}
+              textAnchor="middle" dominantBaseline="middle"
               fontSize={9} fontFamily="ui-monospace, monospace"
-              className="fill-teal-700 dark:fill-teal-300"
+              className="fill-teal-600 dark:fill-teal-400 select-none pointer-events-none"
             >
-              ↩ {trunc(node.label, 22)}
+              → {trunc(node.label, 22)}
             </text>
+            <title>{`${node.label} — click to re-root here`}</title>
           </g>,
         );
       } else if (node.type === 'cycle') {
         const cx = rect.x + rect.width / 2;
         const cy = rect.y + rect.height / 2;
         nodeEls.push(
-          <g key={node.uid}>
+          <g key={node.uid} style={{ opacity: !highlightedUids || highlightedUids.has(node.uid) ? 1 : 0.15 }}>
             <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={rect.height / 2}
               className="fill-amber-50 dark:fill-amber-950 stroke-amber-400 dark:stroke-amber-600"
               strokeWidth={1}
@@ -654,21 +738,53 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             </text>
           </g>,
         );
-      } else if (node.type === 'terminal' && node.reason !== 'depth-limit') {
+      } else if (node.type === 'continuation') {
+        const ncx = rect.x + rect.width / 2;
+        const ncy = rect.y + rect.height / 2;
+        nodeEls.push(
+          <g
+            key={node.uid}
+            data-ptuid={node.uid}
+            data-ptexpand={node.labelId}
+            data-labelid={node.labelId}
+            data-label={node.label}
+            style={{ cursor: 'pointer', opacity: !highlightedUids || highlightedUids.has(node.uid) ? 1 : 0.15 }}
+            role="button"
+            aria-label={`Expand: ${node.label}`}
+          >
+            <rect
+              x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={rect.height / 2}
+              className="fill-indigo-50 dark:fill-indigo-950 stroke-indigo-300 dark:stroke-indigo-600"
+              strokeWidth={1} strokeDasharray="4 3"
+            />
+            <text
+              x={ncx} y={ncy}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize={9} fontFamily="ui-monospace, monospace"
+              className="fill-indigo-600 dark:fill-indigo-400 select-none pointer-events-none"
+            >
+              ▶ {trunc(node.label, 22)}
+            </text>
+            <title>{`${node.label} — click to expand`}</title>
+          </g>,
+        );
+      } else if (node.type === 'terminal') {
         const cy = rect.y + rect.height / 2;
         nodeEls.push(
-          <rect key={node.uid}
-            x={rect.x + rect.width / 4} y={cy - 1}
-            width={rect.width / 2} height={2} rx={1}
-            className="fill-gray-300 dark:fill-gray-600"
-          />,
+          <g key={node.uid} style={{ opacity: !highlightedUids || highlightedUids.has(node.uid) ? 1 : 0.15 }}>
+            <rect
+              x={rect.x + rect.width / 4} y={cy - 1}
+              width={rect.width / 2} height={2} rx={1}
+              className="fill-gray-300 dark:fill-gray-600"
+            />
+          </g>,
         );
       }
     }
 
     walk(playerTree);
     return { armElements: arms, nodeElements: nodeEls };
-  }, [playerTree, treeLayout, collapsedUids, showSnippets, selectedUid, snippetMap]);
+  }, [playerTree, treeLayout, collapsedUids, showSnippets, selectedUid, snippetMap, highlightedUids]);
 
   const isEmpty = !playerTree || allRects.length === 0;
 
@@ -687,7 +803,12 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
           <span className="shrink-0">From:</span>
           <select
             value={effectiveEntryId ?? ''}
-            onChange={e => setEntryLabelId(e.target.value || null)}
+            onChange={e => {
+              setEntryLabelId(e.target.value || null);
+              setExpandedLabelIds(new Set());
+              setBreadcrumbStack([]);
+              setCollapsedUids(new Set());
+            }}
             className="rounded border border-gray-200 dark:border-gray-700 bg-transparent py-0.5 px-1 text-xs text-gray-800 dark:text-gray-200 max-w-[140px]"
           >
             {rootLabelIds.length > 0 && (
@@ -752,6 +873,34 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
         )}
       </div>
 
+      {/* ── Breadcrumb trail ── */}
+      {breadcrumbStack.length > 0 && (
+        <div className="cc-controls flex-none flex items-center gap-1 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 border-b border-indigo-200 dark:border-indigo-800 text-xs overflow-x-auto">
+          {breadcrumbStack.map((lblId, i) => {
+            const lbl = labelNodeMap.get(lblId)?.label ?? lblId;
+            return (
+              <React.Fragment key={`${lblId}-${i}`}>
+                <button
+                  className="shrink-0 font-mono text-indigo-600 dark:text-indigo-400 hover:underline"
+                  onClick={() => {
+                    setEntryLabelId(lblId);
+                    setBreadcrumbStack(prev => prev.slice(0, i));
+                    setExpandedLabelIds(new Set());
+                    setCollapsedUids(new Set());
+                  }}
+                >
+                  {lbl}
+                </button>
+                <span className="text-indigo-300 dark:text-indigo-600 shrink-0">›</span>
+              </React.Fragment>
+            );
+          })}
+          <span className="font-mono font-semibold text-indigo-800 dark:text-indigo-200 shrink-0">
+            {labelNodeMap.get(effectiveEntryId ?? '')?.label ?? effectiveEntryId}
+          </span>
+        </div>
+      )}
+
       {/* ── Canvas ── */}
       <div ref={canvasAreaRef} role="application" aria-label="Story tree canvas" className="flex-1 relative overflow-hidden" onKeyDown={handleKeyDown}>
         <div ref={announceLiveRef} role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
@@ -798,15 +947,19 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
               Direct flow
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-[22px] h-3.5 rounded-full bg-teal-50 dark:bg-teal-950 border border-teal-400 dark:border-teal-600 shrink-0" />
-              Rejoins path
+              <div className="w-[22px] h-3.5 rounded-full bg-teal-50 dark:bg-teal-950 border border-dashed border-teal-300 dark:border-teal-600 shrink-0" />
+              Click to re-root
             </div>
             <div className="flex items-center gap-2">
               <div className="w-[22px] h-3.5 rounded-full bg-amber-50 dark:bg-amber-950 border border-amber-400 dark:border-amber-600 shrink-0" />
               Story loop
             </div>
+            <div className="flex items-center gap-2">
+              <div className="w-[22px] h-3.5 rounded-full bg-indigo-50 dark:bg-indigo-950 border border-dashed border-indigo-300 dark:border-indigo-600 shrink-0" />
+              Click to expand
+            </div>
             <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-gray-400 dark:text-gray-500">
-              Click to select · double-click to edit · +/− to collapse
+              Double-click to re-root · right-click for options · +/− to collapse
             </div>
           </div>
         </CanvasToolbox>
@@ -866,6 +1019,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             label={nodeContextMenu.label}
             onClose={() => setNodeContextMenu(null)}
             onOpenEditor={() => openNodeEditor(nodeContextMenu.labelId)}
+            onSetAsRoot={() => changeRoot(nodeContextMenu.labelId)}
             onWarpToHere={() => onWarpToLabel(nodeContextMenu.label)}
           />
         )}
