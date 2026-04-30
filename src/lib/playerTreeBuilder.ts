@@ -1,6 +1,6 @@
 import type { LabelNode, RouteLink } from '@/types';
 
-export const DEFAULT_MAX_DEPTH = 10;
+export const DEFAULT_MAX_DEPTH = 15;
 const NUM_COLORS = 6;
 
 // ─── Public Types ──────────────────────────────────────────────────────────────

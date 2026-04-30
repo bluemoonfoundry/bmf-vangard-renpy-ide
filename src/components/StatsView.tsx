@@ -123,11 +123,17 @@ function computePathStats(
     }
   }
 
-  // DFS: longest simple path from start to any dead-end (cycle-safe via in-stack set)
+  // DFS: longest simple path from start to any dead-end (cycle-safe via in-stack set).
+  // Backtracking DFS is exponential on large graphs — cap at 200ms and return null if
+  // the graph is too complex to solve in time (renders as '—' in the UI).
   let longestPath: number | null = null;
+  let timedOut = false;
+  const deadline = performance.now() + 200;
   const inStack = new Set<string>();
 
   function dfs(nodeId: string, depth: number) {
+    if (timedOut) return;
+    if (performance.now() > deadline) { timedOut = true; return; }
     if (inStack.has(nodeId)) return;
     if (deadEndIds.has(nodeId)) {
       if (longestPath === null || depth > longestPath) longestPath = depth;
@@ -142,7 +148,7 @@ function computePathStats(
 
   dfs(entryNode.id, 0);
 
-  return { endingCount: deadEndIds.size, shortestPath, longestPath };
+  return { endingCount: deadEndIds.size, shortestPath, longestPath: timedOut ? null : longestPath };
 }
 
 // ── Shared components ─────────────────────────────────────────────────────────

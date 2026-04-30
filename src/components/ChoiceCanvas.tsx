@@ -654,32 +654,15 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
             </text>
           </g>,
         );
-      } else if (node.type === 'terminal') {
-        const cx = rect.x + rect.width / 2;
+      } else if (node.type === 'terminal' && node.reason !== 'depth-limit') {
         const cy = rect.y + rect.height / 2;
-        if (node.reason === 'depth-limit') {
-          nodeEls.push(
-            <g key={node.uid}>
-              <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={4}
-                className="fill-gray-50 dark:fill-gray-800 stroke-gray-300 dark:stroke-gray-600"
-                strokeWidth={1} strokeDasharray="4 3"
-              />
-              <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
-                fontSize={8} className="fill-gray-400 dark:fill-gray-500"
-              >
-                depth limit reached
-              </text>
-            </g>,
-          );
-        } else {
-          nodeEls.push(
-            <rect key={node.uid}
-              x={rect.x + rect.width / 4} y={cy - 1}
-              width={rect.width / 2} height={2} rx={1}
-              className="fill-gray-300 dark:fill-gray-600"
-            />,
-          );
-        }
+        nodeEls.push(
+          <rect key={node.uid}
+            x={rect.x + rect.width / 4} y={cy - 1}
+            width={rect.width / 2} height={2} rx={1}
+            className="fill-gray-300 dark:fill-gray-600"
+          />,
+        );
       }
     }
 

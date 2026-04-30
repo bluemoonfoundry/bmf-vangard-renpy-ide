@@ -23,6 +23,9 @@ DemoProject/*.log
 DemoProject/traceback.txt
 DemoProject/errors.txt
 
+# Screenshots and recording artifacts 
+.renide/screenshots/*
+
 # Generated documentation
 # Note: Ren-IDE_User_Guide.html is committed for distribution builds
 docs/Ren-IDE_User_Guide.pdf

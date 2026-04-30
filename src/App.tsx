@@ -40,7 +40,7 @@ import { SearchProvider } from '@/contexts/SearchContext';
 import StatsView from '@/components/StatsView';
 import TranslationDashboard from '@/components/TranslationDashboard';
 import GoToLabelModal, { GoToLabelItem } from '@/components/GoToLabelModal';
-import { useRenpyAnalysis, performRouteAnalysis } from '@/hooks/useRenpyAnalysis';
+import { useRenpyAnalysis } from '@/hooks/useRenpyAnalysis';
 import { useHistory } from '@/hooks/useHistory';
 import { useProjectColorScan } from '@/hooks/useProjectColorScan';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
@@ -644,13 +644,20 @@ const App: React.FC = () => {
 
   // Split into two memos so that dragging route nodes (which updates routeNodeLayoutCache)
   // only reruns the cheap position-override step, not the expensive analysis + layout pass.
+  // Route graph data (labelNodes, routeLinks, identifiedRoutes) comes directly from the
+  // worker result — calling performRouteAnalysis again here would duplicate the expensive
+  // findPaths computation on the main thread and freeze the UI on large projects.
   const routeRaw = useMemo(() => {
-      const raw = performRouteAnalysis(debouncedBlocks, analysisResult.labels, analysisResult.jumps);
       const layoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
       const groupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
-      const layoutedNodes = computeRouteCanvasLayout(raw.labelNodes, raw.routeLinks, layoutMode, groupingMode);
-      return { ...raw, labelNodes: layoutedNodes };
-  }, [debouncedBlocks, analysisResult, projectSettings.routeCanvasGroupingMode, projectSettings.routeCanvasLayoutMode]);
+      const layoutedNodes = computeRouteCanvasLayout(analysisResult.labelNodes, analysisResult.routeLinks, layoutMode, groupingMode);
+      return {
+          labelNodes: layoutedNodes,
+          routeLinks: analysisResult.routeLinks,
+          identifiedRoutes: analysisResult.identifiedRoutes,
+          routesTruncated: analysisResult.routesTruncated,
+      };
+  }, [analysisResult, projectSettings.routeCanvasGroupingMode, projectSettings.routeCanvasLayoutMode]);
 
   const routeAnalysisResult = useMemo(() => {
       // Apply user-dragged position overrides on top of the auto-layout result.
