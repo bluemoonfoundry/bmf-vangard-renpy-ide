@@ -303,6 +303,39 @@ export const performRenpyAnalysis = (blocks: AnalysisBlock[]): RenpyAnalysisResu
     if (result.variables.has(char.tag)) result.variables.delete(char.tag);
   });
 
+  // Detect implicit variable assignments ($ statements)
+  blocks.forEach(block => {
+    const lines = block.content.split('\n');
+    const tripleQuotedMask = getTripleQuotedLineMask(block.content);
+
+    lines.forEach((line, index) => {
+      // Skip lines inside triple-quoted strings
+      if (tripleQuotedMask[index]) return;
+
+      // Remove comments
+      const commentIndex = line.indexOf('#');
+      const cleanLine = commentIndex >= 0 ? line.substring(0, commentIndex) : line;
+
+      // Match $ variable_name = ... (excluding augmented assignments like +=, -=)
+      const dollarMatch = cleanLine.match(/^\s*\$\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*=(?!=)\s*(.+)/);
+      if (dollarMatch) {
+        const varName = dollarMatch[1];
+        const value = dollarMatch[2].trim();
+
+        // Skip if already defined explicitly or as implicit
+        if (!result.variables.has(varName)) {
+          result.variables.set(varName, {
+            name: varName,
+            type: 'implicit',
+            initialValue: value,
+            definedInBlockId: block.id,
+            line: index + 1
+          });
+        }
+      }
+    });
+  });
+
   const variableNames = Array.from(result.variables.keys());
   // Build a single combined regex for all variable names instead of constructing
   // one RegExp per variable per line. This reduces O(vars × lines) regex constructions

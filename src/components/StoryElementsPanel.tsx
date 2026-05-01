@@ -171,6 +171,11 @@ interface StoryElementsPanelProps {
     projectSettings: ProjectSettings;
     onUpdateProjectSettings: (updater: (draft: ProjectSettings) => void) => void;
     hasProject: boolean;
+
+    // Implicit variable hint banner
+    dismissedImplicitVarHint: boolean;
+    onDismissImplicitVarHint: () => void;
+    onOpenDiagnostics: () => void;
 }
 
 const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
@@ -192,6 +197,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     onCopyColorHex,
     projectColors,
     projectSettings, onUpdateProjectSettings, hasProject,
+    dismissedImplicitVarHint, onDismissImplicitVarHint, onOpenDiagnostics,
 }) => {
     const [activeSubTab, setActiveSubTab] = useState<SubTabId>(
         projectSettings.storyElementsTabState?.activeSubTab ?? 'characters'
@@ -313,6 +319,9 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                             onFindUsages={onFindVariableUsages}
                             onHoverHighlightStart={onHoverHighlightStart}
                             onHoverHighlightEnd={onHoverHighlightEnd}
+                            dismissedImplicitVarHint={dismissedImplicitVarHint}
+                            onDismissImplicitVarHint={onDismissImplicitVarHint}
+                            onOpenDiagnostics={onOpenDiagnostics}
                         />
                     </div>
                 )}
