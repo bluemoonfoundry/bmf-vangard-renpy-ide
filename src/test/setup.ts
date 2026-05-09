@@ -32,3 +32,25 @@ Object.defineProperty(window, 'electronAPI', {
   writable: true,
   configurable: true,
 });
+
+// ResizeObserver is not implemented in jsdom — stub it so canvas components
+// that call it during mount don't throw.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// Pointer capture APIs are not implemented in jsdom — stub them so canvas
+// pointer-down handlers don't throw when tests fire pointer events.
+if (!HTMLElement.prototype.setPointerCapture) {
+  HTMLElement.prototype.setPointerCapture = function () {};
+}
+if (!HTMLElement.prototype.releasePointerCapture) {
+  HTMLElement.prototype.releasePointerCapture = function () {};
+}
+if (!HTMLElement.prototype.hasPointerCapture) {
+  HTMLElement.prototype.hasPointerCapture = function () { return false; };
+}

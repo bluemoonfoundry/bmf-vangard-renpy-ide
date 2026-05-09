@@ -20,6 +20,8 @@ import type {
   StickyNote,
   EditorTab,
   FileSystemTreeNode,
+  LabelNode,
+  RouteLink,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -207,6 +209,34 @@ export function createSampleAnalysisResult(): RenpyAnalysisResult {
       ['block-2', [{ line: 2, tag: 'e' }]],
     ]),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Label Nodes & Route Links (for RouteCanvas / ChoiceCanvas)
+// ---------------------------------------------------------------------------
+
+export function createLabelNode(overrides: Partial<LabelNode> = {}): LabelNode {
+  return {
+    id: 'block-1:start',
+    label: 'start',
+    blockId: 'block-1',
+    containerName: 'script.rpy',
+    startLine: 1,
+    position: { x: 100, y: 100 },
+    width: 160,
+    height: 60,
+    ...overrides,
+  };
+}
+
+export function createRouteLink(overrides: Partial<RouteLink> = {}): RouteLink {
+  return {
+    id: 'link-1',
+    sourceId: 'block-1:start',
+    targetId: 'block-2:chapter1',
+    type: 'jump',
+    ...overrides,
+  };
 }
 
 // ---------------------------------------------------------------------------
