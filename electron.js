@@ -95,6 +95,7 @@ function startProjectWatcher(rootPath) {
         projectWatcher = watch(rootPath, { recursive: true }, (eventType, filename) => {
             if (!filename) return;
             if (!/\.rpy$/i.test(filename)) return;
+            if (/^(renpy|lib|cache|tmp)[/\\]/i.test(filename)) return;
 
             const absolutePath = path.join(rootPath, filename);
             const normalizedAbs = absolutePath.replace(/\\/g, '/');
@@ -264,6 +265,10 @@ async function run() {
 
     progress(5, 'Scanning directory...');
 
+    // Directories that are part of the Ren'Py SDK or build output — never contain
+    // user-authored .rpy files and must be excluded to avoid inflating file counts.
+    const EXCLUDED_DIRS = new Set(['renpy', 'lib', 'cache', 'tmp', '.git', 'node_modules']);
+
     // Phase 1: Build directory tree and collect .rpy paths (no content yet)
     const rpyPaths = [];
     let scannedEntries = 0;
@@ -282,6 +287,7 @@ async function run() {
             const childNode = { name: entry.name, path: relativePath, children: entry.isDirectory() ? [] : undefined };
 
             if (entry.isDirectory()) {
+                if (EXCLUDED_DIRS.has(entry.name.toLowerCase())) continue;
                 await readDirRecursive(fullPath, childNode);
             } else if (entry.isFile()) {
                 if (/\.(rpy)$/i.test(entry.name)) {

@@ -45,6 +45,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { useProjectColorScan } from '@/hooks/useProjectColorScan';
 import { usePerformanceMetrics } from '@/hooks/usePerformanceMetrics';
 import { useToasts } from '@/hooks/useToasts';
+import { useMilestones } from '@/hooks/useMilestones';
 import { useModalState } from '@/hooks/useModalState';
 import { useTabManagement } from '@/hooks/useTabManagement';
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
@@ -490,6 +491,15 @@ const App: React.FC = () => {
     [analysisResult.characters],
   );
   
+  const { notifyFirstSave } = useMilestones({
+    blocks,
+    analysisResult,
+    images,
+    projectSettings,
+    updateProjectSettings,
+    addToast,
+  });
+
   // --- Refs ---
   const editorInstances = useRef<Map<string, monaco.editor.IStandaloneCodeEditor>>(new Map());
   // Lazy-mount sets: a tab's content is only rendered once it has been the active tab at
@@ -2472,6 +2482,7 @@ const App: React.FC = () => {
         setBlocks(prev => prev.map(b => b.id === blockId ? { ...b, content: contentToSave } : b));
         setDirtyBlockIds(prev => { const next = new Set(prev); next.delete(blockId); return next; });
         setDirtyEditors(prev => { const next = new Set(prev); next.delete(blockId); return next; });
+        notifyFirstSave();
         if (projectSettings.draftingMode) updateDraftingArtifacts();
       } catch (err) {
         logger.error('Failed to save block:', err);
@@ -2493,7 +2504,7 @@ const App: React.FC = () => {
     }
 
     await doSave();
-  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict]);
+  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict, notifyFirstSave]);
   
   const handleSaveProjectSettings = useCallback(async () => {
     if (!projectRootPath || !window.electronAPI) return;
@@ -2601,6 +2612,7 @@ const App: React.FC = () => {
                setDirtyEditors(new Set());
                setHasUnsavedSettings(false);
                setSaveStatus('saved');
+               notifyFirstSave();
                addToast('Changes saved to memory', 'success');
                return;
           }
@@ -2620,6 +2632,7 @@ const App: React.FC = () => {
           setDirtyBlockIds(new Set());
           setDirtyEditors(new Set());
           setSaveStatus('saved');
+          notifyFirstSave();
           addToast('All changes saved', 'success');
       } catch (err) {
           logger.error('Failed to save changes', err);
@@ -2651,7 +2664,7 @@ const App: React.FC = () => {
     }
 
     await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict]);
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave]);
   
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);

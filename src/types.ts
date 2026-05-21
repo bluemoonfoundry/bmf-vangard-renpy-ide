@@ -975,6 +975,7 @@ export interface ProjectSettings {
     activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'screenLayouts' | 'snippets' | 'menuTemplates' | 'colorPalette';
   };
   dismissedImplicitVariableHint?: boolean;
+  completedMilestones?: string[];
 }
 
 /**

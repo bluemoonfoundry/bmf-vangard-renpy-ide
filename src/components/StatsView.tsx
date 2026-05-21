@@ -354,7 +354,7 @@ const StatsView: React.FC<StatsViewProps> = ({
   const [coverageSortKey, setCoverageSortKey] = useState<CoverageSortKey>('status');
   const [coverageSortDir, setCoverageSortDir] = useState<CoverageSortDir>('asc');
 
-  const { branchingBlockIds, labels, characters, dialogueLines } = analysisResult;
+  const { branchingBlockIds, labels, characters, dialogueLines, variables, variableUsages } = analysisResult;
   const { identifiedRoutes, labelNodes, routeLinks, routesTruncated } = routeAnalysisResult;
 
   const [totalWords, setTotalWords] = useState<number | null>(null);
@@ -402,6 +402,31 @@ const StatsView: React.FC<StatsViewProps> = ({
   }, [characterWordCounts]);
 
   const labelCount = useMemo(() => Object.keys(labels).length, [labels]);
+
+  const variableStats = useMemo(() => {
+    let persistent = 0;
+    let nonPersistent = 0;
+    let constants = 0;
+    variables.forEach(v => {
+      if (v.name.startsWith('persistent.')) {
+        persistent++;
+      } else if (v.type === 'define') {
+        constants++;
+      } else {
+        nonPersistent++;
+      }
+    });
+    return { total: variables.size, persistent, nonPersistent, constants };
+  }, [variables]);
+
+  const topVariables = useMemo(() => {
+    const rows: { name: string; usages: number; type: string }[] = [];
+    variables.forEach((v, name) => {
+      const usages = variableUsages.get(name)?.length ?? 0;
+      rows.push({ name, usages, type: v.type });
+    });
+    return rows.sort((a, b) => b.usages - a.usages).slice(0, 10);
+  }, [variables, variableUsages]);
 
   const complexity = useMemo(
     () => getComplexityBucket(branchingBlockIds.size, blocks.length, identifiedRoutes.length),
@@ -707,6 +732,56 @@ const StatsView: React.FC<StatsViewProps> = ({
           sub={routesTruncated ? 'unique story paths (limit reached)' : 'unique story paths'}
         />
       </div>
+
+      {/* Variables */}
+      {variableStats.total > 0 && (<>
+        <SectionLabel>Variables</SectionLabel>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <StatCard
+            label="Total Variables"
+            value={variableStats.total.toLocaleString()}
+            sub="across all script files"
+          />
+          <StatCard
+            label="Persistent"
+            value={variableStats.persistent.toLocaleString()}
+            sub="saved between sessions"
+          />
+          <StatCard
+            label="Non-persistent"
+            value={variableStats.nonPersistent.toLocaleString()}
+            sub="reset on new game"
+          />
+          <StatCard
+            label="Constants"
+            value={variableStats.constants.toLocaleString()}
+            sub="define statements"
+          />
+        </div>
+        {topVariables.length > 0 && (
+          <div className="mb-8 overflow-x-auto rounded-lg border border-primary">
+            <table className="w-full text-sm">
+              <caption className="text-xs font-semibold text-secondary uppercase tracking-widest text-left px-3 py-2 bg-tertiary border-b border-primary">Top 10 Variables</caption>
+              <thead>
+                <tr className="bg-tertiary border-b border-primary text-secondary text-xs">
+                  <th className="px-3 py-2 text-left font-semibold">Variable</th>
+                  <th className="px-3 py-2 text-left font-semibold w-24">Type</th>
+                  <th className="px-3 py-2 text-right font-semibold w-24">Usages</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topVariables.map((row, i) => (
+                  <tr key={row.name} className={`border-b border-primary last:border-0 ${i % 2 === 1 ? 'bg-secondary/20' : ''}`}>
+                    <td className="px-3 py-2 font-mono text-xs text-primary">{row.name}</td>
+                    <td className="px-3 py-2 text-xs text-secondary capitalize">{row.type}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-secondary text-xs">{row.usages}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>)}
 
       {/* Complexity banner */}
       <div className="mb-8 bg-secondary rounded-lg p-4 flex items-center gap-4">
