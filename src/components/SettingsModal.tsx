@@ -29,6 +29,7 @@ const THEME_OPTIONS: { value: Theme; label: string }[] = [
     { value: 'ocean-dark', label: 'Ocean Dark' },
     { value: 'candy-light', label: 'Candy Light' },
     { value: 'forest-light', label: 'Forest Light' },
+    { value: 'synthwave', label: 'Synthwave' },
 ];
 
 const DEFAULT_MOUSE_GESTURES: MouseGestureSettings = {

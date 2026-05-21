@@ -977,15 +977,16 @@ const App: React.FC = () => {
     const root = window.document.documentElement;
     const applyTheme = (theme: Theme) => {
       root.classList.remove(
-          'dark', 
-          'theme-solarized-light', 
-          'theme-solarized-dark', 
-          'theme-colorful', 
+          'dark',
+          'theme-solarized-light',
+          'theme-solarized-dark',
+          'theme-colorful',
           'theme-colorful-light',
-          'theme-neon-dark', 
-          'theme-ocean-dark', 
-          'theme-candy-light', 
-          'theme-forest-light'
+          'theme-neon-dark',
+          'theme-ocean-dark',
+          'theme-candy-light',
+          'theme-forest-light',
+          'theme-synthwave'
       );
       
       if (theme === 'dark') root.classList.add('dark');
@@ -999,6 +1000,7 @@ const App: React.FC = () => {
       if (theme === 'ocean-dark') root.classList.add('dark', 'theme-ocean-dark');
       if (theme === 'candy-light') root.classList.add('theme-candy-light');
       if (theme === 'forest-light') root.classList.add('theme-forest-light');
+      if (theme === 'synthwave') root.classList.add('dark', 'theme-synthwave');
     };
 
     if (appSettings.theme === 'system') {
