@@ -28,6 +28,7 @@ import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
 import { logger, electronLog } from './src/lib/logger.main.js';
+import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,18 @@ let mainWindowRef = null;
 
 // --- Project Root Tracking (for screenshots and other features) ---
 let currentProjectRoot = null;
+
+/**
+ * Throws ACCESS_DENIED if filePath is not within the current project root.
+ * Applied to all fs:* IPC handlers to prevent renderer-side path traversal.
+ */
+function guardProjectPath(filePath) {
+    const err = validateProjectPath(filePath, currentProjectRoot);
+    if (err) {
+        logger.warn(`IPC path guard blocked: ${err} — path: ${filePath}`);
+        throw new Error(`ACCESS_DENIED: ${err}`);
+    }
+}
 
 // --- External File Change Watcher ---
 let projectWatcher = null;
@@ -1181,6 +1194,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:writeFile', async (event, filePath, content, encoding) => {
     try {
+      guardProjectPath(filePath);
       await fs.mkdir(path.dirname(filePath), { recursive: true });
       // Record self-write so the watcher ignores this change
       const normalizedPath = filePath.replace(/\\/g, '/');
@@ -1194,6 +1208,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
     try {
+      guardProjectPath(dirPath);
       await fs.mkdir(dirPath, { recursive: true });
       return { success: true };
     } catch (error) {
@@ -1203,6 +1218,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:removeEntry', async (event, entryPath) => {
     try {
+      guardProjectPath(entryPath);
       await fs.rm(entryPath, { recursive: true, force: true });
       return { success: true };
     } catch (error) {
@@ -1212,6 +1228,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:moveFile', async (event, oldPath, newPath) => {
     try {
+      guardProjectPath(oldPath);
+      guardProjectPath(newPath);
       await fs.mkdir(path.dirname(newPath), { recursive: true });
       await fs.rename(oldPath, newPath);
       return { success: true };
@@ -1222,6 +1240,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:copyEntry', async (event, sourcePath, destPath) => {
     try {
+      guardProjectPath(sourcePath);
+      guardProjectPath(destPath);
       // Ensure the directory exists before copying
       await fs.mkdir(path.dirname(destPath), { recursive: true });
       await fs.cp(sourcePath, destPath, { recursive: true });
@@ -1233,6 +1253,7 @@ app.whenReady().then(() => {
   
   ipcMain.handle('fs:scanDirectory', async (event, dirPath) => {
       try {
+          guardProjectPath(dirPath);
           return await scanDirectoryForAssets(dirPath);
       } catch (error) {
           logger.error("Scan directory failed:", error);
@@ -1242,6 +1263,7 @@ app.whenReady().then(() => {
   
   ipcMain.handle('fs:readFile', async (event, filePath) => {
     try {
+      guardProjectPath(filePath);
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
@@ -1252,6 +1274,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:fileExists', async (event, filePath) => {
     try {
+      guardProjectPath(filePath);
       await fs.access(filePath);
       return true;
     } catch {
@@ -1404,6 +1427,7 @@ app.whenReady().then(() => {
   ipcMain.handle('project:search', async (event, { projectPath, query, ...options }) => {
     if (!query) return [];
     try {
+        guardProjectPath(projectPath);
         const results = await searchInDirectory(projectPath, query, { projectPath, ...options });
         return results;
     } catch (error) {
@@ -1460,6 +1484,11 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('shell:openExternal', async (_event, url) => {
+    const urlErr = validateExternalUrl(url);
+    if (urlErr) {
+      logger.warn(`shell:openExternal blocked: ${urlErr} — url: ${url}`);
+      return;
+    }
     try {
       await shell.openExternal(url);
     } catch (error) {
