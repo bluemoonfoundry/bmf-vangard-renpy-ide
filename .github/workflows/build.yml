@@ -32,7 +32,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Lint
         run: npm run lint
@@ -60,7 +60,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
       # Build the React application and package with Electron Builder
       - name: Build and Package
