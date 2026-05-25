@@ -40,6 +40,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Coverage Gate
+        run: npm run test:coverage
+
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

@@ -98,6 +98,13 @@ export default defineConfig(({ mode }) => {
         provider: 'v8',
         include: ['src/**'],
         exclude: ['**/*.test.{ts,tsx}', 'src/test/**'],
+        thresholds: {
+          // Per-file minimums for risky modules
+          'src/lib/ipcSecurity.js': { statements: 90 },
+          'src/components/MarkdownPreviewView.tsx': { statements: 70 },
+          'src/lib/storyCanvasLayout.ts': { statements: 40 },
+          'src/hooks/useRenpyAnalysis.ts': { statements: 75 },
+        },
       },
     },
   }
