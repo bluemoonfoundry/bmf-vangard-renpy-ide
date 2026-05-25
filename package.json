@@ -1,6 +1,6 @@
 {
   "name": "renide",
-  "version": "0.8.3",
+  "version": "1.0.0",
   "author": {
     "name": "Blue Moon Foundry Software",
     "email": "support@bluemoonfoundry.com"
@@ -124,7 +124,10 @@
       "artifactName": "${name}-${version}.${ext}"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}",
       "category": "Development"

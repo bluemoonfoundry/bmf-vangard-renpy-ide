@@ -4,6 +4,25 @@ All notable changes to Ren'IDE are documented here.
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Added
+- **NEW:** E2E smoke test suite (Playwright + Electron) — 5 automated smoke tests run in CI before every release build
+- **NEW:** Coverage gate in CI — per-file statement thresholds enforced on key modules (`storyCanvasLayout`, `useRenpyAnalysis`, `MarkdownPreviewView`, `ipcSecurity`)
+- **NEW:** Synthwave editor theme
+- **NEW:** Keyboard Shortcuts button in toolbar — the shortcuts reference is now discoverable without knowing Ctrl+/
+- **NEW:** `RELEASE_CHECKLIST.md` — go/no-go gate for production releases
+- **NEW:** `SUPPORT.md` — post-release support runbook with log paths, known first-launch issues, and rollback guidance
+
+### Security
+- **FIXED:** Project-root path guard added to all `fs:*` IPC handlers — prevents path traversal outside the open project directory
+
+### Accessibility
+- **FIXED:** `role="dialog"` and `aria-modal` now applied to the correct (inner content) element across all 8 modal dialogs — screen readers no longer announce the backdrop overlay as the dialog
+
+### Fixed
+- Stale planning and implementation summary files removed from repository
+
 ## [0.8.3]
 
 ### Added
