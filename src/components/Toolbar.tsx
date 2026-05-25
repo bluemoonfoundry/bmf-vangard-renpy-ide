@@ -25,6 +25,7 @@ interface ToolbarProps {
   handleTidyUp: () => void;
   handleSave: () => void;
   onOpenSettings: () => void;
+  onOpenShortcuts: () => void;
   onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void;
   diagnosticsErrorCount: number;
   /** null = disabled (no canvas active that supports notes) */
@@ -75,6 +76,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   handleTidyUp,
   handleSave,
   onOpenSettings,
+  onOpenShortcuts,
   onOpenStaticTab,
   diagnosticsErrorCount,
   onAddStickyNote,
@@ -303,6 +305,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </ToolbarButton>
 
         <SaveStatusIndicator />
+
+        <ToolbarButton onClick={onOpenShortcuts} title="Keyboard Shortcuts (Ctrl+/)" aria-label="Keyboard Shortcuts">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+            <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"/>
+          </svg>
+        </ToolbarButton>
 
         <ToolbarButton onClick={onOpenSettings} title="Settings" aria-label="Settings">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">

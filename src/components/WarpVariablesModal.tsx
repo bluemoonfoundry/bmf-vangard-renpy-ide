@@ -93,10 +93,10 @@ const WarpVariablesModal: React.FC<WarpVariablesModalProps> = ({
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      {...modalProps}
     >
       <div
         ref={contentRef}
+        {...modalProps}
         className="w-full max-w-3xl overflow-hidden rounded-xl border border-gray-700 bg-gray-900 text-gray-100 shadow-2xl"
         onMouseDown={event => event.stopPropagation()}
       >

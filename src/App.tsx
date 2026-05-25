@@ -4873,6 +4873,7 @@ const App: React.FC = () => {
         handleTidyUp={handleActiveCanvasTidyUp}
         handleSave={handleSaveAll}
         onOpenSettings={() => openSettingsModal()}
+        onOpenShortcuts={() => openShortcutsModal()}
         onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
