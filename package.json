@@ -26,6 +26,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=list",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "release:patch": "npm run version:patch && npm run build",

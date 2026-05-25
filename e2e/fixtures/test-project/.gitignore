@@ -1,0 +1,6 @@
+game/cache/
+game/saves/
+game/*.rpyc
+game/_ide_after_warp.rpyc
+log.txt
+traceback.txt
