@@ -1,13 +1,5 @@
 # The script of the game starts here.
 
-# Declare characters used by this game. The color argument colorizes the
-# name of the character.
-
-define e = Character("Eileen")
-
-
-# The game starts here.
-
 label start:
 
     # Show a background. This uses a placeholder by default, but you can
