@@ -25,9 +25,9 @@ interface MinimapProps {
   onTransformChange: React.Dispatch<React.SetStateAction<{ x: number; y: number; scale: number }>>;
 }
 
-const MINIMAP_WIDTH = 240;
-const MINIMAP_HEIGHT = 180;
-const PADDING = 20;
+const MINIMAP_MAX_WIDTH = 240;
+const MINIMAP_MAX_HEIGHT = 180;
+const PADDING = 10;
 
 const ITEM_COLORS: Record<MinimapItem['type'], string> = {
   block: 'rgba(107, 114, 128, 0.7)', // gray-500
@@ -42,10 +42,12 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
   const minimapRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ isDragging: boolean; startX: number; startY: number; initialPanX: number; initialPanY: number; }>({ isDragging: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
 
-  const { bounds, minimapScale } = useMemo(() => {
-    if (items.length === 0) {
-      return { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1 };
-    }
+  // Compute scale and container dimensions that match the content's aspect ratio,
+  // capped at MINIMAP_MAX_WIDTH × MINIMAP_MAX_HEIGHT. This ensures content always
+  // fills the minimap panel rather than appearing in a fraction of a fixed-size box.
+  const { bounds, minimapScale, minimapWidth, minimapHeight } = useMemo(() => {
+    const fallback = { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1, minimapWidth: MINIMAP_MAX_WIDTH, minimapHeight: MINIMAP_MAX_HEIGHT };
+    if (items.length === 0) return fallback;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(item => {
@@ -57,19 +59,19 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
-
-    if (contentWidth <= 0 || contentHeight <= 0) {
-       return { bounds: { minX, minY, width: contentWidth, height: contentHeight }, minimapScale: 1 };
-    }
+    if (contentWidth <= 0 || contentHeight <= 0) return { ...fallback, bounds: { minX, minY, width: contentWidth, height: contentHeight } };
 
     const scale = Math.min(
-      (MINIMAP_WIDTH - PADDING * 2) / contentWidth,
-      (MINIMAP_HEIGHT - PADDING * 2) / contentHeight
+      (MINIMAP_MAX_WIDTH - PADDING * 2) / contentWidth,
+      (MINIMAP_MAX_HEIGHT - PADDING * 2) / contentHeight,
     );
 
     return {
       bounds: { minX, minY, width: contentWidth, height: contentHeight },
       minimapScale: scale,
+      // Container sized to content — fills the panel with no wasted space
+      minimapWidth: Math.round(contentWidth * scale + PADDING * 2),
+      minimapHeight: Math.round(contentHeight * scale + PADDING * 2),
     };
   }, [items]);
 
@@ -80,16 +82,11 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     const viewX = -transform.x / transform.scale;
     const viewY = -transform.y / transform.scale;
 
-    const minimapContentWidth = bounds.width * minimapScale;
-    const minimapContentHeight = bounds.height * minimapScale;
-    const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-    const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
     return {
       width: viewWidth * minimapScale,
       height: viewHeight * minimapScale,
-      left: (viewX - bounds.minX) * minimapScale + offsetX,
-      top: (viewY - bounds.minY) * minimapScale + offsetY,
+      left: (viewX - bounds.minX) * minimapScale + PADDING,
+      top: (viewY - bounds.minY) * minimapScale + PADDING,
       position: 'absolute',
       border: '1.5px solid rgba(79, 70, 229, 0.8)',
       backgroundColor: 'rgba(99, 102, 241, 0.2)',
@@ -104,13 +101,8 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const minimapContentWidth = bounds.width * minimapScale;
-    const minimapContentHeight = bounds.height * minimapScale;
-    const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-    const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
-    const worldX = (x - offsetX) / minimapScale + bounds.minX;
-    const worldY = (y - offsetY) / minimapScale + bounds.minY;
+    const worldX = (x - PADDING) / minimapScale + bounds.minX;
+    const worldY = (y - PADDING) / minimapScale + bounds.minY;
 
     onTransformChange(t => ({
       ...t,
@@ -118,7 +110,7 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
       y: (canvasDimensions.height / 2) - (worldY * t.scale),
     }));
   }, [onTransformChange, bounds, minimapScale, canvasDimensions]);
-  
+
   const handleViewportPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
       const target = e.currentTarget;
@@ -131,22 +123,22 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
           initialPanY: transform.y,
       };
       target.style.cursor = 'grabbing';
-      
+
       const handlePointerMove = (moveEvent: PointerEvent) => {
           if (!dragState.current.isDragging) return;
           const dx = moveEvent.clientX - dragState.current.startX;
           const dy = moveEvent.clientY - dragState.current.startY;
-          
+
           const panX = -dx / minimapScale * transform.scale;
           const panY = -dy / minimapScale * transform.scale;
-          
+
           onTransformChange(t => ({
               ...t,
               x: dragState.current.initialPanX + panX,
               y: dragState.current.initialPanY + panY,
           }));
       };
-      
+
       const handlePointerUp = () => {
           dragState.current.isDragging = false;
           target.style.cursor = 'grab';
@@ -154,7 +146,7 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
           window.removeEventListener('pointerup', handlePointerUp);
           target.releasePointerCapture(e.pointerId);
       };
-      
+
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
   }, [minimapScale, transform.scale, transform.x, transform.y, onTransformChange]);
@@ -165,15 +157,10 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
       ref={minimapRef}
       onPointerDown={handlePan}
       className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-lg"
-      style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
+      style={{ width: minimapWidth, height: minimapHeight }}
     >
       <div className="relative w-full h-full overflow-hidden">
         {items.map(item => {
-          const minimapContentWidth = bounds.width * minimapScale;
-          const minimapContentHeight = bounds.height * minimapScale;
-          const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-          const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
           let color = ITEM_COLORS[item.type];
           if (item.type === 'note' && item.color) {
             const noteColorMap: Record<NoteColor, string> = {
@@ -192,8 +179,8 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
               key={item.id}
               className="absolute rounded-sm"
               style={{
-                left: (item.position.x - bounds.minX) * minimapScale + offsetX,
-                top: (item.position.y - bounds.minY) * minimapScale + offsetY,
+                left: (item.position.x - bounds.minX) * minimapScale + PADDING,
+                top: (item.position.y - bounds.minY) * minimapScale + PADDING,
                 width: Math.max(2, item.width * minimapScale),
                 height: Math.max(2, item.height * minimapScale),
                 backgroundColor: color,
