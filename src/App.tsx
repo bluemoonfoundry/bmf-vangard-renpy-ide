@@ -79,8 +79,8 @@ import {
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, Theme, ProjectImage, RenpyAudio, Variable,
-  ClipboardState, ImageMetadata, AudioMetadata, Character,
-  AppSettings, ProjectSettings, StickyNote, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
+  ImageMetadata, AudioMetadata, Character,
+  ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -132,21 +132,21 @@ const App: React.FC = () => {
     setExplorerExternalAction,
     clipboard,
     setClipboard,
-    selectPath,
-    selectPaths,
-    clearExplorerSelection,
-    expandPath,
-    collapsePath,
-    toggleExpansion,
-    expandAll,
-    collapseAll,
-    triggerNewFile,
-    triggerNewFolder,
-    triggerRename,
-    copyToClipboard,
-    cutToClipboard,
-    clearClipboard,
-    closeProject: closeFileSystemProject,
+    selectPath: _selectPath,
+    selectPaths: _selectPaths,
+    clearExplorerSelection: _clearExplorerSelection,
+    expandPath: _expandPath,
+    collapsePath: _collapsePath,
+    toggleExpansion: _toggleExpansion,
+    expandAll: _expandAll,
+    collapseAll: _collapseAll,
+    triggerNewFile: _triggerNewFile,
+    triggerNewFolder: _triggerNewFolder,
+    triggerRename: _triggerRename,
+    copyToClipboard: _copyToClipboard,
+    cutToClipboard: _cutToClipboard,
+    clearClipboard: _clearClipboard,
+    closeProject: _closeFileSystemProject,
   } = useFileSystemState();
 
   // Update window title based on project path
@@ -182,14 +182,14 @@ const App: React.FC = () => {
     setAudioScanDirectories,
     setAudiosLastScanned,
     setIsRefreshingAudios,
-    addImage,
-    removeImage,
-    updateImageMetadata,
-    addAudio,
-    removeAudio,
-    updateAudioMetadata,
-    clearImages,
-    clearAudios,
+    addImage: _addImage,
+    removeImage: _removeImage,
+    updateImageMetadata: _updateImageMetadata,
+    addAudio: _addAudio,
+    removeAudio: _removeAudio,
+    updateAudioMetadata: _updateAudioMetadata,
+    clearImages: _clearImages,
+    clearAudios: _clearAudios,
   } = useAssetManagement();
 
   // --- State: UI & Editor ---
@@ -212,20 +212,20 @@ const App: React.FC = () => {
     dragSourcePaneId,
     setDraggedTabId,
     setDragSourcePaneId,
-    openTab,
-    closeTab,
-    switchTab,
-    updateTab,
-    closeTabs,
+    openTab: _openTab,
+    closeTab: _closeTab,
+    switchTab: _switchTab,
+    updateTab: _updateTab,
+    closeTabs: _closeTabs,
     setTabs,
-    createSplit,
-    closeSplit,
-    setSplitSize,
-    moveTabToPane,
-    startDrag: startTabDrag,
-    endDrag: endTabDrag,
-    findTab,
-    getActiveTab,
+    createSplit: _createSplit,
+    closeSplit: _closeSplit,
+    setSplitSize: _setSplitSize,
+    moveTabToPane: _moveTabToPane,
+    startDrag: _startTabDrag,
+    endDrag: _endTabDrag,
+    findTab: _findTab,
+    getActiveTab: _getActiveTab,
   } = useTabManagement();
 
   // Canvas interaction state
@@ -258,16 +258,16 @@ const App: React.FC = () => {
     setFlashBlockRequest,
     canvasFilters,
     setCanvasFilters,
-    centerOnBlock,
-    flashBlock,
-    centerOnRouteNode,
-    centerOnChoiceNode,
-    centerOnRouteStart,
-    centerOnChoiceStart,
-    clearSelection,
-    selectBlocks,
-    selectGroups,
-    toggleBlockSelection,
+    centerOnBlock: _centerOnBlock,
+    flashBlock: _flashBlock,
+    centerOnRouteNode: _centerOnRouteNode,
+    centerOnChoiceNode: _centerOnChoiceNode,
+    centerOnRouteStart: _centerOnRouteStart,
+    centerOnChoiceStart: _centerOnChoiceStart,
+    clearSelection: _clearSelection,
+    selectBlocks: _selectBlocks,
+    selectGroups: _selectGroups,
+    toggleBlockSelection: _toggleBlockSelection,
   } = useCanvasInteraction();
   
   // Composition state (Scene/ImageMap/ScreenLayout composers)
@@ -280,17 +280,17 @@ const App: React.FC = () => {
     setImagemapCompositions,
     screenLayoutCompositions,
     setScreenLayoutCompositions,
-    addScene,
-    updateScene,
-    removeScene,
-    renameScene,
-    addImagemap,
-    updateImagemap,
-    removeImagemap,
-    addScreenLayout,
-    updateScreenLayout,
-    removeScreenLayout,
-    clearAllCompositions,
+    addScene: _addScene,
+    updateScene: _updateScene,
+    removeScene: _removeScene,
+    renameScene: _renameScene,
+    addImagemap: _addImagemap,
+    updateImagemap: _updateImagemap,
+    removeImagemap: _removeImagemap,
+    addScreenLayout: _addScreenLayout,
+    updateScreenLayout: _updateScreenLayout,
+    removeScreenLayout: _removeScreenLayout,
+    clearAllCompositions: _clearAllCompositions,
   } = useCompositionState();
 
   // Punchlist State (kept for migration — not written on save)
@@ -390,16 +390,16 @@ const App: React.FC = () => {
     setIsRenpyPathValid,
     isGeneratingTranslations,
     setIsGeneratingTranslations,
-    updateTheme,
-    updateRenpyPath,
-    updateEditorFont,
-    toggleSidebar,
-    updateSidebarWidth,
-    addRecentProject,
-    removeRecentProject,
-    clearRecentProjects,
-    resetAppSettings,
-    resetProjectSettings,
+    updateTheme: _updateTheme,
+    updateRenpyPath: _updateRenpyPath,
+    updateEditorFont: _updateEditorFont,
+    toggleSidebar: _toggleSidebar,
+    updateSidebarWidth: _updateSidebarWidth,
+    addRecentProject: _addRecentProject,
+    removeRecentProject: _removeRecentProject,
+    clearRecentProjects: _clearRecentProjects,
+    resetAppSettings: _resetAppSettings,
+    resetProjectSettings: _resetProjectSettings,
   } = useSettingsManagement();
 
   // Sticky notes (managed separately from composition state)
@@ -419,7 +419,7 @@ const App: React.FC = () => {
     addChoiceStickyNote,
     updateChoiceStickyNote,
     deleteChoiceStickyNote,
-    clearAllStickyNotes,
+    clearAllStickyNotes: _clearAllStickyNotes,
   } = useStickyNotes({
     appSettings,
     storyCanvasTransform,
@@ -642,7 +642,7 @@ const App: React.FC = () => {
 
   // Stable callbacks for StoryCanvas — previously inline lambdas that caused the
   // canvas to re-render on every App.tsx state change (e.g. switching any tab).
-  const handleClearFindUsages = useCallback(() => setFindUsagesHighlightIds(null), []);
+  const handleClearFindUsages = useCallback(() => setFindUsagesHighlightIds(null), [setFindUsagesHighlightIds]);
   const canvasInteractionEnd = useCallback(() => {}, []);
 
   // Split into two memos so that dragging route nodes (which updates routeNodeLayoutCache)
@@ -687,7 +687,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => [...prev, { id, type: 'scene-composer', sceneId: id }]);
       setActiveTabId(id);
       setHasUnsavedSettings(true);
-  }, [sceneCompositions, setSceneCompositions, setSceneNames]);
+  }, [sceneCompositions, setSceneCompositions, setSceneNames, setOpenTabs, setActiveTabId]);
 
   const handleOpenScene = useCallback((sceneId: string) => {
       setOpenTabs(prev => {
@@ -697,7 +697,7 @@ const App: React.FC = () => {
           return prev;
       });
       setActiveTabId(sceneId);
-  }, []);
+  }, [setOpenTabs, setActiveTabId]);
 
   const handleSceneUpdate = useCallback((sceneId: string, value: React.SetStateAction<SceneComposition>) => {
       setSceneCompositions(draft => {
@@ -727,7 +727,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => prev.filter(t => t.id !== sceneId));
       if (activeTabId === sceneId) setActiveTabId('canvas');
       setHasUnsavedSettings(true);
-  }, [setSceneCompositions, setSceneNames, activeTabId]);
+  }, [setSceneCompositions, setSceneNames, activeTabId, setOpenTabs, setActiveTabId]);
 
   // --- ImageMap Composer Management ---
   const handleCreateImageMap = useCallback((initialName?: string) => {
@@ -746,7 +746,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => [...prev, { id, type: 'imagemap-composer', imagemapId: id }]);
       setActiveTabId(id);
       setHasUnsavedSettings(true);
-  }, [imagemapCompositions, setImagemapCompositions]);
+  }, [imagemapCompositions, setImagemapCompositions, setOpenTabs, setActiveTabId]);
 
   const handleOpenImageMap = useCallback((imagemapId: string) => {
       setOpenTabs(prev => {
@@ -756,7 +756,7 @@ const App: React.FC = () => {
           return prev;
       });
       setActiveTabId(imagemapId);
-  }, []);
+  }, [setOpenTabs, setActiveTabId]);
 
   const handleImageMapUpdate = useCallback((imagemapId: string, value: React.SetStateAction<ImageMapComposition>) => {
       setImagemapCompositions(draft => {
@@ -785,7 +785,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => prev.filter(t => t.id !== imagemapId));
       if (activeTabId === imagemapId) setActiveTabId('canvas');
       setHasUnsavedSettings(true);
-  }, [setImagemapCompositions, activeTabId]);
+  }, [setImagemapCompositions, activeTabId, setOpenTabs, setActiveTabId]);
 
   // --- Screen Layout Composer Management ---
   const handleCreateScreenLayout = useCallback((initialName?: string) => {
@@ -806,7 +806,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => [...prev, { id, type: 'screen-layout-composer', layoutId: id }]);
       setActiveTabId(id);
       setHasUnsavedSettings(true);
-  }, [screenLayoutCompositions, setScreenLayoutCompositions]);
+  }, [screenLayoutCompositions, setScreenLayoutCompositions, setOpenTabs, setActiveTabId]);
 
   const handleOpenScreenLayout = useCallback((layoutId: string) => {
       setOpenTabs(prev => {
@@ -816,7 +816,7 @@ const App: React.FC = () => {
           return prev;
       });
       setActiveTabId(layoutId);
-  }, []);
+  }, [setOpenTabs, setActiveTabId]);
 
   const handleScreenLayoutUpdate = useCallback((layoutId: string, value: React.SetStateAction<ScreenLayoutComposition>) => {
       setScreenLayoutCompositions(draft => {
@@ -854,7 +854,7 @@ const App: React.FC = () => {
           return prev;
       });
       setActiveTabId(newId);
-  }, [screenLayoutCompositions, setScreenLayoutCompositions]);
+  }, [screenLayoutCompositions, setScreenLayoutCompositions, setOpenTabs, setActiveTabId]);
 
   const handleDeleteScreenLayout = useCallback((layoutId: string) => {
       setScreenLayoutCompositions(draft => { delete draft[layoutId]; });
@@ -862,7 +862,7 @@ const App: React.FC = () => {
       setOpenTabs(prev => prev.filter(t => t.id !== layoutId));
       if (activeTabId === layoutId) setActiveTabId('canvas');
       setHasUnsavedSettings(true);
-  }, [setScreenLayoutCompositions, activeTabId]);
+  }, [setScreenLayoutCompositions, activeTabId, setOpenTabs, setActiveTabId]);
 
   // --- Sync Explorer with Active Tab ---
   useEffect(() => {
@@ -905,7 +905,7 @@ const App: React.FC = () => {
             return changed ? newExpanded : prev;
         });
     }
-  }, [activeTabId, openTabs, blocks]);
+  }, [activeTabId, openTabs, blocks, setExplorerExpandedPaths, setExplorerLastClickedPath, setExplorerSelectedPaths]);
 
   const handleToggleExpandExplorer = useCallback((path: string) => {
       setExplorerExpandedPaths(prev => {
@@ -914,7 +914,7 @@ const App: React.FC = () => {
           else newSet.add(path);
           return newSet;
       });
-  }, []);
+  }, [setExplorerExpandedPaths]);
 
 
   // --- Initial Load of App Settings & Theme Management ---
@@ -948,7 +948,7 @@ const App: React.FC = () => {
       }
       setAppSettingsLoaded(true);
     }
-  }, [updateAppSettings]);
+  }, [updateAppSettings, setAppSettingsLoaded]);
 
   // --- CLI --project flag: auto-open a project on startup ---
   // Runs once after app settings have loaded to avoid racing the settings fetch.
@@ -1018,7 +1018,7 @@ const App: React.FC = () => {
     } else {
       setIsRenpyPathValid(false);
     }
-  }, [appSettings.renpyPath]);
+  }, [appSettings.renpyPath, setIsRenpyPathValid]);
 
   const buildNewBlockContent = useCallback((name: string, type: BlockType) => {
     switch (type) {
@@ -1147,7 +1147,7 @@ const App: React.FC = () => {
         });
     }
     return id;
-  }, [setBlocks, fileSystemTree, storyCanvasTransform, appSettings]);
+  }, [setBlocks, fileSystemTree, storyCanvasTransform, appSettings, setCenterOnBlockRequest, setFileSystemTree, setFlashBlockRequest, setSelectedBlockIds]);
 
   const handleCreateBlockConfirm = async (name: string, type: BlockType, folderPath: string, initialPosition?: Position) => {
     const safeName = name.replace(/\.rpy$/, '');
@@ -1226,7 +1226,7 @@ const App: React.FC = () => {
     setBlocks(prev => prev.filter(b => b.id !== id));
     setOpenTabs(prev => prev.filter(t => t.blockId !== id));
     if (activeTabId === id) setActiveTabId('canvas');
-  }, [setBlocks, setGroups, activeTabId]);
+  }, [setBlocks, setGroups, activeTabId, setActiveTabId, setOpenTabs]);
 
   // Delete block AND its associated file from disk
   const deleteBlockWithFile = useCallback(async (id: string) => {
@@ -1257,7 +1257,7 @@ const App: React.FC = () => {
           addToast(`Failed to delete ${block.filePath}`, 'error');
         }
     });
-  }, [blocks, projectRootPath, deleteBlock, addToast]);
+  }, [blocks, projectRootPath, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
 
   // --- Layout ---
   // Ref so applyStoryLayout always reads the latest blocks without needing blocks in its
@@ -1581,7 +1581,7 @@ const App: React.FC = () => {
     if (!routeAnalysisResult.labelNodes.some(n => n.label === 'start')) return;
     pendingAutoCenterRef.current.choice = false;
     setCenterOnChoiceStartRequest({ key: Date.now() });
-  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes]);
+  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, setCenterOnChoiceStartRequest]);
 
   // --- Tab Management Helpers ---
   const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations') => {
@@ -1606,7 +1606,7 @@ const App: React.FC = () => {
             setOpenTabs(prev => [...prev, { id, type }]);
             setActiveTabId(id);
         }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
+  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenRouteCanvasTab = useCallback(() => handleOpenStaticTab('route-canvas'), [handleOpenStaticTab]);
   const _handleOpenChoiceCanvasTab = useCallback(() => handleOpenStaticTab('choice-canvas'), [handleOpenStaticTab]);
@@ -2041,7 +2041,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders, setActiveTabId, setAudioScanDirectories, setAudiosLastScanned, setImageScanDirectories, setImagesLastScanned, setIsRefreshingAudios, setIsRefreshingImages, setOpenTabs, setProjectRootPath, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize, setTabs]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -2092,7 +2092,7 @@ const App: React.FC = () => {
   const handleCreateProject = useCallback(() => {
       // Open the new project wizard modal
       openWizardModal();
-  }, []);
+  }, [openWizardModal]);
 
   const handleWizardComplete = useCallback(async (projectPath: string) => {
       closeWizardModal();
@@ -2103,7 +2103,7 @@ const App: React.FC = () => {
           logger.error('Failed to load newly created project', err);
           addToast('Failed to load the newly created project', 'error');
       }
-  }, [loadProject, addToast]);
+  }, [loadProject, addToast, closeWizardModal]);
 
   // --- Stable callbacks for ImageEditorView / AudioEditorView tabs ---
   // These are extracted from the inline renderTabContent so React.memo on the
@@ -2165,7 +2165,7 @@ const App: React.FC = () => {
       setHasUnsavedSettings(true);
       const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
       setFileSystemTree(freshTree);
-  }, [projectRootPath, images]);
+  }, [projectRootPath, images, setActiveTabId, setFileSystemTree, setImageMetadata, setImages, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleCopyImageToProject = useCallback(async (sourcePath: string, meta: ImageMetadata) => {
       try {
@@ -2191,7 +2191,7 @@ const App: React.FC = () => {
           logger.error('Failed to copy image to project:', err);
           addToast('Failed to copy image to project', 'error');
       }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setFileSystemTree, setImages]);
 
   // Saves metadata for an in-project audio file, moving it if the subfolder changed.
   const handleSaveAudioMetadata = useCallback(async (currentFilePath: string, newMeta: AudioMetadata) => {
@@ -2246,7 +2246,7 @@ const App: React.FC = () => {
       setHasUnsavedSettings(true);
       const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
       setFileSystemTree(freshTree);
-  }, [projectRootPath, audios]);
+  }, [projectRootPath, audios, setActiveTabId, setAudioMetadata, setAudios, setFileSystemTree, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleCopyAudioToProject = useCallback(async (sourcePath: string, meta: AudioMetadata) => {
       try {
@@ -2272,7 +2272,7 @@ const App: React.FC = () => {
           logger.error('Failed to copy audio to project:', err);
           addToast('Failed to copy audio to project', 'error');
       }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setAudios, setFileSystemTree]);
 
   // --- Drafting Mode Logic ---
   const updateDraftingArtifacts = useCallback(async () => {
@@ -2506,7 +2506,7 @@ const App: React.FC = () => {
     }
 
     await doSave();
-  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict, notifyFirstSave]);
+  }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   const handleSaveProjectSettings = useCallback(async () => {
     if (!projectRootPath || !window.electronAPI) return;
@@ -2666,7 +2666,7 @@ const App: React.FC = () => {
     }
 
     await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave]);
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);
@@ -2824,7 +2824,7 @@ const App: React.FC = () => {
           logger.error('Failed to refresh project:', err);
           addToast('Failed to refresh project', 'error');
       }
-  }, [projectRootPath, addToast, setBlocks, setFileSystemTree, setImages, setAudios]);
+  }, [projectRootPath, addToast, setBlocks, setFileSystemTree, setImages, setAudios, setOpenTabs]);
 
   const handleGenerateTranslations = useCallback(async (language: string) => {
     if (!appSettings.renpyPath || !projectRootPath) return;
@@ -2847,7 +2847,7 @@ const App: React.FC = () => {
     } finally {
       setIsGeneratingTranslations(false);
     }
-  }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject]);
+  }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject, setIsGeneratingTranslations]);
 
   const handleNewProjectRequest = useCallback(() => {
     const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
@@ -2874,7 +2874,7 @@ const App: React.FC = () => {
     } else {
       handleCreateProject();
     }
-  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, handleCreateProject, handleSaveAll]);
+  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   // --- Tab Management ---
   const handleOpenEditor = useCallback((blockId: string, line?: number) => {
@@ -2904,7 +2904,7 @@ const App: React.FC = () => {
         setOpenTabs(prev => [...prev, newTab]);
         setActiveTabId(blockId);
     }
-  }, [blocks, openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
+  }, [blocks, openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenImageEditorTab = useCallback((filePath: string) => {
     const tabId = `img-${filePath}`;
@@ -2918,7 +2918,7 @@ const App: React.FC = () => {
         setOpenTabs(prev => [...prev, newTab]);
         setActiveTabId(tabId);
     }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
+  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenMarkdownTab = useCallback((filePath: string) => {
     const tabId = `md-${filePath}`;
@@ -2932,7 +2932,7 @@ const App: React.FC = () => {
         setOpenTabs(prev => [...prev, newTab]);
         setActiveTabId(tabId);
     }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
+  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handlePathDoubleClick = useCallback((filePath: string) => {
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
@@ -2977,12 +2977,12 @@ const App: React.FC = () => {
             return next;
         });
     }
-  }, [activeTabId, secondaryActiveTabId]);
+  }, [activeTabId, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
       openContextMenu(e.clientX, e.clientY, tabId, paneId);
-  }, []);
+  }, [openContextMenu]);
 
   const processTabCloseRequest = useCallback((tabsToClose: EditorTab[], fallbackTabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     if (tabsToClose.length === 0) return;
@@ -3050,7 +3050,7 @@ const App: React.FC = () => {
     } else {
         performClose();
     }
-}, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll]);
+}, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleCloseOthersRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
@@ -3102,7 +3102,7 @@ const App: React.FC = () => {
     setSplitLayout(direction);
     setSplitPrimarySize(direction === 'right' ? 600 : 400);
     setActivePaneId('secondary');
-  }, [splitLayout, openTabs, activeTabId]);
+  }, [splitLayout, openTabs, activeTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize]);
 
   const handleOpenInSplit = useCallback((tabId: string, direction: 'right' | 'bottom') => {
     const tab = openTabs.find(t => t.id === tabId);
@@ -3124,7 +3124,7 @@ const App: React.FC = () => {
     setSplitLayout(direction);
     setSplitPrimarySize(direction === 'right' ? 600 : 400);
     setActivePaneId('secondary');
-  }, [openTabs, activeTabId, secondaryOpenTabs, splitLayout]);
+  }, [openTabs, activeTabId, secondaryOpenTabs, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize]);
 
   const handleMoveToOtherPane = useCallback((tabId: string, fromPaneId: 'primary' | 'secondary') => {
     if (fromPaneId === 'primary') {
@@ -3152,7 +3152,7 @@ const App: React.FC = () => {
       setActiveTabId(tabId);
       setActivePaneId('primary');
     }
-  }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId]);
+  }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleCloseSecondaryPane = useCallback(() => {
     // Merge secondary tabs into primary (skip any already present) so nothing is lost
@@ -3167,7 +3167,7 @@ const App: React.FC = () => {
     setSecondaryActiveTabId('');
     setSplitLayout('none');
     setActivePaneId('primary');
-  }, [secondaryOpenTabs]);
+  }, [secondaryOpenTabs, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleClosePrimaryPane = useCallback(() => {
     // Promote secondary pane to primary; append any unique primary tabs after it
@@ -3179,7 +3179,7 @@ const App: React.FC = () => {
     setSecondaryActiveTabId('');
     setSplitLayout('none');
     setActivePaneId('primary');
-  }, [openTabs, secondaryOpenTabs, secondaryActiveTabId]);
+  }, [openTabs, secondaryOpenTabs, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleCenterOnBlock = useCallback((target: string) => {
       let blockId = target;
@@ -3237,7 +3237,7 @@ const App: React.FC = () => {
 
           addToast(`Could not find a block or note for "${target}"`, 'warning');
       }
-  }, [blocks, analysisResult, addToast, stickyNotes, canvasFilters.notes]);
+  }, [blocks, analysisResult, addToast, stickyNotes, canvasFilters.notes, setActiveTabId, setCanvasFilters, setCenterOnBlockRequest]);
 
   // ── Go-to-label (Ctrl+G) ─────────────────────────────────────────────────────
 
@@ -3275,7 +3275,7 @@ const App: React.FC = () => {
     } else if (activeCanvasTabId === 'choice-canvas') {
       setCenterOnChoiceNodeRequest({ nodeId: id, key: Date.now() });
     }
-  }, [activeCanvasTabId]);
+  }, [activeCanvasTabId, closeGoToLabelModal, setCenterOnBlockRequest, setCenterOnChoiceNodeRequest, setCenterOnRouteNodeRequest]);
 
   const handleRunGame = useCallback(() => {
     if (!window.electronAPI || !projectRootPath) return;
@@ -3306,7 +3306,7 @@ const App: React.FC = () => {
     setPendingWarpLabelName(null);
     setPendingWarpTarget(null);
     setPendingWarpVariableDrafts([]);
-  }, []);
+  }, [closeWarpVariablesModal]);
 
   const handleConfirmWarpVariables = useCallback(async (variableDrafts: WarpVariableDraft[]) => {
     if (!window.electronAPI || !projectRootPath || !pendingWarpTarget) return;
@@ -3356,7 +3356,7 @@ const App: React.FC = () => {
       analysisResult.translationData.translatableStrings,
     ));
     openWarpVariablesModal();
-  }, [analysisResult.labels, analysisResult.translationData.translatableStrings, analysisResult.variables, addToast, blocks, projectRootPath]);
+  }, [analysisResult.labels, analysisResult.translationData.translatableStrings, analysisResult.variables, addToast, blocks, projectRootPath, closeWarpToLabelModal, openWarpVariablesModal]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -3398,7 +3398,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId]);
+  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal]);
 
   // DnD Handlers for Tabs
   const handleTabDragStart = (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
@@ -3536,7 +3536,7 @@ const App: React.FC = () => {
     primaryMountedTabsRef.current.delete(oldTabId);
     secondaryMountedTabsRef.current.delete(oldTabId);
     pendingTagRenameRef.current = null;
-  }, [analysisResult.characters]);
+  }, [analysisResult.characters, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   // --- Character Editor ---
   const handleOpenCharacterEditor = useCallback((tag: string) => {
@@ -3551,7 +3551,7 @@ const App: React.FC = () => {
           setOpenTabs(prev => [...prev, newTab]);
           setActiveTabId(tabId);
       }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout]);
+  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleUpdateCharacter = useCallback(async (char: Character, oldTag?: string) => {
     const buildCharacterString = (char: Character): string => {
@@ -3740,7 +3740,7 @@ const App: React.FC = () => {
         logger.error('Failed to create file/folder:', err);
         addToast(`Failed to create ${type}: ${name}`, 'error');
     }
-  }, [projectRootPath, addBlock, addToast]);
+  }, [projectRootPath, addBlock, addToast, setFileSystemTree]);
 
   const handleRenameNode = useCallback(async (oldPath: string, newName: string) => {
       if (!window.electronAPI || !projectRootPath) return;
@@ -3755,7 +3755,7 @@ const App: React.FC = () => {
           logger.error('Failed to rename:', err);
           addToast('Failed to rename file', 'error');
       }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setFileSystemTree]);
 
   const handleDeleteNode = useCallback(async (paths: string[]) => {
       if (!window.electronAPI || !projectRootPath) return;
@@ -3796,7 +3796,7 @@ const App: React.FC = () => {
                   addToast('Failed to delete file(s)', 'error');
               }
       });
-  }, [projectRootPath, blocks, deleteBlock, addToast]);
+  }, [projectRootPath, blocks, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
 
   const handleMoveNode = useCallback(async (sourcePaths: string[], targetPath: string) => {
       if (!window.electronAPI || !projectRootPath) return;
@@ -3814,10 +3814,10 @@ const App: React.FC = () => {
           logger.error('Failed to move file(s):', err);
           addToast('Failed to move file(s)', 'error');
       }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setFileSystemTree]);
 
-  const handleCut = useCallback((paths: string[]) => setClipboard({ type: 'cut', paths: new Set(paths) }), []);
-  const handleCopy = useCallback((paths: string[]) => setClipboard({ type: 'copy', paths: new Set(paths) }), []);
+  const handleCut = useCallback((paths: string[]) => setClipboard({ type: 'cut', paths: new Set(paths) }), [setClipboard]);
+  const handleCopy = useCallback((paths: string[]) => setClipboard({ type: 'copy', paths: new Set(paths) }), [setClipboard]);
   const handlePaste = useCallback(async (targetPath: string) => {
       if (!clipboard || !window.electronAPI || !projectRootPath) return;
       try {
@@ -3842,7 +3842,7 @@ const App: React.FC = () => {
           logger.error('Failed to paste:', err);
           addToast('Failed to paste file(s)', 'error');
       }
-  }, [clipboard, projectRootPath, addToast]);
+  }, [clipboard, projectRootPath, addToast, setClipboard, setFileSystemTree]);
 
   // --- User Snippet CRUD ---
   const handleSaveSnippet = (snippet: UserSnippet) => {
@@ -4020,7 +4020,7 @@ const App: React.FC = () => {
             }
         });
         return removeListener;
-  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths, handleRefreshProject, handleOpenScreenshotsFolder, handleCloseTab, activePaneId, activeTabId, secondaryActiveTabId]);
+  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths, handleRefreshProject, handleOpenScreenshotsFolder, handleCloseTab, activePaneId, activeTabId, secondaryActiveTabId, openAboutModal, openSettingsModal, openShortcutsModal, openTutorial, setExplorerExternalAction]);
 
   // --- Screenshot Count ---
   useEffect(() => {
@@ -4190,7 +4190,7 @@ const App: React.FC = () => {
           removeShowModal();
           removeSaveState();
       };
-  }, []);
+  }, [closeUnsavedChangesModal, openUnsavedChangesModal]);
 
   // --- Memoized callbacks for StoryElementsPanel and related JSX ---
 
@@ -4322,7 +4322,7 @@ const App: React.FC = () => {
         addToast('Failed to scan image directory', 'error');
       }
     }
-  }, [addToast, perfRecorders]);
+  }, [addToast, perfRecorders, setImageScanDirectories, setImages, setImagesLastScanned, setIsRefreshingImages]);
 
   const handleRefreshImages = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -4349,7 +4349,7 @@ const App: React.FC = () => {
       setIsRefreshingImages(false);
       setImagesLastScanned(Date.now());
     }
-  }, [imageScanDirectories, perfRecorders]);
+  }, [imageScanDirectories, perfRecorders, setImages, setImagesLastScanned, setIsRefreshingImages]);
 
   const handleRemoveImageScanDirectory = useCallback((path: string) => {
     setImageScanDirectories(prev => {
@@ -4358,7 +4358,7 @@ const App: React.FC = () => {
       return next;
     });
     setHasUnsavedSettings(true);
-  }, []);
+  }, [setImageScanDirectories]);
 
   const handleCopyImagesToProjectBulk = useCallback(async (sourcePaths: string[]) => {
     if (window.electronAPI && projectRootPath) {
@@ -4388,7 +4388,7 @@ const App: React.FC = () => {
         addToast('Failed to copy images to project', 'error');
       }
     }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setFileSystemTree, setImages]);
 
   const handleAddAudioScanDirectory = useCallback(async () => {
     if (window.electronAPI) {
@@ -4421,7 +4421,7 @@ const App: React.FC = () => {
         addToast('Failed to scan audio directory', 'error');
       }
     }
-  }, [addToast, perfRecorders]);
+  }, [addToast, perfRecorders, setAudioScanDirectories, setAudios, setAudiosLastScanned, setIsRefreshingAudios]);
 
   const handleRefreshAudios = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -4448,7 +4448,7 @@ const App: React.FC = () => {
       setIsRefreshingAudios(false);
       setAudiosLastScanned(Date.now());
     }
-  }, [audioScanDirectories, perfRecorders]);
+  }, [audioScanDirectories, perfRecorders, setAudios, setAudiosLastScanned, setIsRefreshingAudios]);
 
   const handleRemoveAudioScanDirectory = useCallback((path: string) => {
     setAudioScanDirectories(prev => {
@@ -4457,7 +4457,7 @@ const App: React.FC = () => {
       return next;
     });
     setHasUnsavedSettings(true);
-  }, []);
+  }, [setAudioScanDirectories]);
 
   const handleCopyAudiosToProjectBulk = useCallback(async (sourcePaths: string[]) => {
     if (window.electronAPI && projectRootPath) {
@@ -4487,7 +4487,7 @@ const App: React.FC = () => {
         addToast('Failed to copy audio to project', 'error');
       }
     }
-  }, [projectRootPath, addToast]);
+  }, [projectRootPath, addToast, setAudios, setFileSystemTree]);
 
   const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
     const tabId = `aud-${filePath}`;
@@ -4498,7 +4498,7 @@ const App: React.FC = () => {
       return prev;
     });
     setActiveTabId(tabId);
-  }, []);
+  }, [setActiveTabId, setOpenTabs]);
 
   const handleHoverHighlightStart = useCallback((key: string, type: 'character' | 'variable') => {
     const ids = new Set<string>();
@@ -4510,9 +4510,9 @@ const App: React.FC = () => {
       analysisResult.variableUsages.get(key)?.forEach(u => ids.add(u.blockId));
     }
     setHoverHighlightIds(ids);
-  }, [analysisResult.dialogueLines, analysisResult.variableUsages]);
+  }, [analysisResult.dialogueLines, analysisResult.variableUsages, setHoverHighlightIds]);
 
-  const handleHoverHighlightEnd = useCallback(() => setHoverHighlightIds(null), []);
+  const handleHoverHighlightEnd = useCallback(() => setHoverHighlightIds(null), [setHoverHighlightIds]);
 
   // --- Tab helpers (used by both panes) ---
   const getTabLabel = (tab: EditorTab): React.ReactNode => {
