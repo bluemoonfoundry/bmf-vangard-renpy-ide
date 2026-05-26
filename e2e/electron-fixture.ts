@@ -20,6 +20,7 @@ async function forceExit(app: ElectronApplication): Promise<void> {
 }
 
 /** Base fixture — no project loaded. Used for launch/startup tests. */
+/* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
 export const test = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
     const app = await electron.launch({ args: [APP_ENTRY] });
@@ -48,5 +49,6 @@ export const testWithProject = base.extend<ElectronFixtures>({
     await use(page);
   },
 });
+/* eslint-enable react-hooks/rules-of-hooks, no-empty-pattern */
 
 export { expect } from 'playwright/test';
