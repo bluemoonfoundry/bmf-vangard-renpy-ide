@@ -1,6 +1,6 @@
 [![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
-![Version](https://img.shields.io/badge/version-0.8.0_Public_Beta_4-blue)
+![Version](https://img.shields.io/badge/version-0.8.3-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
 # Ren'IDE : The Ren'Py Visual Designer
@@ -13,7 +13,7 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 
 **[Watch the Full Beta 4 Walkthrough Video @ YouTube →](https://youtu.be/PNgV-JjFNag)**
 
-**[Download the latest release (v0.8.0 - Beta 4)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)**
+**[Download the latest release (v0.8.3)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
 
@@ -406,4 +406,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Ren'IDE — v0.8.0 Public Beta 4*
+*Ren'IDE — v0.8.3*

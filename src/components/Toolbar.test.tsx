@@ -21,6 +21,7 @@ describe('Toolbar', () => {
     handleTidyUp: vi.fn(),
     handleSave: vi.fn(),
     onOpenSettings: vi.fn(),
+    onOpenShortcuts: vi.fn(),
     onOpenStaticTab: vi.fn(),
     diagnosticsErrorCount: 0,
     onAddStickyNote: vi.fn(),

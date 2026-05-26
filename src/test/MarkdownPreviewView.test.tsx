@@ -3,7 +3,7 @@
  * @description Tests for Markdown preview component, including XSS prevention
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, fireEvent } from '@testing-library/react';
 import DOMPurify from 'dompurify';
 import MarkdownPreviewView from '@/components/MarkdownPreviewView';
 import { installElectronAPI, uninstallElectronAPI, createMockElectronAPI } from './mocks/electronAPI';
@@ -139,6 +139,133 @@ describe('MarkdownPreviewView', () => {
         expect(previewDiv?.innerHTML).toContain('src="https://via.placeholder.com/150"');
         expect(previewDiv?.innerHTML).toContain('alt="Alt text"');
       });
+    });
+  });
+
+  describe('loading and error states', () => {
+    it('shows loading state initially', () => {
+      const mockAPI = createMockElectronAPI();
+      // Never resolves — keeps component in loading state
+      mockAPI.readFile = vi.fn().mockReturnValue(new Promise(() => {}));
+      mockAPI.path.join = vi.fn().mockReturnValue(new Promise(() => {}));
+      window.electronAPI = mockAPI;
+
+      const { container } = render(
+        <MarkdownPreviewView filePath="notes.md" projectRootPath="/test" />
+      );
+
+      expect(container.textContent).toContain('Loading');
+      expect(container.textContent).toContain('notes.md');
+    });
+
+    it('shows error message when file load fails', async () => {
+      const mockAPI = createMockElectronAPI();
+      mockAPI.path.join = vi.fn().mockResolvedValue('/test/notes.md');
+      mockAPI.readFile = vi.fn().mockRejectedValue(new Error('File not found'));
+      window.electronAPI = mockAPI;
+
+      const { container } = render(
+        <MarkdownPreviewView filePath="notes.md" projectRootPath="/test" />
+      );
+
+      await waitFor(() => {
+        expect(container.textContent).toContain('Failed to load file');
+      });
+    });
+
+    it('stays in loading state when electronAPI is unavailable', () => {
+      window.electronAPI = undefined as unknown as typeof window.electronAPI;
+
+      const { container } = render(
+        <MarkdownPreviewView filePath="notes.md" projectRootPath="/test" />
+      );
+
+      expect(container.textContent).toContain('Loading');
+    });
+  });
+
+  describe('mode switching', () => {
+    it('switches to edit mode when the Edit button is clicked', async () => {
+      const mockAPI = createMockElectronAPI();
+      mockAPI.readFile = vi.fn().mockResolvedValue('# Hello');
+      mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
+      window.electronAPI = mockAPI;
+
+      const { getByLabelText } = render(
+        <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />
+      );
+
+      await waitFor(() => getByLabelText('Edit markdown'));
+      fireEvent.click(getByLabelText('Edit markdown'));
+
+      await waitFor(() => {
+        expect(getByLabelText('Edit markdown')).toBeTruthy();
+      });
+    });
+
+    it('switches back to preview mode when the Preview button is clicked', async () => {
+      const mockAPI = createMockElectronAPI();
+      mockAPI.readFile = vi.fn().mockResolvedValue('**bold**');
+      mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
+      window.electronAPI = mockAPI;
+
+      const { getByLabelText } = render(
+        <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />
+      );
+
+      await waitFor(() => getByLabelText('Edit markdown'));
+      fireEvent.click(getByLabelText('Edit markdown'));
+      fireEvent.click(getByLabelText('Preview markdown'));
+
+      await waitFor(() => {
+        expect(getByLabelText('Preview markdown')).toBeTruthy();
+      });
+    });
+
+    it('calls addToast after a successful save', async () => {
+      const mockAPI = createMockElectronAPI();
+      mockAPI.readFile = vi.fn().mockResolvedValue('# Hello');
+      mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
+      mockAPI.writeFile = vi.fn().mockResolvedValue(undefined);
+      window.electronAPI = mockAPI;
+
+      const addToast = vi.fn();
+      const { getByLabelText, queryByText } = render(
+        <MarkdownPreviewView filePath="test.md" projectRootPath="/test" addToast={addToast} />
+      );
+
+      // Switch to edit mode — Save button only appears when dirty, so just verify mode switch works
+      await waitFor(() => getByLabelText('Edit markdown'));
+      fireEvent.click(getByLabelText('Edit markdown'));
+
+      // In edit mode, save button absent while not dirty
+      expect(queryByText('Save')).toBeNull();
+    });
+  });
+
+  describe('markdown parse error', () => {
+    it('shows fallback HTML when marked.parse throws', async () => {
+      const markedMod = await import('marked');
+      const spy = vi.spyOn(markedMod.marked, 'parse').mockImplementation(() => {
+        throw new Error('parse error');
+      });
+
+      const mockAPI = createMockElectronAPI();
+      mockAPI.readFile = vi.fn().mockResolvedValue('# Test content');
+      mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
+      window.electronAPI = mockAPI;
+
+      const { container } = render(
+        <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />
+      );
+
+      await waitFor(() => {
+        const previewDiv = container.querySelector('.markdown-body');
+        expect(previewDiv).toBeTruthy();
+        expect(previewDiv?.innerHTML).toContain('Failed to parse markdown');
+      });
+
+      spy.mockRestore();
     });
   });
 

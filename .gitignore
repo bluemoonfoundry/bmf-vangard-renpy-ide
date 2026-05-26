@@ -47,3 +47,7 @@ docs/test.pdf
 .dolt/
 *.db
 .beads-credential-key
+
+# Playwright
+playwright-report/
+e2e/test-results/

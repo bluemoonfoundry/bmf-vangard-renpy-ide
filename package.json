@@ -1,6 +1,6 @@
 {
   "name": "renide",
-  "version": "0.8.3",
+  "version": "1.0.0",
   "author": {
     "name": "Blue Moon Foundry Software",
     "email": "support@bluemoonfoundry.com"
@@ -26,6 +26,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=list",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "release:patch": "npm run version:patch && npm run build",
@@ -122,7 +124,10 @@
       "artifactName": "${name}-${version}.${ext}"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "renide-512x512.png",
       "artifactName": "${name}-${version}.${ext}",
       "category": "Development"

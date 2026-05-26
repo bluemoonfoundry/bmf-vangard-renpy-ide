@@ -78,9 +78,10 @@ const UserSnippetModal: React.FC<UserSnippetModalProps> = ({ isOpen, onClose, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" {...modalProps}>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
       <div
         ref={contentRef}
+        {...modalProps}
         className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-lg m-4 flex flex-col border border-gray-200 dark:border-gray-700"
         onClick={e => e.stopPropagation()}
       >

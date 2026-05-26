@@ -65,10 +65,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     <div
       className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
       onClick={onClose}
-      {...modalProps}
     >
       <div
         ref={contentRef}
+        {...modalProps}
         className="bg-secondary rounded-lg shadow-2xl w-full max-w-lg m-4 flex flex-col max-h-[90vh] overflow-hidden border border-primary text-primary"
         onClick={e => e.stopPropagation()}
       >

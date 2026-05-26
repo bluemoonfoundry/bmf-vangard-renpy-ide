@@ -1,10 +1,17 @@
 /**
  * @file Minimap.tsx
- * @description Thumbnail-scale overview of all canvas items with interactive viewport panning (~150 lines).
+ * @description Thumbnail-scale overview of all canvas items with interactive viewport panning (~180 lines).
  * Key features: renders blocks, groups, notes, labels, screens, and config nodes as coloured
  * rectangles; dragging the viewport rectangle pans the main canvas transform.
  * Integration: rendered anchored at the bottom-right of `StoryCanvas`, `RouteCanvas`, and
  * `ChoiceCanvas`; reads `MinimapItem[]` and canvas `transform` from the parent canvas.
+ *
+ * Scale strategy:
+ *   - Normal projects: Math.min(scaleX, scaleY) fits all content in the frame.
+ *   - Extreme-aspect-ratio projects (e.g. 80 blocks in a horizontal row): the natural
+ *     width-constrained scale would make content occupy < MIN_HEIGHT_FILL of the panel height.
+ *     In that case we switch to a larger "min-fill" scale and follow the viewport so the
+ *     minimap always shows the area around where the user is currently looking.
  */
 import React, { useRef, useMemo, useCallback } from 'react';
 import type { NoteColor } from '@/types';
@@ -27,138 +34,140 @@ interface MinimapProps {
 
 const MINIMAP_WIDTH = 240;
 const MINIMAP_HEIGHT = 180;
-const PADDING = 20;
+const PADDING = 4;
+/** Activate viewport-following mode when height fill would be below this fraction. */
+const MIN_HEIGHT_FILL = 0.45;
 
 const ITEM_COLORS: Record<MinimapItem['type'], string> = {
-  block: 'rgba(107, 114, 128, 0.7)', // gray-500
-  group: 'rgba(99, 102, 241, 0.4)', // indigo-500
-  note: 'rgba(234, 179, 8, 0.6)', // yellow-500
-  label: 'rgba(147, 197, 253, 0.8)', // blue-300
-  screen: 'rgba(45, 212, 191, 0.7)', // teal-400
-  config: 'rgba(248, 113, 113, 0.7)' // red-400
+  block: 'rgba(107, 114, 128, 0.7)',
+  group: 'rgba(99, 102, 241, 0.4)',
+  note: 'rgba(234, 179, 8, 0.6)',
+  label: 'rgba(147, 197, 253, 0.8)',
+  screen: 'rgba(45, 212, 191, 0.7)',
+  config: 'rgba(248, 113, 113, 0.7)',
 };
 
 const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, onTransformChange }) => {
   const minimapRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ isDragging: boolean; startX: number; startY: number; initialPanX: number; initialPanY: number; }>({ isDragging: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
+  const dragState = useRef<{ isDragging: boolean; startX: number; startY: number; initialPanX: number; initialPanY: number }>({
+    isDragging: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0,
+  });
 
-  const { bounds, minimapScale } = useMemo(() => {
-    if (items.length === 0) {
-      return { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1 };
-    }
+  // Compute bounds and scale from items only (cheap re-run: only when items change).
+  // Groups are excluded from the bounding box — a large group container must not
+  // force the scale tiny and push block dots into one corner.
+  const { bounds, minimapScale, viewportFollow } = useMemo(() => {
+    const fallback = { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1, viewportFollow: false };
+    if (items.length === 0) return fallback;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(item => {
+      if (item.type === 'group') return;
       minX = Math.min(minX, item.position.x);
       minY = Math.min(minY, item.position.y);
       maxX = Math.max(maxX, item.position.x + item.width);
       maxY = Math.max(maxY, item.position.y + item.height);
     });
+    if (!isFinite(minX)) return fallback;
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
-
     if (contentWidth <= 0 || contentHeight <= 0) {
-       return { bounds: { minX, minY, width: contentWidth, height: contentHeight }, minimapScale: 1 };
+      return { bounds: { minX, minY, width: contentWidth, height: contentHeight }, minimapScale: 1, viewportFollow: false };
     }
 
-    const scale = Math.min(
+    const naturalScale = Math.min(
       (MINIMAP_WIDTH - PADDING * 2) / contentWidth,
-      (MINIMAP_HEIGHT - PADDING * 2) / contentHeight
+      (MINIMAP_HEIGHT - PADDING * 2) / contentHeight,
     );
+    // Scale that would fill MIN_HEIGHT_FILL of the panel height.
+    const minFillScale = (MINIMAP_HEIGHT * MIN_HEIGHT_FILL) / contentHeight;
+
+    const useFollow = naturalScale < minFillScale;
+    const scale = useFollow ? minFillScale : naturalScale;
 
     return {
       bounds: { minX, minY, width: contentWidth, height: contentHeight },
       minimapScale: scale,
+      viewportFollow: useFollow,
     };
   }, [items]);
 
+  // Pan offset — cheap inline arithmetic, recomputes every render.
+  // In normal mode: centre content in the fixed frame.
+  // In viewport-follow mode: centre the minimap on the current viewport position.
+  let panX: number;
+  let panY: number;
+  if (viewportFollow && canvasDimensions.width > 0) {
+    const viewCenterX = (-transform.x + canvasDimensions.width / 2) / transform.scale;
+    const viewCenterY = (-transform.y + canvasDimensions.height / 2) / transform.scale;
+    panX = MINIMAP_WIDTH  / 2 - (viewCenterX - bounds.minX) * minimapScale;
+    panY = MINIMAP_HEIGHT / 2 - (viewCenterY - bounds.minY) * minimapScale;
+  } else {
+    panX = (MINIMAP_WIDTH  - bounds.width  * minimapScale) / 2;
+    panY = (MINIMAP_HEIGHT - bounds.height * minimapScale) / 2;
+  }
+
   const viewportStyle = useMemo<React.CSSProperties>(() => {
     if (!canvasDimensions.width || !canvasDimensions.height) return {};
-    const viewWidth = canvasDimensions.width / transform.scale;
+    const viewWidth  = canvasDimensions.width  / transform.scale;
     const viewHeight = canvasDimensions.height / transform.scale;
     const viewX = -transform.x / transform.scale;
     const viewY = -transform.y / transform.scale;
-
-    const minimapContentWidth = bounds.width * minimapScale;
-    const minimapContentHeight = bounds.height * minimapScale;
-    const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-    const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
     return {
-      width: viewWidth * minimapScale,
+      width:  viewWidth  * minimapScale,
       height: viewHeight * minimapScale,
-      left: (viewX - bounds.minX) * minimapScale + offsetX,
-      top: (viewY - bounds.minY) * minimapScale + offsetY,
+      left: (viewX - bounds.minX) * minimapScale + panX,
+      top:  (viewY - bounds.minY) * minimapScale + panY,
       position: 'absolute',
       border: '1.5px solid rgba(79, 70, 229, 0.8)',
       backgroundColor: 'rgba(99, 102, 241, 0.2)',
       cursor: 'grab',
       willChange: 'transform, width, height, left, top',
     };
-  }, [transform, canvasDimensions, bounds, minimapScale]);
+  }, [transform, canvasDimensions, bounds, minimapScale, panX, panY]);
 
   const handlePan = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!minimapRef.current || !canvasDimensions.width || !canvasDimensions.height) return;
     const rect = minimapRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
-    const minimapContentWidth = bounds.width * minimapScale;
-    const minimapContentHeight = bounds.height * minimapScale;
-    const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-    const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
-    const worldX = (x - offsetX) / minimapScale + bounds.minX;
-    const worldY = (y - offsetY) / minimapScale + bounds.minY;
-
+    const worldX = (x - panX) / minimapScale + bounds.minX;
+    const worldY = (y - panY) / minimapScale + bounds.minY;
     onTransformChange(t => ({
       ...t,
-      x: (canvasDimensions.width / 2) - (worldX * t.scale),
-      y: (canvasDimensions.height / 2) - (worldY * t.scale),
+      x: (canvasDimensions.width  / 2) - worldX * t.scale,
+      y: (canvasDimensions.height / 2) - worldY * t.scale,
     }));
-  }, [onTransformChange, bounds, minimapScale, canvasDimensions]);
-  
-  const handleViewportPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-      const target = e.currentTarget;
-      target.setPointerCapture(e.pointerId);
-      dragState.current = {
-          isDragging: true,
-          startX: e.clientX,
-          startY: e.clientY,
-          initialPanX: transform.x,
-          initialPanY: transform.y,
-      };
-      target.style.cursor = 'grabbing';
-      
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-          if (!dragState.current.isDragging) return;
-          const dx = moveEvent.clientX - dragState.current.startX;
-          const dy = moveEvent.clientY - dragState.current.startY;
-          
-          const panX = -dx / minimapScale * transform.scale;
-          const panY = -dy / minimapScale * transform.scale;
-          
-          onTransformChange(t => ({
-              ...t,
-              x: dragState.current.initialPanX + panX,
-              y: dragState.current.initialPanY + panY,
-          }));
-      };
-      
-      const handlePointerUp = () => {
-          dragState.current.isDragging = false;
-          target.style.cursor = 'grab';
-          window.removeEventListener('pointermove', handlePointerMove);
-          window.removeEventListener('pointerup', handlePointerUp);
-          target.releasePointerCapture(e.pointerId);
-      };
-      
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-  }, [minimapScale, transform.scale, transform.x, transform.y, onTransformChange]);
+  }, [onTransformChange, bounds, minimapScale, canvasDimensions, panX, panY]);
 
+  const handleViewportPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    dragState.current = { isDragging: true, startX: e.clientX, startY: e.clientY, initialPanX: transform.x, initialPanY: transform.y };
+    target.style.cursor = 'grabbing';
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (!dragState.current.isDragging) return;
+      const dx = moveEvent.clientX - dragState.current.startX;
+      const dy = moveEvent.clientY - dragState.current.startY;
+      onTransformChange(t => ({
+        ...t,
+        x: dragState.current.initialPanX - dx / minimapScale * transform.scale,
+        y: dragState.current.initialPanY - dy / minimapScale * transform.scale,
+      }));
+    };
+    const handlePointerUp = () => {
+      dragState.current.isDragging = false;
+      target.style.cursor = 'grab';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      target.releasePointerCapture(e.pointerId);
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [minimapScale, transform.scale, transform.x, transform.y, onTransformChange]);
 
   return (
     <div
@@ -169,33 +178,24 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     >
       <div className="relative w-full h-full overflow-hidden">
         {items.map(item => {
-          const minimapContentWidth = bounds.width * minimapScale;
-          const minimapContentHeight = bounds.height * minimapScale;
-          const offsetX = (MINIMAP_WIDTH - minimapContentWidth) / 2;
-          const offsetY = (MINIMAP_HEIGHT - minimapContentHeight) / 2;
-
           let color = ITEM_COLORS[item.type];
           if (item.type === 'note' && item.color) {
             const noteColorMap: Record<NoteColor, string> = {
-                yellow: 'rgba(234, 179, 8, 0.6)',
-                blue: 'rgba(59, 130, 246, 0.6)',
-                green: 'rgba(34, 197, 94, 0.6)',
-                pink: 'rgba(236, 72, 153, 0.6)',
-                purple: 'rgba(168, 85, 247, 0.6)',
-                red: 'rgba(239, 68, 68, 0.6)',
+              yellow: 'rgba(234, 179, 8, 0.6)', blue: 'rgba(59, 130, 246, 0.6)',
+              green: 'rgba(34, 197, 94, 0.6)',  pink: 'rgba(236, 72, 153, 0.6)',
+              purple: 'rgba(168, 85, 247, 0.6)', red: 'rgba(239, 68, 68, 0.6)',
             };
             color = noteColorMap[item.color] || color;
           }
-
           return (
             <div
               key={item.id}
               className="absolute rounded-sm"
               style={{
-                left: (item.position.x - bounds.minX) * minimapScale + offsetX,
-                top: (item.position.y - bounds.minY) * minimapScale + offsetY,
-                width: Math.max(2, item.width * minimapScale),
-                height: Math.max(2, item.height * minimapScale),
+                left:   (item.position.x - bounds.minX) * minimapScale + panX,
+                top:    (item.position.y - bounds.minY) * minimapScale + panY,
+                width:  Math.max(4, item.width  * minimapScale),
+                height: Math.max(3, item.height * minimapScale),
                 backgroundColor: color,
               }}
             />

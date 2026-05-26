@@ -58,6 +58,52 @@ describe('validateProjectPath', () => {
     });
 });
 
+describe('validateProjectPath (Windows platform branch)', () => {
+  let saved: PropertyDescriptor | undefined;
+  beforeEach(() => {
+    saved = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true, writable: true });
+  });
+  afterEach(() => {
+    if (saved) Object.defineProperty(process, 'platform', saved);
+  });
+
+  it('allows a file within root on Windows', () => {
+    expect(validateProjectPath(path.join(ROOT, 'script.rpy'), ROOT)).toBeNull();
+  });
+
+  it('allows root itself on Windows', () => {
+    expect(validateProjectPath(ROOT, ROOT)).toBeNull();
+  });
+
+  it('blocks a path outside root on Windows', () => {
+    expect(validateProjectPath(path.resolve('/other/evil.rpy'), ROOT)).toBeTruthy();
+  });
+});
+
+describe('validateProjectPath (non-Windows platform branch)', () => {
+  let saved: PropertyDescriptor | undefined;
+  beforeEach(() => {
+    saved = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true, writable: true });
+  });
+  afterEach(() => {
+    if (saved) Object.defineProperty(process, 'platform', saved);
+  });
+
+  it('allows a file within root on Linux', () => {
+    expect(validateProjectPath(path.join(ROOT, 'script.rpy'), ROOT)).toBeNull();
+  });
+
+  it('allows root itself on Linux', () => {
+    expect(validateProjectPath(ROOT, ROOT)).toBeNull();
+  });
+
+  it('blocks a path outside root on Linux', () => {
+    expect(validateProjectPath(path.resolve('/other/evil.rpy'), ROOT)).toBeTruthy();
+  });
+});
+
 describe('validateExternalUrl', () => {
     it('allows https URLs', () => {
         expect(validateExternalUrl('https://example.com')).toBeNull();

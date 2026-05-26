@@ -1,4 +1,4 @@
-import { buildSavedStoryBlockLayouts, computeStoryLayout, computeStoryLayoutFingerprint } from './storyCanvasLayout';
+import { buildSavedStoryBlockLayouts, computeStoryLayout, computeStoryLayoutFingerprint, getStoryLayoutVersion } from './storyCanvasLayout';
 import type { Block, Link } from '@/types';
 
 const createBlock = (id: string, filePath: string): Block => ({
@@ -70,5 +70,140 @@ describe('storyCanvasLayout', () => {
 
     expect(Object.keys(savedLayouts)).toEqual(['game/script.rpy']);
     expect(savedLayouts['game/script.rpy']?.position).toEqual({ x: 0, y: 0 });
+  });
+
+  it('preserves block color in saved layouts', () => {
+    const block = { ...createBlock('a', 'game/script.rpy'), color: '#ff0000' };
+    const savedLayouts = buildSavedStoryBlockLayouts([block]);
+    expect(savedLayouts['game/script.rpy']?.color).toBe('#ff0000');
+  });
+
+  it('lays out blocks with connected-components mode', () => {
+    const blocks = [
+      createBlock('a', 'game/script.rpy'),
+      createBlock('b', 'game/scene.rpy'),
+    ];
+    const links: Link[] = [{ sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' }];
+
+    const result = computeStoryLayout(blocks, links, 'connected-components', 'none');
+
+    expect(result).toHaveLength(2);
+    const a = result.find(b => b.id === 'a')!;
+    const bBlock = result.find(b => b.id === 'b')!;
+    expect(bBlock.position.x).toBeGreaterThan(a.position.x);
+  });
+
+  it('uses connected-component grouping when clustered-flow mode has none grouping', () => {
+    const blocks = [
+      createBlock('a', 'game/standalone.rpy'),
+      createBlock('b', 'game/other.rpy'),
+    ];
+    const links: Link[] = [{ sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' }];
+
+    const result = computeStoryLayout(blocks, links, 'clustered-flow', 'none');
+
+    expect(result).toHaveLength(2);
+  });
+
+  it('falls back to flat layout when all filename-prefix clusters are singletons', () => {
+    // standalone.rpy, other.rpy, third.rpy have no matching prefix pattern
+    const blocks = [
+      createBlock('a', 'game/standalone.rpy'),
+      createBlock('b', 'game/other.rpy'),
+      createBlock('c', 'game/third.rpy'),
+    ];
+    const links: Link[] = [
+      { sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' },
+      { sourceId: 'b', targetId: 'c', targetLabel: 'c', type: 'jump' },
+    ];
+
+    const clustered = computeStoryLayout(blocks, links, 'clustered-flow', 'filename-prefix');
+    const flowLr = computeStoryLayout(blocks, links, 'flow-lr', 'none');
+
+    expect(clustered).toHaveLength(3);
+    // singleton fallback produces same positions as flow-lr
+    clustered.forEach(block => {
+      const lr = flowLr.find(b => b.id === block.id)!;
+      expect(block.position).toEqual(lr.position);
+    });
+  });
+
+  it('groups route-prefixed blocks into the same cluster', () => {
+    // route_luna_intro and route_luna_end both extract prefix "route_luna"
+    const blocks = [
+      createBlock('a', 'game/route_luna_intro.rpy'),
+      createBlock('b', 'game/route_luna_end.rpy'),
+      createBlock('c', 'game/route_bad_intro.rpy'),
+    ];
+    const links: Link[] = [{ sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' }];
+
+    const result = computeStoryLayout(blocks, links, 'clustered-flow', 'filename-prefix');
+
+    expect(result).toHaveLength(3);
+    const a = result.find(b => b.id === 'a')!;
+    const bBlock = result.find(b => b.id === 'b')!;
+    // a and b share the route_luna cluster — should be vertically close
+    expect(Math.abs(a.position.y - bBlock.position.y)).toBeLessThan(400);
+  });
+
+  it('groups numeric-leading-prefixed blocks into the same cluster', () => {
+    // 01_intro and 01_end both extract prefix "n_01"
+    const blocks = [
+      createBlock('a', 'game/01_intro.rpy'),
+      createBlock('b', 'game/01_end.rpy'),
+      createBlock('c', 'game/02_start.rpy'),
+    ];
+    const links: Link[] = [
+      { sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' },
+      { sourceId: 'b', targetId: 'c', targetLabel: 'c', type: 'jump' },
+    ];
+
+    const result = computeStoryLayout(blocks, links, 'clustered-flow', 'filename-prefix');
+
+    expect(result).toHaveLength(3);
+    const a = result.find(b => b.id === 'a')!;
+    const bBlock = result.find(b => b.id === 'b')!;
+    expect(Math.abs(a.position.y - bBlock.position.y)).toBeLessThan(400);
+  });
+
+  it('groups generic word+number prefixed blocks into the same cluster', () => {
+    // intro1_scene and intro1_end both extract prefix "intro1"
+    const blocks = [
+      createBlock('a', 'game/intro1_scene.rpy'),
+      createBlock('b', 'game/intro1_end.rpy'),
+      createBlock('c', 'game/outro2_start.rpy'),
+    ];
+    const links: Link[] = [{ sourceId: 'a', targetId: 'b', targetLabel: 'b', type: 'jump' }];
+
+    const result = computeStoryLayout(blocks, links, 'clustered-flow', 'filename-prefix');
+
+    expect(result).toHaveLength(3);
+  });
+
+  it('handles empty blocks array across all layout modes', () => {
+    expect(computeStoryLayout([], [], 'flow-lr', 'none')).toEqual([]);
+    expect(computeStoryLayout([], [], 'flow-td', 'none')).toEqual([]);
+    expect(computeStoryLayout([], [], 'connected-components', 'none')).toEqual([]);
+    expect(computeStoryLayout([], [], 'clustered-flow', 'filename-prefix')).toEqual([]);
+  });
+
+  it('handles a single block', () => {
+    const blocks = [createBlock('a', 'game/script.rpy')];
+    const result = computeStoryLayout(blocks, [], 'flow-lr', 'none');
+    expect(result).toHaveLength(1);
+  });
+
+  it('uses block id in fingerprint when filePath is absent', () => {
+    const block = { ...createBlock('a', 'game/script.rpy'), filePath: undefined };
+    const fp = computeStoryLayoutFingerprint([block], [], 'flow-lr', 'none');
+    expect(fp).toContain('a:');
+  });
+});
+
+describe('getStoryLayoutVersion', () => {
+  it('returns a positive integer', () => {
+    const version = getStoryLayoutVersion();
+    expect(Number.isInteger(version)).toBe(true);
+    expect(version).toBeGreaterThan(0);
   });
 });

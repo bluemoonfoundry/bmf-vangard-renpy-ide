@@ -84,8 +84,8 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]" onClick={onClose} {...modalProps}>
-        <div ref={contentRef} className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl m-4 flex flex-col border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]" onClick={onClose}>
+        <div ref={contentRef} {...modalProps} className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl m-4 flex flex-col border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
             <header className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                 <h2 id="shortcuts-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">Keyboard Shortcuts</h2>
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" aria-label="Close">
