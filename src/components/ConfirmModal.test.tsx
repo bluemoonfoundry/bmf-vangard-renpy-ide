@@ -56,8 +56,8 @@ describe('ConfirmModal', () => {
     const user = userEvent.setup();
     const { container } = render(<ConfirmModal {...defaultProps}>content</ConfirmModal>);
 
-    // The backdrop is the outermost div with aria-modal
-    const backdrop = container.querySelector('[aria-modal="true"]')!;
+    // The backdrop is the outermost fixed overlay div (aria-modal is on the inner dialog)
+    const backdrop = container.firstElementChild as HTMLElement;
     await user.click(backdrop);
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
