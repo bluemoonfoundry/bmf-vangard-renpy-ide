@@ -22,7 +22,8 @@ import path from 'path';
 
 const __dirname    = path.dirname(fileURLToPath(import.meta.url));
 const APP_ENTRY    = path.join(__dirname, '..', '..', 'electron.js');
-const DEMO_PROJECT = path.join(__dirname, '..', '..', 'DemoProject');
+const DEMO_PROJECT   = path.join(__dirname, '..', '..', 'DemoProject');
+const RECORDINGS_DIR = path.join(__dirname, '..', 'demo-recordings');
 
 // ── Fixture ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,10 @@ const test = base.extend<Fixtures>({
   electronApp: async ({}, use) => {
     const app = await electron.launch({
       args: [APP_ENTRY, '--project', DEMO_PROJECT],
+      recordVideo: {
+        dir: RECORDINGS_DIR,
+        size: { width: 1280, height: 800 },
+      },
     });
     await use(app);
     await app.evaluate(({ app: a }) => a.exit(0)).catch(() => {});
