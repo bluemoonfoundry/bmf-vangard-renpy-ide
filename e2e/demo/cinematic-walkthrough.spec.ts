@@ -116,35 +116,35 @@ async function setupCursorOverlay(p: Page): Promise<void> {
     style.textContent = `
       #pw-cursor {
         position: fixed;
-        width: 20px;
-        height: 20px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.93);
-        border: 2px solid rgba(10, 10, 10, 0.55);
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.30);
+        background: rgba(255, 220, 0, 0.82);
+        border: 3px solid rgba(180, 130, 0, 0.75);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.40);
         pointer-events: none;
         z-index: 2147483647;
         transform: translate(-50%, -50%);
         transition: width 0.07s ease, height 0.07s ease, background 0.07s ease;
       }
       #pw-cursor.pw-down {
-        width: 13px;
-        height: 13px;
-        background: rgba(255, 210, 0, 0.96);
-        border-color: rgba(180, 120, 0, 0.7);
+        width: 24px;
+        height: 24px;
+        background: rgba(255, 160, 0, 0.95);
+        border-color: rgba(180, 90, 0, 0.85);
       }
       .pw-ripple {
         position: fixed;
         border-radius: 50%;
-        border: 2.5px solid rgba(255, 210, 0, 0.80);
+        border: 3px solid rgba(255, 200, 0, 0.90);
         pointer-events: none;
         z-index: 2147483646;
         transform: translate(-50%, -50%);
-        animation: pw-ripple-out 0.55s ease-out forwards;
+        animation: pw-ripple-out 1.1s ease-out forwards;
       }
       @keyframes pw-ripple-out {
-        from { width: 14px; height: 14px; opacity: 1; }
-        to   { width: 68px; height: 68px; opacity: 0; }
+        from { width: 24px; height: 24px; opacity: 1; }
+        to   { width: 90px; height: 90px; opacity: 0; }
       }
     `;
     document.head.appendChild(style);
