@@ -242,7 +242,7 @@ test.describe('cinematic demo', () => {
       await setupOverlays(page);
       await showCaption(page,
         'Project Canvas',
-        '90 script files mapped as draggable blocks — your entire story at a glance',
+        'Every script file mapped as a draggable block — your entire story at a glance',
       );
       await hold(page, 3000);
     });
@@ -267,7 +267,7 @@ test.describe('cinematic demo', () => {
     await test.step('slow pan across the full canvas', async () => {
       await showCaption(page,
         'Project Canvas',
-        'Pan freely across all 90 blocks spanning 8 story stages',
+        'Pan freely across all blocks spanning every chapter and story stage',
       );
       await glide(page, midX, midY, 40);
       await beat(page, 900);
@@ -359,7 +359,7 @@ test.describe('cinematic demo', () => {
       await beat(page, 900);
       await showCaption(page,
         'Flow Canvas',
-        'Every label becomes a node — trace all 8 narrative paths through the story',
+        'Every label becomes a node — trace every narrative path through the story',
       );
       await hold(page, 2200);
     });
@@ -549,7 +549,7 @@ test.describe('cinematic demo', () => {
         await beat(page, 1200);
         await showCaption(page,
           'Scene Composer',
-          'Garden background with Maya and Professor Sterling — positioned and layered visually',
+          'Background and multiple sprites — each positioned and layered visually',
         );
 
         const preview = page.locator('canvas').first();
@@ -613,7 +613,7 @@ test.describe('cinematic demo', () => {
         await beat(page, 1200);
         await showCaption(page,
           'Imagemap Composer',
-          'Five interactive hotspots — click to select, drag to resize, wire each to a story label',
+          'Multiple hotspots — click to select, drag to resize, wire each to a story label',
         );
         await hold(page, 2500);
       });
@@ -714,7 +714,7 @@ test.describe('cinematic demo', () => {
         await beat(page, 600);
         await showCaption(page,
           'Full-Text Search',
-          'Results appear instantly as you type — matched lines across all 72 files',
+          'Results appear instantly as you type — matched lines across every file',
         );
         await hold(page, 2000);
         const result = page
@@ -945,12 +945,12 @@ test.describe('cinematic demo', () => {
       await beat(page, 900);
       await showCaption(page,
         'Project Canvas',
-        'Back where it all begins — 90 blocks, 8 story stages, one canvas',
+        'Back where it all begins — every script file, every story stage, one canvas',
       );
       await hold(page);
     });
 
-    await test.step('fit all 90 blocks to screen', async () => {
+    await test.step('fit all blocks to screen', async () => {
       await attempt(async () => {
         const fitBtn = page.getByLabel('Fit all to screen');
         await fitBtn.waitFor({ state: 'visible', timeout: 4_000 });
