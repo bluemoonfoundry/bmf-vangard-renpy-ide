@@ -103,6 +103,78 @@ async function panCanvas(
 }
 
 /**
+ * Inject a visible cursor dot + click-ripple into the Electron renderer so
+ * the mouse is visible in the recorded video.
+ *
+ * Playwright dispatches real DOM mousemove/mousedown/mouseup events via CDP,
+ * so the injected listeners track every move and click faithfully.
+ * All injected elements use pointer-events:none — they never block real clicks.
+ */
+async function setupCursorOverlay(p: Page): Promise<void> {
+  await p.evaluate(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      #pw-cursor {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.93);
+        border: 2px solid rgba(10, 10, 10, 0.55);
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.30);
+        pointer-events: none;
+        z-index: 2147483647;
+        transform: translate(-50%, -50%);
+        transition: width 0.07s ease, height 0.07s ease, background 0.07s ease;
+      }
+      #pw-cursor.pw-down {
+        width: 13px;
+        height: 13px;
+        background: rgba(255, 210, 0, 0.96);
+        border-color: rgba(180, 120, 0, 0.7);
+      }
+      .pw-ripple {
+        position: fixed;
+        border-radius: 50%;
+        border: 2.5px solid rgba(255, 210, 0, 0.80);
+        pointer-events: none;
+        z-index: 2147483646;
+        transform: translate(-50%, -50%);
+        animation: pw-ripple-out 0.55s ease-out forwards;
+      }
+      @keyframes pw-ripple-out {
+        from { width: 14px; height: 14px; opacity: 1; }
+        to   { width: 68px; height: 68px; opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const cursor = document.createElement('div');
+    cursor.id = 'pw-cursor';
+    document.body.appendChild(cursor);
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+      cursor.style.left = `${e.clientX}px`;
+      cursor.style.top  = `${e.clientY}px`;
+    }, { passive: true, capture: true });
+
+    document.addEventListener('mousedown', (e: MouseEvent) => {
+      cursor.classList.add('pw-down');
+      const ripple = document.createElement('div');
+      ripple.className = 'pw-ripple';
+      ripple.style.left = `${e.clientX}px`;
+      ripple.style.top  = `${e.clientY}px`;
+      document.body.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+    }, { capture: true });
+
+    document.addEventListener('mouseup', () => {
+      cursor.classList.remove('pw-down');
+    }, { capture: true });
+  });
+}
+
+/**
  * Fire-and-forget an optional interaction.
  * If the element isn't present or the action throws, the demo continues.
  */
@@ -135,6 +207,8 @@ test.describe('cinematic demo', () => {
       await expect(page.locator('[data-block-id]').first()).toBeVisible({
         timeout: 60_000,
       });
+      // Inject cursor overlay so the mouse is visible in the recorded video
+      await setupCursorOverlay(page);
       // Let the analysis worker complete its first pass on 72 files
       await hold(page, 3000);
     });
