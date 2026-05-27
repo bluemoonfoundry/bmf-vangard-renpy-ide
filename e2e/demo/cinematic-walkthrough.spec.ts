@@ -463,12 +463,10 @@ test.describe('cinematic demo', () => {
       await hold(page);
     });
 
-    await test.step('tour the Story Elements sidebar panels', async () => {
+    await test.step('browse Characters, Variables and Screens panels', async () => {
       const sidebar = page.locator('[role="tablist"][aria-label="Story Elements"]');
       const tabs    = sidebar.getByRole('tab');
-      const count   = await tabs.count();
-
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i <= 2; i++) {
         const tab = tabs.nth(i);
         const [tx, ty] = await midpoint(tab);
         await glide(page, tx, ty, 22);
@@ -476,8 +474,136 @@ test.describe('cinematic demo', () => {
         await tab.hover();
         await beat(page, 250);
         await tab.click();
+        await hold(page, 900);
+        await glide(page, tx + 90, midY, 20);
+        await beat(page, 400);
+      }
+    });
+
+    await test.step('Images panel — double-click m.png to open the image viewer', async () => {
+      const sidebar   = page.locator('[role="tablist"][aria-label="Story Elements"]');
+      const imagesTab = sidebar.getByRole('tab', { name: 'Images' });
+      const [tx, ty]  = await midpoint(imagesTab);
+      await glide(page, tx, ty, 22);
+      await beat(page, 400);
+      await imagesTab.click();
+      await hold(page, 1200);
+
+      // Double-click the m.png thumbnail (Maya's sprite) to open the image editor tab
+      await attempt(async () => {
+        const mEntry = page.getByText('m.png', { exact: false }).first();
+        await mEntry.waitFor({ state: 'visible', timeout: 5_000 });
+        const [ix, iy] = await midpoint(mEntry);
+        await glide(page, ix, iy, 28);
+        await beat(page, 700);
+        await mEntry.dblclick();
+        await hold(page, 2000);
+        // Drift across the opened image viewer so the sprite is visible on screen
+        await glide(page, midX - 80, midY, 25);
+        await beat(page, 500);
+        await glide(page, midX + 80, midY, 25);
         await hold(page, 1000);
-        // Drift cursor into the panel content area
+      });
+    });
+
+    await test.step('browse Audio and Scene Compositions panels', async () => {
+      const sidebar = page.locator('[role="tablist"][aria-label="Story Elements"]');
+      const tabs    = sidebar.getByRole('tab');
+      // Tab 4: Audio, Tab 5: Scene Compositions (already explored in ACT III — just glance)
+      for (let i = 4; i <= 5; i++) {
+        const tab = tabs.nth(i);
+        const [tx, ty] = await midpoint(tab);
+        await glide(page, tx, ty, 22);
+        await beat(page, 350);
+        await tab.click();
+        await hold(page, 800);
+        await glide(page, tx + 90, midY, 20);
+        await beat(page, 400);
+      }
+    });
+
+    await test.step('Image Maps panel — open imagemap_1 and select hotspots', async () => {
+      const sidebar      = page.locator('[role="tablist"][aria-label="Story Elements"]');
+      const imageMapsTab = sidebar.getByRole('tab', { name: 'Image Maps' });
+      const [tx, ty]     = await midpoint(imageMapsTab);
+      await glide(page, tx, ty, 22);
+      await beat(page, 400);
+      await imageMapsTab.click();
+      await hold(page, 1000);
+
+      // Click imagemap_1 to open the ImageMap Composer tab
+      await attempt(async () => {
+        const mapEntry = page.getByText('imagemap_1', { exact: false }).first();
+        await mapEntry.waitFor({ state: 'visible', timeout: 5_000 });
+        const [mx, my] = await midpoint(mapEntry);
+        await glide(page, mx, my, 25);
+        await beat(page, 600);
+        await mapEntry.click();
+        await hold(page, 2500);
+      });
+
+      // Click two hotspots on the art-room imagemap canvas.
+      // Hotspots are rendered as clickable regions over the background image.
+      await attempt(async () => {
+        // Try DOM-based hotspot elements first
+        const hotspot1 = page
+          .locator('[data-hotspot-id], [class*="hotspot"]:not([aria-label])')
+          .first();
+        if (await hotspot1.isVisible({ timeout: 2_000 }).catch(() => false)) {
+          const [h1x, h1y] = await midpoint(hotspot1);
+          await glide(page, h1x, h1y, 30);
+          await beat(page, 600);
+          await hotspot1.click();
+          await hold(page, 1300);
+
+          const hotspot2 = page
+            .locator('[data-hotspot-id], [class*="hotspot"]:not([aria-label])')
+            .nth(1);
+          if (await hotspot2.isVisible({ timeout: 1_000 }).catch(() => false)) {
+            const [h2x, h2y] = await midpoint(hotspot2);
+            await glide(page, h2x, h2y, 30);
+            await beat(page, 600);
+            await hotspot2.click();
+            await hold(page, 1300);
+          }
+        } else {
+          // Fallback: click at approximate positions within the imagemap canvas
+          const canvas = page.locator('canvas').last();
+          const box    = await canvas.boundingBox();
+          if (box) {
+            // Click left-of-centre region
+            const p1x = box.x + box.width * 0.28;
+            const p1y = box.y + box.height * 0.45;
+            await glide(page, p1x, p1y, 30);
+            await beat(page, 500);
+            await page.mouse.click(p1x, p1y);
+            await hold(page, 1300);
+            // Click right-of-centre region
+            const p2x = box.x + box.width * 0.62;
+            const p2y = box.y + box.height * 0.55;
+            await glide(page, p2x, p2y, 30);
+            await beat(page, 500);
+            await page.mouse.click(p2x, p2y);
+            await hold(page, 1300);
+          }
+        }
+      });
+    });
+
+    await test.step('browse Screen Layouts, Snippets, Menu Templates and Colour Palette', async () => {
+      const sidebar = page.locator('[role="tablist"][aria-label="Story Elements"]');
+      const tabs    = sidebar.getByRole('tab');
+      const count   = await tabs.count();
+      // Tabs 7–10: Screen Layouts, Code Snippets, Menu Templates, Colour Palette
+      for (let i = 7; i < count; i++) {
+        const tab = tabs.nth(i);
+        const [tx, ty] = await midpoint(tab);
+        await glide(page, tx, ty, 22);
+        await beat(page, 350);
+        await tab.hover();
+        await beat(page, 250);
+        await tab.click();
+        await hold(page, 900);
         await glide(page, tx + 90, midY, 20);
         await beat(page, 400);
       }
@@ -537,10 +663,29 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT IX · Diagnostics panel — issues and task board
+    // ACT IX · Translation Dashboard — language coverage at a glance
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT IX — open Diagnostics panel', async () => {
+    await test.step('ACT IX — open Translation Dashboard', async () => {
+      const translBtn  = page.getByLabel('Translation Dashboard');
+      const [tx, ty]   = await midpoint(translBtn);
+      await glide(page, tx, ty, 25);
+      await beat(page, 600);
+      await translBtn.hover();
+      await beat(page, 400);
+      await translBtn.click();
+      await hold(page, 2200);
+      await glide(page, midX, midY - 50, 25);
+      await beat(page, 500);
+      await glide(page, midX, midY + 80, 20);
+      await beat(page, 600);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACT X · Diagnostics panel — issues and task board
+    // ─────────────────────────────────────────────────────────────────────────
+
+    await test.step('ACT X — open Diagnostics panel', async () => {
       const diagBtn  = page.getByLabel('Diagnostics');
       const [dx, dy] = await midpoint(diagBtn);
       await glide(page, dx, dy, 30);
@@ -568,10 +713,10 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT X · Warp to Label — jump execution to any story point
+    // ACT XI · Warp to Label — jump execution to any story point
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT X — open Warp to Label modal', async () => {
+    await test.step('ACT XI — open Warp to Label modal', async () => {
       const warpBtn  = page.getByLabel('Warp to Label');
       const [wx, wy] = await midpoint(warpBtn);
       await glide(page, wx, wy, 25);
@@ -595,10 +740,10 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT XI · Settings — themes, fonts, mouse gestures
+    // ACT XII · Settings — themes, fonts, mouse gestures
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT XI — open Settings', async () => {
+    await test.step('ACT XII — open Settings', async () => {
       const settingsBtn = page.getByLabel('Settings');
       const [sx, sy]    = await midpoint(settingsBtn);
       await glide(page, sx, sy, 25);
@@ -631,10 +776,10 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT XII · Keyboard Shortcuts reference card
+    // ACT XIII · Keyboard Shortcuts reference card
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT XII — show Keyboard Shortcuts reference', async () => {
+    await test.step('ACT XIII — show Keyboard Shortcuts reference', async () => {
       const kbBtn    = page.getByLabel('Keyboard Shortcuts');
       const [kx, ky] = await midpoint(kbBtn);
       await glide(page, kx, ky, 25);
@@ -654,10 +799,10 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT XIII · The Finale — fit to view, cinematic zoom out, curtain close
+    // ACT XIV · The Finale — fit to view, cinematic zoom out, curtain close
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT XIII — return to Project Canvas', async () => {
+    await test.step('ACT XIV — return to Project Canvas', async () => {
       const switcher   = page.locator('[aria-label="Switch canvas"]');
       const projectBtn = switcher.getByRole('button').first();
       const [px, py]   = await midpoint(projectBtn);
