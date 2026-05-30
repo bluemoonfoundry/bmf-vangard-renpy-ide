@@ -901,6 +901,8 @@ export interface ScreenWidget {
   /** Preview-only: data/media URL for displaying the image in the composer. Not used in code generation. */
   imageDataUrl?: string;
   style?: string;
+  xsize?: number;
+  ysize?: number;
   children?: ScreenWidget[];
 }
 

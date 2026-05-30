@@ -30,6 +30,8 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         if (widget.xalign !== undefined) posAttrs.push(`xalign ${widget.xalign}`);
         if (widget.yalign !== undefined) posAttrs.push(`yalign ${widget.yalign}`);
     }
+    if (widget.xsize !== undefined) posAttrs.push(`xsize ${widget.xsize}`);
+    if (widget.ysize !== undefined) posAttrs.push(`ysize ${widget.ysize}`);
     if (widget.style) posAttrs.push(`style "${widget.style}"`);
 
     const isContainer = widget.type === 'vbox' || widget.type === 'hbox' || widget.type === 'frame';
