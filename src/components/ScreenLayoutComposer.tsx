@@ -293,8 +293,8 @@ const LayerNode: React.FC<{
     const isDropInside = dt?.id === widget.id && dt.position === 'inside';
 
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        // Ignore palette drags in the tree — only handle tree-reorder drags.
-        if (!e.dataTransfer.types.includes('text/plain')) return;
+        // Only handle tree-reorder drags. draggingId is set iff a LayerNode drag is active.
+        if (!drag.draggingId) return;
         e.preventDefault(); e.stopPropagation();
         const rect = e.currentTarget.getBoundingClientRect();
         const ratio = (e.clientY - rect.top) / rect.height;
@@ -835,9 +835,13 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
     const [expandGen, setExpandGen]     = useState(0);
 
     // Canvas interaction refs — global pointer listeners read these directly to avoid stale closures.
-    const canvasRef      = useRef<HTMLDivElement>(null);
-    const canvasDragRef  = useRef<CanvasDragState | null>(null);
-    const resizeDragRef  = useRef<ResizeDragState | null>(null);
+    const canvasRef          = useRef<HTMLDivElement>(null);
+    const canvasDragRef      = useRef<CanvasDragState | null>(null);
+    const resizeDragRef      = useRef<ResizeDragState | null>(null);
+    // Tracks the widget type currently being dragged from the palette.
+    // Using a ref instead of dataTransfer.types.includes() because DOMStringList
+    // doesn't have .includes() in some Chromium/Electron versions.
+    const paletteDragTypeRef = useRef<ScreenWidgetType | null>(null);
 
     const selectedWidget = selectedId ? findWidget(composition.widgets, selectedId) ?? null : null;
 
@@ -965,7 +969,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
 
     // ── Palette → canvas drop ─────────────────────────────────────────────────
     const handleCanvasDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-        if (!e.dataTransfer.types.includes('widget-type')) return;
+        if (!paletteDragTypeRef.current) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
         setCanvasDropActive(true);
@@ -988,7 +992,7 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
 
     // ── Palette → container drop ──────────────────────────────────────────────
     const handleContainerDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, id: string) => {
-        if (!e.dataTransfer.types.includes('widget-type')) return;
+        if (!paletteDragTypeRef.current) return;
         e.preventDefault(); e.stopPropagation();
         e.dataTransfer.dropEffect = 'copy';
         setContainerDropTarget(id);
@@ -1255,7 +1259,12 @@ const ScreenLayoutComposer: React.FC<ScreenLayoutComposerProps> = ({
                                         {group.types.map(type => (
                                             <div key={type}
                                                 draggable
-                                                onDragStart={e => { e.dataTransfer.setData('widget-type', type); e.dataTransfer.effectAllowed = 'copy'; }}
+                                                onDragStart={e => {
+                                                    e.dataTransfer.setData('widget-type', type);
+                                                    e.dataTransfer.effectAllowed = 'copy';
+                                                    paletteDragTypeRef.current = type;
+                                                }}
+                                                onDragEnd={() => { paletteDragTypeRef.current = null; }}
                                                 onClick={() => handleAddWidget(type)}
                                                 className={`flex items-center gap-2 px-2 py-1.5 rounded border text-left
                                                     cursor-grab active:cursor-grabbing select-none transition-all duration-100 ${WIDGET_TILE_COLORS[type]}`}>
