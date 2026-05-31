@@ -192,7 +192,7 @@ function PalettePanel({
 // ─── Layer tree ───────────────────────────────────────────────────────────────
 
 function LayerNode({
-  widget, depth, selectedId, onSelect, layerDragId, setLayerDragId, onReorder,
+  widget, depth, selectedId, onSelect, layerDragId, setLayerDragId, onReorder, onImageDrop,
 }: {
   widget: ScreenWidget;
   depth: number;
@@ -201,11 +201,14 @@ function LayerNode({
   layerDragId: string | null;
   setLayerDragId: (id: string | null) => void;
   onReorder: (dragId: string, targetId: string, pos: 'before' | 'after' | 'inside') => void;
+  onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [dropHint, setDropHint] = useState<'before' | 'after' | 'inside' | null>(null);
+  const [imageDragOver, setImageDragOver] = useState(false);
   const d = ELEM[widget.type];
   const isSelected = selectedId === widget.id;
+  const acceptsImageDrop = widget.type === 'image';
 
   function calcPos(e: React.DragEvent): 'before' | 'after' | 'inside' {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -221,6 +224,7 @@ function LayerNode({
     dropHint === 'before' ? 'border-t border-blue-400' : '',
     dropHint === 'after'  ? 'border-b border-blue-400' : '',
     dropHint === 'inside' ? 'ring-1 ring-blue-400 ring-inset' : '',
+    imageDragOver ? 'ring-1 ring-emerald-400 ring-inset bg-emerald-900/30' : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -233,26 +237,34 @@ function LayerNode({
           e.dataTransfer.effectAllowed = 'move';
           setLayerDragId(widget.id);
         }}
-        onDragEnd={() => { setLayerDragId(null); setDropHint(null); }}
+        onDragEnd={() => { setLayerDragId(null); setDropHint(null); setImageDragOver(false); }}
         onDragOver={e => {
-          // Use dataTransfer.types (sync) rather than layerDragId state (async) so
-          // e.preventDefault() is called even on the very first dragover after dragstart.
-          if (!e.dataTransfer.types.includes('text/x-layer-id')) return;
+          const isLayerDrag = e.dataTransfer.types.includes('text/x-layer-id');
+          const isImgDrag = acceptsImageDrop && e.dataTransfer.types.includes('application/renpy-image-path');
+          if (!isLayerDrag && !isImgDrag) return;
           e.preventDefault();
           e.stopPropagation();
-          setDropHint(layerDragId !== widget.id ? calcPos(e) : null);
+          if (isImgDrag) {
+            setImageDragOver(true);
+            setDropHint(null);
+          } else {
+            setImageDragOver(false);
+            setDropHint(layerDragId !== widget.id ? calcPos(e) : null);
+          }
         }}
-        onDragLeave={() => setDropHint(null)}
+        onDragLeave={() => { setDropHint(null); setImageDragOver(false); }}
         onDrop={e => {
           e.preventDefault();
           e.stopPropagation();
+          const filePath = e.dataTransfer.getData('application/renpy-image-path');
           const lid = e.dataTransfer.getData('text/x-layer-id');
-          // Recompute position here rather than reading dropHint state, which may be
-          // stale if the drop fires before the last onDragOver re-render completes.
-          if (lid && lid !== widget.id) {
+          if (filePath && acceptsImageDrop) {
+            onImageDrop(widget.id, filePath, e.dataTransfer.getData('application/renpy-image-dataurl'));
+          } else if (lid && lid !== widget.id) {
             onReorder(lid, widget.id, calcPos(e));
           }
           setDropHint(null);
+          setImageDragOver(false);
           setLayerDragId(null);
         }}
         onClick={e => { e.stopPropagation(); onSelect(widget.id); }}
@@ -276,6 +288,9 @@ function LayerNode({
         </span>
         <span className="text-[11px] truncate leading-tight">
           {d.label}{widget.text ? ` "${widget.text}"` : ''}
+          {acceptsImageDrop && widget.imagePath ? (
+            <span className="ml-1 opacity-50 font-mono">{widget.imagePath.split('/').pop()}</span>
+          ) : null}
         </span>
       </div>
       {d.isContainer && expanded && widget.children?.map(child => (
@@ -288,6 +303,7 @@ function LayerNode({
           layerDragId={layerDragId}
           setLayerDragId={setLayerDragId}
           onReorder={onReorder}
+          onImageDrop={onImageDrop}
         />
       ))}
     </div>
@@ -295,12 +311,13 @@ function LayerNode({
 }
 
 function LayersPanel({
-  widgets, selectedId, onSelect, onReorder,
+  widgets, selectedId, onSelect, onReorder, onImageDrop,
 }: {
   widgets: ScreenWidget[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onReorder: (dragId: string, targetId: string, pos: 'before' | 'after' | 'inside') => void;
+  onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
   const [layerDragId, setLayerDragId] = useState<string | null>(null);
   return (
@@ -320,6 +337,7 @@ function LayersPanel({
           layerDragId={layerDragId}
           setLayerDragId={setLayerDragId}
           onReorder={onReorder}
+          onImageDrop={onImageDrop}
         />
       ))}
     </div>
@@ -331,7 +349,7 @@ function LayersPanel({
 type PointerDownFn = (e: React.PointerEvent, id: string) => void;
 
 function CanvasWidget({
-  widget, selectedId, onSelect, scale, onPointerDown, isTopLevel,
+  widget, selectedId, onSelect, scale, onPointerDown, isTopLevel, onImageDrop,
 }: {
   widget: ScreenWidget;
   selectedId: string | null;
@@ -339,7 +357,9 @@ function CanvasWidget({
   scale: number;
   onPointerDown?: PointerDownFn;
   isTopLevel: boolean;
+  onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
+  const [imageDragOver, setImageDragOver] = useState(false);
   const isSelected = selectedId === widget.id;
 
   const selRing: React.CSSProperties = isSelected
@@ -370,6 +390,7 @@ function CanvasWidget({
       onSelect={onSelect}
       scale={scale}
       isTopLevel={false}
+      onImageDrop={onImageDrop}
     />
   ));
 
@@ -410,20 +431,54 @@ function CanvasWidget({
           {widget.text || 'Button'}
         </div>
       );
-    case 'image':
-      return widget.imageDataUrl ? (
-        <img
-          src={widget.imageDataUrl}
-          alt={widget.imagePath || 'image'}
-          onClick={click}
-          onPointerDown={ptrDown}
-          style={{ ...base, maxWidth: 200, maxHeight: 150, objectFit: 'contain', display: 'block' }}
-        />
-      ) : (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 60, border: '2px dashed #059669', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6ee7b7', fontSize: 11 }}>
-          {widget.imagePath || 'image'}
+    case 'image': {
+      const imgDropHandlers = {
+        onDragOver: (e: React.DragEvent) => {
+          if (!e.dataTransfer.types.includes('application/renpy-image-path')) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setImageDragOver(true);
+        },
+        onDragLeave: () => setImageDragOver(false),
+        onDrop: (e: React.DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const filePath = e.dataTransfer.getData('application/renpy-image-path');
+          if (filePath) onImageDrop(widget.id, filePath, e.dataTransfer.getData('application/renpy-image-dataurl'));
+          setImageDragOver(false);
+        },
+      };
+      const imgDropBorder = imageDragOver ? '2px solid #34d399' : undefined;
+      if (widget.imageDataUrl) {
+        return (
+          <img
+            src={widget.imageDataUrl}
+            alt={widget.imagePath || 'image'}
+            onClick={click}
+            onPointerDown={ptrDown}
+            {...imgDropHandlers}
+            style={{ ...base, maxWidth: 200, maxHeight: 150, objectFit: 'contain', display: 'block', ...(imgDropBorder ? { outline: imgDropBorder } : {}) }}
+          />
+        );
+      }
+      // Path set but no preview — broken or unresolved reference
+      if (widget.imagePath) {
+        return (
+          <div onClick={click} onPointerDown={ptrDown} {...imgDropHandlers}
+            style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 60, border: imgDropBorder ?? '2px dashed #f59e0b', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: 10, gap: 3 }}>
+            <span style={{ fontSize: 16 }}>⚠</span>
+            <span style={{ maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{widget.imagePath.split('/').pop()}</span>
+          </div>
+        );
+      }
+      // No path — empty drop target
+      return (
+        <div onClick={click} onPointerDown={ptrDown} {...imgDropHandlers}
+          style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 60, border: imgDropBorder ?? '2px dashed #059669', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6ee7b7', fontSize: 11 }}>
+          {imageDragOver ? 'Drop image' : 'add image'}
         </div>
       );
+    }
     case 'imagebutton':
       return (
         <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 50, border: '2px solid #d97706', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: 10, background: '#1c1917' }}>
@@ -455,7 +510,7 @@ function CanvasWidget({
 // ─── Composer canvas ──────────────────────────────────────────────────────────
 
 function ComposerCanvas({
-  composition, selectedId, onSelect, onDrop, onPatchWidget, draggingPaletteType,
+  composition, selectedId, onSelect, onDrop, onPatchWidget, draggingPaletteType, onImageDrop,
 }: {
   composition: ScreenLayoutComposition;
   selectedId: string | null;
@@ -463,6 +518,7 @@ function ComposerCanvas({
   onDrop: (type: ScreenWidgetType, x: number, y: number) => void;
   onPatchWidget: (id: string, patch: Partial<ScreenWidget>) => void;
   draggingPaletteType: ScreenWidgetType | null;
+  onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
@@ -584,6 +640,7 @@ function ComposerCanvas({
             scale={scale}
             onPointerDown={handlePointerDown}
             isTopLevel
+            onImageDrop={onImageDrop}
           />
         ))}
       </div>
@@ -802,6 +859,12 @@ export default function ScreenLayoutComposerV2({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleImageDrop = useCallback((id: string, filePath: string, dataUrl: string) => {
+    updateWidgets(ws => patchInTree(ws, id, { imagePath: filePath, imageDataUrl: dataUrl || undefined }));
+    setSelectedId(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function commitName() {
     if (nameVal.trim()) onRenameScreen(nameVal.trim());
     setEditingName(false);
@@ -906,6 +969,7 @@ export default function ScreenLayoutComposerV2({
               selectedId={selectedId}
               onSelect={setSelectedId}
               onReorder={handleReorder}
+              onImageDrop={handleImageDrop}
             />
           </div>
         </div>
@@ -919,6 +983,7 @@ export default function ScreenLayoutComposerV2({
             onDrop={handleDrop}
             onPatchWidget={handlePatchWidget}
             draggingPaletteType={draggingPaletteType}
+            onImageDrop={handleImageDrop}
           />
           <CodePanel code={generatedCode} />
         </div>
