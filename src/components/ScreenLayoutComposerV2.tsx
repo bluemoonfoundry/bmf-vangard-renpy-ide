@@ -2,13 +2,14 @@
  * ScreenLayoutComposerV2 — Figma-style three-panel Ren'Py screen editor.
  *
  * Left panel:  element palette (drag source) + layer hierarchy tree
- * Center panel: scaled game canvas (drop target; root widgets are draggable)
+ * Center panel: scaled game canvas (drop target; root widgets are draggable) + code panel
  * Right panel: property form for the selected element
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/types';
+import { generateScreenCode } from '@/lib/screenCodeGenerator';
 
 // ─── Element catalogue ────────────────────────────────────────────────────────
 
@@ -704,6 +705,44 @@ function PropertiesPanel({
   );
 }
 
+// ─── Code panel ──────────────────────────────────────────────────────────────
+
+function CodePanel({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+
+  return (
+    <div className="flex flex-col border-t border-gray-700 bg-gray-950 shrink-0" style={{ height: 180 }}>
+      <div className="flex items-center justify-between px-3 py-1 shrink-0 border-b border-gray-700/60">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Generated Code</p>
+        <button
+          onClick={handleCopy}
+          className={[
+            'text-[11px] px-2 py-0.5 rounded transition-colors font-medium',
+            copied
+              ? 'bg-green-700 text-green-100'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white',
+          ].join(' ')}
+        >
+          {copied ? '✓ Copied' : 'Copy Code'}
+        </button>
+      </div>
+      <pre
+        className="flex-1 overflow-auto px-3 py-2 text-[11px] leading-relaxed text-emerald-300 font-mono whitespace-pre"
+        style={{ tabSize: 4 }}
+      >
+        {code}
+      </pre>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface ScreenLayoutComposerV2Props {
@@ -765,6 +804,7 @@ export default function ScreenLayoutComposerV2({
   }
 
   const selectedWidget = selectedId ? findWidget(composition.widgets, selectedId) : null;
+  const generatedCode = useMemo(() => generateScreenCode(composition), [composition]);
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white overflow-hidden">
@@ -843,15 +883,18 @@ export default function ScreenLayoutComposerV2({
           </div>
         </div>
 
-        {/* Center: Canvas */}
-        <ComposerCanvas
-          composition={composition}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          onDrop={handleDrop}
-          onPatchWidget={handlePatchWidget}
-          draggingPaletteType={draggingPaletteType}
-        />
+        {/* Center: Canvas + Code panel */}
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <ComposerCanvas
+            composition={composition}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onDrop={handleDrop}
+            onPatchWidget={handlePatchWidget}
+            draggingPaletteType={draggingPaletteType}
+          />
+          <CodePanel code={generatedCode} />
+        </div>
 
         {/* Right: Properties */}
         <div className="w-52 flex flex-col border-l border-gray-700 shrink-0 overflow-hidden">
