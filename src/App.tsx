@@ -21,7 +21,7 @@ import AudioEditorView from '@/components/AudioEditorView';
 import CharacterEditorView from '@/components/CharacterEditorView';
 import SceneComposer from '@/components/SceneComposer';
 import ImageMapComposer from '@/components/ImageMapComposer';
-import ScreenLayoutComposer from '@/components/ScreenLayoutComposer';
+import ScreenLayoutComposer from '@/components/ScreenLayoutComposerV2';
 import MarkdownPreviewView from '@/components/MarkdownPreviewView';
 import DiagnosticsPanel from '@/components/DiagnosticsPanel';
 import WarpVariablesModal from '@/components/WarpVariablesModal';
@@ -4713,6 +4713,7 @@ const App: React.FC = () => {
         widgets: []
       };
       const isLayoutLocked = analysisResult.screens.has(composition.screenName);
+      const isTabActive = tab.id === activeTabId || tab.id === secondaryActiveTabId;
       return <ScreenLayoutComposer
         composition={composition}
         onCompositionChange={(val) => handleScreenLayoutUpdate(tab.layoutId!, val)}
@@ -4720,6 +4721,7 @@ const App: React.FC = () => {
         onRenameScreen={(newName) => handleRenameScreenLayout(tab.layoutId!, newName)}
         labels={analysisLabelKeys}
         isLocked={isLayoutLocked}
+        isActive={isTabActive}
         onDuplicate={() => handleDuplicateScreenLayout(tab.layoutId!)}
         onGoToCode={isLayoutLocked ? () => {
             const def = analysisResult.screens.get(composition.screenName);
