@@ -235,18 +235,22 @@ function LayerNode({
         }}
         onDragEnd={() => { setLayerDragId(null); setDropHint(null); }}
         onDragOver={e => {
-          if (!layerDragId || layerDragId === widget.id) return;
+          // Use dataTransfer.types (sync) rather than layerDragId state (async) so
+          // e.preventDefault() is called even on the very first dragover after dragstart.
+          if (!e.dataTransfer.types.includes('text/x-layer-id')) return;
           e.preventDefault();
           e.stopPropagation();
-          setDropHint(calcPos(e));
+          setDropHint(layerDragId !== widget.id ? calcPos(e) : null);
         }}
         onDragLeave={() => setDropHint(null)}
         onDrop={e => {
           e.preventDefault();
           e.stopPropagation();
           const lid = e.dataTransfer.getData('text/x-layer-id');
-          if (lid && lid !== widget.id && dropHint) {
-            onReorder(lid, widget.id, dropHint);
+          // Recompute position here rather than reading dropHint state, which may be
+          // stale if the drop fires before the last onDragOver re-render completes.
+          if (lid && lid !== widget.id) {
+            onReorder(lid, widget.id, calcPos(e));
           }
           setDropHint(null);
           setLayerDragId(null);
