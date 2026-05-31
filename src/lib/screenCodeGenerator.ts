@@ -88,9 +88,26 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
 
         case 'vbox':
         case 'hbox':
-        case 'frame': {
+        case 'frame':
+        case 'window': {
             const containerAttrs = posAttrs.join(' ');
             lines.push(`${pad}${widget.type}${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            if (hasChildren) {
+                for (const child of widget.children!) {
+                    lines.push(generateWidget(child, depth + 1, true, indent));
+                }
+            } else {
+                lines.push(`${pad}${indent}pass`);
+            }
+            break;
+        }
+
+        case 'viewport': {
+            const containerAttrs = posAttrs.join(' ');
+            lines.push(`${pad}viewport${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            // viewport-specific properties as indented lines
+            if (widget.scrollbars) lines.push(`${pad}${indent}scrollbars "${widget.scrollbars}"`);
+            if (widget.mousewheel)  lines.push(`${pad}${indent}mousewheel True`);
             if (hasChildren) {
                 for (const child of widget.children!) {
                     lines.push(generateWidget(child, depth + 1, true, indent));

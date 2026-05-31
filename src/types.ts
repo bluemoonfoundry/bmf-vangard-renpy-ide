@@ -877,7 +877,7 @@ export interface ImageMapComposition {
  * Maps to Ren'Py screen language statement types.
  */
 export type ScreenWidgetType =
-  'vbox' | 'hbox' | 'frame' |
+  'vbox' | 'hbox' | 'frame' | 'window' | 'viewport' |
   'text' | 'image' |
   'textbutton' | 'button' | 'imagebutton' |
   'bar' | 'input' | 'null';
@@ -904,6 +904,10 @@ export interface ScreenWidget {
   xsize?: number;
   ysize?: number;
   children?: ScreenWidget[];
+  /** 'viewport' widget: which scrollbars to show */
+  scrollbars?: 'vertical' | 'horizontal' | 'both';
+  /** 'viewport' widget: whether to enable mousewheel scrolling */
+  mousewheel?: boolean;
 }
 
 /**

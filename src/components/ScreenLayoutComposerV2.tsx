@@ -25,6 +25,8 @@ const ELEM: Record<ScreenWidgetType, ElemDef> = {
   vbox:        { label: 'VBox',       icon: '↕',  colorClass: 'bg-blue-700',   isContainer: true,  defaultProps: {} },
   hbox:        { label: 'HBox',       icon: '↔',  colorClass: 'bg-blue-500',   isContainer: true,  defaultProps: {} },
   frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600', isContainer: true,  defaultProps: { xsize: 140, ysize: 90 } },
+  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',    isContainer: true,  defaultProps: { xsize: 300, ysize: 200 } },
+  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',   isContainer: true,  defaultProps: { xsize: 300, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
   text:        { label: 'Text',       icon: 'T',  colorClass: 'bg-gray-500',   isContainer: false, defaultProps: { text: 'Hello' } },
   image:       { label: 'Image',      icon: '⬜', colorClass: 'bg-emerald-700',isContainer: false, defaultProps: {} },
   textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
@@ -36,7 +38,7 @@ const ELEM: Record<ScreenWidgetType, ElemDef> = {
 };
 
 const PALETTE_GROUPS: { label: string; types: ScreenWidgetType[] }[] = [
-  { label: 'Layout',      types: ['vbox', 'hbox', 'frame'] },
+  { label: 'Layout',      types: ['vbox', 'hbox', 'frame', 'window', 'viewport'] },
   { label: 'Display',     types: ['text', 'image'] },
   { label: 'Interactive', types: ['textbutton', 'button', 'imagebutton'] },
   { label: 'Other',       types: ['bar', 'input', 'null'] },
@@ -413,6 +415,37 @@ function CanvasWidget({
           {children}
         </div>
       );
+    case 'window':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: '2px solid #0ea5e9', borderRadius: 6, padding: 10, minWidth: 80, minHeight: 50, background: 'rgba(14,165,233,0.06)' }}>
+          {children}
+        </div>
+      );
+    case 'viewport': {
+      const vpW = widget.xsize ?? 200;
+      const vpH = widget.ysize ?? 160;
+      const hasScrollV = widget.scrollbars === 'vertical' || widget.scrollbars === 'both';
+      const hasScrollH = widget.scrollbars === 'horizontal' || widget.scrollbars === 'both';
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, width: vpW, height: vpH, border: '2px solid #0891b2', borderRadius: 4, overflow: 'hidden', position: isTopLevel ? 'absolute' : 'relative' }}>
+          {/* scroll track indicators */}
+          {hasScrollV && (
+            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 8, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 4, height: '40%', background: '#0891b2', borderRadius: 2 }} />
+            </div>
+          )}
+          {hasScrollH && (
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 8, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ height: 4, width: '40%', background: '#0891b2', borderRadius: 2 }} />
+            </div>
+          )}
+          <div style={{ position: 'absolute', inset: 0, padding: 4, paddingRight: hasScrollV ? 12 : 4, paddingBottom: hasScrollH ? 12 : 4, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {children}
+          </div>
+        </div>
+      );
+    }
     case 'button':
       return (
         <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: '2px solid #ea580c', borderRadius: 4, minWidth: 40, minHeight: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -756,6 +789,34 @@ function PropertiesPanel({
       {(widget.type === 'image' || widget.type === 'imagebutton') && (
         <PropSection title="Image">
           <PropRow label="path"><StrInput value={widget.imagePath} onChange={v => onUpdate({ imagePath: v })} placeholder="images/..." /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'viewport' && (
+        <PropSection title="Scroll">
+          <PropRow label="scrollbars">
+            <select
+              value={widget.scrollbars ?? ''}
+              onChange={e => onUpdate({ scrollbars: (e.target.value || undefined) as ScreenWidget['scrollbars'] })}
+              className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-[12px] text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="">none</option>
+              <option value="vertical">vertical</option>
+              <option value="horizontal">horizontal</option>
+              <option value="both">both</option>
+            </select>
+          </PropRow>
+          <PropRow label="mousewheel">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={widget.mousewheel ?? false}
+                onChange={e => onUpdate({ mousewheel: e.target.checked || undefined })}
+                className="accent-blue-500"
+              />
+              <span className="text-[12px] text-gray-300">enabled</span>
+            </label>
+          </PropRow>
         </PropSection>
       )}
 
