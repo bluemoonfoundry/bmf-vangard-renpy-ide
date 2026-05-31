@@ -47,7 +47,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
             break;
 
         case 'image':
-            lines.push(`${pad}image "${widget.imagePath ?? ''}"${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
+            lines.push(`${pad}add "${widget.imagePath ?? ''}"${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
             break;
 
         case 'textbutton':
