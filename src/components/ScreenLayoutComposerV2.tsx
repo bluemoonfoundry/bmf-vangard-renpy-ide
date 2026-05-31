@@ -803,6 +803,29 @@ export default function ScreenLayoutComposerV2({
     setEditingName(false);
   }
 
+  const handleDelete = useCallback(() => {
+    if (!selectedId) return;
+    updateWidgets(ws => {
+      const [next] = removeFromTree(ws, selectedId);
+      return next;
+    });
+    setSelectedId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  // Delete key removes the selected widget (skip when focus is in a text field)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+      handleDelete();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleDelete]);
+
   const selectedWidget = selectedId ? findWidget(composition.widgets, selectedId) : null;
   const generatedCode = useMemo(() => generateScreenCode(composition), [composition]);
 
