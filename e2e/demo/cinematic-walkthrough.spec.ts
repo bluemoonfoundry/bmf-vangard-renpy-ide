@@ -33,10 +33,10 @@ type Fixtures = { electronApp: ElectronApplication; window: Page };
 const test = base.extend<Fixtures>({
   electronApp: async ({}, use) => {
     const app = await electron.launch({
-      args: [APP_ENTRY, '--project', DEMO_PROJECT],
+      args: [APP_ENTRY, '--project', DEMO_PROJECT, '--window-size', '2560x1440'],
       recordVideo: {
         dir: RECORDINGS_DIR,
-        size: { width: 1280, height: 800 },
+        size: { width: 2560, height: 1440 },
       },
     });
     await use(app);
@@ -232,7 +232,7 @@ test.describe('cinematic demo', () => {
   test.setTimeout(600_000);
 
   test("Ren'Py IDE — full feature walkthrough", async ({ window: page }) => {
-    const vp   = page.viewportSize() ?? { width: 1280, height: 800 };
+    const vp   = page.viewportSize() ?? { width: 2560, height: 1440 };
     const midX = Math.round(vp.width  / 2);
     const midY = Math.round(vp.height / 2);
 
@@ -295,6 +295,39 @@ test.describe('cinematic demo', () => {
       await hold(page, 1200);
       await smoothZoom(page, bx, by,  400, 16);
       await hold(page);
+    });
+
+    await test.step('Drafting Mode — enable, observe, disable', async () => {
+      await hideCaption(page);
+      await attempt(async () => {
+        const enableBtn = page.getByLabel('Enable Drafting Mode');
+        await enableBtn.waitFor({ state: 'visible', timeout: 5_000 });
+        const [dtx, dty] = await midpoint(enableBtn);
+        await glide(page, dtx, dty, 30);
+        await beat(page, 600);
+        await enableBtn.hover();
+        await beat(page, 400);
+        await showCaption(page,
+          'Drafting Mode',
+          'Enable Drafting Mode to auto-generate placeholders for every missing image and audio asset',
+        );
+        await hold(page, 2000);
+        await enableBtn.click();
+        await beat(page, 1500);
+        await showCaption(page,
+          'Drafting Mode',
+          'Placeholders written to debug_placeholders.rpy — the game runs without missing-asset errors',
+        );
+        await hold(page, 2500);
+        const disableBtn = page.getByLabel('Disable Drafting Mode');
+        await disableBtn.waitFor({ state: 'visible', timeout: 4_000 });
+        const [offx, offy] = await midpoint(disableBtn);
+        await glide(page, offx, offy, 25);
+        await beat(page, 500);
+        await disableBtn.click();
+        await beat(page, 700);
+      });
+      await hideCaption(page);
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -386,6 +419,55 @@ test.describe('cinematic demo', () => {
       await hold(page, 1200);
       await panCanvas(page, 'Route canvas', 200, -40);
       await hold(page, 1200);
+    });
+
+    await test.step('colour-coded route highlighting', async () => {
+      await hideCaption(page);
+      await attempt(async () => {
+        // Routes section heading lives inside the CanvasToolbox (open by default)
+        const routesHeading = page.getByText(/^Routes \(/).first();
+        await routesHeading.waitFor({ state: 'visible', timeout: 4_000 });
+        const [rhx, rhy] = await midpoint(routesHeading);
+        await glide(page, rhx, rhy, 25);
+        await beat(page, 500);
+        await showCaption(page,
+          'Flow Canvas',
+          'Auto-detected execution paths — each route traced end-to-end through the story',
+        );
+        await hold(page, 1800);
+      });
+
+      // Check first two route checkboxes to paint colour overlays on the graph
+      await attempt(async () => {
+        const first = page.locator('input[type="checkbox"]').nth(0);
+        await first.waitFor({ state: 'visible', timeout: 3_000 });
+        const [c1x, c1y] = await midpoint(first);
+        await glide(page, c1x, c1y, 20);
+        await beat(page, 400);
+        await first.click();
+        await beat(page, 600);
+        await showCaption(page,
+          'Flow Canvas',
+          'Checked routes light up in colour — follow any path from start label to end label',
+        );
+        await hold(page, 2000);
+
+        const second = page.locator('input[type="checkbox"]').nth(1);
+        if (await second.isVisible({ timeout: 1_000 }).catch(() => false)) {
+          const [c2x, c2y] = await midpoint(second);
+          await glide(page, c2x, c2y, 20);
+          await beat(page, 400);
+          await second.click();
+          await hold(page, 1800);
+          await second.click().catch(() => {});
+          await beat(page, 300);
+        }
+
+        // Restore clean state
+        await first.click().catch(() => {});
+        await beat(page, 400);
+      });
+      await hideCaption(page);
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -616,11 +698,6 @@ test.describe('cinematic demo', () => {
         await hideCaption(page);
         await mapEntry.click();
         await beat(page, 1200);
-        await showCaption(page,
-          'Imagemap Composer',
-          'Multiple hotspots — click to select, drag to resize, wire each to a story label',
-        );
-        await hold(page, 2500);
       });
 
       await attempt(async () => {
@@ -632,7 +709,12 @@ test.describe('cinematic demo', () => {
           await glide(page, h1x, h1y, 30);
           await beat(page, 600);
           await hotspot1.click();
-          await hold(page, 1300);
+          await beat(page, 500);
+          await showCaption(page,
+            'Imagemap Composer',
+            'Multiple hotspots — click to select, drag to resize, wire each to a story label',
+          );
+          await hold(page, 1800);
           const hotspot2 = page
             .locator('[data-hotspot-id], [class*="hotspot"]:not([aria-label])')
             .nth(1);
@@ -652,7 +734,12 @@ test.describe('cinematic demo', () => {
             await glide(page, p1x, p1y, 30);
             await beat(page, 500);
             await page.mouse.click(p1x, p1y);
-            await hold(page, 1300);
+            await beat(page, 500);
+            await showCaption(page,
+              'Imagemap Composer',
+              'Multiple hotspots — click to select, drag to resize, wire each to a story label',
+            );
+            await hold(page, 1800);
             const p2x = cbox.x + cbox.width * 0.62;
             const p2y = cbox.y + cbox.height * 0.55;
             await glide(page, p2x, p2y, 30);
@@ -696,15 +783,17 @@ test.describe('cinematic demo', () => {
     // ACT VI · Full-text search
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT VI — open full-text search (Ctrl+Shift+F)', async () => {
+    await test.step('ACT VI — open full-text search via Search tab', async () => {
       await hideCaption(page);
-      await glide(page, midX, midY, 20);
-      await beat(page, 400);
-      await page.keyboard.press('Control+Shift+F');
+      const searchTab = page.getByRole('button', { name: 'Search', exact: true });
+      const [stx, sty] = await midpoint(searchTab);
+      await glide(page, stx, sty, 25);
+      await beat(page, 500);
+      await searchTab.click();
       await beat(page, 900);
       await showCaption(page,
         'Full-Text Search',
-        'Ctrl+Shift+F — search across every .rpy file simultaneously',
+        'Search across every .rpy file simultaneously — results as you type',
       );
       await hold(page, 1000);
     });
@@ -778,11 +867,34 @@ test.describe('cinematic demo', () => {
         'Translation Dashboard',
         'Track translation coverage and generate language files for every dialogue string',
       );
-      await hold(page, 2200);
+      await hold(page, 3500);
+
+      // Drift down to reveal rows, then back up
       await glide(page, midX, midY - 50, 25);
-      await beat(page, 500);
-      await glide(page, midX, midY + 80, 20);
       await beat(page, 600);
+      await glide(page, midX, midY + 80, 25);
+      await beat(page, 700);
+
+      // Slow scroll through the content
+      for (let i = 0; i < 6; i++) {
+        await page.mouse.wheel(0, 90);
+        await page.waitForTimeout(140);
+      }
+      await hold(page, 1800);
+      for (let i = 0; i < 6; i++) {
+        await page.mouse.wheel(0, -90);
+        await page.waitForTimeout(140);
+      }
+
+      await hideCaption(page);
+      await beat(page, 300);
+      await showCaption(page,
+        'Translation Dashboard',
+        'Export per-language .rpy translation files with one click',
+      );
+      await hold(page, 2500);
+      await hideCaption(page);
+      await beat(page, 400);
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -933,10 +1045,59 @@ test.describe('cinematic demo', () => {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // ACT XIII · The Finale
+    // ACT XIII · Run Project
     // ─────────────────────────────────────────────────────────────────────────
 
-    await test.step('ACT XIII — return to Project Canvas', async () => {
+    await test.step('ACT XIII — run the project in Ren\'Py', async () => {
+      await hideCaption(page);
+      // Return to Project Canvas first so the toolbar is in its default state
+      const switcher   = page.locator('[aria-label="Switch canvas"]');
+      const projectBtn = switcher.getByRole('button').first();
+      await glide(page, ...(await midpoint(projectBtn)), 25);
+      await beat(page, 400);
+      await projectBtn.click();
+      await expect(page.locator('[aria-label="Story canvas"]')).toBeVisible({
+        timeout: 10_000,
+      });
+      await beat(page, 700);
+
+      const runBtn = page.getByLabel('Run Project');
+      const [rx, ry] = await midpoint(runBtn);
+      await glide(page, rx, ry, 30);
+      await beat(page, 600);
+      await runBtn.hover();
+      await beat(page, 400);
+      await showCaption(page,
+        'Run Project',
+        'F5 launches the game in Ren\'Py — test your story without leaving the IDE',
+      );
+      await hold(page, 2000);
+      await runBtn.click();
+
+      // Wait for the toolbar to flip to the Stop button — confirms the process launched
+      await attempt(async () => {
+        const stopBtn = page.getByLabel('Stop Game');
+        await stopBtn.waitFor({ state: 'visible', timeout: 15_000 });
+        await beat(page, 500);
+        await showCaption(page,
+          'Run Project',
+          'Game process running — switch back any time, the IDE stays fully responsive',
+        );
+        await hold(page, 3000);
+        const [sx, sy] = await midpoint(stopBtn);
+        await glide(page, sx, sy, 25);
+        await beat(page, 500);
+        await stopBtn.click();
+        await beat(page, 1000);
+      });
+      await hideCaption(page);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACT XIV · The Finale
+    // ─────────────────────────────────────────────────────────────────────────
+
+    await test.step('ACT XIV — return to Project Canvas', async () => {
       await hideCaption(page);
       const switcher   = page.locator('[aria-label="Switch canvas"]');
       const projectBtn = switcher.getByRole('button').first();
@@ -950,7 +1111,7 @@ test.describe('cinematic demo', () => {
       await beat(page, 900);
       await showCaption(page,
         'Project Canvas',
-        'Back where it all begins — every script file, every story stage, one canvas',
+        'Back where it all begins — one project, multiple views',
       );
       await hold(page);
     });

@@ -55,11 +55,20 @@ protocol.registerSchemesAsPrivileged([
 // --- CLI startup flags ---
 // Supports: electron . --project /path/to/project
 //           electron . --user-data-dir /path/to/userData
-// Used by the Playwright screenshot capture script and power users.
+//           electron . --window-size 2560x1440
+// Used by the Playwright demo recording script and power users.
 const _projectArgIdx = process.argv.indexOf('--project');
 const startupProjectPath = (_projectArgIdx !== -1 && _projectArgIdx + 1 < process.argv.length)
     ? process.argv[_projectArgIdx + 1]
     : null;
+
+const _windowSizeArgIdx = process.argv.indexOf('--window-size');
+const _windowSizeArg = (_windowSizeArgIdx !== -1 && _windowSizeArgIdx + 1 < process.argv.length)
+    ? process.argv[_windowSizeArgIdx + 1]
+    : null;
+const _windowSizeMatch = _windowSizeArg?.match(/^(\d+)x(\d+)$/);
+const startupWindowWidth  = _windowSizeMatch ? parseInt(_windowSizeMatch[1], 10) : null;
+const startupWindowHeight = _windowSizeMatch ? parseInt(_windowSizeMatch[2], 10) : null;
 
 // Allow overriding settings via env var (used by Playwright screenshot capture).
 // RENIDE_SETTINGS_OVERRIDE: JSON string of AppSettings to merge over the saved file.
@@ -730,8 +739,8 @@ async function createWindow() {
   const savedState = await loadWindowState();
 
   const mainWindow = new BrowserWindow({
-    width: savedState?.width || 1280,
-    height: savedState?.height || 800,
+    width: startupWindowWidth || savedState?.width || 1280,
+    height: startupWindowHeight || savedState?.height || 800,
     x: savedState?.x,
     y: savedState?.y,
     webPreferences: {
