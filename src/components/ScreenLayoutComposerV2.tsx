@@ -25,15 +25,16 @@ type ElemDef = {
 const ELEM: Record<ScreenWidgetType, ElemDef> = {
   vbox:        { label: 'VBox',       icon: '↕',  colorClass: 'bg-blue-700',   isContainer: true,  defaultProps: {} },
   hbox:        { label: 'HBox',       icon: '↔',  colorClass: 'bg-blue-500',   isContainer: true,  defaultProps: {} },
-  frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600', isContainer: true,  defaultProps: { xsize: 140, ysize: 90 } },
-  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',    isContainer: true,  defaultProps: { xsize: 300, ysize: 200 } },
-  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',   isContainer: true,  defaultProps: { xsize: 300, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
+  // Sizes are 1920×1080 reference values; makeWidget scales them by gameWidth/1920
+  frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600', isContainer: true,  defaultProps: { xsize: 450, ysize: 300 } },
+  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',    isContainer: true,  defaultProps: { xsize: 800, ysize: 300 } },
+  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',   isContainer: true,  defaultProps: { xsize: 600, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
   text:        { label: 'Text',       icon: 'T',  colorClass: 'bg-gray-500',   isContainer: false, defaultProps: { text: 'Hello' } },
   image:       { label: 'Image',      icon: '⬜', colorClass: 'bg-emerald-700',isContainer: false, defaultProps: {} },
   textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
-  button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700', isContainer: true,  defaultProps: { xsize: 100, ysize: 40, action: 'Return()' } },
-  imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',  isContainer: false, defaultProps: { action: 'Return()' } },
-  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  isContainer: false, defaultProps: { xsize: 200, ysize: 20 } },
+  button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700', isContainer: true,  defaultProps: { xsize: 300, ysize: 54, action: 'Return()' } },
+  imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',  isContainer: false, defaultProps: { xsize: 200, ysize: 150, action: 'Return()' } },
+  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  isContainer: false, defaultProps: { xsize: 450, ysize: 36 } },
   input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    isContainer: false, defaultProps: { text: '' } },
   null:        { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    isContainer: false, defaultProps: {} },
   // Protected container types — parser-only, not in palette
@@ -80,12 +81,16 @@ function cloneTree(w: ScreenWidget[]): ScreenWidget[] {
   return JSON.parse(JSON.stringify(w)) as ScreenWidget[];
 }
 
-function makeWidget(type: ScreenWidgetType): ScreenWidget {
+function makeWidget(type: ScreenWidgetType, gameWidth = 1920): ScreenWidget {
   const def = ELEM[type];
+  const u = gameWidth / 1920;
+  const props = { ...def.defaultProps };
+  if (typeof props.xsize === 'number') props.xsize = Math.round(props.xsize * u);
+  if (typeof props.ysize === 'number') props.ysize = Math.round(props.ysize * u);
   return {
     id: genId(),
     type,
-    ...def.defaultProps,
+    ...props,
     ...(def.isContainer ? { children: [] } : {}),
   };
 }
@@ -378,7 +383,7 @@ function LayersPanel({
 type PointerDownFn = (e: React.PointerEvent, id: string) => void;
 
 function CanvasWidget({
-  widget, selectedId, onSelect, scale, onPointerDown, isTopLevel, onImageDrop,
+  widget, selectedId, onSelect, scale, onPointerDown, isTopLevel, onImageDrop, gameWidth,
 }: {
   widget: ScreenWidget;
   selectedId: string | null;
@@ -387,7 +392,12 @@ function CanvasWidget({
   onPointerDown?: PointerDownFn;
   isTopLevel: boolean;
   onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
+  gameWidth: number;
 }) {
+  // Unit scale: 1 at 1920×1080, proportional for other resolutions.
+  // All sizes below are Ren'Py default GUI values at 1920×1080 reference.
+  const u = gameWidth / 1920;
+
   const [imageDragOver, setImageDragOver] = useState(false);
   const isSelected = selectedId === widget.id;
 
@@ -420,54 +430,66 @@ function CanvasWidget({
       scale={scale}
       isTopLevel={false}
       onImageDrop={onImageDrop}
+      gameWidth={gameWidth}
     />
   ));
+
+  // Helpers for game-proportional values
+  const r = (n: number) => Math.round(n * u);
+  const fs = r(22);   // gui.text_size at 1920×1080
+  const fsSm = r(16); // smaller label / filename text
+  const br = r(4);    // border-radius for most widgets
+  const gap = r(6);   // vbox/hbox spacing (gui.pref_spacing ≈ 6)
+  const pad = r(8);   // default container padding
+  const trackW = r(12); // viewport scrollbar track width
+  const thumbW = r(8);  // viewport scrollbar thumb width
+  const imgW = r(240);  // default image/imagebutton width
+  const imgH = r(180);  // default image/imagebutton height
 
   switch (widget.type) {
     case 'vbox':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'flex', flexDirection: 'column', gap: 4, padding: 4, minWidth: 40, minHeight: 20, border: '1px dashed #93c5fd55' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'flex', flexDirection: 'column', gap, padding: pad, border: `${Math.max(1, r(1))}px dashed #93c5fd44` }}>
           {children}
         </div>
       );
     case 'hbox':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'flex', flexDirection: 'row', gap: 4, padding: 4, minWidth: 40, minHeight: 20, border: '1px dashed #93c5fd55' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'flex', flexDirection: 'row', gap, padding: pad, border: `${Math.max(1, r(1))}px dashed #93c5fd44` }}>
           {children}
         </div>
       );
     case 'frame':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: '2px solid #818cf8', borderRadius: 4, padding: 8, minWidth: 60, minHeight: 40 }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px solid #818cf8`, borderRadius: br, padding: r(12) }}>
           {children}
         </div>
       );
     case 'window':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: '2px solid #0ea5e9', borderRadius: 6, padding: 10, minWidth: 80, minHeight: 50, background: 'rgba(14,165,233,0.06)' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px solid #0ea5e9`, borderRadius: r(6), padding: r(12), background: 'rgba(14,165,233,0.06)' }}>
           {children}
         </div>
       );
     case 'viewport': {
-      const vpW = widget.xsize ?? 200;
-      const vpH = widget.ysize ?? 160;
+      const vpW = widget.xsize ?? r(600);
+      const vpH = widget.ysize ?? r(400);
       const hasScrollV = widget.scrollbars === 'vertical' || widget.scrollbars === 'both';
       const hasScrollH = widget.scrollbars === 'horizontal' || widget.scrollbars === 'both';
       return (
         <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, width: vpW, height: vpH, border: '2px solid #0891b2', borderRadius: 4, overflow: 'hidden', position: isTopLevel ? 'absolute' : 'relative' }}>
-          {/* scroll track indicators */}
+          style={{ ...base, width: vpW, height: vpH, border: `${Math.max(1, r(2))}px solid #0891b2`, borderRadius: br, overflow: 'hidden', position: isTopLevel ? 'absolute' : 'relative' }}>
           {hasScrollV && (
-            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 8, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 4, height: '40%', background: '#0891b2', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: trackW, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: thumbW, height: '40%', background: '#0891b2', borderRadius: thumbW / 2 }} />
             </div>
           )}
           {hasScrollH && (
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 8, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ height: 4, width: '40%', background: '#0891b2', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: trackW, background: '#164e63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ height: thumbW, width: '40%', background: '#0891b2', borderRadius: thumbW / 2 }} />
             </div>
           )}
-          <div style={{ position: 'absolute', inset: 0, padding: 4, paddingRight: hasScrollV ? 12 : 4, paddingBottom: hasScrollH ? 12 : 4, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ position: 'absolute', inset: 0, padding: pad, paddingRight: hasScrollV ? trackW + pad : pad, paddingBottom: hasScrollH ? trackW + pad : pad, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap }}>
             {children}
           </div>
         </div>
@@ -475,19 +497,19 @@ function CanvasWidget({
     }
     case 'button':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: '2px solid #ea580c', borderRadius: 4, minWidth: 40, minHeight: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px solid #ea580c`, borderRadius: br, minWidth: r(80), minHeight: r(54), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {children}
         </div>
       );
     case 'text':
       return (
-        <span onClick={click} onPointerDown={ptrDown} style={{ ...base, color: '#e5e7eb', fontSize: 14, whiteSpace: 'nowrap', display: 'inline-block' }}>
+        <span onClick={click} onPointerDown={ptrDown} style={{ ...base, color: '#e5e7eb', fontSize: fs, whiteSpace: 'nowrap', display: 'inline-block' }}>
           {widget.text || 'text'}
         </span>
       );
     case 'textbutton':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, background: '#c2410c', color: 'white', padding: '4px 12px', borderRadius: 4, fontSize: 13, display: 'inline-block', whiteSpace: 'nowrap' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, background: '#c2410c', color: 'white', padding: `${r(10)}px ${r(28)}px`, borderRadius: br, fontSize: fs, display: 'inline-block', whiteSpace: 'nowrap' }}>
           {widget.text || 'Button'}
         </div>
       );
@@ -508,7 +530,7 @@ function CanvasWidget({
           setImageDragOver(false);
         },
       };
-      const imgDropBorder = imageDragOver ? '2px solid #34d399' : undefined;
+      const imgDropBorder = imageDragOver ? `${Math.max(1, r(2))}px solid #34d399` : undefined;
       if (widget.imageDataUrl) {
         return (
           <img
@@ -517,62 +539,62 @@ function CanvasWidget({
             onClick={click}
             onPointerDown={ptrDown}
             {...imgDropHandlers}
-            style={{ ...base, maxWidth: 200, maxHeight: 150, objectFit: 'contain', display: 'block', ...(imgDropBorder ? { outline: imgDropBorder } : {}) }}
+            style={{ ...base, objectFit: 'contain', display: 'block', ...(imgDropBorder ? { outline: imgDropBorder } : {}) }}
           />
         );
       }
-      // Path set but no preview — broken or unresolved reference
+      const imgFallbackW = widget.xsize ?? imgW;
+      const imgFallbackH = widget.ysize ?? imgH;
       if (widget.imagePath) {
         return (
           <div onClick={click} onPointerDown={ptrDown} {...imgDropHandlers}
-            style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 60, border: imgDropBorder ?? '2px dashed #f59e0b', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: 10, gap: 3 }}>
-            <span style={{ fontSize: 16 }}>⚠</span>
-            <span style={{ maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{widget.imagePath.split('/').pop()}</span>
+            style={{ ...base, width: imgFallbackW, height: imgFallbackH, border: imgDropBorder ?? `${Math.max(1, r(2))}px dashed #f59e0b`, borderRadius: br, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: fsSm, gap: r(4) }}>
+            <span style={{ fontSize: r(24) }}>⚠</span>
+            <span style={{ maxWidth: r(160), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{widget.imagePath.split('/').pop()}</span>
           </div>
         );
       }
-      // No path — empty drop target
       return (
         <div onClick={click} onPointerDown={ptrDown} {...imgDropHandlers}
-          style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 60, border: imgDropBorder ?? '2px dashed #059669', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6ee7b7', fontSize: 11 }}>
+          style={{ ...base, width: imgFallbackW, height: imgFallbackH, border: imgDropBorder ?? `${Math.max(1, r(2))}px dashed #059669`, borderRadius: br, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6ee7b7', fontSize: fsSm }}>
           {imageDragOver ? 'Drop image' : 'add image'}
         </div>
       );
     }
     case 'imagebutton':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? 80, height: widget.ysize ?? 50, border: '2px solid #d97706', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: 10, background: '#1c1917' }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? imgW, height: widget.ysize ?? imgH, border: `${Math.max(1, r(2))}px solid #d97706`, borderRadius: br, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', fontSize: r(18), background: '#1c1917' }}>
           IB
         </div>
       );
     case 'bar':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? 200, height: widget.ysize ?? 20, background: '#3b0764', borderRadius: 4, overflow: 'hidden', position: isTopLevel ? 'absolute' : 'relative' }}>
-          <div style={{ left: widget.xpos ?? 0, top: widget.ypos ?? 0, width: '60%', height: '100%', background: '#7c3aed', borderRadius: 4, position: 'absolute' }} />
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(450), height: widget.ysize ?? r(36), background: '#3b0764', borderRadius: r(18), overflow: 'hidden', position: isTopLevel ? 'absolute' : 'relative' }}>
+          <div style={{ width: '60%', height: '100%', background: '#7c3aed', borderRadius: r(18) }} />
         </div>
       );
     case 'input':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, padding: '3px 8px', border: '1px solid #0f766e', borderRadius: 4, background: '#042f2e', color: '#99f6e4', fontSize: 13, minWidth: 120, display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, padding: `${r(8)}px ${r(18)}px`, border: `${Math.max(1, r(1))}px solid #0f766e`, borderRadius: br, background: '#042f2e', color: '#99f6e4', fontSize: fs, minWidth: r(300), display: 'inline-flex', alignItems: 'center', gap: r(2) }}>
           <span>{widget.text || ''}</span>
           <span style={{ opacity: 0.5 }}>|</span>
         </div>
       );
     case 'null':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: 20, height: 20, border: '1px dashed #6b7280', opacity: 0.4 }} />
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(50), height: widget.ysize ?? r(50), border: `${Math.max(1, r(1))}px dashed #6b7280`, opacity: 0.4 }} />
       );
     case 'if': {
       const ifChildren = widget.children ?? [];
       return (
         <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: '2px dashed #d97706', borderRadius: 4, padding: 6, minWidth: 60, minHeight: 32, background: 'rgba(217,119,6,0.06)' }}>
-          <div style={{ fontSize: 9, color: '#fbbf24', marginBottom: 4, fontFamily: 'monospace', userSelect: 'none' }}>
+          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #d97706`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(217,119,6,0.06)' }}>
+          <div style={{ fontSize: r(14), color: '#fbbf24', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
             if {widget.condition}
           </div>
           {ifChildren.map(child => (
             <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
-              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} />
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
           ))}
         </div>
       );
@@ -581,13 +603,13 @@ function CanvasWidget({
       const forChildren = widget.children ?? [];
       return (
         <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: '2px dashed #ca8a04', borderRadius: 4, padding: 6, minWidth: 60, minHeight: 32, background: 'rgba(202,138,4,0.06)' }}>
-          <div style={{ fontSize: 9, color: '#fde68a', marginBottom: 4, fontFamily: 'monospace', userSelect: 'none' }}>
+          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #ca8a04`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(202,138,4,0.06)' }}>
+          <div style={{ fontSize: r(14), color: '#fde68a', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
             for {widget.forVariable} in {widget.forIterable}
           </div>
           {forChildren.map(child => (
             <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
-              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} />
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
           ))}
         </div>
       );
@@ -595,14 +617,14 @@ function CanvasWidget({
     case 'python':
       return (
         <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: '1px dashed #f43f5e', borderRadius: 3, padding: '3px 8px', background: 'rgba(244,63,94,0.07)', fontFamily: 'monospace', fontSize: 10, color: '#fda4af', whiteSpace: 'pre', maxWidth: 280, minWidth: 60 }}>
+          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #f43f5e`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(244,63,94,0.07)', fontFamily: 'monospace', fontSize: r(18), color: '#fda4af', whiteSpace: 'pre', maxWidth: r(600), minWidth: r(100) }}>
           $ {widget.code ?? ''}
         </div>
       );
     case 'raw':
       return (
         <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: '1px dashed #71717a', borderRadius: 3, padding: '3px 8px', background: 'rgba(113,113,122,0.07)', fontFamily: 'monospace', fontSize: 10, color: '#a1a1aa', whiteSpace: 'pre', maxWidth: 280, minWidth: 60 }}>
+          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #71717a`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(113,113,122,0.07)', fontFamily: 'monospace', fontSize: r(18), color: '#a1a1aa', whiteSpace: 'pre', maxWidth: r(600), minWidth: r(100) }}>
           {widget.code ?? ''}
         </div>
       );
@@ -745,6 +767,7 @@ function ComposerCanvas({
             onPointerDown={handlePointerDown}
             isTopLevel
             onImageDrop={onImageDrop}
+            gameWidth={composition.gameWidth}
           />
         ))}
       </div>
@@ -1018,11 +1041,11 @@ export default function ScreenLayoutComposerV2({
   }
 
   const handleDrop = useCallback((type: ScreenWidgetType, x: number, y: number) => {
-    const newW = makeWidget(type);
+    const newW = makeWidget(type, composition.gameWidth);
     updateWidgets(ws => insertIntoTree(ws, newW, selectedId, x, y));
     setSelectedId(newW.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
+  }, [selectedId, composition.gameWidth]);
 
   const handlePatchWidget = useCallback((id: string, patch: Partial<ScreenWidget>) => {
     updateWidgets(ws => patchInTree(ws, id, patch));
