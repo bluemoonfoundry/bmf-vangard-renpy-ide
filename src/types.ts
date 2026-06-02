@@ -880,7 +880,8 @@ export type ScreenWidgetType =
   'vbox' | 'hbox' | 'frame' | 'window' | 'viewport' |
   'text' | 'image' |
   'textbutton' | 'button' | 'imagebutton' |
-  'bar' | 'input' | 'null';
+  'bar' | 'input' | 'null' |
+  'if' | 'for' | 'python' | 'raw';
 
 /**
  * A single widget node in a screen layout composition.
@@ -908,6 +909,18 @@ export interface ScreenWidget {
   scrollbars?: 'vertical' | 'horizontal' | 'both';
   /** 'viewport' widget: whether to enable mousewheel scrolling */
   mousewheel?: boolean;
+  /** 'if' widget: condition expression, e.g. "persistent.flag" */
+  condition?: string;
+  /** 'if' widget: else-branch children */
+  elseChildren?: ScreenWidget[];
+  /** 'for' widget: loop variable, e.g. "channel_name" */
+  forVariable?: string;
+  /** 'for' widget: iterable expression, e.g. "persistent.channels" */
+  forIterable?: string;
+  /** 'python' and 'raw' widgets: verbatim source content */
+  code?: string;
+  /** Unrecognised attribute lines preserved verbatim; emitted before children in code gen */
+  extraProps?: string[];
 }
 
 /**

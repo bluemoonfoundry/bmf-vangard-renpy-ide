@@ -37,6 +37,13 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
     const isContainer = widget.type === 'vbox' || widget.type === 'hbox' || widget.type === 'frame';
     const hasChildren = isContainer && widget.children && widget.children.length > 0;
 
+    // Emit unrecognised attributes verbatim before children (on their own lines).
+    function emitExtraProps(atDepth: number): string[] {
+        if (!widget.extraProps?.length) return [];
+        const p = indent.repeat(atDepth);
+        return widget.extraProps.map(ep => `${p}${ep}`);
+    }
+
     switch (widget.type) {
         case 'null':
             lines.push(`${pad}null`);
@@ -57,9 +64,10 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         case 'button': {
             const attrs = widget.action ? `action ${widget.action}` : '';
             const allAttrs = [attrs, ...posAttrs].filter(Boolean).join(' ');
-            if (hasChildren) {
+            if (widget.children && widget.children.length > 0) {
                 lines.push(`${pad}button${allAttrs ? ' ' + allAttrs : ''}:`);
-                for (const child of widget.children!) {
+                lines.push(...emitExtraProps(depth + 1));
+                for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
@@ -92,8 +100,9 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         case 'window': {
             const containerAttrs = posAttrs.join(' ');
             lines.push(`${pad}${widget.type}${containerAttrs ? ' ' + containerAttrs : ''}:`);
-            if (hasChildren) {
-                for (const child of widget.children!) {
+            lines.push(...emitExtraProps(depth + 1));
+            if (widget.children && widget.children.length > 0) {
+                for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
@@ -105,16 +114,64 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         case 'viewport': {
             const containerAttrs = posAttrs.join(' ');
             lines.push(`${pad}viewport${containerAttrs ? ' ' + containerAttrs : ''}:`);
-            // viewport-specific properties as indented lines
             if (widget.scrollbars) lines.push(`${pad}${indent}scrollbars "${widget.scrollbars}"`);
             if (widget.mousewheel)  lines.push(`${pad}${indent}mousewheel True`);
-            if (hasChildren) {
-                for (const child of widget.children!) {
+            lines.push(...emitExtraProps(depth + 1));
+            if (widget.children && widget.children.length > 0) {
+                for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
                 lines.push(`${pad}${indent}pass`);
             }
+            break;
+        }
+
+        case 'if': {
+            lines.push(`${pad}if ${widget.condition ?? 'True'}:`);
+            if (widget.children && widget.children.length > 0) {
+                for (const child of widget.children) {
+                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+                }
+            } else {
+                lines.push(`${pad}${indent}pass`);
+            }
+            if (widget.elseChildren && widget.elseChildren.length > 0) {
+                lines.push(`${pad}else:`);
+                for (const child of widget.elseChildren) {
+                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+                }
+            }
+            break;
+        }
+
+        case 'for': {
+            lines.push(`${pad}for ${widget.forVariable ?? '_item'} in ${widget.forIterable ?? '[]'}:`);
+            if (widget.children && widget.children.length > 0) {
+                for (const child of widget.children) {
+                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+                }
+            } else {
+                lines.push(`${pad}${indent}pass`);
+            }
+            break;
+        }
+
+        case 'python': {
+            const code = widget.code ?? '';
+            if (code.includes('\n')) {
+                lines.push(`${pad}python:`);
+                for (const cl of code.split('\n')) {
+                    lines.push(`${pad}${indent}${cl}`);
+                }
+            } else {
+                lines.push(`${pad}$ ${code}`);
+            }
+            break;
+        }
+
+        case 'raw': {
+            lines.push(`${pad}${widget.code ?? ''}`);
             break;
         }
     }

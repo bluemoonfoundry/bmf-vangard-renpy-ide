@@ -32,7 +32,7 @@ const Icon: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
     </svg>
 );
 
-const WIDGET_ICONS: Record<ScreenWidgetType, React.ReactNode> = {
+const WIDGET_ICONS: Partial<Record<ScreenWidgetType, React.ReactNode>> = {
     vbox:        <Icon><rect x="3" y="2"  width="14" height="4" rx="1" fill="currentColor" opacity="0.9"/><rect x="3" y="8"  width="14" height="4" rx="1" fill="currentColor" opacity="0.6"/><rect x="3" y="14" width="14" height="4" rx="1" fill="currentColor" opacity="0.35"/></Icon>,
     hbox:        <Icon><rect x="2"  y="3" width="4" height="14" rx="1" fill="currentColor" opacity="0.9"/><rect x="8"  y="3" width="4" height="14" rx="1" fill="currentColor" opacity="0.6"/><rect x="14" y="3" width="4" height="14" rx="1" fill="currentColor" opacity="0.35"/></Icon>,
     frame:       <Icon><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2"/><rect x="5" y="5" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1" strokeDasharray="2 1.5" opacity="0.5"/></Icon>,
@@ -46,7 +46,7 @@ const WIDGET_ICONS: Record<ScreenWidgetType, React.ReactNode> = {
     null:        <Icon><path d="M3 10h2.5M8.5 10h3M14.5 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5"/><path d="M3 6h14M3 14h14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeDasharray="2 2" opacity="0.25"/></Icon>,
 };
 
-const WIDGET_ICON_COLORS: Record<ScreenWidgetType, string> = {
+const WIDGET_ICON_COLORS: Partial<Record<ScreenWidgetType, string>> = {
     vbox:        'text-blue-500   dark:text-blue-400',
     hbox:        'text-indigo-500 dark:text-indigo-400',
     frame:       'text-purple-500 dark:text-purple-400',
@@ -60,7 +60,7 @@ const WIDGET_ICON_COLORS: Record<ScreenWidgetType, string> = {
     null:        'text-gray-400   dark:text-gray-500',
 };
 
-const WIDGET_TILE_COLORS: Record<ScreenWidgetType, string> = {
+const WIDGET_TILE_COLORS: Partial<Record<ScreenWidgetType, string>> = {
     vbox:        'bg-blue-50   dark:bg-blue-950  border-blue-200   dark:border-blue-800  hover:border-blue-400   dark:hover:border-blue-500',
     hbox:        'bg-indigo-50 dark:bg-indigo-950 border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-500',
     frame:       'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-500',
@@ -74,7 +74,7 @@ const WIDGET_TILE_COLORS: Record<ScreenWidgetType, string> = {
     null:        'bg-gray-50   dark:bg-gray-900  border-gray-200   dark:border-gray-700  hover:border-gray-300   dark:hover:border-gray-500',
 };
 
-const WIDGET_LABELS: Record<ScreenWidgetType, string> = {
+const WIDGET_LABELS: Partial<Record<ScreenWidgetType, string>> = {
     vbox: 'Vertical Box', hbox: 'Horizontal Box', frame: 'Frame',
     text: 'Text', image: 'Image', textbutton: 'Text Button',
     button: 'Button', imagebutton: 'Image Button', bar: 'Bar',

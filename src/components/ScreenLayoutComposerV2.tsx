@@ -10,6 +10,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import type { Dispatch, SetStateAction } from 'react';
 import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/types';
 import { generateScreenCode } from '@/lib/screenCodeGenerator';
+import { parseScreenCode } from '@/lib/screenParser';
 
 // ─── Element catalogue ────────────────────────────────────────────────────────
 
@@ -32,10 +33,15 @@ const ELEM: Record<ScreenWidgetType, ElemDef> = {
   textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
   button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700', isContainer: true,  defaultProps: { xsize: 100, ysize: 40, action: 'Return()' } },
   imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',  isContainer: false, defaultProps: { action: 'Return()' } },
-  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600', isContainer: false, defaultProps: { xsize: 200, ysize: 20 } },
-  input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',   isContainer: false, defaultProps: { text: '' } },
-  null:        { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',   isContainer: false, defaultProps: {} },
-};
+  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  isContainer: false, defaultProps: { xsize: 200, ysize: 20 } },
+  input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    isContainer: false, defaultProps: { text: '' } },
+  null:        { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    isContainer: false, defaultProps: {} },
+  // Protected container types — parser-only, not in palette
+  if:          { label: 'if',         icon: '?',  colorClass: 'bg-amber-700',   isContainer: true,  defaultProps: {} },
+  for:         { label: 'for',        icon: '↺',  colorClass: 'bg-yellow-700',  isContainer: true,  defaultProps: {} },
+  python:      { label: 'python',     icon: '$',  colorClass: 'bg-rose-800',    isContainer: false, defaultProps: {} },
+  raw:         { label: 'raw',        icon: '{}', colorClass: 'bg-zinc-600',    isContainer: false, defaultProps: {} },
+} as Record<ScreenWidgetType, ElemDef>;
 
 const PALETTE_GROUPS: { label: string; types: ScreenWidgetType[] }[] = [
   { label: 'Layout',      types: ['vbox', 'hbox', 'frame', 'window', 'viewport'] },
@@ -308,6 +314,27 @@ function LayerNode({
           onImageDrop={onImageDrop}
         />
       ))}
+      {/* Render else-branch for 'if' widgets */}
+      {widget.type === 'if' && expanded && widget.elseChildren && widget.elseChildren.length > 0 && (
+        <>
+          <div style={{ paddingLeft: `${(depth + 1) * 14 + 6}px` }} className="py-[2px] text-[10px] text-amber-400 font-mono opacity-70 select-none">
+            else:
+          </div>
+          {widget.elseChildren.map(child => (
+            <LayerNode
+              key={child.id}
+              widget={child}
+              depth={depth + 1}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              layerDragId={layerDragId}
+              setLayerDragId={setLayerDragId}
+              onReorder={onReorder}
+              onImageDrop={onImageDrop}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -535,6 +562,50 @@ function CanvasWidget({
       return (
         <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: 20, height: 20, border: '1px dashed #6b7280', opacity: 0.4 }} />
       );
+    case 'if': {
+      const ifChildren = widget.children ?? [];
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: '2px dashed #d97706', borderRadius: 4, padding: 6, minWidth: 60, minHeight: 32, background: 'rgba(217,119,6,0.06)' }}>
+          <div style={{ fontSize: 9, color: '#fbbf24', marginBottom: 4, fontFamily: 'monospace', userSelect: 'none' }}>
+            if {widget.condition}
+          </div>
+          {ifChildren.map(child => (
+            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} />
+          ))}
+        </div>
+      );
+    }
+    case 'for': {
+      const forChildren = widget.children ?? [];
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: '2px dashed #ca8a04', borderRadius: 4, padding: 6, minWidth: 60, minHeight: 32, background: 'rgba(202,138,4,0.06)' }}>
+          <div style={{ fontSize: 9, color: '#fde68a', marginBottom: 4, fontFamily: 'monospace', userSelect: 'none' }}>
+            for {widget.forVariable} in {widget.forIterable}
+          </div>
+          {forChildren.map(child => (
+            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} />
+          ))}
+        </div>
+      );
+    }
+    case 'python':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: '1px dashed #f43f5e', borderRadius: 3, padding: '3px 8px', background: 'rgba(244,63,94,0.07)', fontFamily: 'monospace', fontSize: 10, color: '#fda4af', whiteSpace: 'pre', maxWidth: 280, minWidth: 60 }}>
+          $ {widget.code ?? ''}
+        </div>
+      );
+    case 'raw':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: '1px dashed #71717a', borderRadius: 3, padding: '3px 8px', background: 'rgba(113,113,122,0.07)', fontFamily: 'monospace', fontSize: 10, color: '#a1a1aa', whiteSpace: 'pre', maxWidth: 280, minWidth: 60 }}>
+          {widget.code ?? ''}
+        </div>
+      );
     default:
       return null;
   }
@@ -751,6 +822,48 @@ function PropertiesPanel({
     );
   }
 
+  // Protected container types — read-only info panel
+  if (widget.type === 'if' || widget.type === 'for' || widget.type === 'python' || widget.type === 'raw') {
+    return (
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-3 py-2 border-b border-gray-700">
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-white font-semibold ${ELEM[widget.type].colorClass}`}>
+            {ELEM[widget.type].icon} {ELEM[widget.type].label}
+          </span>
+          <p className="text-[10px] text-amber-400 mt-1.5">Protected — edit in code</p>
+        </div>
+        {widget.type === 'if' && (
+          <div className="px-3 py-2">
+            <p className="text-[10px] text-gray-500 mb-1">Condition</p>
+            <code className="text-[11px] text-amber-300 font-mono break-all">{widget.condition}</code>
+          </div>
+        )}
+        {widget.type === 'for' && (
+          <div className="px-3 py-2">
+            <p className="text-[10px] text-gray-500 mb-1">Loop</p>
+            <code className="text-[11px] text-yellow-300 font-mono break-all">
+              for {widget.forVariable} in {widget.forIterable}
+            </code>
+          </div>
+        )}
+        {(widget.type === 'python' || widget.type === 'raw') && widget.code && (
+          <div className="px-3 py-2">
+            <p className="text-[10px] text-gray-500 mb-1">Source</p>
+            <pre className="text-[10px] text-rose-300 font-mono whitespace-pre-wrap break-all">{widget.code}</pre>
+          </div>
+        )}
+        {widget.extraProps && widget.extraProps.length > 0 && (
+          <div className="px-3 py-2 border-t border-gray-700/60">
+            <p className="text-[10px] text-gray-500 mb-1">Extra attributes</p>
+            {widget.extraProps.map((ep, i) => (
+              <code key={i} className="block text-[10px] text-gray-400 font-mono">{ep}</code>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const d = ELEM[widget.type];
 
   return (
@@ -877,6 +990,8 @@ export interface ScreenLayoutComposerV2Props {
   isActive: boolean;
   onDuplicate: () => void;
   onGoToCode?: () => void;
+  /** Raw Ren'Py screen block text — when provided, enables "Load from Code" */
+  sourceCode?: string;
   activeEditor: unknown;
 }
 
@@ -888,6 +1003,7 @@ export default function ScreenLayoutComposerV2({
   isLocked,
   onDuplicate,
   onGoToCode,
+  sourceCode,
 }: ScreenLayoutComposerV2Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingPaletteType, setDraggingPaletteType] = useState<ScreenWidgetType | null>(null);
@@ -954,6 +1070,19 @@ export default function ScreenLayoutComposerV2({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleDelete]);
 
+  const handleLoadFromCode = useCallback(() => {
+    if (!sourceCode) return;
+    const parsed = parseScreenCode(sourceCode);
+    onCompositionChange(prev => ({
+      ...parsed,
+      // Preserve canvas dimensions from existing composition
+      gameWidth: prev.gameWidth,
+      gameHeight: prev.gameHeight,
+    }));
+    setSelectedId(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceCode]);
+
   const selectedWidget = selectedId ? findWidget(composition.widgets, selectedId) : null;
   const generatedCode = useMemo(() => generateScreenCode(composition), [composition]);
 
@@ -987,6 +1116,15 @@ export default function ScreenLayoutComposerV2({
           </span>
         )}
         <div className="flex-1" />
+        {sourceCode && (
+          <button
+            onClick={handleLoadFromCode}
+            className="text-xs text-amber-400 hover:text-amber-200 px-2 py-1 rounded hover:bg-amber-900/30 transition-colors border border-amber-700/40"
+            title="Parse the .rpy screen code and load it into the composer"
+          >
+            Load from Code
+          </button>
+        )}
         <button
           onClick={onDuplicate}
           className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded hover:bg-gray-700 transition-colors"

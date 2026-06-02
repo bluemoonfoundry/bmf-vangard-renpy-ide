@@ -4714,6 +4714,26 @@ const App: React.FC = () => {
       };
       const isLayoutLocked = analysisResult.screens.has(composition.screenName);
       const isTabActive = tab.id === activeTabId || tab.id === secondaryActiveTabId;
+      // Extract the raw screen block from the source file for "Load from Code".
+      const screenDef = isLayoutLocked ? analysisResult.screens.get(composition.screenName) : undefined;
+      const screenSourceCode = screenDef
+        ? (() => {
+            const block = blocks.find(b => b.id === screenDef.definedInBlockId);
+            if (!block) return undefined;
+            const lines = block.content.split('\n');
+            // Find the screen declaration line (1-indexed in RenpyScreen)
+            const startIdx = Math.max(0, screenDef.line - 1);
+            // Collect until the next top-level statement (line with no indent and non-blank/comment)
+            const bodyLines: string[] = [lines[startIdx]];
+            for (let i = startIdx + 1; i < lines.length; i++) {
+              const l = lines[i];
+              if (l.trim() === '' || l.trim().startsWith('#')) { bodyLines.push(l); continue; }
+              if (!/^\s/.test(l)) break; // next top-level declaration
+              bodyLines.push(l);
+            }
+            return bodyLines.join('\n');
+          })()
+        : undefined;
       return <ScreenLayoutComposer
         composition={composition}
         onCompositionChange={(val) => handleScreenLayoutUpdate(tab.layoutId!, val)}
@@ -4727,6 +4747,7 @@ const App: React.FC = () => {
             const def = analysisResult.screens.get(composition.screenName);
             if (def) handleOpenEditor(def.definedInBlockId, def.line);
         } : undefined}
+        sourceCode={screenSourceCode}
         activeEditor={getActiveEditor()}
       />;
     }
