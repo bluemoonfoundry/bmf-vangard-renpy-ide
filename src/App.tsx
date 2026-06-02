@@ -4291,6 +4291,17 @@ const App: React.FC = () => {
     if (def) handleOpenEditor(def.definedInBlockId, def.line);
   }, [analysisResult.screens, handleOpenEditor]);
 
+  const handleOpenScreenInComposer = useCallback((screenName: string) => {
+    // Re-use an existing composition for this screen if one already exists.
+    const existingId = Object.entries(screenLayoutCompositions)
+      .find(([, comp]) => comp.screenName === screenName)?.[0];
+    if (existingId) {
+      handleOpenScreenLayout(existingId);
+    } else {
+      handleCreateScreenLayout(screenName);
+    }
+  }, [screenLayoutCompositions, handleOpenScreenLayout, handleCreateScreenLayout]);
+
   const handleAddImageScanDirectory = useCallback(async () => {
     if (window.electronAPI) {
       try {
@@ -5156,6 +5167,7 @@ const App: React.FC = () => {
                 onEditVariable={handleEditVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
                 onFindScreenDefinition={handleFindScreenDefinition}
+                onOpenScreenInComposer={handleOpenScreenInComposer}
                 // Image Props
                 projectImages={images}
                 imageMetadata={imageMetadata}

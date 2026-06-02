@@ -98,6 +98,7 @@ interface StoryElementsPanelProps {
     onFindVariableUsages: (variableName: string) => void;
     // Screen callbacks
     onFindScreenDefinition: (screenName: string) => void;
+    onOpenScreenInComposer: (screenName: string) => void;
     // Image props & callbacks
     projectImages: Map<string, ProjectImage>;
     imageMetadata: Map<string, ImageMetadata>;
@@ -178,7 +179,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     analysisResult,
     onOpenCharacterEditor, onFindCharacterUsages,
     onAddVariable, onEditVariable, onFindVariableUsages,
-    onFindScreenDefinition,
+    onFindScreenDefinition, onOpenScreenInComposer,
     projectImages, imageMetadata, onAddImageScanDirectory, onRemoveImageScanDirectory, imageScanDirectories, onCopyImagesToProject, onOpenImageEditor, imagesLastScanned, isRefreshingImages, onRefreshImages,
     projectAudios, audioMetadata, onAddAudioScanDirectory, onRemoveAudioScanDirectory, audioScanDirectories, onCopyAudiosToProject, onOpenAudioEditor, audiosLastScanned, isRefreshingAudios, onRefreshAudios,
     isFileSystemApiSupported,
@@ -322,6 +323,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                         <ScreenManager
                             screens={analysisResult.screens}
                             onFindDefinition={onFindScreenDefinition}
+                            onOpenInComposer={onOpenScreenInComposer}
                         />
                     </div>
                 )}
