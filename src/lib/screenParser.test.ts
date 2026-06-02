@@ -73,7 +73,7 @@ describe('screenParser', () => {
     expect(comp.widgets[1].type).toBe('text');
   });
 
-  it('preserves unrecognised attributes in extraProps', () => {
+  it('preserves unrecognised attributes as raw child nodes', () => {
     const code = `screen test():
     frame:
         background "#000"
@@ -81,11 +81,18 @@ describe('screenParser', () => {
         text "hi"`;
     const comp = parseScreenCode(code);
     const frame = comp.widgets[0];
-    expect(frame.extraProps).toContain('background "#000"');
-    expect(frame.extraProps).toContain('xfill True');
+    // Unrecognised attributes become raw child nodes in insertion order
+    expect(frame.children).toBeDefined();
+    const rawCodes = frame.children!
+      .filter(c => c.type === 'raw')
+      .map(c => c.code);
+    expect(rawCodes).toContain('background "#000"');
+    expect(rawCodes).toContain('xfill True');
+    // Known children still appear
+    expect(frame.children!.some(c => c.type === 'text')).toBe(true);
   });
 
-  it('emits extraProps verbatim in code generation round-trip', () => {
+  it('emits raw child nodes verbatim in code generation round-trip', () => {
     const code = `screen test():
     frame:
         background "#000"
@@ -134,6 +141,74 @@ describe('screenParser', () => {
     const comp = parseScreenCode(code);
     expect(comp.widgets[0].type).toBe('image');
     expect(comp.widgets[0].imagePath).toBe('images/bg.png');
+  });
+
+  it('parses screen parameters', () => {
+    const code = `screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):
+    text "hi"`;
+    const comp = parseScreenCode(code);
+    expect(comp.screenName).toBe('game_menu');
+    expect(comp.parameters).toBe('title, scroll=None, yinitial=0.0, spacing=0');
+    expect(generateScreenCode(comp)).toContain('screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):');
+  });
+
+  it('captures elif chain as raw sibling blocks', () => {
+    const code = `screen test():
+    if scroll == "viewport":
+        text "vp"
+    elif scroll == "vpgrid":
+        text "grid"
+    else:
+        text "other"`;
+    const comp = parseScreenCode(code);
+    // Top level: if widget + 2 raw siblings (elif block, else block)
+    expect(comp.widgets).toHaveLength(3);
+    expect(comp.widgets[0].type).toBe('if');
+    expect(comp.widgets[0].children![0].type).toBe('text');
+    expect(comp.widgets[1].type).toBe('raw');
+    expect(comp.widgets[1].code).toContain('elif scroll == "vpgrid":');
+    expect(comp.widgets[1].code).toContain('text "grid"');
+    expect(comp.widgets[2].type).toBe('raw');
+    expect(comp.widgets[2].code).toContain('else:');
+  });
+
+  it('captures unrecognised block statements as multi-line raw nodes', () => {
+    const code = `screen test():
+    vpgrid:
+        cols 1
+        text "a"
+        text "b"`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('raw');
+    const raw = comp.widgets[0];
+    expect(raw.code).toContain('vpgrid:');
+    expect(raw.code).toContain('cols 1');
+    expect(raw.code).toContain('text "a"');
+  });
+
+  it('captures unquoted add expression without wrapping in quotes', () => {
+    const code = `screen test():
+    add gui.main_menu_background`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('image');
+    expect(comp.widgets[0].imagePath).toBe('gui.main_menu_background');
+    const out = generateScreenCode(comp);
+    expect(out).toContain('add gui.main_menu_background');
+    expect(out).not.toContain('add "gui.main_menu_background"');
+  });
+
+  it('emits style as child property for containers', () => {
+    const code = `screen test():
+    frame:
+        style "my_frame"
+        text "hi"`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].style).toBe('my_frame');
+    const out = generateScreenCode(comp);
+    // style should be on its own child line, not inline on frame declaration
+    expect(out).toMatch(/frame\s*:/);
+    expect(out).toContain('    style "my_frame"');
+    expect(out).not.toContain('frame style');
   });
 
   it('falls back to raw for unrecognised top-level lines', () => {

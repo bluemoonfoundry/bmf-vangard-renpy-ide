@@ -929,6 +929,8 @@ export interface ScreenWidget {
  */
 export interface ScreenLayoutComposition {
   screenName: string;
+  /** Raw parameter list from the screen declaration, e.g. "title, scroll=None" */
+  parameters?: string;
   gameWidth: number;
   gameHeight: number;
   modal: boolean;

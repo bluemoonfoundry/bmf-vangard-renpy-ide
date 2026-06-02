@@ -1,28 +1,30 @@
 import type { ScreenLayoutComposition, ScreenWidget } from '@/types';
 
 /**
- * Recursively generates Ren'Py screen language code for a widget and its children.
- *
- * Handles all widget types supported by the Screen Layout Composer:
- * - Simple widgets: text, image, textbutton, imagebutton, bar, input, null
- * - Container widgets: vbox, hbox, frame, button (each recursively renders children)
- *
- * Positioning attributes (xpos/ypos/xalign/yalign) are only rendered for top-level widgets;
- * widgets inside containers inherit layout from their parent container. Style attributes
- * and action callbacks are rendered inline on the widget declaration line.
- *
- * @param widget - The widget to render
- * @param depth - Current indentation depth (number of indent strings)
- * @param insideContainer - Whether this widget is inside a container (suppresses positioning)
- * @param indent - Indentation string (typically 4 spaces)
- * @returns Multi-line Ren'Py screen language code
- *
- * @complexity O(w) time where w = total widget count (recursive tree traversal), O(d) space where d = tree depth
+ * Returns true if the string looks like a Ren'Py expression rather than a
+ * plain quoted path (e.g. gui.main_menu_background, _("Return"), some_var).
+ * These should be emitted without surrounding quotes.
  */
+function isExpression(s: string): boolean {
+  // Expressions contain dots, parens, or brackets — typical file paths contain slashes.
+  return /[.()\[\]]/.test(s) && !s.includes('/') && !s.includes('\\');
+}
+
+function emitTextArg(text: string | undefined): string {
+  if (!text) return '""';
+  return isExpression(text) ? text : `"${text}"`;
+}
+
+function emitPathArg(path: string | undefined): string {
+  if (!path) return '""';
+  return isExpression(path) ? path : `"${path}"`;
+}
+
 function generateWidget(widget: ScreenWidget, depth: number, insideContainer: boolean, indent: string): string {
     const pad = indent.repeat(depth);
     const lines: string[] = [];
 
+    // Positioning attrs (inline on declaration line, NOT style which goes as child property).
     const posAttrs: string[] = [];
     if (!insideContainer) {
         if (widget.xpos !== undefined) posAttrs.push(`xpos ${widget.xpos}`);
@@ -32,16 +34,31 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
     }
     if (widget.xsize !== undefined) posAttrs.push(`xsize ${widget.xsize}`);
     if (widget.ysize !== undefined) posAttrs.push(`ysize ${widget.ysize}`);
-    if (widget.style) posAttrs.push(`style "${widget.style}"`);
+    // style is NOT in posAttrs — it's emitted as a child property line for containers.
 
-    const isContainer = widget.type === 'vbox' || widget.type === 'hbox' || widget.type === 'frame';
-    const hasChildren = isContainer && widget.children && widget.children.length > 0;
-
-    // Emit unrecognised attributes verbatim before children (on their own lines).
-    function emitExtraProps(atDepth: number): string[] {
-        if (!widget.extraProps?.length) return [];
+    // Emit style + extraProps as child property lines.
+    function emitChildProps(atDepth: number): string[] {
         const p = indent.repeat(atDepth);
-        return widget.extraProps.map(ep => `${p}${ep}`);
+        const out: string[] = [];
+        if (widget.style) out.push(`${p}style "${widget.style}"`);
+        if (widget.extraProps?.length) {
+            for (const ep of widget.extraProps) out.push(`${p}${ep}`);
+        }
+        return out;
+    }
+
+    // For raw multi-line code, indent each body line relative to the opening line.
+    function emitRawBlock(code: string, openLine: string): string {
+        const rawLines = code.split('\n');
+        const first = rawLines[0];
+        // If the first line IS the opening line (single-line raw), just emit it.
+        if (rawLines.length === 1) return `${pad}${first}`;
+        // Multi-line: opening line + body indented by one extra level.
+        const out = [`${pad}${first}`];
+        for (let i = 1; i < rawLines.length; i++) {
+            out.push(`${pad}${rawLines[i]}`);
+        }
+        return out.join('\n');
     }
 
     switch (widget.type) {
@@ -50,35 +67,50 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
             break;
 
         case 'text':
-            lines.push(`${pad}text "${widget.text ?? ''}"${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
+            lines.push(`${pad}text ${emitTextArg(widget.text)}${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
             break;
 
         case 'image':
-            lines.push(`${pad}add "${widget.imagePath ?? ''}"${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
+            lines.push(`${pad}add ${emitPathArg(widget.imagePath)}${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
             break;
 
-        case 'textbutton':
-            lines.push(`${pad}textbutton "${widget.text ?? ''}" action ${widget.action || 'Return()'}${posAttrs.length ? ' ' + posAttrs.join(' ') : ''}`);
+        case 'textbutton': {
+            // If the textbutton has style/extraProps it needs a block.
+            const tbHasBlock = !!(widget.style || widget.extraProps?.length);
+            const tbAttrs = [
+                emitTextArg(widget.text),
+                widget.action ? `action ${widget.action}` : '',
+                ...posAttrs,
+            ].filter(Boolean).join(' ');
+            if (tbHasBlock) {
+                lines.push(`${pad}textbutton ${tbAttrs}:`);
+                lines.push(...emitChildProps(depth + 1));
+            } else {
+                lines.push(`${pad}textbutton ${tbAttrs}`);
+            }
             break;
+        }
 
         case 'button': {
-            const attrs = widget.action ? `action ${widget.action}` : '';
-            const allAttrs = [attrs, ...posAttrs].filter(Boolean).join(' ');
+            const btnAttrs = [
+                widget.action ? `action ${widget.action}` : '',
+                ...posAttrs,
+            ].filter(Boolean).join(' ');
+            lines.push(`${pad}button${btnAttrs ? ' ' + btnAttrs : ''}:`);
+            lines.push(...emitChildProps(depth + 1));
             if (widget.children && widget.children.length > 0) {
-                lines.push(`${pad}button${allAttrs ? ' ' + allAttrs : ''}:`);
-                lines.push(...emitExtraProps(depth + 1));
                 for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
                 }
             } else {
-                lines.push(`${pad}button${allAttrs ? ' ' + allAttrs : ''}`);
+                lines.push(`${pad}${indent}pass`);
             }
             break;
         }
 
         case 'imagebutton': {
             const ibAttrs = [
-                widget.imagePath ? `idle "${widget.imagePath}"` : '',
+                widget.imagePath ? `idle ${emitPathArg(widget.imagePath)}` : '',
                 widget.action ? `action ${widget.action}` : '',
                 ...posAttrs,
             ].filter(Boolean).join(' ');
@@ -100,7 +132,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         case 'window': {
             const containerAttrs = posAttrs.join(' ');
             lines.push(`${pad}${widget.type}${containerAttrs ? ' ' + containerAttrs : ''}:`);
-            lines.push(...emitExtraProps(depth + 1));
+            lines.push(...emitChildProps(depth + 1));
             if (widget.children && widget.children.length > 0) {
                 for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
@@ -116,7 +148,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
             lines.push(`${pad}viewport${containerAttrs ? ' ' + containerAttrs : ''}:`);
             if (widget.scrollbars) lines.push(`${pad}${indent}scrollbars "${widget.scrollbars}"`);
             if (widget.mousewheel)  lines.push(`${pad}${indent}mousewheel True`);
-            lines.push(...emitExtraProps(depth + 1));
+            lines.push(...emitChildProps(depth + 1));
             if (widget.children && widget.children.length > 0) {
                 for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, true, indent));
@@ -129,6 +161,7 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
 
         case 'if': {
             lines.push(`${pad}if ${widget.condition ?? 'True'}:`);
+            lines.push(...emitChildProps(depth + 1));
             if (widget.children && widget.children.length > 0) {
                 for (const child of widget.children) {
                     lines.push(generateWidget(child, depth + 1, insideContainer, indent));
@@ -171,7 +204,8 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         }
 
         case 'raw': {
-            lines.push(`${pad}${widget.code ?? ''}`);
+            const code = widget.code ?? '';
+            lines.push(emitRawBlock(code, code.split('\n')[0]));
             break;
         }
     }
@@ -179,29 +213,6 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
     return lines.join('\n');
 }
 
-/**
- * Generates complete Ren'Py screen code from a Screen Layout Composition.
- *
- * Produces a fully-formed `screen` block with:
- * - Screen declaration with name and attributes (modal, zorder)
- * - All top-level widgets recursively rendered
- * - `pass` statement if no widgets exist (empty screen)
- *
- * @param comp - The screen layout composition to render
- * @param indent - Indentation string (default: 4 spaces)
- * @returns Multi-line Ren'Py screen code ready to copy/paste into `.rpy` files
- *
- * @example
- * ```typescript
- * const code = generateScreenCode(composition);
- * // screen my_menu():
- * //     vbox:
- * //         text "Hello"
- * //         textbutton "Start" action Start()
- * ```
- *
- * @complexity O(w) time where w = total widget count, O(w) space
- */
 export function generateScreenCode(comp: ScreenLayoutComposition, indent = '    '): string {
     const lines: string[] = [];
 
@@ -209,7 +220,8 @@ export function generateScreenCode(comp: ScreenLayoutComposition, indent = '    
     if (comp.modal) screenAttrs.push('modal True');
     if (comp.zorder !== 0) screenAttrs.push(`zorder ${comp.zorder}`);
 
-    lines.push(`screen ${comp.screenName}()${screenAttrs.length ? ' ' + screenAttrs.join(' ') : ''}:`);
+    const params = comp.parameters ?? '';
+    lines.push(`screen ${comp.screenName}(${params})${screenAttrs.length ? ' ' + screenAttrs.join(' ') : ''}:`);
 
     if (comp.widgets.length === 0) {
         lines.push(`${indent}pass`);
