@@ -172,18 +172,29 @@ describe('screenParser', () => {
     expect(comp.widgets[2].code).toContain('else:');
   });
 
-  it('captures unrecognised block statements as multi-line raw nodes', () => {
+  it('parses vpgrid as a structured container with cols property', () => {
     const code = `screen test():
     vpgrid:
         cols 1
         text "a"
         text "b"`;
     const comp = parseScreenCode(code);
+    const grid = comp.widgets[0];
+    expect(grid.type).toBe('vpgrid');
+    expect(grid.cols).toBe(1);
+    // children: text "a", text "b"
+    expect(grid.children?.some(c => c.type === 'text')).toBe(true);
+  });
+
+  it('captures truly unrecognised block statements as multi-line raw nodes', () => {
+    const code = `screen test():
+    someUnknownWidget:
+        prop1 True
+        text "a"`;
+    const comp = parseScreenCode(code);
     expect(comp.widgets[0].type).toBe('raw');
-    const raw = comp.widgets[0];
-    expect(raw.code).toContain('vpgrid:');
-    expect(raw.code).toContain('cols 1');
-    expect(raw.code).toContain('text "a"');
+    expect(comp.widgets[0].code).toContain('someUnknownWidget:');
+    expect(comp.widgets[0].code).toContain('prop1 True');
   });
 
   it('captures unquoted add expression without wrapping in quotes', () => {

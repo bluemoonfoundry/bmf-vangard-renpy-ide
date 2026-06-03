@@ -37,7 +37,18 @@ const ELEM: Record<ScreenWidgetType, ElemDef> = {
   bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  isContainer: false, defaultProps: { xsize: 450, ysize: 36 } },
   input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    isContainer: false, defaultProps: { text: '' } },
   null:        { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    isContainer: false, defaultProps: {} },
-  // Protected container types — parser-only, not in palette
+  // New layout containers
+  fixed:       { label: 'Fixed',      icon: '⊞',  colorClass: 'bg-blue-600',    isContainer: true,  defaultProps: {} },
+  side:        { label: 'Side',       icon: '⊟',  colorClass: 'bg-blue-800',    isContainer: true,  defaultProps: {} },
+  vpgrid:      { label: 'VPGrid',     icon: '⊞',  colorClass: 'bg-cyan-800',    isContainer: true,  defaultProps: { cols: 1 } },
+  // New interactive / utility palette widgets
+  vbar:        { label: 'VBar',       icon: '▮',  colorClass: 'bg-purple-700',  isContainer: false, defaultProps: { xsize: 36, ysize: 450 } },
+  use:         { label: 'use',        icon: '⤴',  colorClass: 'bg-violet-700',  isContainer: true,  defaultProps: {} },
+  key:         { label: 'key',        icon: '⌨',  colorClass: 'bg-slate-600',   isContainer: false, defaultProps: {} },
+  timer:       { label: 'timer',      icon: '⏱',  colorClass: 'bg-slate-700',   isContainer: false, defaultProps: {} },
+  transclude:  { label: 'transclude', icon: '↳',  colorClass: 'bg-indigo-800',  isContainer: false, defaultProps: {} },
+  // Protected control-flow types — parser-only
+  showif:      { label: 'showif',     icon: '👁',  colorClass: 'bg-amber-600',   isContainer: true,  defaultProps: {} },
   if:          { label: 'if',         icon: '?',  colorClass: 'bg-amber-700',   isContainer: true,  defaultProps: {} },
   for:         { label: 'for',        icon: '↺',  colorClass: 'bg-yellow-700',  isContainer: true,  defaultProps: {} },
   python:      { label: 'python',     icon: '$',  colorClass: 'bg-rose-800',    isContainer: false, defaultProps: {} },
@@ -45,10 +56,11 @@ const ELEM: Record<ScreenWidgetType, ElemDef> = {
 } as Record<ScreenWidgetType, ElemDef>;
 
 const PALETTE_GROUPS: { label: string; types: ScreenWidgetType[] }[] = [
-  { label: 'Layout',      types: ['vbox', 'hbox', 'frame', 'window', 'viewport'] },
+  { label: 'Layout',      types: ['vbox', 'hbox', 'fixed', 'frame', 'window', 'side', 'viewport', 'vpgrid'] },
   { label: 'Display',     types: ['text', 'image'] },
   { label: 'Interactive', types: ['textbutton', 'button', 'imagebutton'] },
-  { label: 'Other',       types: ['bar', 'input', 'null'] },
+  { label: 'Other',       types: ['bar', 'vbar', 'input', 'null'] },
+  { label: 'Screen',      types: ['use', 'transclude', 'key', 'timer'] },
 ];
 
 // ─── Widget tree helpers ──────────────────────────────────────────────────────
@@ -583,6 +595,86 @@ function CanvasWidget({
     case 'null':
       return (
         <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(50), height: widget.ysize ?? r(50), border: `${Math.max(1, r(1))}px dashed #6b7280`, opacity: 0.4 }} />
+      );
+    case 'fixed':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, position: isTopLevel ? 'absolute' : 'relative', minWidth: r(80), minHeight: r(60), border: `${Math.max(1, r(1))}px dashed #60a5fa55` }}>
+          {children}
+        </div>
+      );
+    case 'side':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr', gap, minWidth: r(120), minHeight: r(90), border: `${Math.max(1, r(1))}px dashed #93c5fd55` }}>
+          {widget.sidePositions && (
+            <div style={{ gridColumn: '1/-1', fontSize: r(11), color: '#60a5fa', fontFamily: 'monospace', userSelect: 'none', padding: `${r(2)}px` }}>
+              side "{widget.sidePositions}"
+            </div>
+          )}
+          {children}
+        </div>
+      );
+    case 'vpgrid': {
+      const vpgCols = widget.cols ?? 1;
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'grid', gridTemplateColumns: `repeat(${vpgCols}, 1fr)`, gap, padding: pad, minWidth: r(120), minHeight: r(90), border: `${Math.max(1, r(2))}px solid #0891b2`, borderRadius: br, overflow: 'hidden' }}>
+          {children}
+        </div>
+      );
+    }
+    case 'vbar':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(36), height: widget.ysize ?? r(450), background: '#3b0764', borderRadius: r(18), overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: isTopLevel ? 'absolute' : 'relative' }}>
+          <div style={{ width: '100%', height: '60%', background: '#7c3aed', borderRadius: r(18) }} />
+        </div>
+      );
+    case 'showif': {
+      const showifChildren = widget.children ?? [];
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #d97706`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(217,119,6,0.04)' }}>
+          <div style={{ fontSize: r(13), color: '#fbbf24', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
+            showif {widget.condition}
+          </div>
+          {showifChildren.map(child => (
+            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
+          ))}
+        </div>
+      );
+    }
+    case 'use':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: `${Math.max(1, r(2))}px solid #7c3aed`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(40), background: 'rgba(124,58,237,0.06)', display: 'flex', flexDirection: 'column', gap: r(4) }}>
+          <div style={{ fontSize: r(13), color: '#a78bfa', fontFamily: 'monospace', userSelect: 'none' }}>
+            use {widget.useScreen}{widget.useArgs ? `(${widget.useArgs})` : ''}
+          </div>
+          {widget.children?.map(child => (
+            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
+              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
+          ))}
+        </div>
+      );
+    case 'key':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #64748b`, borderRadius: br, padding: `${r(6)}px ${r(12)}px`, background: 'rgba(100,116,139,0.07)', fontFamily: 'monospace', fontSize: r(16), color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          key "{widget.keyBinding ?? ''}" {widget.action ? `action ${widget.action}` : ''}
+        </div>
+      );
+    case 'timer':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #64748b`, borderRadius: br, padding: `${r(6)}px ${r(12)}px`, background: 'rgba(100,116,139,0.07)', fontFamily: 'monospace', fontSize: r(16), color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          timer {widget.timerDelay ?? '0'}{widget.action ? ` action ${widget.action}` : ''}
+        </div>
+      );
+    case 'transclude':
+      return (
+        <div onClick={click} onPointerDown={ptrDown}
+          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #4f46e5`, borderRadius: br, padding: `${r(6)}px ${r(16)}px`, background: 'rgba(79,70,229,0.06)', fontFamily: 'monospace', fontSize: r(16), color: '#818cf8', whiteSpace: 'nowrap' }}>
+          transclude
+        </div>
       );
     case 'if': {
       const ifChildren = widget.children ?? [];

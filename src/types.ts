@@ -877,10 +877,19 @@ export interface ImageMapComposition {
  * Maps to Ren'Py screen language statement types.
  */
 export type ScreenWidgetType =
-  'vbox' | 'hbox' | 'frame' | 'window' | 'viewport' |
+  // Layout containers
+  'vbox' | 'hbox' | 'fixed' | 'frame' | 'window' | 'side' |
+  // Scrollable containers
+  'viewport' | 'vpgrid' |
+  // Display
   'text' | 'image' |
-  'textbutton' | 'button' | 'imagebutton' |
-  'bar' | 'input' | 'null' |
+  // Interactive
+  'textbutton' | 'button' | 'imagebutton' | 'bar' | 'vbar' | 'input' | 'null' |
+  // Screen inclusion & control
+  'use' | 'showif' | 'transclude' |
+  // Utility statements
+  'key' | 'timer' |
+  // Logic / fallback (parser-only by default)
   'if' | 'for' | 'python' | 'raw';
 
 /**
@@ -921,6 +930,47 @@ export interface ScreenWidget {
   code?: string;
   /** Unrecognised attribute lines preserved verbatim; emitted before children in code gen */
   extraProps?: string[];
+
+  // ── vpgrid ──────────────────────────────────────────────────────────────
+  cols?: number;
+  rows?: number;
+
+  // ── side ─────────────────────────────────────────────────────────────────
+  /** side widget: positions string, e.g. "t l c r b" */
+  sidePositions?: string;
+
+  // ── use ──────────────────────────────────────────────────────────────────
+  /** use widget: target screen name */
+  useScreen?: string;
+  /** use widget: argument string, e.g. "title=_('Save')" */
+  useArgs?: string;
+
+  // ── key / timer ──────────────────────────────────────────────────────────
+  /** key widget: keysym string, e.g. "game_menu" */
+  keyBinding?: string;
+  /** timer widget: delay expression, e.g. "0.5" */
+  timerDelay?: string;
+
+  // ── bar / vbar ───────────────────────────────────────────────────────────
+  /** bar/vbar value expression, e.g. "Preference('music volume', 'set')" */
+  barValue?: string;
+
+  // ── interactive events ───────────────────────────────────────────────────
+  hovered?: string;
+  unhovered?: string;
+  sensitive?: string;
+  selected?: string;
+
+  // ── accessibility ────────────────────────────────────────────────────────
+  alt?: string;
+
+  // ── imagebutton ──────────────────────────────────────────────────────────
+  /** imagebutton auto format string, e.g. "gui/button/%s.png" */
+  auto?: string;
+
+  // ── layout ───────────────────────────────────────────────────────────────
+  /** spacing between children (string: may reference a variable) */
+  spacing?: string;
 }
 
 /**

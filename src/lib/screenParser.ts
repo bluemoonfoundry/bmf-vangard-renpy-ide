@@ -1,24 +1,52 @@
 import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/types';
 
-// Widgets that introduce an indented child block.
+// Container keywords that open an indented child block.
 const CONTAINER_KEYWORDS = new Set([
-  'vbox', 'hbox', 'frame', 'window', 'viewport', 'button', 'if', 'for',
+  'vbox', 'hbox', 'fixed', 'frame', 'window', 'side',
+  'viewport', 'vpgrid',
+  'button', 'if', 'for', 'showif', 'use',
 ]);
 
-// Widget keyword → ScreenWidgetType (for the ones that map 1-to-1).
+// Widget keyword → ScreenWidgetType for known, directly-classified statements.
+// Keys NOT listed here fall through to SCALAR_PROPS check, then raw capture.
 const WIDGET_KW_MAP: Record<string, ScreenWidgetType> = {
-  vbox: 'vbox', hbox: 'hbox', frame: 'frame', window: 'window',
-  viewport: 'viewport', text: 'text', image: 'image', add: 'image',
+  // Layout containers
+  vbox: 'vbox', hbox: 'hbox', fixed: 'fixed', frame: 'frame',
+  window: 'window', side: 'side',
+  // Scrollable containers
+  viewport: 'viewport', vpgrid: 'vpgrid',
+  // Display
+  text: 'text', image: 'image', add: 'image',
+  // Interactive
   textbutton: 'textbutton', button: 'button', imagebutton: 'imagebutton',
-  bar: 'bar', input: 'input', 'null': 'null',
-  if: 'if', for: 'for',
+  bar: 'bar', vbar: 'vbar', input: 'input', 'null': 'null',
 };
 
-// Properties that map directly to ScreenWidget fields (applied from child property lines).
+// Properties that map directly to first-class ScreenWidget fields.
+// Only lines whose leading keyword is in this map are treated as property lines;
+// everything else becomes a raw child node preserving insertion order.
 const SCALAR_PROPS: Record<string, keyof ScreenWidget> = {
+  // Positioning
   xpos: 'xpos', ypos: 'ypos', xalign: 'xalign', yalign: 'yalign',
-  xsize: 'xsize', ysize: 'ysize', style: 'style',
-  action: 'action', scrollbars: 'scrollbars', mousewheel: 'mousewheel',
+  // Size — width/height are Ren'Py aliases for xsize/ysize
+  xsize: 'xsize', ysize: 'ysize', width: 'xsize', height: 'ysize',
+  // Appearance
+  style: 'style',
+  // Interaction
+  action: 'action', hovered: 'hovered', unhovered: 'unhovered',
+  sensitive: 'sensitive', selected: 'selected',
+  // Scroll containers
+  scrollbars: 'scrollbars', mousewheel: 'mousewheel',
+  // bar / vbar
+  value: 'barValue',
+  // Grid
+  cols: 'cols', rows: 'rows',
+  // Layout
+  spacing: 'spacing',
+  // Accessibility
+  alt: 'alt',
+  // imagebutton
+  auto: 'auto',
 };
 
 let _seq = 0;
@@ -40,11 +68,15 @@ interface StackEntry {
   inElse: boolean;
 }
 
-/** Set a known ScreenWidget property by field name, coercing value to the right type. */
+/** Set a known ScreenWidget property by field name, coercing value to the correct type. */
 function setWidgetProp(target: Partial<ScreenWidget>, field: keyof ScreenWidget, raw: string): void {
-  if (field === 'xpos' || field === 'ypos' || field === 'xsize' || field === 'ysize') {
+  const numFields = new Set<keyof ScreenWidget>([
+    'xpos', 'ypos', 'xsize', 'ysize', 'cols', 'rows',
+  ]);
+  const floatFields = new Set<keyof ScreenWidget>(['xalign', 'yalign']);
+  if (numFields.has(field)) {
     (target as { [k: string]: unknown })[field] = Number(raw);
-  } else if (field === 'xalign' || field === 'yalign') {
+  } else if (floatFields.has(field)) {
     (target as { [k: string]: unknown })[field] = parseFloat(raw);
   } else if (field === 'mousewheel') {
     (target as { [k: string]: unknown })[field] = raw === 'True';
@@ -55,8 +87,8 @@ function setWidgetProp(target: Partial<ScreenWidget>, field: keyof ScreenWidget,
 
 /**
  * Parse inline attribute tokens from a widget declaration line.
- * Handles quoted strings, known SCALAR_PROPS, and unquoted first-arg expressions
- * (e.g. gui.main_menu_background, _("Return")).
+ * Handles: quoted strings, SCALAR_PROPS key-value pairs, and unquoted first-arg
+ * expressions (e.g. gui.main_menu_background, _("Return")).
  */
 function parseInlineAttrs(tokens: string[]): Partial<ScreenWidget> {
   const out: Partial<ScreenWidget> = {};
@@ -64,17 +96,14 @@ function parseInlineAttrs(tokens: string[]): Partial<ScreenWidget> {
   let firstArgConsumed = false;
   while (i < tokens.length) {
     const t = tokens[i];
-    // Quoted string → text content
-    if (t.startsWith('"') || t.startsWith("'")) {
-      const val = t.replace(/^["']|["']$/g, '');
-      if (!firstArgConsumed) {
-        out.text = val;
-        firstArgConsumed = true;
-      }
+    // Quoted string → first positional text argument
+    if ((t.startsWith('"') || t.startsWith("'")) && !firstArgConsumed) {
+      out.text = t.replace(/^["']|["']$/g, '');
+      firstArgConsumed = true;
       i++;
       continue;
     }
-    // Known property: name + value pair
+    // Known property key + value
     const mapped = SCALAR_PROPS[t];
     if (mapped && i + 1 < tokens.length) {
       const raw = tokens[i + 1].replace(/^["']|["']$/g, '');
@@ -82,8 +111,7 @@ function parseInlineAttrs(tokens: string[]): Partial<ScreenWidget> {
       i += 2;
       continue;
     }
-    // Unquoted first positional argument (e.g. gui.main_menu_background, _("Return"))
-    // — not a known widget keyword or property name, must be an expression value
+    // Unquoted first positional arg (expression like gui.bg, _("Return"), 0.5)
     if (!firstArgConsumed && !SCALAR_PROPS[t] && !WIDGET_KW_MAP[t.toLowerCase()]) {
       out.text = t;
       firstArgConsumed = true;
@@ -95,7 +123,7 @@ function parseInlineAttrs(tokens: string[]): Partial<ScreenWidget> {
   return out;
 }
 
-/** Apply a single known SCALAR_PROP child-property line to a widget. */
+/** Apply a SCALAR_PROP child-property line to a widget. */
 function applyKnownProp(widget: ScreenWidget, key: string, rawLine: string): void {
   const tokens = tokeniseLine(rawLine.trim());
   const mapped = SCALAR_PROPS[key];
@@ -104,7 +132,7 @@ function applyKnownProp(widget: ScreenWidget, key: string, rawLine: string): voi
   setWidgetProp(widget, mapped, val);
 }
 
-/** Simple token splitter respecting quoted strings. */
+/** Token splitter that respects quoted strings. */
 function tokeniseLine(line: string): string[] {
   const tokens: string[] = [];
   let current = '';
@@ -127,11 +155,12 @@ function tokeniseLine(line: string): string[] {
 }
 
 /**
- * Capture the body of an unrecognised block statement as a multi-line raw code string.
- * Returns the captured lines and advances `li` past the block body.
- * The opening line (with colon) is NOT included — pass it separately.
+ * Lookahead: collect all lines that are indented deeper than `blockIndent`
+ * into a single multi-line code string.  Returns the body and the next line index.
  */
-function captureBlock(lines: string[], startLi: number, blockIndent: number): { code: string; nextLi: number } {
+function captureBlock(
+  lines: string[], startLi: number, blockIndent: number,
+): { code: string; nextLi: number } {
   const bodyLines: string[] = [];
   let li = startLi;
   while (li < lines.length) {
@@ -147,15 +176,30 @@ function captureBlock(lines: string[], startLi: number, blockIndent: number): { 
 }
 
 /**
+ * Parse a `use SCREENNAME` or `use SCREENNAME(ARGS)` token list into
+ * useScreen + optional useArgs.
+ */
+function parseUseTarget(tokens: string[]): { useScreen: string; useArgs?: string } {
+  // Re-join after the keyword so we can find the paren boundary ourselves.
+  const full = tokens.join(' ');
+  const parenIdx = full.indexOf('(');
+  if (parenIdx < 0) return { useScreen: full.trim() };
+  const screenName = full.slice(0, parenIdx).trim();
+  const closeIdx = full.lastIndexOf(')');
+  const args = closeIdx > parenIdx ? full.slice(parenIdx + 1, closeIdx).trim() : '';
+  return { useScreen: screenName, useArgs: args || undefined };
+}
+
+/**
  * Parse Ren'Py screen code into a ScreenLayoutComposition.
  *
- * Design principles:
- * - Known widget keywords → structured ScreenWidget nodes.
- * - Known scalar properties → applied to the parent widget.
- * - Unrecognised block statements (elif, vpgrid, key, use, etc.) → multi-line 'raw' nodes
- *   that capture the entire block body preserving relative indentation.
- * - Unrecognised single-line statements → single-line 'raw' nodes.
- * - Nothing is silently dropped.
+ * Supported statement types (per Ren'Py Screen Language spec):
+ *   Containers: vbox hbox fixed frame window side viewport vpgrid button
+ *   Display:    text image/add
+ *   Interactive:textbutton imagebutton bar vbar input null
+ *   Control:    if/elif/else for showif use transclude key timer
+ *   Python:     $ ... / python:
+ *   Fallback:   'raw' nodes for anything else (multi-line for block statements)
  */
 export function parseScreenCode(code: string): ScreenLayoutComposition {
   const lines = code.split('\n');
@@ -204,7 +248,7 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     const lineIndent = indentOf(raw);
     if (bodyIndent === -1) bodyIndent = lineIndent;
 
-    // ── else clause (BEFORE stack pop so we can still find the if) ────────
+    // ── else clause (BEFORE stack pop) ───────────────────────────────────
     if (trimmed === 'else:') {
       let matched = false;
       for (let si = stack.length - 1; si >= 0; si--) {
@@ -217,9 +261,7 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
       }
       li++;
       if (matched) continue;
-      // No matching if found (else after elif chain) → fall through to raw capture below
-      // We must NOT continue here; re-process this line through the normal path.
-      // Since `else:` ends with `:`, it'll be caught by the block-capture path.
+      // No matching if (e.g. after elif chain) → fall through to raw block capture
     }
 
     // ── Stack pop ─────────────────────────────────────────────────────────
@@ -227,7 +269,7 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
       stack.pop();
     }
 
-    // ── python block body accumulation ────────────────────────────────────
+    // ── python block body ─────────────────────────────────────────────────
     if (stack.length > 0 && stack[stack.length - 1].widget.type === 'python') {
       const top = stack[stack.length - 1];
       top.widget.code = top.widget.code ? top.widget.code + '\n' + trimmed : trimmed;
@@ -254,6 +296,13 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     // ── pass ──────────────────────────────────────────────────────────────
     if (trimmed === 'pass') { li++; continue; }
 
+    // ── transclude ────────────────────────────────────────────────────────
+    if (trimmed === 'transclude') {
+      activeChildren().push({ id: uid(), type: 'transclude' });
+      li++;
+      continue;
+    }
+
     // ── Tokenise ──────────────────────────────────────────────────────────
     const isBlock = trimmed.endsWith(':');
     const withoutColon = isBlock ? trimmed.slice(0, -1).trim() : trimmed;
@@ -261,7 +310,7 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     if (tokens.length === 0) { li++; continue; }
     const kw = tokens[0].toLowerCase();
 
-    // ── if widget ─────────────────────────────────────────────────────────
+    // ── if ────────────────────────────────────────────────────────────────
     if (kw === 'if') {
       const condition = tokens.slice(1).join(' ');
       const w: ScreenWidget = { id: uid(), type: 'if', condition, children: [] };
@@ -271,12 +320,56 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
       continue;
     }
 
-    // ── for widget ────────────────────────────────────────────────────────
+    // ── showif ────────────────────────────────────────────────────────────
+    if (kw === 'showif') {
+      const condition = tokens.slice(1).join(' ');
+      const w: ScreenWidget = { id: uid(), type: 'showif', condition, children: [] };
+      activeChildren().push(w);
+      if (isBlock) stack.push({ widget: w, indent: lineIndent, inElse: false });
+      li++;
+      continue;
+    }
+
+    // ── for ───────────────────────────────────────────────────────────────
     if (kw === 'for') {
       const inIdx = tokens.findIndex(t => t === 'in');
       const forVariable = inIdx > 1 ? tokens.slice(1, inIdx).join(' ') : tokens[1] ?? '';
       const forIterable = inIdx >= 0 ? tokens.slice(inIdx + 1).join(' ') : '';
       const w: ScreenWidget = { id: uid(), type: 'for', forVariable, forIterable, children: [] };
+      activeChildren().push(w);
+      if (isBlock) stack.push({ widget: w, indent: lineIndent, inElse: false });
+      li++;
+      continue;
+    }
+
+    // ── use ───────────────────────────────────────────────────────────────
+    if (kw === 'use') {
+      const { useScreen, useArgs } = parseUseTarget(tokens.slice(1));
+      const w: ScreenWidget = { id: uid(), type: 'use', useScreen, useArgs, children: [] };
+      activeChildren().push(w);
+      if (isBlock) stack.push({ widget: w, indent: lineIndent, inElse: false });
+      li++;
+      continue;
+    }
+
+    // ── key ───────────────────────────────────────────────────────────────
+    if (kw === 'key') {
+      const attrs = parseInlineAttrs(tokens.slice(1));
+      const keyBinding = attrs.text;
+      delete attrs.text;
+      const w: ScreenWidget = { id: uid(), type: 'key', keyBinding, ...attrs };
+      activeChildren().push(w);
+      if (isBlock) stack.push({ widget: w, indent: lineIndent, inElse: false });
+      li++;
+      continue;
+    }
+
+    // ── timer ─────────────────────────────────────────────────────────────
+    if (kw === 'timer') {
+      const attrs = parseInlineAttrs(tokens.slice(1));
+      const timerDelay = attrs.text;
+      delete attrs.text;
+      const w: ScreenWidget = { id: uid(), type: 'timer', timerDelay, ...attrs };
       activeChildren().push(w);
       if (isBlock) stack.push({ widget: w, indent: lineIndent, inElse: false });
       li++;
@@ -290,11 +383,14 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
       if (CONTAINER_KEYWORDS.has(kw)) w.children = [];
       if (tokens.length > 1) {
         const attrs = parseInlineAttrs(tokens.slice(1));
-        if (kw === 'add' || kw === 'image' || kw === 'imagebutton') {
-          if (attrs.text !== undefined && attrs.imagePath === undefined) {
-            attrs.imagePath = attrs.text;
-            delete attrs.text;
-          }
+        // Rename first positional arg for specific widget types
+        if ((kw === 'add' || kw === 'image' || kw === 'imagebutton') && attrs.text !== undefined) {
+          attrs.imagePath = attrs.text;
+          delete attrs.text;
+        }
+        if (kw === 'side' && attrs.text !== undefined) {
+          attrs.sidePositions = attrs.text;
+          delete attrs.text;
         }
         Object.assign(w, attrs);
       }
@@ -305,8 +401,6 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     }
 
     // ── known scalar property on current parent ───────────────────────────
-    // Only SCALAR_PROP keys are treated as properties; everything else is a
-    // raw child node to preserve order and prevent data loss.
     if (SCALAR_PROPS[kw] && stack.length > 0) {
       const top = stack[stack.length - 1];
       if (lineIndent > top.indent) {
@@ -317,11 +411,10 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     }
 
     // ── unrecognised block statement → multi-line raw capture ─────────────
-    // Captures the opening line plus the entire indented body as one raw node.
     if (isBlock) {
       const { code: bodyCode, nextLi } = captureBlock(lines, li + 1, lineIndent);
-      const code = bodyCode ? trimmed + '\n' + bodyCode : trimmed;
-      activeChildren().push({ id: uid(), type: 'raw', code });
+      const capturedCode = bodyCode ? trimmed + '\n' + bodyCode : trimmed;
+      activeChildren().push({ id: uid(), type: 'raw', code: capturedCode });
       li = nextLi;
       continue;
     }
