@@ -222,6 +222,26 @@ describe('screenParser', () => {
     expect(out).not.toContain('frame style');
   });
 
+  it('does not emit pass when frame has only a style property', () => {
+    const code = `screen test():
+    frame:
+        style "outer_frame"`;
+    const comp = parseScreenCode(code);
+    const out = generateScreenCode(comp);
+    expect(out).toContain('frame:');
+    expect(out).toContain('    style "outer_frame"');
+    expect(out).not.toContain('pass');
+  });
+
+  it('does emit pass when container has no children and no properties', () => {
+    const code = `screen test():
+    vbox:
+        pass`;
+    const comp = parseScreenCode(code);
+    const out = generateScreenCode(comp);
+    expect(out).toContain('pass');
+  });
+
   it('falls back to raw for unrecognised top-level lines', () => {
     const code = `screen test():
     default volume = 0.5

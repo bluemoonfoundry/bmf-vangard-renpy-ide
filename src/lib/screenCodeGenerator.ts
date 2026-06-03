@@ -97,14 +97,10 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
                 ...posAttrs,
             ].filter(Boolean).join(' ');
             lines.push(`${pad}button${btnAttrs ? ' ' + btnAttrs : ''}:`);
+            const btnStart = lines.length;
             lines.push(...emitChildProps(depth + 1));
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, true, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, true, indent));
+            if (lines.length === btnStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
@@ -139,77 +135,58 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
         case 'window': {
             const containerAttrs = posAttrs.join(' ');
             lines.push(`${pad}${widget.type}${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            const vbStart = lines.length;
             lines.push(...emitChildProps(depth + 1));
             if (widget.spacing !== undefined) lines.push(`${pad}${indent}spacing ${widget.spacing}`);
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, true, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, true, indent));
+            if (lines.length === vbStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
         case 'side': {
             const posStr = widget.sidePositions ? ` "${widget.sidePositions}"` : '';
-            const containerAttrs = posAttrs.join(' ');
-            lines.push(`${pad}side${posStr}${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            const sideAttrs = posAttrs.join(' ');
+            lines.push(`${pad}side${posStr}${sideAttrs ? ' ' + sideAttrs : ''}:`);
+            const sideStart = lines.length;
             lines.push(...emitChildProps(depth + 1));
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, true, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, true, indent));
+            if (lines.length === sideStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
         case 'vpgrid': {
-            const containerAttrs = posAttrs.join(' ');
-            lines.push(`${pad}vpgrid${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            const vpgAttrs = posAttrs.join(' ');
+            lines.push(`${pad}vpgrid${vpgAttrs ? ' ' + vpgAttrs : ''}:`);
+            const vpgStart = lines.length;
             if (widget.cols !== undefined) lines.push(`${pad}${indent}cols ${widget.cols}`);
             if (widget.rows !== undefined) lines.push(`${pad}${indent}rows ${widget.rows}`);
             if (widget.scrollbars) lines.push(`${pad}${indent}scrollbars "${widget.scrollbars}"`);
             if (widget.mousewheel) lines.push(`${pad}${indent}mousewheel True`);
             if (widget.spacing !== undefined) lines.push(`${pad}${indent}spacing ${widget.spacing}`);
             lines.push(...emitChildProps(depth + 1));
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, true, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, true, indent));
+            if (lines.length === vpgStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
         case 'viewport': {
-            const containerAttrs = posAttrs.join(' ');
-            lines.push(`${pad}viewport${containerAttrs ? ' ' + containerAttrs : ''}:`);
+            const vpAttrs = posAttrs.join(' ');
+            lines.push(`${pad}viewport${vpAttrs ? ' ' + vpAttrs : ''}:`);
+            const vpStart = lines.length;
             if (widget.scrollbars) lines.push(`${pad}${indent}scrollbars "${widget.scrollbars}"`);
             if (widget.mousewheel)  lines.push(`${pad}${indent}mousewheel True`);
             lines.push(...emitChildProps(depth + 1));
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, true, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, true, indent));
+            if (lines.length === vpStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
         case 'showif': {
             lines.push(`${pad}showif ${widget.condition ?? 'True'}:`);
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            const sfStart = lines.length;
+            lines.push(...emitChildProps(depth + 1));
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+            if (lines.length === sfStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
@@ -248,14 +225,10 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
 
         case 'if': {
             lines.push(`${pad}if ${widget.condition ?? 'True'}:`);
+            const ifStart = lines.length;
             lines.push(...emitChildProps(depth + 1));
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+            if (lines.length === ifStart) lines.push(`${pad}${indent}pass`);
             if (widget.elseChildren && widget.elseChildren.length > 0) {
                 lines.push(`${pad}else:`);
                 for (const child of widget.elseChildren) {
@@ -267,13 +240,9 @@ function generateWidget(widget: ScreenWidget, depth: number, insideContainer: bo
 
         case 'for': {
             lines.push(`${pad}for ${widget.forVariable ?? '_item'} in ${widget.forIterable ?? '[]'}:`);
-            if (widget.children && widget.children.length > 0) {
-                for (const child of widget.children) {
-                    lines.push(generateWidget(child, depth + 1, insideContainer, indent));
-                }
-            } else {
-                lines.push(`${pad}${indent}pass`);
-            }
+            const forStart = lines.length;
+            for (const child of widget.children ?? []) lines.push(generateWidget(child, depth + 1, insideContainer, indent));
+            if (lines.length === forStart) lines.push(`${pad}${indent}pass`);
             break;
         }
 
