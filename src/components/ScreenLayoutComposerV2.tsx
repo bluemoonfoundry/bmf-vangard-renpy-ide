@@ -916,16 +916,19 @@ function ComposerCanvas({
   useEffect(() => {
     function recalc() {
       if (!containerRef.current) return;
-      const cw = containerRef.current.clientWidth - 40;
-      const ch = containerRef.current.clientHeight - 40;
-      const sw = cw / composition.gameWidth;
-      const sh = ch / composition.gameHeight;
-      setScale(Math.min(sw, sh, 1));
+      // Use 96% of the container to leave a small visual margin.
+      const cw = containerRef.current.clientWidth * 0.96;
+      const ch = containerRef.current.clientHeight * 0.96;
+      // Skip measurement if the container hasn't been laid out yet.
+      if (cw < 20 || ch < 20) return;
+      setScale(Math.min(cw / composition.gameWidth, ch / composition.gameHeight, 1));
     }
     recalc();
     const ro = new ResizeObserver(recalc);
     if (containerRef.current) ro.observe(containerRef.current);
-    return () => ro.disconnect();
+    // Also fire on window resize in case ResizeObserver misses an initial layout.
+    window.addEventListener('resize', recalc);
+    return () => { ro.disconnect(); window.removeEventListener('resize', recalc); };
   }, [composition.gameWidth, composition.gameHeight]);
 
   const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
