@@ -18,50 +18,111 @@ type ElemDef = {
   label: string;
   icon: string;
   colorClass: string;
+  color: string;
   isContainer: boolean;
   defaultProps: Partial<Omit<ScreenWidget, 'id' | 'type'>>;
 };
 
 const ELEM: Record<ScreenWidgetType, ElemDef> = {
-  vbox:        { label: 'VBox',       icon: '↕',  colorClass: 'bg-blue-700',   isContainer: true,  defaultProps: {} },
-  hbox:        { label: 'HBox',       icon: '↔',  colorClass: 'bg-blue-500',   isContainer: true,  defaultProps: {} },
-  // Sizes are 1920×1080 reference values; makeWidget scales them by gameWidth/1920
-  frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600', isContainer: true,  defaultProps: { xsize: 450, ysize: 300 } },
-  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',    isContainer: true,  defaultProps: { xsize: 800, ysize: 300 } },
-  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',   isContainer: true,  defaultProps: { xsize: 600, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
-  text:        { label: 'Text',       icon: 'T',  colorClass: 'bg-gray-500',   isContainer: false, defaultProps: { text: 'Hello' } },
-  image:       { label: 'Image',      icon: '⬜', colorClass: 'bg-emerald-700',isContainer: false, defaultProps: {} },
-  textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
-  button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700', isContainer: true,  defaultProps: { xsize: 300, ysize: 54, action: 'Return()' } },
-  imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',  isContainer: false, defaultProps: { xsize: 200, ysize: 150, action: 'Return()' } },
-  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  isContainer: false, defaultProps: { xsize: 450, ysize: 36 } },
-  input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    isContainer: false, defaultProps: { text: '' } },
-  null:        { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    isContainer: false, defaultProps: {} },
-  // New layout containers
-  fixed:       { label: 'Fixed',      icon: '⊞',  colorClass: 'bg-blue-600',    isContainer: true,  defaultProps: {} },
-  side:        { label: 'Side',       icon: '⊟',  colorClass: 'bg-blue-800',    isContainer: true,  defaultProps: {} },
-  vpgrid:      { label: 'VPGrid',     icon: '⊞',  colorClass: 'bg-cyan-800',    isContainer: true,  defaultProps: { cols: 1 } },
-  // New interactive / utility palette widgets
-  vbar:        { label: 'VBar',       icon: '▮',  colorClass: 'bg-purple-700',  isContainer: false, defaultProps: { xsize: 36, ysize: 450 } },
-  use:         { label: 'use',        icon: '⤴',  colorClass: 'bg-violet-700',  isContainer: true,  defaultProps: {} },
-  key:         { label: 'key',        icon: '⌨',  colorClass: 'bg-slate-600',   isContainer: false, defaultProps: {} },
-  timer:       { label: 'timer',      icon: '⏱',  colorClass: 'bg-slate-700',   isContainer: false, defaultProps: {} },
-  transclude:  { label: 'transclude', icon: '↳',  colorClass: 'bg-indigo-800',  isContainer: false, defaultProps: {} },
-  // Protected control-flow types — parser-only
-  showif:      { label: 'showif',     icon: '👁',  colorClass: 'bg-amber-600',   isContainer: true,  defaultProps: {} },
-  if:          { label: 'if',         icon: '?',  colorClass: 'bg-amber-700',   isContainer: true,  defaultProps: {} },
-  for:         { label: 'for',        icon: '↺',  colorClass: 'bg-yellow-700',  isContainer: true,  defaultProps: {} },
-  python:      { label: 'python',     icon: '$',  colorClass: 'bg-rose-800',    isContainer: false, defaultProps: {} },
-  raw:         { label: 'raw',        icon: '{}', colorClass: 'bg-zinc-600',    isContainer: false, defaultProps: {} },
+  // Layout containers
+  vbox:        { label: 'VBox',       icon: '↕',  colorClass: 'bg-blue-700',    color: '#1d4ed8', isContainer: true,  defaultProps: {} },
+  hbox:        { label: 'HBox',       icon: '↔',  colorClass: 'bg-blue-500',    color: '#3b82f6', isContainer: true,  defaultProps: {} },
+  fixed:       { label: 'Fixed',      icon: '⊞',  colorClass: 'bg-blue-600',    color: '#2563eb', isContainer: true,  defaultProps: {} },
+  frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600',  color: '#4f46e5', isContainer: true,  defaultProps: { xsize: 450, ysize: 300 } },
+  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',     color: '#0369a1', isContainer: true,  defaultProps: { xsize: 800, ysize: 300 } },
+  side:        { label: 'Side',       icon: '⊟',  colorClass: 'bg-blue-800',    color: '#1e40af', isContainer: true,  defaultProps: {} },
+  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',    color: '#0e7490', isContainer: true,  defaultProps: { xsize: 600, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
+  vpgrid:      { label: 'VPGrid',     icon: '⊞',  colorClass: 'bg-cyan-800',    color: '#155e75', isContainer: true,  defaultProps: { cols: 1 } },
+  grid:        { label: 'Grid',       icon: '▦',  colorClass: 'bg-sky-800',     color: '#075985', isContainer: true,  defaultProps: { cols: 3, rows: 3 } },
+  // Transform & drag
+  transform:   { label: 'Transform',  icon: '⟳',  colorClass: 'bg-violet-700',  color: '#6d28d9', isContainer: true,  defaultProps: {} },
+  drag:        { label: 'Drag',       icon: '⣿',  colorClass: 'bg-orange-700',  color: '#c2410c', isContainer: true,  defaultProps: {} },
+  draggroup:   { label: 'DragGroup',  icon: '⣿⣿', colorClass: 'bg-orange-800',  color: '#9a3412', isContainer: true,  defaultProps: {} },
+  // Imagemap
+  imagemap:    { label: 'Imagemap',   icon: '🗺',  colorClass: 'bg-emerald-700', color: '#047857', isContainer: true,  defaultProps: {} },
+  hotspot:     { label: 'Hotspot',    icon: '⬡',  colorClass: 'bg-green-600',   color: '#16a34a', isContainer: false, defaultProps: {} },
+  hotbar:      { label: 'Hotbar',     icon: '⬡▬', colorClass: 'bg-green-700',   color: '#15803d', isContainer: false, defaultProps: {} },
+  // Display
+  text:        { label: 'Text',       icon: 'T',  colorClass: 'bg-gray-500',    color: '#6b7280', isContainer: false, defaultProps: { text: 'Hello' } },
+  label:       { label: 'Label',      icon: 'L',  colorClass: 'bg-gray-600',    color: '#4b5563', isContainer: false, defaultProps: { text: 'Label' } },
+  image:       { label: 'Image',      icon: '⬜', colorClass: 'bg-emerald-700', color: '#047857', isContainer: false, defaultProps: {} },
+  // Interactive
+  textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500',  color: '#f97316', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
+  button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700',  color: '#c2410c', isContainer: true,  defaultProps: { xsize: 300, ysize: 54, action: 'Return()' } },
+  imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',   color: '#d97706', isContainer: false, defaultProps: { xsize: 200, ysize: 150, action: 'Return()' } },
+  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  color: '#7c3aed', isContainer: false, defaultProps: { xsize: 450, ysize: 36 } },
+  vbar:        { label: 'VBar',       icon: '▮',  colorClass: 'bg-purple-700',  color: '#6d28d9', isContainer: false, defaultProps: { xsize: 36, ysize: 450 } },
+  input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    color: '#0d9488', isContainer: false, defaultProps: { text: '' } },
+  'null':      { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    color: '#4b5563', isContainer: false, defaultProps: {} },
+  // Screen ops
+  use:         { label: 'use',        icon: '⤴',  colorClass: 'bg-violet-700',  color: '#6d28d9', isContainer: true,  defaultProps: {} },
+  transclude:  { label: 'transclude', icon: '↳',  colorClass: 'bg-indigo-800',  color: '#3730a3', isContainer: false, defaultProps: {} },
+  key:         { label: 'key',        icon: '⌨',  colorClass: 'bg-slate-600',   color: '#475569', isContainer: false, defaultProps: {} },
+  timer:       { label: 'timer',      icon: '⏱',  colorClass: 'bg-slate-700',   color: '#334155', isContainer: false, defaultProps: {} },
+  // Utility
+  mousearea:   { label: 'mousearea',  icon: '⬚',  colorClass: 'bg-slate-500',   color: '#64748b', isContainer: false, defaultProps: {} },
+  nearrect:    { label: 'nearrect',   icon: '⊡',  colorClass: 'bg-slate-600',   color: '#475569', isContainer: true,  defaultProps: {} },
+  dismiss:     { label: 'dismiss',    icon: '✕',  colorClass: 'bg-red-700',     color: '#b91c1c', isContainer: false, defaultProps: { action: 'Return()' } },
+  on:          { label: 'on',         icon: '⚡',  colorClass: 'bg-yellow-600',  color: '#ca8a04', isContainer: false, defaultProps: { onEvent: 'show', action: 'NullAction()' } },
+  'default':   { label: 'default',    icon: '≔',  colorClass: 'bg-slate-500',   color: '#64748b', isContainer: false, defaultProps: { defaultVariable: 'var', defaultValue: '0' } },
+  // Fallback: raw blocks (includes control flow)
+  raw:         { label: 'code',       icon: '{}', colorClass: 'bg-zinc-600',    color: '#52525b', isContainer: false, defaultProps: {} },
 } as Record<ScreenWidgetType, ElemDef>;
 
+// Logic palette items insert raw nodes with template code.
+type LogicTile = { label: string; icon: string; colorClass: string; code: string };
+const LOGIC_TILES: LogicTile[] = [
+  { label: 'if / else',  icon: '?',  colorClass: 'bg-amber-700', code: 'if True:\n    pass' },
+  { label: 'for loop',   icon: '↺',  colorClass: 'bg-yellow-700', code: 'for item in []:\n    pass' },
+  { label: 'python',     icon: '$',  colorClass: 'bg-rose-800',   code: '$ None' },
+  { label: 'showif',     icon: '👁', colorClass: 'bg-amber-600',  code: 'showif True:\n    pass' },
+];
+
 const PALETTE_GROUPS: { label: string; types: ScreenWidgetType[] }[] = [
-  { label: 'Layout',      types: ['vbox', 'hbox', 'fixed', 'frame', 'window', 'side', 'viewport', 'vpgrid'] },
-  { label: 'Display',     types: ['text', 'image'] },
+  { label: 'Layout',      types: ['vbox', 'hbox', 'fixed', 'frame', 'window', 'side', 'viewport', 'vpgrid', 'grid'] },
+  { label: 'Display',     types: ['text', 'label', 'image'] },
   { label: 'Interactive', types: ['textbutton', 'button', 'imagebutton'] },
   { label: 'Other',       types: ['bar', 'vbar', 'input', 'null'] },
   { label: 'Screen',      types: ['use', 'transclude', 'key', 'timer'] },
+  { label: 'Utility',     types: ['mousearea', 'nearrect', 'dismiss', 'on', 'default'] },
+  { label: 'Advanced',    types: ['transform', 'drag', 'draggroup', 'imagemap', 'hotspot', 'hotbar'] },
 ];
+
+// Keywords found in raw code blocks — used to generate canvas hint icons.
+const HINT_KW_MAP: Partial<Record<string, ScreenWidgetType>> = {
+  vbox: 'vbox', hbox: 'hbox', fixed: 'fixed', frame: 'frame', window: 'window',
+  side: 'side', viewport: 'viewport', vpgrid: 'vpgrid', grid: 'grid',
+  text: 'text', label: 'label', image: 'image', add: 'image',
+  textbutton: 'textbutton', button: 'button', imagebutton: 'imagebutton',
+  bar: 'bar', vbar: 'vbar', input: 'input', null: 'null',
+  use: 'use', key: 'key', timer: 'timer',
+  mousearea: 'mousearea', nearrect: 'nearrect', dismiss: 'dismiss',
+  drag: 'drag', draggroup: 'draggroup', imagemap: 'imagemap',
+  hotspot: 'hotspot', hotbar: 'hotbar', transform: 'transform',
+};
+
+function extractRawHints(code: string): ScreenWidgetType[] {
+  const found: ScreenWidgetType[] = [];
+  const seen = new Set<string>();
+  for (const line of code.split('\n')) {
+    const tok = line.trim().split(/\s+/)[0]?.replace(/:$/, '').toLowerCase();
+    if (tok && HINT_KW_MAP[tok] && !seen.has(tok)) {
+      seen.add(tok);
+      found.push(HINT_KW_MAP[tok]!);
+    }
+  }
+  return found;
+}
+
+// Determine display style for the first keyword of a raw block.
+function rawBlockStyle(code: string): { icon: string; color: string; colorClass: string } {
+  const firstKw = (code.split('\n')[0] ?? '').trim().split(/\s+/)[0]?.replace(/:$/, '').toLowerCase() ?? '';
+  if (firstKw === 'if' || firstKw === 'elif' || firstKw === 'else') return { icon: '?', color: '#fbbf24', colorClass: 'bg-amber-700' };
+  if (firstKw === 'showif') return { icon: '👁', color: '#fbbf24', colorClass: 'bg-amber-600' };
+  if (firstKw === 'for') return { icon: '↺', color: '#fde68a', colorClass: 'bg-yellow-700' };
+  if (firstKw === '$' || firstKw === 'python') return { icon: '$', color: '#fda4af', colorClass: 'bg-rose-800' };
+  return { icon: '{}', color: '#a1a1aa', colorClass: 'bg-zinc-600' };
+}
 
 // ─── Widget tree helpers ──────────────────────────────────────────────────────
 
@@ -95,6 +156,7 @@ function cloneTree(w: ScreenWidget[]): ScreenWidget[] {
 
 function makeWidget(type: ScreenWidgetType, gameWidth = 1920): ScreenWidget {
   const def = ELEM[type];
+  if (!def) return { id: genId(), type: 'raw', code: '' };
   const u = gameWidth / 1920;
   const props = { ...def.defaultProps };
   if (typeof props.xsize === 'number') props.xsize = Math.round(props.xsize * u);
@@ -105,6 +167,10 @@ function makeWidget(type: ScreenWidgetType, gameWidth = 1920): ScreenWidget {
     ...props,
     ...(def.isContainer ? { children: [] } : {}),
   };
+}
+
+function makeRawWidget(code: string): ScreenWidget {
+  return { id: genId(), type: 'raw', code };
 }
 
 function insertIntoTree(
@@ -175,10 +241,11 @@ function patchInTree(
 // ─── Palette panel ────────────────────────────────────────────────────────────
 
 function PalettePanel({
-  onDragStart, onDragEnd,
+  onDragStart, onDragEnd, onLogicDragStart,
 }: {
   onDragStart: (type: ScreenWidgetType) => void;
   onDragEnd: () => void;
+  onLogicDragStart: (code: string) => void;
 }) {
   return (
     <div className="p-2 overflow-y-auto flex flex-col gap-3">
@@ -210,6 +277,31 @@ function PalettePanel({
           </div>
         </section>
       ))}
+
+      {/* Logic section — inserts raw code template nodes */}
+      <section>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">
+          Logic
+        </p>
+        <div className="flex flex-col gap-1">
+          {LOGIC_TILES.map(tile => (
+            <div
+              key={tile.label}
+              draggable
+              onDragStart={e => {
+                e.dataTransfer.setData('text/x-logic-template', tile.code);
+                e.dataTransfer.effectAllowed = 'copy';
+                onLogicDragStart(tile.code);
+              }}
+              onDragEnd={onDragEnd}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-grab active:cursor-grabbing select-none text-white text-xs font-medium ${tile.colorClass} hover:brightness-110 transition-all`}
+            >
+              <span className="font-mono w-4 text-center text-[11px] shrink-0">{tile.icon}</span>
+              {tile.label}
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -231,9 +323,18 @@ function LayerNode({
   const [expanded, setExpanded] = useState(true);
   const [dropHint, setDropHint] = useState<'before' | 'after' | 'inside' | null>(null);
   const [imageDragOver, setImageDragOver] = useState(false);
-  const d = ELEM[widget.type];
+  const d = ELEM[widget.type] ?? ELEM.raw;
   const isSelected = selectedId === widget.id;
   const acceptsImageDrop = widget.type === 'image';
+  const hasChildren = d.isContainer && (widget.children?.length ?? 0) > 0;
+
+  // For raw blocks: show the first line of code as the label.
+  const nodeLabel = widget.type === 'raw'
+    ? ((widget.code ?? '').split('\n')[0] ?? 'code block').slice(0, 28)
+    : d.label + (widget.text ? ` "${widget.text}"` : '');
+
+  const nodeIcon = widget.type === 'raw' ? rawBlockStyle(widget.code ?? '').icon : d.icon;
+  const nodeColorClass = widget.type === 'raw' ? rawBlockStyle(widget.code ?? '').colorClass : d.colorClass;
 
   function calcPos(e: React.DragEvent): 'before' | 'after' | 'inside' {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -307,18 +408,18 @@ function LayerNode({
           <span className="w-3.5 shrink-0" />
         )}
         <span
-          className={`w-4 h-4 rounded text-[9px] flex items-center justify-center shrink-0 text-white font-bold ${d.colorClass}`}
+          className={`w-4 h-4 rounded text-[9px] flex items-center justify-center shrink-0 text-white font-bold ${nodeColorClass}`}
         >
-          {d.icon}
+          {nodeIcon}
         </span>
         <span className="text-[11px] truncate leading-tight">
-          {d.label}{widget.text ? ` "${widget.text}"` : ''}
+          {nodeLabel}
           {acceptsImageDrop && widget.imagePath ? (
             <span className="ml-1 opacity-50 font-mono">{widget.imagePath.split('/').pop()}</span>
           ) : null}
         </span>
       </div>
-      {d.isContainer && expanded && widget.children?.map(child => (
+      {d.isContainer && expanded && hasChildren && widget.children?.map(child => (
         <LayerNode
           key={child.id}
           widget={child}
@@ -331,27 +432,6 @@ function LayerNode({
           onImageDrop={onImageDrop}
         />
       ))}
-      {/* Render else-branch for 'if' widgets */}
-      {widget.type === 'if' && expanded && widget.elseChildren && widget.elseChildren.length > 0 && (
-        <>
-          <div style={{ paddingLeft: `${(depth + 1) * 14 + 6}px` }} className="py-[2px] text-[10px] text-amber-400 font-mono opacity-70 select-none">
-            else:
-          </div>
-          {widget.elseChildren.map(child => (
-            <LayerNode
-              key={child.id}
-              widget={child}
-              depth={depth + 1}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              layerDragId={layerDragId}
-              setLayerDragId={setLayerDragId}
-              onReorder={onReorder}
-              onImageDrop={onImageDrop}
-            />
-          ))}
-        </>
-      )}
     </div>
   );
 }
@@ -406,8 +486,6 @@ function CanvasWidget({
   onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
   gameWidth: number;
 }) {
-  // Unit scale: 1 at 1920×1080, proportional for other resolutions.
-  // All sizes below are Ren'Py default GUI values at 1920×1080 reference.
   const u = gameWidth / 1920;
 
   const [imageDragOver, setImageDragOver] = useState(false);
@@ -446,17 +524,16 @@ function CanvasWidget({
     />
   ));
 
-  // Helpers for game-proportional values
   const r = (n: number) => Math.round(n * u);
-  const fs = r(22);   // gui.text_size at 1920×1080
-  const fsSm = r(16); // smaller label / filename text
-  const br = r(4);    // border-radius for most widgets
-  const gap = r(6);   // vbox/hbox spacing (gui.pref_spacing ≈ 6)
-  const pad = r(8);   // default container padding
-  const trackW = r(12); // viewport scrollbar track width
-  const thumbW = r(8);  // viewport scrollbar thumb width
-  const imgW = r(240);  // default image/imagebutton width
-  const imgH = r(180);  // default image/imagebutton height
+  const fs = r(22);
+  const fsSm = r(16);
+  const br = r(4);
+  const gap = r(6);
+  const pad = r(8);
+  const trackW = r(12);
+  const thumbW = r(8);
+  const imgW = r(240);
+  const imgH = r(180);
 
   switch (widget.type) {
     case 'vbox':
@@ -518,6 +595,12 @@ function CanvasWidget({
         <span onClick={click} onPointerDown={ptrDown} style={{ ...base, color: '#e5e7eb', fontSize: fs, whiteSpace: 'nowrap', display: 'inline-block' }}>
           {widget.text || 'text'}
         </span>
+      );
+    case 'label':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, color: '#d1d5db', fontSize: fs, padding: `${r(6)}px ${r(12)}px`, border: `${Math.max(1, r(1))}px solid #6b7280`, borderRadius: br, display: 'inline-block', whiteSpace: 'nowrap' }}>
+          {widget.text || 'Label'}
+        </div>
       );
     case 'textbutton':
       return (
@@ -585,6 +668,12 @@ function CanvasWidget({
           <div style={{ width: '60%', height: '100%', background: '#7c3aed', borderRadius: r(18) }} />
         </div>
       );
+    case 'vbar':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(36), height: widget.ysize ?? r(450), background: '#3b0764', borderRadius: r(18), overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: isTopLevel ? 'absolute' : 'relative' }}>
+          <div style={{ width: '100%', height: '60%', background: '#7c3aed', borderRadius: r(18) }} />
+        </div>
+      );
     case 'input':
       return (
         <div onClick={click} onPointerDown={ptrDown} style={{ ...base, padding: `${r(8)}px ${r(18)}px`, border: `${Math.max(1, r(1))}px solid #0f766e`, borderRadius: br, background: '#042f2e', color: '#99f6e4', fontSize: fs, minWidth: r(300), display: 'inline-flex', alignItems: 'center', gap: r(2) }}>
@@ -613,6 +702,14 @@ function CanvasWidget({
           {children}
         </div>
       );
+    case 'grid': {
+      const gridCols = widget.cols ?? 3;
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap, padding: pad, minWidth: r(120), minHeight: r(90), border: `${Math.max(1, r(2))}px solid #0369a1`, borderRadius: br }}>
+          {children}
+        </div>
+      );
+    }
     case 'vpgrid': {
       const vpgCols = widget.cols ?? 1;
       return (
@@ -621,27 +718,77 @@ function CanvasWidget({
         </div>
       );
     }
-    case 'vbar':
+    case 'transform':
       return (
-        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, width: widget.xsize ?? r(36), height: widget.ysize ?? r(450), background: '#3b0764', borderRadius: r(18), overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: isTopLevel ? 'absolute' : 'relative' }}>
-          <div style={{ width: '100%', height: '60%', background: '#7c3aed', borderRadius: r(18) }} />
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #7c3aed55`, borderRadius: br, padding: r(6), minWidth: r(60), minHeight: r(40) }}>
+          {children}
         </div>
       );
-    case 'showif': {
-      const showifChildren = widget.children ?? [];
+    case 'drag':
       return (
-        <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #d97706`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(217,119,6,0.04)' }}>
-          <div style={{ fontSize: r(13), color: '#fbbf24', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
-            showif {widget.condition}
-          </div>
-          {showifChildren.map(child => (
-            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
-              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
-          ))}
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px solid #c2410c`, borderRadius: br, padding: r(6), minWidth: r(80), minHeight: r(54), cursor: 'grab' }}>
+          {widget.dragName && (
+            <div style={{ fontSize: r(11), color: '#fb923c', fontFamily: 'monospace', marginBottom: r(4) }}>⣿ {widget.dragName}</div>
+          )}
+          {children}
         </div>
       );
-    }
+    case 'draggroup':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px dashed #9a3412`, borderRadius: br, padding: r(8), minWidth: r(120), minHeight: r(80) }}>
+          {children}
+        </div>
+      );
+    case 'imagemap':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(2))}px solid #047857`, borderRadius: br, padding: r(8), minWidth: r(200), minHeight: r(150), background: 'rgba(4,120,87,0.04)' }}>
+          <div style={{ fontSize: r(11), color: '#6ee7b7', fontFamily: 'monospace', marginBottom: r(4) }}>🗺 imagemap</div>
+          {children}
+        </div>
+      );
+    case 'hotspot':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #16a34a`, borderRadius: br, padding: `${r(4)}px ${r(8)}px`, background: 'rgba(22,163,74,0.08)', fontSize: fsSm, color: '#86efac', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          ⬡ {widget.hotspotArea ?? '(0,0,0,0)'}
+        </div>
+      );
+    case 'hotbar':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #15803d`, borderRadius: br, padding: `${r(4)}px ${r(8)}px`, background: 'rgba(21,128,61,0.08)', fontSize: fsSm, color: '#86efac', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          ⬡▬ {widget.hotspotArea ?? '(0,0,0,0)'}
+        </div>
+      );
+    case 'mousearea':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #64748b`, borderRadius: br, minWidth: r(80), minHeight: r(40), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fsSm, color: '#94a3b8', fontFamily: 'monospace' }}>
+          mousearea
+        </div>
+      );
+    case 'nearrect':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #475569`, borderRadius: r(8), padding: r(8), minWidth: r(80), minHeight: r(40), background: 'rgba(71,85,105,0.08)' }}>
+          <div style={{ fontSize: r(11), color: '#94a3b8', fontFamily: 'monospace', marginBottom: r(4) }}>⊡ nearrect</div>
+          {children}
+        </div>
+      );
+    case 'dismiss':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #b91c1c`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(185,28,28,0.08)', fontSize: fsSm, color: '#fca5a5', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          ✕ dismiss
+        </div>
+      );
+    case 'on':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #ca8a04`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(202,138,4,0.07)', fontSize: r(16), color: '#fde68a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          ⚡ on "{widget.onEvent ?? ''}"
+        </div>
+      );
+    case 'default':
+      return (
+        <div onClick={click} onPointerDown={ptrDown} style={{ ...base, border: `${Math.max(1, r(1))}px dashed #64748b`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(100,116,139,0.07)', fontSize: r(16), color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          ≔ default {widget.defaultVariable} = {widget.defaultValue}
+        </div>
+      );
     case 'use':
       return (
         <div onClick={click} onPointerDown={ptrDown}
@@ -676,50 +823,63 @@ function CanvasWidget({
           transclude
         </div>
       );
-    case 'if': {
-      const ifChildren = widget.children ?? [];
+
+    case 'raw': {
+      // Opaque code tile: header line + preview + widget-type hints
+      const rawCode = widget.code ?? '';
+      const codeLines = rawCode.split('\n');
+      const firstLine = (codeLines[0] ?? '').trim();
+      const previewLines = codeLines.slice(1, 4);
+      const hints = extractRawHints(rawCode);
+      const { icon: rIcon, color: rColor } = rawBlockStyle(rawCode);
       return (
-        <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #d97706`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(217,119,6,0.06)' }}>
-          <div style={{ fontSize: r(14), color: '#fbbf24', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
-            if {widget.condition}
+        <div
+          onClick={click}
+          onPointerDown={ptrDown}
+          style={{
+            ...base,
+            border: `${Math.max(1, r(1))}px dashed #52525b`,
+            borderRadius: br,
+            background: 'rgba(24,24,27,0.9)',
+            minWidth: r(160),
+            maxWidth: r(700),
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: r(6), padding: `${r(5)}px ${r(10)}px`, borderBottom: '1px solid #27272a' }}>
+            <span style={{ fontSize: r(14), color: rColor, fontWeight: 'bold', fontFamily: 'monospace', flexShrink: 0 }}>{rIcon}</span>
+            <span style={{ fontSize: r(13), color: '#a1a1aa', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {firstLine}
+            </span>
           </div>
-          {ifChildren.map(child => (
-            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
-              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
-          ))}
+          {/* Code preview (up to 3 body lines) */}
+          {previewLines.length > 0 && (
+            <pre style={{ padding: `${r(4)}px ${r(10)}px`, fontSize: r(11), color: '#52525b', fontFamily: 'monospace', margin: 0, lineHeight: 1.4, overflow: 'hidden' }}>
+              {previewLines.join('\n')}
+            </pre>
+          )}
+          {/* Widget hints */}
+          {hints.length > 0 && (
+            <div style={{ display: 'flex', gap: r(3), padding: `${r(4)}px ${r(10)}px`, borderTop: '1px solid #27272a', flexWrap: 'wrap' }}>
+              {hints.map(h => {
+                const hd = ELEM[h];
+                return (
+                  <span
+                    key={h}
+                    title={hd?.label ?? h}
+                    style={{ fontSize: r(11), color: '#71717a', fontFamily: 'monospace', background: '#27272a', borderRadius: r(3), padding: `${r(1)}px ${r(4)}px` }}
+                  >
+                    {hd?.icon ?? h}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }
-    case 'for': {
-      const forChildren = widget.children ?? [];
-      return (
-        <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: `${Math.max(1, r(2))}px dashed #ca8a04`, borderRadius: br, padding: r(10), minWidth: r(100), minHeight: r(60), background: 'rgba(202,138,4,0.06)' }}>
-          <div style={{ fontSize: r(14), color: '#fde68a', marginBottom: r(6), fontFamily: 'monospace', userSelect: 'none' }}>
-            for {widget.forVariable} in {widget.forIterable}
-          </div>
-          {forChildren.map(child => (
-            <CanvasWidget key={child.id} widget={child} selectedId={selectedId} onSelect={onSelect}
-              scale={scale} isTopLevel={false} onImageDrop={onImageDrop} gameWidth={gameWidth} />
-          ))}
-        </div>
-      );
-    }
-    case 'python':
-      return (
-        <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #f43f5e`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(244,63,94,0.07)', fontFamily: 'monospace', fontSize: r(18), color: '#fda4af', whiteSpace: 'pre', maxWidth: r(600), minWidth: r(100) }}>
-          $ {widget.code ?? ''}
-        </div>
-      );
-    case 'raw':
-      return (
-        <div onClick={click} onPointerDown={ptrDown}
-          style={{ ...base, border: `${Math.max(1, r(1))}px dashed #71717a`, borderRadius: br, padding: `${r(6)}px ${r(14)}px`, background: 'rgba(113,113,122,0.07)', fontFamily: 'monospace', fontSize: r(18), color: '#a1a1aa', whiteSpace: 'pre', maxWidth: r(600), minWidth: r(100) }}>
-          {widget.code ?? ''}
-        </div>
-      );
+
     default:
       return null;
   }
@@ -728,14 +888,15 @@ function CanvasWidget({
 // ─── Composer canvas ──────────────────────────────────────────────────────────
 
 function ComposerCanvas({
-  composition, selectedId, onSelect, onDrop, onPatchWidget, draggingPaletteType, onImageDrop,
+  composition, selectedId, onSelect, onDrop, onLogicDrop, onPatchWidget, draggingType, onImageDrop,
 }: {
   composition: ScreenLayoutComposition;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onDrop: (type: ScreenWidgetType, x: number, y: number) => void;
+  onLogicDrop: (code: string, x: number, y: number) => void;
   onPatchWidget: (id: string, patch: Partial<ScreenWidget>) => void;
-  draggingPaletteType: ScreenWidgetType | null;
+  draggingType: boolean;
   onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -743,7 +904,6 @@ function ComposerCanvas({
   const [scale, setScale] = useState(1);
   const [dropActive, setDropActive] = useState(false);
 
-  // Keep latest callbacks in refs so the window listeners don't go stale
   const onPatchRef = useRef(onPatchWidget);
   useEffect(() => { onPatchRef.current = onPatchWidget; }, [onPatchWidget]);
 
@@ -753,7 +913,6 @@ function ComposerCanvas({
   const widgetsRef = useRef(composition.widgets);
   useEffect(() => { widgetsRef.current = composition.widgets; }, [composition.widgets]);
 
-  // Scale the game canvas to fit the container
   useEffect(() => {
     function recalc() {
       if (!containerRef.current) return;
@@ -769,7 +928,6 @@ function ComposerCanvas({
     return () => ro.disconnect();
   }, [composition.gameWidth, composition.gameHeight]);
 
-  // Root-widget pointer drag state
   const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   function handlePointerDown(e: React.PointerEvent, id: string) {
@@ -799,20 +957,18 @@ function ComposerCanvas({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, []); // intentionally empty — uses refs
+  }, []);
 
   function gameCoords(e: React.DragEvent) {
     if (!gameRef.current) return { x: 0, y: 0 };
-    const r = gameRef.current.getBoundingClientRect();
+    const rect = gameRef.current.getBoundingClientRect();
     return {
-      x: Math.round((e.clientX - r.left) / scaleRef.current),
-      y: Math.round((e.clientY - r.top) / scaleRef.current),
+      x: Math.round((e.clientX - rect.left) / scaleRef.current),
+      y: Math.round((e.clientY - rect.top) / scaleRef.current),
     };
   }
 
-  const border = dropActive && draggingPaletteType
-    ? '2px dashed #3b82f6'
-    : '1px solid #3f3f46';
+  const border = dropActive && draggingType ? '2px dashed #3b82f6' : '1px solid #3f3f46';
 
   return (
     <div
@@ -834,7 +990,9 @@ function ComposerCanvas({
           flexShrink: 0,
         }}
         onDragOver={e => {
-          if (!draggingPaletteType) return;
+          const isWidget = e.dataTransfer.types.includes('text/x-widget-type');
+          const isLogic = e.dataTransfer.types.includes('text/x-logic-template');
+          if (!isWidget && !isLogic) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = 'copy';
           setDropActive(true);
@@ -842,11 +1000,17 @@ function ComposerCanvas({
         onDragLeave={() => setDropActive(false)}
         onDrop={e => {
           e.preventDefault();
+          setDropActive(false);
+          const logicCode = e.dataTransfer.getData('text/x-logic-template');
+          if (logicCode) {
+            const { x, y } = gameCoords(e);
+            onLogicDrop(logicCode, x, y);
+            return;
+          }
           const type = e.dataTransfer.getData('text/x-widget-type') as ScreenWidgetType;
           if (!type || !ELEM[type]) return;
           const { x, y } = gameCoords(e);
           onDrop(type, x, y);
-          setDropActive(false);
         }}
       >
         {composition.widgets.map(w => (
@@ -878,13 +1042,7 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function NumInput({
-  value, onChange, placeholder,
-}: {
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
-  placeholder?: string;
-}) {
+function NumInput({ value, onChange, placeholder }: { value: number | undefined; onChange: (v: number | undefined) => void; placeholder?: string }) {
   return (
     <input
       type="number"
@@ -896,13 +1054,7 @@ function NumInput({
   );
 }
 
-function StrInput({
-  value, onChange, placeholder,
-}: {
-  value: string | undefined;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
+function StrInput({ value, onChange, placeholder }: { value: string | undefined; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
       type="text"
@@ -937,36 +1089,26 @@ function PropertiesPanel({
     );
   }
 
-  // Protected container types — read-only info panel
-  if (widget.type === 'if' || widget.type === 'for' || widget.type === 'python' || widget.type === 'raw') {
+  const d = ELEM[widget.type] ?? ELEM.raw;
+
+  // Raw blocks: show code source, editable
+  if (widget.type === 'raw') {
+    const { icon: rIcon, color: rColor, colorClass: rCls } = rawBlockStyle(widget.code ?? '');
     return (
       <div className="flex-1 overflow-y-auto">
         <div className="px-3 py-2 border-b border-gray-700">
-          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-white font-semibold ${ELEM[widget.type].colorClass}`}>
-            {ELEM[widget.type].icon} {ELEM[widget.type].label}
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] text-white font-semibold ${rCls}`}
+            style={{ color: rColor }}>
+            {rIcon} code block
           </span>
-          <p className="text-[10px] text-amber-400 mt-1.5">Protected — edit in code</p>
+          <p className="text-[10px] text-zinc-400 mt-1.5">Edit the code directly in the source editor.</p>
         </div>
-        {widget.type === 'if' && (
-          <div className="px-3 py-2">
-            <p className="text-[10px] text-gray-500 mb-1">Condition</p>
-            <code className="text-[11px] text-amber-300 font-mono break-all">{widget.condition}</code>
-          </div>
-        )}
-        {widget.type === 'for' && (
-          <div className="px-3 py-2">
-            <p className="text-[10px] text-gray-500 mb-1">Loop</p>
-            <code className="text-[11px] text-yellow-300 font-mono break-all">
-              for {widget.forVariable} in {widget.forIterable}
-            </code>
-          </div>
-        )}
-        {(widget.type === 'python' || widget.type === 'raw') && widget.code && (
-          <div className="px-3 py-2">
-            <p className="text-[10px] text-gray-500 mb-1">Source</p>
-            <pre className="text-[10px] text-rose-300 font-mono whitespace-pre-wrap break-all">{widget.code}</pre>
-          </div>
-        )}
+        <div className="px-3 py-2">
+          <p className="text-[10px] text-gray-500 mb-1">Source</p>
+          <pre className="text-[10px] text-zinc-300 font-mono whitespace-pre-wrap break-all bg-zinc-800 rounded p-2">
+            {widget.code ?? ''}
+          </pre>
+        </div>
         {widget.extraProps && widget.extraProps.length > 0 && (
           <div className="px-3 py-2 border-t border-gray-700/60">
             <p className="text-[10px] text-gray-500 mb-1">Extra attributes</p>
@@ -978,8 +1120,6 @@ function PropertiesPanel({
       </div>
     );
   }
-
-  const d = ELEM[widget.type];
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -1002,13 +1142,13 @@ function PropertiesPanel({
         <PropRow label="ysize"><NumInput value={widget.ysize} onChange={v => onUpdate({ ysize: v })} /></PropRow>
       </PropSection>
 
-      {(widget.type === 'text' || widget.type === 'textbutton' || widget.type === 'input') && (
+      {(widget.type === 'text' || widget.type === 'label' || widget.type === 'textbutton' || widget.type === 'input') && (
         <PropSection title="Content">
           <PropRow label="text"><StrInput value={widget.text} onChange={v => onUpdate({ text: v })} placeholder="label text" /></PropRow>
         </PropSection>
       )}
 
-      {(widget.type === 'textbutton' || widget.type === 'button' || widget.type === 'imagebutton') && (
+      {(widget.type === 'textbutton' || widget.type === 'button' || widget.type === 'imagebutton' || widget.type === 'dismiss') && (
         <PropSection title="Interaction">
           <PropRow label="action"><StrInput value={widget.action} onChange={v => onUpdate({ action: v })} placeholder="Return()" /></PropRow>
         </PropSection>
@@ -1036,15 +1176,79 @@ function PropertiesPanel({
           </PropRow>
           <PropRow label="mousewheel">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={widget.mousewheel ?? false}
+              <input type="checkbox" checked={widget.mousewheel ?? false}
                 onChange={e => onUpdate({ mousewheel: e.target.checked || undefined })}
-                className="accent-blue-500"
-              />
+                className="accent-blue-500" />
               <span className="text-[12px] text-gray-300">enabled</span>
             </label>
           </PropRow>
+        </PropSection>
+      )}
+
+      {(widget.type === 'vpgrid' || widget.type === 'grid') && (
+        <PropSection title="Grid">
+          <PropRow label="cols"><NumInput value={widget.cols} onChange={v => onUpdate({ cols: v })} /></PropRow>
+          <PropRow label="rows"><NumInput value={widget.rows} onChange={v => onUpdate({ rows: v })} /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'on' && (
+        <PropSection title="Event">
+          <PropRow label="event"><StrInput value={widget.onEvent} onChange={v => onUpdate({ onEvent: v })} placeholder="show" /></PropRow>
+          <PropRow label="action"><StrInput value={widget.action} onChange={v => onUpdate({ action: v })} placeholder="NullAction()" /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'default' && (
+        <PropSection title="Variable">
+          <PropRow label="name"><StrInput value={widget.defaultVariable} onChange={v => onUpdate({ defaultVariable: v })} placeholder="var" /></PropRow>
+          <PropRow label="value"><StrInput value={widget.defaultValue} onChange={v => onUpdate({ defaultValue: v })} placeholder="0" /></PropRow>
+        </PropSection>
+      )}
+
+      {(widget.type === 'hotspot' || widget.type === 'hotbar') && (
+        <PropSection title="Area">
+          <PropRow label="area"><StrInput value={widget.hotspotArea} onChange={v => onUpdate({ hotspotArea: v })} placeholder="(x, y, w, h)" /></PropRow>
+          {widget.type === 'hotspot' && (
+            <PropRow label="action"><StrInput value={widget.action} onChange={v => onUpdate({ action: v })} placeholder="Jump(...)" /></PropRow>
+          )}
+          {widget.type === 'hotbar' && (
+            <PropRow label="value"><StrInput value={widget.barValue} onChange={v => onUpdate({ barValue: v })} placeholder="Preference(...)" /></PropRow>
+          )}
+        </PropSection>
+      )}
+
+      {widget.type === 'nearrect' && (
+        <PropSection title="Nearrect">
+          <PropRow label="focus"><StrInput value={widget.nearrectFocus} onChange={v => onUpdate({ nearrectFocus: v })} placeholder="tooltip" /></PropRow>
+          <PropRow label="side"><StrInput value={widget.nearrectSide} onChange={v => onUpdate({ nearrectSide: v })} placeholder="bottom" /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'drag' && (
+        <PropSection title="Drag">
+          <PropRow label="drag_name"><StrInput value={widget.dragName} onChange={v => onUpdate({ dragName: v })} placeholder="slot_1" /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'use' && (
+        <PropSection title="Screen">
+          <PropRow label="screen"><StrInput value={widget.useScreen} onChange={v => onUpdate({ useScreen: v })} placeholder="screen_name" /></PropRow>
+          <PropRow label="args"><StrInput value={widget.useArgs} onChange={v => onUpdate({ useArgs: v || undefined })} placeholder="arg=val" /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'key' && (
+        <PropSection title="Key">
+          <PropRow label="keysym"><StrInput value={widget.keyBinding} onChange={v => onUpdate({ keyBinding: v })} placeholder="game_menu" /></PropRow>
+          <PropRow label="action"><StrInput value={widget.action} onChange={v => onUpdate({ action: v })} placeholder="ShowMenu(...)" /></PropRow>
+        </PropSection>
+      )}
+
+      {widget.type === 'timer' && (
+        <PropSection title="Timer">
+          <PropRow label="delay"><StrInput value={widget.timerDelay} onChange={v => onUpdate({ timerDelay: v })} placeholder="3.0" /></PropRow>
+          <PropRow label="action"><StrInput value={widget.action} onChange={v => onUpdate({ action: v })} placeholder="Jump(...)" /></PropRow>
         </PropSection>
       )}
 
@@ -1075,9 +1279,7 @@ function CodePanel({ code }: { code: string }) {
           onClick={handleCopy}
           className={[
             'text-[11px] px-2 py-0.5 rounded transition-colors font-medium',
-            copied
-              ? 'bg-green-700 text-green-100'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white',
+            copied ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white',
           ].join(' ')}
         >
           {copied ? '✓ Copied' : 'Copy Code'}
@@ -1121,11 +1323,10 @@ export default function ScreenLayoutComposerV2({
   sourceCode,
 }: ScreenLayoutComposerV2Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draggingPaletteType, setDraggingPaletteType] = useState<ScreenWidgetType | null>(null);
+  const [draggingType, setDraggingType] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameVal, setNameVal] = useState(screenName);
 
-  // Sync nameVal when screenName prop changes
   useEffect(() => { setNameVal(screenName); }, [screenName]);
 
   function updateWidgets(updater: (ws: ScreenWidget[]) => ScreenWidget[]) {
@@ -1138,6 +1339,13 @@ export default function ScreenLayoutComposerV2({
     setSelectedId(newW.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, composition.gameWidth]);
+
+  const handleLogicDrop = useCallback((code: string, x: number, y: number) => {
+    const newW = makeRawWidget(code);
+    updateWidgets(ws => insertIntoTree(ws, newW, selectedId, x, y));
+    setSelectedId(newW.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   const handlePatchWidget = useCallback((id: string, patch: Partial<ScreenWidget>) => {
     updateWidgets(ws => patchInTree(ws, id, patch));
@@ -1172,7 +1380,6 @@ export default function ScreenLayoutComposerV2({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  // Delete key removes the selected widget (skip when focus is in a text field)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
@@ -1190,7 +1397,6 @@ export default function ScreenLayoutComposerV2({
     const parsed = parseScreenCode(sourceCode);
     onCompositionChange(prev => ({
       ...parsed,
-      // Preserve canvas dimensions from existing composition
       gameWidth: prev.gameWidth,
       gameHeight: prev.gameHeight,
     }));
@@ -1261,19 +1467,18 @@ export default function ScreenLayoutComposerV2({
 
         {/* Left: Palette + Layers */}
         <div className="w-44 flex flex-col border-r border-gray-700 shrink-0 overflow-hidden">
-          {/* Palette */}
           <div className="shrink-0 max-h-[55%] flex flex-col overflow-hidden border-b border-gray-700">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1.5 shrink-0">
               Elements
             </p>
             <div className="overflow-y-auto">
               <PalettePanel
-                onDragStart={setDraggingPaletteType}
-                onDragEnd={() => setDraggingPaletteType(null)}
+                onDragStart={() => setDraggingType(true)}
+                onDragEnd={() => setDraggingType(false)}
+                onLogicDragStart={() => setDraggingType(true)}
               />
             </div>
           </div>
-          {/* Layers */}
           <div className="flex flex-col flex-1 overflow-hidden">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 py-1.5 shrink-0">
               Layers
@@ -1295,8 +1500,9 @@ export default function ScreenLayoutComposerV2({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onDrop={handleDrop}
+            onLogicDrop={handleLogicDrop}
             onPatchWidget={handlePatchWidget}
-            draggingPaletteType={draggingPaletteType}
+            draggingType={draggingType}
             onImageDrop={handleImageDrop}
           />
           <CodePanel code={generatedCode} />

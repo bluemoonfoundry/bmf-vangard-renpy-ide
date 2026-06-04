@@ -30,7 +30,16 @@ describe('screenParser', () => {
     expect(comp.zorder).toBe(5);
   });
 
-  it('parses if/else structure', () => {
+  it('parses screen without parentheses in header', () => {
+    const code = `screen my_screen:
+    text "hi"`;
+    const comp = parseScreenCode(code);
+    expect(comp.screenName).toBe('my_screen');
+    expect(comp.parameters).toBeUndefined();
+    expect(comp.widgets[0].type).toBe('text');
+  });
+
+  it('captures if/else as a single compound raw block', () => {
     const code = `screen test():
     if persistent.flag:
         text "On"
@@ -38,17 +47,33 @@ describe('screenParser', () => {
         text "Off"`;
     const comp = parseScreenCode(code);
     expect(comp.widgets).toHaveLength(1);
-    const ifWidget = comp.widgets[0];
-    expect(ifWidget.type).toBe('if');
-    expect(ifWidget.condition).toBe('persistent.flag');
-    expect(ifWidget.children).toHaveLength(1);
-    expect(ifWidget.children![0].type).toBe('text');
-    expect(ifWidget.elseChildren).toHaveLength(1);
-    expect(ifWidget.elseChildren![0].type).toBe('text');
-    expect(ifWidget.elseChildren![0].text).toBe('Off');
+    const raw = comp.widgets[0];
+    expect(raw.type).toBe('raw');
+    expect(raw.code).toContain('if persistent.flag:');
+    expect(raw.code).toContain('else:');
+    expect(raw.code).toContain('text "On"');
+    expect(raw.code).toContain('text "Off"');
   });
 
-  it('parses for loop', () => {
+  it('captures if/elif/else as a single compound raw block', () => {
+    const code = `screen test():
+    if scroll == "viewport":
+        text "vp"
+    elif scroll == "vpgrid":
+        text "grid"
+    else:
+        text "other"`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets).toHaveLength(1);
+    const raw = comp.widgets[0];
+    expect(raw.type).toBe('raw');
+    expect(raw.code).toContain('if scroll == "viewport":');
+    expect(raw.code).toContain('elif scroll == "vpgrid":');
+    expect(raw.code).toContain('else:');
+    expect(raw.code).toContain('text "grid"');
+  });
+
+  it('captures for loop as a raw block', () => {
     const code = `screen channels():
     vbox:
         for ch in persistent.channels:
@@ -56,21 +81,41 @@ describe('screenParser', () => {
     const comp = parseScreenCode(code);
     const vbox = comp.widgets[0];
     expect(vbox.type).toBe('vbox');
-    const forWidget = vbox.children![0];
-    expect(forWidget.type).toBe('for');
-    expect(forWidget.forVariable).toBe('ch');
-    expect(forWidget.forIterable).toBe('persistent.channels');
-    expect(forWidget.children![0].type).toBe('text');
+    const raw = vbox.children![0];
+    expect(raw.type).toBe('raw');
+    expect(raw.code).toContain('for ch in persistent.channels:');
+    expect(raw.code).toContain('text ch');
   });
 
-  it('parses python $ statement', () => {
+  it('captures showif as a raw block', () => {
+    const code = `screen test():
+    showif visible:
+        text "shown"`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('raw');
+    expect(comp.widgets[0].code).toContain('showif visible:');
+    expect(comp.widgets[0].code).toContain('text "shown"');
+  });
+
+  it('captures $ python as a raw node', () => {
     const code = `screen test():
     $ x = 5
     text "hi"`;
     const comp = parseScreenCode(code);
-    expect(comp.widgets[0].type).toBe('python');
-    expect(comp.widgets[0].code).toBe('x = 5');
+    expect(comp.widgets[0].type).toBe('raw');
+    expect(comp.widgets[0].code).toBe('$ x = 5');
     expect(comp.widgets[1].type).toBe('text');
+  });
+
+  it('captures python: block as a raw node with header', () => {
+    const code = `screen test():
+    python:
+        x = 1
+        y = 2`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('raw');
+    expect(comp.widgets[0].code).toContain('python:');
+    expect(comp.widgets[0].code).toContain('x = 1');
   });
 
   it('preserves unrecognised attributes as raw child nodes', () => {
@@ -81,14 +126,12 @@ describe('screenParser', () => {
         text "hi"`;
     const comp = parseScreenCode(code);
     const frame = comp.widgets[0];
-    // Unrecognised attributes become raw child nodes in insertion order
     expect(frame.children).toBeDefined();
     const rawCodes = frame.children!
       .filter(c => c.type === 'raw')
       .map(c => c.code);
     expect(rawCodes).toContain('background "#000"');
     expect(rawCodes).toContain('xfill True');
-    // Known children still appear
     expect(frame.children!.some(c => c.type === 'text')).toBe(true);
   });
 
@@ -104,7 +147,7 @@ describe('screenParser', () => {
     expect(generated).toContain('xfill True');
   });
 
-  it('generates correct code for if/else round-trip', () => {
+  it('round-trips if/else as raw', () => {
     const code = `screen test():
     if persistent.flag:
         text "On"
@@ -118,16 +161,17 @@ describe('screenParser', () => {
     expect(out).toContain('"Off"');
   });
 
-  it('generates correct code for for loop round-trip', () => {
+  it('round-trips for loop as raw', () => {
     const code = `screen test():
     for item in items:
         text item`;
     const comp = parseScreenCode(code);
     const out = generateScreenCode(comp);
     expect(out).toContain('for item in items:');
+    expect(out).toContain('text item');
   });
 
-  it('generates $ for single-line python', () => {
+  it('round-trips $ python as raw', () => {
     const code = `screen test():
     $ x = get_value()`;
     const comp = parseScreenCode(code);
@@ -152,26 +196,6 @@ describe('screenParser', () => {
     expect(generateScreenCode(comp)).toContain('screen game_menu(title, scroll=None, yinitial=0.0, spacing=0):');
   });
 
-  it('captures elif chain as raw sibling blocks', () => {
-    const code = `screen test():
-    if scroll == "viewport":
-        text "vp"
-    elif scroll == "vpgrid":
-        text "grid"
-    else:
-        text "other"`;
-    const comp = parseScreenCode(code);
-    // Top level: if widget + 2 raw siblings (elif block, else block)
-    expect(comp.widgets).toHaveLength(3);
-    expect(comp.widgets[0].type).toBe('if');
-    expect(comp.widgets[0].children![0].type).toBe('text');
-    expect(comp.widgets[1].type).toBe('raw');
-    expect(comp.widgets[1].code).toContain('elif scroll == "vpgrid":');
-    expect(comp.widgets[1].code).toContain('text "grid"');
-    expect(comp.widgets[2].type).toBe('raw');
-    expect(comp.widgets[2].code).toContain('else:');
-  });
-
   it('parses vpgrid as a structured container with cols property', () => {
     const code = `screen test():
     vpgrid:
@@ -182,8 +206,19 @@ describe('screenParser', () => {
     const grid = comp.widgets[0];
     expect(grid.type).toBe('vpgrid');
     expect(grid.cols).toBe(1);
-    // children: text "a", text "b"
     expect(grid.children?.some(c => c.type === 'text')).toBe(true);
+  });
+
+  it('parses grid with positional cols rows', () => {
+    const code = `screen test():
+    grid 3 2:
+        text "a"`;
+    const comp = parseScreenCode(code);
+    const grid = comp.widgets[0];
+    expect(grid.type).toBe('grid');
+    expect(grid.cols).toBe(3);
+    expect(grid.rows).toBe(2);
+    expect(grid.children![0].type).toBe('text');
   });
 
   it('captures truly unrecognised block statements as multi-line raw nodes', () => {
@@ -216,7 +251,6 @@ describe('screenParser', () => {
     const comp = parseScreenCode(code);
     expect(comp.widgets[0].style).toBe('my_frame');
     const out = generateScreenCode(comp);
-    // style should be on its own child line, not inline on frame declaration
     expect(out).toMatch(/frame\s*:/);
     expect(out).toContain('    style "my_frame"');
     expect(out).not.toContain('frame style');
@@ -242,13 +276,63 @@ describe('screenParser', () => {
     expect(out).toContain('pass');
   });
 
-  it('falls back to raw for unrecognised top-level lines', () => {
+  it('does not emit pass for button with only action', () => {
     const code = `screen test():
-    default volume = 0.5
+    button:
+        action Return()`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('button');
+    expect(comp.widgets[0].action).toBe('Return()');
+    const out = generateScreenCode(comp);
+    expect(out).toContain('button:');
+    expect(out).toContain('action Return()');
+    expect(out).not.toContain('pass');
+  });
+
+  it('parses on event handler', () => {
+    const code = `screen test():
+    on "show" action SomeAction()`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('on');
+    expect(comp.widgets[0].onEvent).toBe('show');
+    expect(comp.widgets[0].action).toBe('SomeAction()');
+    const out = generateScreenCode(comp);
+    expect(out).toContain('on "show" action SomeAction()');
+  });
+
+  it('parses default screen variable', () => {
+    const code = `screen test():
+    default count = 0
     text "hi"`;
     const comp = parseScreenCode(code);
-    expect(comp.widgets[0].type).toBe('raw');
-    expect(comp.widgets[0].code).toBe('default volume = 0.5');
+    expect(comp.widgets[0].type).toBe('default');
+    expect(comp.widgets[0].defaultVariable).toBe('count');
+    expect(comp.widgets[0].defaultValue).toBe('0');
     expect(comp.widgets[1].type).toBe('text');
+    const out = generateScreenCode(comp);
+    expect(out).toContain('default count = 0');
+  });
+
+  it('parses label widget', () => {
+    const code = `screen test():
+    label "Section Title"`;
+    const comp = parseScreenCode(code);
+    expect(comp.widgets[0].type).toBe('label');
+    expect(comp.widgets[0].text).toBe('Section Title');
+    const out = generateScreenCode(comp);
+    expect(out).toContain('label "Section Title"');
+  });
+
+  it('parses hotspot with area tuple', () => {
+    const code = `screen test():
+    imagemap:
+        hotspot (0, 0, 100, 100) action Jump("label")`;
+    const comp = parseScreenCode(code);
+    const im = comp.widgets[0];
+    expect(im.type).toBe('imagemap');
+    const hs = im.children![0];
+    expect(hs.type).toBe('hotspot');
+    expect(hs.hotspotArea).toBe('(0, 0, 100, 100)');
+    expect(hs.action).toBe('Jump("label")');
   });
 });

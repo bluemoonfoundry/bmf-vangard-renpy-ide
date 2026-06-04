@@ -879,18 +879,22 @@ export interface ImageMapComposition {
 export type ScreenWidgetType =
   // Layout containers
   'vbox' | 'hbox' | 'fixed' | 'frame' | 'window' | 'side' |
-  // Scrollable containers
-  'viewport' | 'vpgrid' |
+  // Scrollable / grid containers
+  'viewport' | 'vpgrid' | 'grid' |
+  // Transform & drag containers
+  'transform' | 'drag' | 'draggroup' |
+  // Imagemap containers & hotspots
+  'imagemap' | 'hotspot' | 'hotbar' |
   // Display
-  'text' | 'image' |
+  'text' | 'label' | 'image' |
   // Interactive
   'textbutton' | 'button' | 'imagebutton' | 'bar' | 'vbar' | 'input' | 'null' |
-  // Screen inclusion & control
-  'use' | 'showif' | 'transclude' |
+  // Screen inclusion
+  'use' | 'transclude' |
   // Utility statements
-  'key' | 'timer' |
-  // Logic / fallback (parser-only by default)
-  'if' | 'for' | 'python' | 'raw';
+  'key' | 'timer' | 'mousearea' | 'nearrect' | 'dismiss' | 'on' | 'default' |
+  // Fallback — also used for control flow (if/elif/else, for, showif, python)
+  'raw';
 
 /**
  * A single widget node in a screen layout composition.
@@ -918,20 +922,12 @@ export interface ScreenWidget {
   scrollbars?: 'vertical' | 'horizontal' | 'both';
   /** 'viewport' widget: whether to enable mousewheel scrolling */
   mousewheel?: boolean;
-  /** 'if' widget: condition expression, e.g. "persistent.flag" */
-  condition?: string;
-  /** 'if' widget: else-branch children */
-  elseChildren?: ScreenWidget[];
-  /** 'for' widget: loop variable, e.g. "channel_name" */
-  forVariable?: string;
-  /** 'for' widget: iterable expression, e.g. "persistent.channels" */
-  forIterable?: string;
-  /** 'python' and 'raw' widgets: verbatim source content */
+  /** 'raw' widget: verbatim source content (also holds control-flow blocks: if/for/python/showif) */
   code?: string;
   /** Unrecognised attribute lines preserved verbatim; emitted before children in code gen */
   extraProps?: string[];
 
-  // ── vpgrid ──────────────────────────────────────────────────────────────
+  // ── vpgrid / grid ────────────────────────────────────────────────────────
   cols?: number;
   rows?: number;
 
@@ -971,6 +967,30 @@ export interface ScreenWidget {
   // ── layout ───────────────────────────────────────────────────────────────
   /** spacing between children (string: may reference a variable) */
   spacing?: string;
+
+  // ── on ───────────────────────────────────────────────────────────────────
+  /** on widget: event name, e.g. "show", "hide", "replace" */
+  onEvent?: string;
+
+  // ── default ──────────────────────────────────────────────────────────────
+  /** default widget: screen variable name */
+  defaultVariable?: string;
+  /** default widget: default value expression */
+  defaultValue?: string;
+
+  // ── hotspot / hotbar ─────────────────────────────────────────────────────
+  /** hotspot/hotbar: area tuple string, e.g. "(0, 0, 100, 100)" */
+  hotspotArea?: string;
+
+  // ── nearrect ─────────────────────────────────────────────────────────────
+  /** nearrect: focus name to track */
+  nearrectFocus?: string;
+  /** nearrect: preferred side, e.g. "bottom" */
+  nearrectSide?: string;
+
+  // ── drag ─────────────────────────────────────────────────────────────────
+  /** drag widget: drag_name property */
+  dragName?: string;
 }
 
 /**
