@@ -976,18 +976,28 @@ function ComposerCanvas({
       className="flex-1 flex items-center justify-center bg-gray-950 overflow-hidden"
       onClick={() => onSelect(null)}
     >
+      {/* Wrapper sized to the VISUAL dimensions so flex centering works correctly.
+          Without this, the 1920×1080 game div occupies its full layout size even after
+          transform: scale(), causing the canvas to appear clipped or tiny. */}
+      <div style={{
+        width: Math.round(composition.gameWidth * scale),
+        height: Math.round(composition.gameHeight * scale),
+        flexShrink: 0,
+        position: 'relative',
+      }}>
       <div
         ref={gameRef}
         style={{
           width: composition.gameWidth,
           height: composition.gameHeight,
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-          position: 'relative',
+          transformOrigin: '0 0',
+          position: 'absolute',
+          top: 0,
+          left: 0,
           background: '#18181b',
           border,
           boxShadow: '0 0 48px rgba(0,0,0,0.9)',
-          flexShrink: 0,
         }}
         onDragOver={e => {
           const isWidget = e.dataTransfer.types.includes('text/x-widget-type');
@@ -1026,6 +1036,7 @@ function ComposerCanvas({
             gameWidth={composition.gameWidth}
           />
         ))}
+      </div>
       </div>
     </div>
   );
