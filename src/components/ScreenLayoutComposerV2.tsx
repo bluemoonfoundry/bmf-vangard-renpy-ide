@@ -899,37 +899,17 @@ function ComposerCanvas({
   draggingType: boolean;
   onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
   const [dropActive, setDropActive] = useState(false);
+
+  // Render at 1:1 game pixels — the container scrolls if the game is larger than the viewport.
+  const scale = 1;
 
   const onPatchRef = useRef(onPatchWidget);
   useEffect(() => { onPatchRef.current = onPatchWidget; }, [onPatchWidget]);
 
-  const scaleRef = useRef(scale);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-
   const widgetsRef = useRef(composition.widgets);
   useEffect(() => { widgetsRef.current = composition.widgets; }, [composition.widgets]);
-
-  useEffect(() => {
-    function recalc() {
-      if (!containerRef.current) return;
-      // Use 96% of the container to leave a small visual margin.
-      const cw = containerRef.current.clientWidth * 0.96;
-      const ch = containerRef.current.clientHeight * 0.96;
-      // Skip measurement if the container hasn't been laid out yet.
-      if (cw < 20 || ch < 20) return;
-      setScale(Math.min(cw / composition.gameWidth, ch / composition.gameHeight, 1));
-    }
-    recalc();
-    const ro = new ResizeObserver(recalc);
-    if (containerRef.current) ro.observe(containerRef.current);
-    // Also fire on window resize in case ResizeObserver misses an initial layout.
-    window.addEventListener('resize', recalc);
-    return () => { ro.disconnect(); window.removeEventListener('resize', recalc); };
-  }, [composition.gameWidth, composition.gameHeight]);
 
   const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
 
@@ -945,9 +925,8 @@ function ComposerCanvas({
   useEffect(() => {
     function onMove(e: PointerEvent) {
       if (!drag.current) return;
-      const s = scaleRef.current;
-      const dx = (e.clientX - drag.current.startX) / s;
-      const dy = (e.clientY - drag.current.startY) / s;
+      const dx = e.clientX - drag.current.startX;
+      const dy = e.clientY - drag.current.startY;
       onPatchRef.current(drag.current.id, {
         xpos: Math.round(drag.current.origX + dx),
         ypos: Math.round(drag.current.origY + dy),
@@ -966,40 +945,26 @@ function ComposerCanvas({
     if (!gameRef.current) return { x: 0, y: 0 };
     const rect = gameRef.current.getBoundingClientRect();
     return {
-      x: Math.round((e.clientX - rect.left) / scaleRef.current),
-      y: Math.round((e.clientY - rect.top) / scaleRef.current),
+      x: Math.round(e.clientX - rect.left),
+      y: Math.round(e.clientY - rect.top),
     };
   }
 
-  const border = dropActive && draggingType ? '2px dashed #3b82f6' : '1px solid #3f3f46';
-
   return (
     <div
-      ref={containerRef}
-      className="flex-1 flex items-center justify-center bg-gray-950 overflow-hidden"
+      className="flex-1 bg-gray-950 overflow-auto"
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: 32 }}
       onClick={() => onSelect(null)}
     >
-      {/* Wrapper sized to the VISUAL dimensions so flex centering works correctly.
-          Without this, the 1920×1080 game div occupies its full layout size even after
-          transform: scale(), causing the canvas to appear clipped or tiny. */}
-      <div style={{
-        width: Math.round(composition.gameWidth * scale),
-        height: Math.round(composition.gameHeight * scale),
-        flexShrink: 0,
-        position: 'relative',
-      }}>
       <div
         ref={gameRef}
         style={{
           width: composition.gameWidth,
           height: composition.gameHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: '0 0',
-          position: 'absolute',
-          top: 0,
-          left: 0,
+          flexShrink: 0,
+          position: 'relative',
           background: '#18181b',
-          border,
+          border: dropActive && draggingType ? '4px dashed #3b82f6' : '4px solid #dc2626',
           boxShadow: '0 0 48px rgba(0,0,0,0.9)',
         }}
         onDragOver={e => {
@@ -1039,7 +1004,6 @@ function ComposerCanvas({
             gameWidth={composition.gameWidth}
           />
         ))}
-      </div>
       </div>
     </div>
   );
