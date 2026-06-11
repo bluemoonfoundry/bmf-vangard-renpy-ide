@@ -899,17 +899,36 @@ function ComposerCanvas({
   draggingType: boolean;
   onImageDrop: (id: string, filePath: string, dataUrl: string) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.5);
   const [dropActive, setDropActive] = useState(false);
-
-  // Render at 1:1 game pixels — the container scrolls if the game is larger than the viewport.
-  const scale = 1;
 
   const onPatchRef = useRef(onPatchWidget);
   useEffect(() => { onPatchRef.current = onPatchWidget; }, [onPatchWidget]);
 
+  const scaleRef = useRef(scale);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+
   const widgetsRef = useRef(composition.widgets);
   useEffect(() => { widgetsRef.current = composition.widgets; }, [composition.widgets]);
+
+  // Fit the canvas width to the available container width (with 64px of padding).
+  // Height is allowed to overflow — the container scrolls vertically.
+  // Cap at 1.0 so we never zoom past actual game pixels.
+  useEffect(() => {
+    function recalc() {
+      if (!containerRef.current) return;
+      const cw = containerRef.current.clientWidth - 64;
+      if (cw < 20) return;
+      setScale(Math.min(cw / composition.gameWidth, 1));
+    }
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    if (containerRef.current) ro.observe(containerRef.current);
+    window.addEventListener('resize', recalc);
+    return () => { ro.disconnect(); window.removeEventListener('resize', recalc); };
+  }, [composition.gameWidth]);
 
   const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
 
@@ -925,8 +944,9 @@ function ComposerCanvas({
   useEffect(() => {
     function onMove(e: PointerEvent) {
       if (!drag.current) return;
-      const dx = e.clientX - drag.current.startX;
-      const dy = e.clientY - drag.current.startY;
+      const s = scaleRef.current;
+      const dx = (e.clientX - drag.current.startX) / s;
+      const dy = (e.clientY - drag.current.startY) / s;
       onPatchRef.current(drag.current.id, {
         xpos: Math.round(drag.current.origX + dx),
         ypos: Math.round(drag.current.origY + dy),
@@ -945,65 +965,77 @@ function ComposerCanvas({
     if (!gameRef.current) return { x: 0, y: 0 };
     const rect = gameRef.current.getBoundingClientRect();
     return {
-      x: Math.round(e.clientX - rect.left),
-      y: Math.round(e.clientY - rect.top),
+      x: Math.round((e.clientX - rect.left) / scaleRef.current),
+      y: Math.round((e.clientY - rect.top) / scaleRef.current),
     };
   }
 
   return (
     <div
+      ref={containerRef}
       className="flex-1 bg-gray-950 overflow-auto"
-      style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: 32 }}
+      style={{ padding: 32 }}
       onClick={() => onSelect(null)}
     >
-      <div
-        ref={gameRef}
-        style={{
-          width: composition.gameWidth,
-          height: composition.gameHeight,
-          flexShrink: 0,
-          position: 'relative',
-          background: '#18181b',
-          border: dropActive && draggingType ? '4px dashed #3b82f6' : '4px solid #dc2626',
-          boxShadow: '0 0 48px rgba(0,0,0,0.9)',
-        }}
-        onDragOver={e => {
-          const isWidget = e.dataTransfer.types.includes('text/x-widget-type');
-          const isLogic = e.dataTransfer.types.includes('text/x-logic-template');
-          if (!isWidget && !isLogic) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-          setDropActive(true);
-        }}
-        onDragLeave={() => setDropActive(false)}
-        onDrop={e => {
-          e.preventDefault();
-          setDropActive(false);
-          const logicCode = e.dataTransfer.getData('text/x-logic-template');
-          if (logicCode) {
+      {/* Wrapper sized to the scaled visual dimensions so the scroll area knows the content size. */}
+      <div style={{
+        width: Math.round(composition.gameWidth * scale),
+        height: Math.round(composition.gameHeight * scale),
+        position: 'relative',
+        margin: '0 auto',
+      }}>
+        <div
+          ref={gameRef}
+          style={{
+            width: composition.gameWidth,
+            height: composition.gameHeight,
+            transform: `scale(${scale})`,
+            transformOrigin: '0 0',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            background: '#18181b',
+            border: dropActive && draggingType ? '4px dashed #3b82f6' : '4px solid #dc2626',
+            boxShadow: '0 0 32px rgba(0,0,0,0.8)',
+          }}
+          onDragOver={e => {
+            const isWidget = e.dataTransfer.types.includes('text/x-widget-type');
+            const isLogic = e.dataTransfer.types.includes('text/x-logic-template');
+            if (!isWidget && !isLogic) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            setDropActive(true);
+          }}
+          onDragLeave={() => setDropActive(false)}
+          onDrop={e => {
+            e.preventDefault();
+            setDropActive(false);
+            const logicCode = e.dataTransfer.getData('text/x-logic-template');
+            if (logicCode) {
+              const { x, y } = gameCoords(e);
+              onLogicDrop(logicCode, x, y);
+              return;
+            }
+            const type = e.dataTransfer.getData('text/x-widget-type') as ScreenWidgetType;
+            if (!type || !ELEM[type]) return;
             const { x, y } = gameCoords(e);
-            onLogicDrop(logicCode, x, y);
-            return;
-          }
-          const type = e.dataTransfer.getData('text/x-widget-type') as ScreenWidgetType;
-          if (!type || !ELEM[type]) return;
-          const { x, y } = gameCoords(e);
-          onDrop(type, x, y);
-        }}
-      >
-        {composition.widgets.map(w => (
-          <CanvasWidget
-            key={w.id}
-            widget={w}
-            selectedId={selectedId}
-            onSelect={onSelect}
-            scale={scale}
-            onPointerDown={handlePointerDown}
-            isTopLevel
-            onImageDrop={onImageDrop}
-            gameWidth={composition.gameWidth}
-          />
-        ))}
+            onDrop(type, x, y);
+          }}
+        >
+          {composition.widgets.map(w => (
+            <CanvasWidget
+              key={w.id}
+              widget={w}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              scale={scale}
+              onPointerDown={handlePointerDown}
+              isTopLevel
+              onImageDrop={onImageDrop}
+              gameWidth={composition.gameWidth}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
