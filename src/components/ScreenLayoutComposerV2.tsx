@@ -995,6 +995,7 @@ function ComposerCanvas({
             top: 0,
             left: 0,
             background: '#18181b',
+            overflow: 'hidden',
             border: dropActive && draggingType ? '4px dashed #3b82f6' : '4px solid #dc2626',
             boxShadow: '0 0 32px rgba(0,0,0,0.8)',
           }}
