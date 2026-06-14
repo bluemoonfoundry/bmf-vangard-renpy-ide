@@ -12,62 +12,52 @@ import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/
 import { generateScreenCode } from '@/lib/screenCodeGenerator';
 import { parseScreenCode } from '@/lib/screenParser';
 
+import type { ElemDef } from '@/lib/screenWidgetDefs';
+import { ELEM, HINT_KW_MAP, extractRawHints, rawBlockStyle } from '@/lib/screenWidgetDefs';
+
 // ─── Element catalogue ────────────────────────────────────────────────────────
 
-type ElemDef = {
-  label: string;
-  icon: string;
-  colorClass: string;
-  color: string;
-  isContainer: boolean;
-  defaultProps: Partial<Omit<ScreenWidget, 'id' | 'type'>>;
-};
+// ElemDef and ELEM are imported from @/lib/screenWidgetDefs.
+// The composer extends ElemDef locally with defaultProps for make-widget logic.
+type ComposerElemDef = ElemDef & { defaultProps: Partial<Omit<ScreenWidget, 'id' | 'type'>> };
 
-const ELEM: Record<ScreenWidgetType, ElemDef> = {
-  // Layout containers
-  vbox:        { label: 'VBox',       icon: '↕',  colorClass: 'bg-blue-700',    color: '#1d4ed8', isContainer: true,  defaultProps: {} },
-  hbox:        { label: 'HBox',       icon: '↔',  colorClass: 'bg-blue-500',    color: '#3b82f6', isContainer: true,  defaultProps: {} },
-  fixed:       { label: 'Fixed',      icon: '⊞',  colorClass: 'bg-blue-600',    color: '#2563eb', isContainer: true,  defaultProps: {} },
-  frame:       { label: 'Frame',      icon: '▭',  colorClass: 'bg-indigo-600',  color: '#4f46e5', isContainer: true,  defaultProps: { xsize: 450, ysize: 300 } },
-  window:      { label: 'Window',     icon: '⬛', colorClass: 'bg-sky-700',     color: '#0369a1', isContainer: true,  defaultProps: { xsize: 800, ysize: 300 } },
-  side:        { label: 'Side',       icon: '⊟',  colorClass: 'bg-blue-800',    color: '#1e40af', isContainer: true,  defaultProps: {} },
-  viewport:    { label: 'Viewport',   icon: '⤢',  colorClass: 'bg-cyan-700',    color: '#0e7490', isContainer: true,  defaultProps: { xsize: 600, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
-  vpgrid:      { label: 'VPGrid',     icon: '⊞',  colorClass: 'bg-cyan-800',    color: '#155e75', isContainer: true,  defaultProps: { cols: 1 } },
-  grid:        { label: 'Grid',       icon: '▦',  colorClass: 'bg-sky-800',     color: '#075985', isContainer: true,  defaultProps: { cols: 3, rows: 3 } },
-  // Transform & drag
-  transform:   { label: 'Transform',  icon: '⟳',  colorClass: 'bg-violet-700',  color: '#6d28d9', isContainer: true,  defaultProps: {} },
-  drag:        { label: 'Drag',       icon: '⣿',  colorClass: 'bg-orange-700',  color: '#c2410c', isContainer: true,  defaultProps: {} },
-  draggroup:   { label: 'DragGroup',  icon: '⣿⣿', colorClass: 'bg-orange-800',  color: '#9a3412', isContainer: true,  defaultProps: {} },
-  // Imagemap
-  imagemap:    { label: 'Imagemap',   icon: '🗺',  colorClass: 'bg-emerald-700', color: '#047857', isContainer: true,  defaultProps: {} },
-  hotspot:     { label: 'Hotspot',    icon: '⬡',  colorClass: 'bg-green-600',   color: '#16a34a', isContainer: false, defaultProps: {} },
-  hotbar:      { label: 'Hotbar',     icon: '⬡▬', colorClass: 'bg-green-700',   color: '#15803d', isContainer: false, defaultProps: {} },
-  // Display
-  text:        { label: 'Text',       icon: 'T',  colorClass: 'bg-gray-500',    color: '#6b7280', isContainer: false, defaultProps: { text: 'Hello' } },
-  label:       { label: 'Label',      icon: 'L',  colorClass: 'bg-gray-600',    color: '#4b5563', isContainer: false, defaultProps: { text: 'Label' } },
-  image:       { label: 'Image',      icon: '⬜', colorClass: 'bg-emerald-700', color: '#047857', isContainer: false, defaultProps: {} },
-  // Interactive
-  textbutton:  { label: 'TextButton', icon: 'TB', colorClass: 'bg-orange-500',  color: '#f97316', isContainer: false, defaultProps: { text: 'Click Me', action: 'Return()' } },
-  button:      { label: 'Button',     icon: 'Bt', colorClass: 'bg-orange-700',  color: '#c2410c', isContainer: true,  defaultProps: { xsize: 300, ysize: 54, action: 'Return()' } },
-  imagebutton: { label: 'ImgButton',  icon: 'IB', colorClass: 'bg-amber-600',   color: '#d97706', isContainer: false, defaultProps: { xsize: 200, ysize: 150, action: 'Return()' } },
-  bar:         { label: 'Bar',        icon: '▬',  colorClass: 'bg-purple-600',  color: '#7c3aed', isContainer: false, defaultProps: { xsize: 450, ysize: 36 } },
-  vbar:        { label: 'VBar',       icon: '▮',  colorClass: 'bg-purple-700',  color: '#6d28d9', isContainer: false, defaultProps: { xsize: 36, ysize: 450 } },
-  input:       { label: 'Input',      icon: '✎',  colorClass: 'bg-teal-600',    color: '#0d9488', isContainer: false, defaultProps: { text: '' } },
-  'null':      { label: 'Null',       icon: '∅',  colorClass: 'bg-gray-600',    color: '#4b5563', isContainer: false, defaultProps: {} },
-  // Screen ops
-  use:         { label: 'use',        icon: '⤴',  colorClass: 'bg-violet-700',  color: '#6d28d9', isContainer: true,  defaultProps: {} },
-  transclude:  { label: 'transclude', icon: '↳',  colorClass: 'bg-indigo-800',  color: '#3730a3', isContainer: false, defaultProps: {} },
-  key:         { label: 'key',        icon: '⌨',  colorClass: 'bg-slate-600',   color: '#475569', isContainer: false, defaultProps: {} },
-  timer:       { label: 'timer',      icon: '⏱',  colorClass: 'bg-slate-700',   color: '#334155', isContainer: false, defaultProps: {} },
-  // Utility
-  mousearea:   { label: 'mousearea',  icon: '⬚',  colorClass: 'bg-slate-500',   color: '#64748b', isContainer: false, defaultProps: {} },
-  nearrect:    { label: 'nearrect',   icon: '⊡',  colorClass: 'bg-slate-600',   color: '#475569', isContainer: true,  defaultProps: {} },
-  dismiss:     { label: 'dismiss',    icon: '✕',  colorClass: 'bg-red-700',     color: '#b91c1c', isContainer: false, defaultProps: { action: 'Return()' } },
-  on:          { label: 'on',         icon: '⚡',  colorClass: 'bg-yellow-600',  color: '#ca8a04', isContainer: false, defaultProps: { onEvent: 'show', action: 'NullAction()' } },
-  'default':   { label: 'default',    icon: '≔',  colorClass: 'bg-slate-500',   color: '#64748b', isContainer: false, defaultProps: { defaultVariable: 'var', defaultValue: '0' } },
-  // Fallback: raw blocks (includes control flow)
-  raw:         { label: 'code',       icon: '{}', colorClass: 'bg-zinc-600',    color: '#52525b', isContainer: false, defaultProps: {} },
-} as Record<ScreenWidgetType, ElemDef>;
+const COMPOSER_ELEM: Record<ScreenWidgetType, ComposerElemDef> = {
+  vbox:        { ...ELEM.vbox,        defaultProps: {} },
+  hbox:        { ...ELEM.hbox,        defaultProps: {} },
+  fixed:       { ...ELEM.fixed,       defaultProps: {} },
+  frame:       { ...ELEM.frame,       defaultProps: { xsize: 450, ysize: 300 } },
+  window:      { ...ELEM.window,      defaultProps: { xsize: 800, ysize: 300 } },
+  side:        { ...ELEM.side,        defaultProps: {} },
+  viewport:    { ...ELEM.viewport,    defaultProps: { xsize: 600, ysize: 400, scrollbars: 'vertical', mousewheel: true } },
+  vpgrid:      { ...ELEM.vpgrid,      defaultProps: { cols: 1 } },
+  grid:        { ...ELEM.grid,        defaultProps: { cols: 3, rows: 3 } },
+  transform:   { ...ELEM.transform,   defaultProps: {} },
+  drag:        { ...ELEM.drag,        defaultProps: {} },
+  draggroup:   { ...ELEM.draggroup,   defaultProps: {} },
+  imagemap:    { ...ELEM.imagemap,    defaultProps: {} },
+  hotspot:     { ...ELEM.hotspot,     defaultProps: {} },
+  hotbar:      { ...ELEM.hotbar,      defaultProps: {} },
+  text:        { ...ELEM.text,        defaultProps: { text: 'Hello' } },
+  label:       { ...ELEM.label,       defaultProps: { text: 'Label' } },
+  image:       { ...ELEM.image,       defaultProps: {} },
+  textbutton:  { ...ELEM.textbutton,  defaultProps: { text: 'Click Me', action: 'Return()' } },
+  button:      { ...ELEM.button,      defaultProps: { xsize: 300, ysize: 54, action: 'Return()' } },
+  imagebutton: { ...ELEM.imagebutton, defaultProps: { xsize: 200, ysize: 150, action: 'Return()' } },
+  bar:         { ...ELEM.bar,         defaultProps: { xsize: 450, ysize: 36 } },
+  vbar:        { ...ELEM.vbar,        defaultProps: { xsize: 36, ysize: 450 } },
+  input:       { ...ELEM.input,       defaultProps: { text: '' } },
+  'null':      { ...ELEM['null'],     defaultProps: {} },
+  use:         { ...ELEM.use,         defaultProps: {} },
+  transclude:  { ...ELEM.transclude,  defaultProps: {} },
+  key:         { ...ELEM.key,         defaultProps: {} },
+  timer:       { ...ELEM.timer,       defaultProps: {} },
+  mousearea:   { ...ELEM.mousearea,   defaultProps: {} },
+  nearrect:    { ...ELEM.nearrect,    defaultProps: {} },
+  dismiss:     { ...ELEM.dismiss,     defaultProps: { action: 'Return()' } },
+  on:          { ...ELEM.on,          defaultProps: { onEvent: 'show', action: 'NullAction()' } },
+  'default':   { ...ELEM['default'],  defaultProps: { defaultVariable: 'var', defaultValue: '0' } },
+  raw:         { ...ELEM.raw,         defaultProps: {} },
+} as Record<ScreenWidgetType, ComposerElemDef>;
 
 // Logic palette items insert raw nodes with template code.
 type LogicTile = { label: string; icon: string; colorClass: string; code: string };
@@ -87,42 +77,6 @@ const PALETTE_GROUPS: { label: string; types: ScreenWidgetType[] }[] = [
   { label: 'Utility',     types: ['mousearea', 'nearrect', 'dismiss', 'on', 'default'] },
   { label: 'Advanced',    types: ['transform', 'drag', 'draggroup', 'imagemap', 'hotspot', 'hotbar'] },
 ];
-
-// Keywords found in raw code blocks — used to generate canvas hint icons.
-const HINT_KW_MAP: Partial<Record<string, ScreenWidgetType>> = {
-  vbox: 'vbox', hbox: 'hbox', fixed: 'fixed', frame: 'frame', window: 'window',
-  side: 'side', viewport: 'viewport', vpgrid: 'vpgrid', grid: 'grid',
-  text: 'text', label: 'label', image: 'image', add: 'image',
-  textbutton: 'textbutton', button: 'button', imagebutton: 'imagebutton',
-  bar: 'bar', vbar: 'vbar', input: 'input', null: 'null',
-  use: 'use', key: 'key', timer: 'timer',
-  mousearea: 'mousearea', nearrect: 'nearrect', dismiss: 'dismiss',
-  drag: 'drag', draggroup: 'draggroup', imagemap: 'imagemap',
-  hotspot: 'hotspot', hotbar: 'hotbar', transform: 'transform',
-};
-
-function extractRawHints(code: string): ScreenWidgetType[] {
-  const found: ScreenWidgetType[] = [];
-  const seen = new Set<string>();
-  for (const line of code.split('\n')) {
-    const tok = line.trim().split(/\s+/)[0]?.replace(/:$/, '').toLowerCase();
-    if (tok && HINT_KW_MAP[tok] && !seen.has(tok)) {
-      seen.add(tok);
-      found.push(HINT_KW_MAP[tok]!);
-    }
-  }
-  return found;
-}
-
-// Determine display style for the first keyword of a raw block.
-function rawBlockStyle(code: string): { icon: string; color: string; colorClass: string } {
-  const firstKw = (code.split('\n')[0] ?? '').trim().split(/\s+/)[0]?.replace(/:$/, '').toLowerCase() ?? '';
-  if (firstKw === 'if' || firstKw === 'elif' || firstKw === 'else') return { icon: '?', color: '#fbbf24', colorClass: 'bg-amber-700' };
-  if (firstKw === 'showif') return { icon: '👁', color: '#fbbf24', colorClass: 'bg-amber-600' };
-  if (firstKw === 'for') return { icon: '↺', color: '#fde68a', colorClass: 'bg-yellow-700' };
-  if (firstKw === '$' || firstKw === 'python') return { icon: '$', color: '#fda4af', colorClass: 'bg-rose-800' };
-  return { icon: '{}', color: '#a1a1aa', colorClass: 'bg-zinc-600' };
-}
 
 // ─── Widget tree helpers ──────────────────────────────────────────────────────
 
@@ -155,7 +109,7 @@ function cloneTree(w: ScreenWidget[]): ScreenWidget[] {
 }
 
 function makeWidget(type: ScreenWidgetType, gameWidth = 1920): ScreenWidget {
-  const def = ELEM[type];
+  const def = COMPOSER_ELEM[type];
   if (!def) return { id: genId(), type: 'raw', code: '' };
   const u = gameWidth / 1920;
   const props = { ...def.defaultProps };
