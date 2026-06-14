@@ -951,6 +951,8 @@ export interface ScreenWidget {
   extraProps?: string[];
   /** Parsed visual style properties — preview-only, not used in code gen */
   styleProps?: ScreenWidgetStyleProps;
+  /** style_prefix property — passed down to children to compute their effective style name */
+  stylePrefix?: string;
 
   // ── vpgrid / grid ────────────────────────────────────────────────────────
   cols?: number;

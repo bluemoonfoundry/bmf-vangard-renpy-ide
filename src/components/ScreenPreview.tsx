@@ -7,10 +7,35 @@
  */
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import type { ScreenLayoutComposition, ScreenWidget } from '@/types';
+import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetStyleProps, ScreenWidgetType } from '@/types';
 import { ELEM, HINT_KW_MAP, extractRawHints, rawBlockStyle } from '@/lib/screenWidgetDefs';
 
 const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.4, 0.5, 0.6, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+// Maps widget type → the style suffix used when resolving a style_prefix.
+// e.g. style_prefix "choice" on a textbutton → looks up "choice_button".
+const WIDGET_STYLE_SUFFIX: Partial<Record<ScreenWidgetType, string>> = {
+  vbox: 'vbox', hbox: 'hbox', frame: 'frame', window: 'window',
+  viewport: 'viewport', vpgrid: 'vpgrid', grid: 'grid', side: 'side',
+  textbutton: 'button', button: 'button', imagebutton: 'button',
+  text: 'text', label: 'label', input: 'input',
+  bar: 'bar', vbar: 'vbar',
+};
+
+/** Merge style sources lowest→highest priority: prefix-derived → named → inline. */
+function computeEffectiveProps(
+  widget: ScreenWidget,
+  styleMap: Map<string, ScreenWidgetStyleProps> | undefined,
+  inheritedPrefix: string | undefined,
+): ScreenWidgetStyleProps {
+  if (!styleMap) return widget.styleProps ?? {};
+  const suffix = WIDGET_STYLE_SUFFIX[widget.type];
+  const prefixedProps = (inheritedPrefix && suffix)
+    ? (styleMap.get(`${inheritedPrefix}_${suffix}`) ?? {})
+    : {};
+  const namedProps = widget.style ? (styleMap.get(widget.style) ?? {}) : {};
+  return { ...prefixedProps, ...namedProps, ...widget.styleProps };
+}
 
 // ─── Read-only widget renderer ────────────────────────────────────────────────
 
@@ -19,12 +44,21 @@ function PreviewWidget({
   isTopLevel,
   gameWidth,
   gameHeight,
+  styleMap,
+  inheritedStylePrefix,
 }: {
   widget: ScreenWidget;
   isTopLevel: boolean;
   gameWidth: number;
   gameHeight: number;
+  styleMap?: Map<string, ScreenWidgetStyleProps>;
+  inheritedStylePrefix?: string;
 }) {
+  // The effective prefix to pass to children: widget's own prefix overrides inherited.
+  const childPrefix = widget.stylePrefix ?? inheritedStylePrefix;
+
+  const sp = computeEffectiveProps(widget, styleMap, inheritedStylePrefix);
+
   const u = gameWidth / 1920;
 
   const pos: React.CSSProperties = isTopLevel
@@ -39,7 +73,7 @@ function PreviewWidget({
   const base: React.CSSProperties = { ...pos, ...size };
 
   const children = widget.children?.map(child => (
-    <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} />
+    <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} styleMap={styleMap} inheritedStylePrefix={childPrefix} />
   ));
 
   const r = (n: number) => Math.round(n * u);
@@ -55,7 +89,7 @@ function PreviewWidget({
 
   switch (widget.type) {
     case 'vbox': {
-      const sp = widget.styleProps;
+
       const boxGap = sp?.xpadding != null ? r(sp.xpadding) : gap;
       const boxPad = sp?.ypadding != null ? r(sp.ypadding) : pad;
       return (
@@ -65,7 +99,7 @@ function PreviewWidget({
       );
     }
     case 'hbox': {
-      const sp = widget.styleProps;
+
       const boxGap = sp?.ypadding != null ? r(sp.ypadding) : gap;
       const boxPad = sp?.xpadding != null ? r(sp.xpadding) : pad;
       return (
@@ -75,7 +109,7 @@ function PreviewWidget({
       );
     }
     case 'frame': {
-      const sp = widget.styleProps;
+
       const padX = sp?.xpadding != null ? r(sp.xpadding) : r(12);
       const padY = sp?.ypadding != null ? r(sp.ypadding) : r(12);
       return (
@@ -85,7 +119,7 @@ function PreviewWidget({
       );
     }
     case 'window': {
-      const sp = widget.styleProps;
+
       const padX = sp?.xpadding != null ? r(sp.xpadding) : r(12);
       const padY = sp?.ypadding != null ? r(sp.ypadding) : r(12);
       return (
@@ -124,7 +158,7 @@ function PreviewWidget({
         </div>
       );
     case 'text': {
-      const sp = widget.styleProps;
+
       const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
       const ta = sp?.textAlign;
       return (
@@ -134,7 +168,7 @@ function PreviewWidget({
       );
     }
     case 'label': {
-      const sp = widget.styleProps;
+
       const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
       return (
         <div style={{ ...base, color: sp?.color ?? '#d1d5db', fontSize: tfs, fontWeight: sp?.bold ? 'bold' : undefined, fontStyle: sp?.italic ? 'italic' : undefined, padding: `${r(6)}px ${r(12)}px`, border: `${Math.max(1, r(1))}px solid #6b7280`, borderRadius: br, background: sp?.background, display: 'inline-block', whiteSpace: 'nowrap' }}>
@@ -143,7 +177,7 @@ function PreviewWidget({
       );
     }
     case 'textbutton': {
-      const sp = widget.styleProps;
+
       const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
       const padX = sp?.xpadding != null ? r(sp.xpadding) : r(28);
       const padY = sp?.ypadding != null ? r(sp.ypadding) : r(10);
@@ -335,7 +369,7 @@ function PreviewWidget({
             use {widget.useScreen}{widget.useArgs ? `(${widget.useArgs})` : ''}
           </div>
           {widget.children?.map(child => (
-            <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} />
+            <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} styleMap={styleMap} inheritedStylePrefix={childPrefix} />
           ))}
         </div>
       );
@@ -402,9 +436,10 @@ function PreviewWidget({
 export interface ScreenPreviewProps {
   composition: ScreenLayoutComposition;
   className?: string;
+  styleMap?: Map<string, ScreenWidgetStyleProps>;
 }
 
-export default function ScreenPreview({ composition, className }: ScreenPreviewProps) {
+export default function ScreenPreview({ composition, className, styleMap }: ScreenPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(0.5);
   // null = "fit to container"; number = manual override
@@ -498,6 +533,7 @@ export default function ScreenPreview({ composition, className }: ScreenPreviewP
                 isTopLevel
                 gameWidth={composition.gameWidth}
                 gameHeight={composition.gameHeight}
+                styleMap={styleMap}
               />
             ))}
           </div>

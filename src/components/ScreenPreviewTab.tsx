@@ -10,7 +10,7 @@
 import React, { useMemo } from 'react';
 import type { RenpyScreen, Block, ProjectImage, ScreenWidget, ScreenLayoutComposition } from '@/types';
 import ScreenPreview from '@/components/ScreenPreview';
-import { parseScreenCode } from '@/lib/screenParser';
+import { parseScreenCode, parseDefineVariables, parseProjectStyles } from '@/lib/screenParser';
 
 export interface ScreenPreviewTabProps {
   screens: Map<string, RenpyScreen>;
@@ -43,18 +43,28 @@ function resolveImageUrl(rel: string, images: Map<string, ProjectImage>): string
 }
 
 /** Walk the widget tree and fill in imageDataUrl for image widgets that have a resolvable path. */
-function resolveWidgetImages(widgets: ScreenWidget[], images: Map<string, ProjectImage>): ScreenWidget[] {
+function resolveWidgetImages(
+  widgets: ScreenWidget[],
+  images: Map<string, ProjectImage>,
+  varMap: Map<string, string>,
+): ScreenWidget[] {
   return widgets.map(w => {
     const resolved: ScreenWidget = { ...w };
     if ((w.type === 'image') && w.imagePath && !w.imageDataUrl) {
-      const url = resolveImageUrl(w.imagePath, images);
+      // Resolve Python variable references like gui.main_menu_background
+      let path = w.imagePath;
+      if (!path.startsWith('#') && !/^["']/.test(path) && !path.includes('/') && varMap.has(path)) {
+        path = varMap.get(path)!;
+      }
+      const url = resolveImageUrl(path, images);
       if (url) resolved.imageDataUrl = url;
+      else if (path !== w.imagePath) resolved.imagePath = path; // update with resolved path for placeholder label
     }
     if (w.styleProps?.bgImagePath && !w.styleProps.background) {
       const url = resolveImageUrl(w.styleProps.bgImagePath, images);
       if (url) resolved.styleProps = { ...w.styleProps, background: `url(${url}) center/cover no-repeat` };
     }
-    if (w.children) resolved.children = resolveWidgetImages(w.children, images);
+    if (w.children) resolved.children = resolveWidgetImages(w.children, images, varMap);
     return resolved;
   });
 }
@@ -62,9 +72,10 @@ function resolveWidgetImages(widgets: ScreenWidget[], images: Map<string, Projec
 function withResolvedImages(
   composition: ScreenLayoutComposition,
   images: Map<string, ProjectImage> | undefined,
+  varMap: Map<string, string>,
 ): ScreenLayoutComposition {
   if (!images || images.size === 0) return composition;
-  return { ...composition, widgets: resolveWidgetImages(composition.widgets, images) };
+  return { ...composition, widgets: resolveWidgetImages(composition.widgets, images, varMap) };
 }
 
 export default function ScreenPreviewTab({
@@ -74,6 +85,18 @@ export default function ScreenPreviewTab({
   cursorLine,
   projectImages,
 }: ScreenPreviewTabProps) {
+  // Project-wide define variables (gui.text_color, gui.main_menu_background, etc.)
+  const varMap = useMemo(
+    () => parseDefineVariables(blocks.map(b => b.content)),
+    [blocks],
+  );
+
+  // Named style map parsed from all style blocks across the project
+  const styleMap = useMemo(
+    () => parseProjectStyles(blocks.map(b => b.content), varMap),
+    [blocks, varMap],
+  );
+
   const activeScreen = useMemo(() => {
     if (!cursorBlockId || cursorLine == null) return null;
 
@@ -108,8 +131,8 @@ export default function ScreenPreviewTab({
       screenLines.push(l);
     }
     const parsed = parseScreenCode(screenLines.join('\n'));
-    return withResolvedImages(parsed, projectImages);
-  }, [activeScreen, blocks, projectImages]);
+    return withResolvedImages(parsed, projectImages, varMap);
+  }, [activeScreen, blocks, projectImages, varMap]);
 
   if (!cursorBlockId || cursorLine == null) {
     return <Placeholder message="Open a .rpy file and place your cursor inside a screen block." />;
@@ -128,7 +151,7 @@ export default function ScreenPreviewTab({
         )}
       </div>
       {composition ? (
-        <ScreenPreview composition={composition} />
+        <ScreenPreview composition={composition} styleMap={styleMap} />
       ) : (
         <Placeholder message={`Could not parse screen "${activeScreen.name}".`} />
       )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseScreenCode } from './screenParser';
+import { parseScreenCode, parseDefineVariables, parseProjectStyles } from './screenParser';
 import { generateScreenCode } from './screenCodeGenerator';
 
 describe('screenParser', () => {
@@ -337,5 +337,87 @@ describe('screenParser', () => {
     expect(hs.type).toBe('hotspot');
     expect(hs.hotspotArea).toBe('(0, 0, 100, 100)');
     expect(hs.action).toBe('Jump("label")');
+  });
+
+  it('parses style_prefix into widget.stylePrefix', () => {
+    const code = `screen choice(items):
+    style_prefix "choice"
+    vbox:
+        style_prefix "choice"
+        for i in items:
+            textbutton i.caption action i.action`;
+    const comp = parseScreenCode(code);
+    // style_prefix at top level is a raw child (no parent in stack)
+    // but inside a container it should be set on the widget
+    const vbox = comp.widgets.find(w => w.type === 'vbox');
+    expect(vbox?.stylePrefix).toBe('choice');
+  });
+});
+
+describe('parseDefineVariables', () => {
+  it('extracts string and numeric literals', () => {
+    const content = `
+define gui.text_color = '#404040'
+define gui.text_size = 33
+define gui.main_menu_background = "gui/main_menu.png"
+`;
+    const vars = parseDefineVariables([content]);
+    expect(vars.get('gui.text_color')).toBe('#404040');
+    expect(vars.get('gui.text_size')).toBe('33');
+    expect(vars.get('gui.main_menu_background')).toBe('gui/main_menu.png');
+  });
+
+  it('resolves cross-references in a second pass', () => {
+    const content = `
+define gui.interface_text_size = 33
+define gui.button_text_size = gui.interface_text_size
+`;
+    const vars = parseDefineVariables([content]);
+    expect(vars.get('gui.button_text_size')).toBe('33');
+  });
+});
+
+describe('parseProjectStyles', () => {
+  it('parses a style block with literal properties', () => {
+    const content = `
+style frame:
+    background "#1a1a2e"
+    xpadding 20
+    ypadding 10
+`;
+    const vars = new Map<string, string>();
+    const styleMap = parseProjectStyles([content], vars);
+    expect(styleMap.get('frame')?.background).toBe('#1a1a2e');
+    expect(styleMap.get('frame')?.xpadding).toBe(20);
+    expect(styleMap.get('frame')?.ypadding).toBe(10);
+  });
+
+  it('resolves variable references in style properties', () => {
+    const defineContent = `define gui.text_color = '#404040'\ndefine gui.text_size = 33`;
+    const styleContent = `
+style default:
+    color gui.text_color
+    size gui.text_size
+`;
+    const vars = parseDefineVariables([defineContent]);
+    const styleMap = parseProjectStyles([styleContent], vars);
+    expect(styleMap.get('default')?.color).toBe('#404040');
+    expect(styleMap.get('default')?.fontSize).toBe(33);
+  });
+
+  it('resolves style inheritance', () => {
+    const content = `
+style base:
+    color "#ffffff"
+    size 24
+style child is base:
+    bold True
+`;
+    const vars = new Map<string, string>();
+    const styleMap = parseProjectStyles([content], vars);
+    const child = styleMap.get('child');
+    expect(child?.color).toBe('#ffffff');   // inherited
+    expect(child?.fontSize).toBe(24);        // inherited
+    expect(child?.bold).toBe(true);          // own
   });
 });

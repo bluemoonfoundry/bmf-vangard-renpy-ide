@@ -42,6 +42,8 @@ const SCALAR_PROPS: Record<string, keyof ScreenWidget> = {
   xsize: 'xsize', ysize: 'ysize', width: 'xsize', height: 'ysize',
   // Appearance
   style: 'style',
+  // Style prefix for children
+  style_prefix: 'stylePrefix',
   // Interaction
   action: 'action', hovered: 'hovered', unhovered: 'unhovered',
   sensitive: 'sensitive', selected: 'selected',
@@ -580,4 +582,139 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
     zorder,
     widgets: rootWidgets,
   };
+}
+
+// ─── Project-wide style extraction ───────────────────────────────────────────
+
+/**
+ * Parse `define name = value` statements from .rpy block contents.
+ * Handles string and numeric literals. Does a second pass to resolve
+ * single-level cross-references (e.g. `define gui.button_text_size = gui.interface_text_size`).
+ */
+export function parseDefineVariables(blockContents: string[]): Map<string, string> {
+  const vars = new Map<string, string>();
+  // First pass: literal values
+  for (const content of blockContents) {
+    for (const line of content.split('\n')) {
+      const m = line.match(/^\s*define\s+([\w.]+)\s*=\s*(?:["']([^"']+)["']|([\d.]+))\s*(?:#.*)?$/);
+      if (!m) continue;
+      const val = m[2] ?? m[3];
+      if (m[1] && val !== undefined) vars.set(m[1], val);
+    }
+  }
+  // Second pass: resolve simple variable references (up to 3 rounds)
+  for (let pass = 0; pass < 3; pass++) {
+    for (const content of blockContents) {
+      for (const line of content.split('\n')) {
+        const m = line.match(/^\s*define\s+([\w.]+)\s*=\s*([\w.]+)\s*(?:#.*)?$/);
+        if (!m) continue;
+        if (!vars.has(m[1]) && vars.has(m[2])) vars.set(m[1], vars.get(m[2])!);
+      }
+    }
+  }
+  return vars;
+}
+
+/**
+ * Resolve a raw token against the variable map.
+ * Returns the literal value if the token is a known variable, else the token itself.
+ */
+function resolveVarToken(token: string, varMap: Map<string, string>): string {
+  return varMap.get(token) ?? token;
+}
+
+/**
+ * Parse a style property value using the variable map for substitution.
+ * Wraps parseStyleValue but first resolves variable references in the rhs.
+ */
+function parseStyleValueWithVars(key: string, rhs: string, varMap: Map<string, string>): Partial<ScreenWidgetStyleProps> {
+  // For simple single-token rhs values (variable refs), substitute first
+  const rhsTrimmed = rhs.trim();
+  // If the rhs doesn't start with a quote, # or function call — it may be a var
+  if (!/^["'#]/.test(rhsTrimmed) && !/\(/.test(rhsTrimmed)) {
+    const resolved = resolveVarToken(rhsTrimmed, varMap);
+    if (resolved !== rhsTrimmed) return parseStyleValue(key, resolved);
+  }
+  return parseStyleValue(key, rhs);
+}
+
+/**
+ * Parse all `style name:` blocks from .rpy block contents into a style map.
+ * Handles `style name is parent:` inheritance. Uses varMap for variable substitution.
+ */
+export function parseProjectStyles(
+  blockContents: string[],
+  varMap: Map<string, string>,
+): Map<string, ScreenWidgetStyleProps> {
+  // Raw defs: name → { props, parent }
+  const rawDefs = new Map<string, { props: ScreenWidgetStyleProps; parent?: string }>();
+
+  function ensureDef(name: string, parent?: string) {
+    if (!rawDefs.has(name)) rawDefs.set(name, { props: {} });
+    const def = rawDefs.get(name)!;
+    if (parent && !def.parent) def.parent = parent;
+    return def;
+  }
+
+  for (const content of blockContents) {
+    const lines = content.split('\n');
+    let li = 0;
+    while (li < lines.length) {
+      const raw = lines[li];
+      const trimmed = raw.trim();
+      if (!trimmed || trimmed.startsWith('#')) { li++; continue; }
+
+      // Match style declaration: `style name` or `style name is parent` with optional `:`
+      const m = trimmed.match(/^style\s+(\w+)(?:\s+is\s+(\w+))?\s*(?:\S.*)?:?\s*(?:#.*)?$/);
+      if (!m || !m[1]) { li++; continue; }
+
+      const name = m[1];
+      const parent = m[2];
+      const hasBody = trimmed.endsWith(':');
+      const blockIndent = indentOf(raw);
+
+      ensureDef(name, parent);
+      const def = rawDefs.get(name)!;
+      li++;
+
+      if (!hasBody) continue;
+
+      // Parse body lines
+      while (li < lines.length) {
+        const propRaw = lines[li];
+        const propTrimmed = propRaw.trim();
+        if (!propTrimmed || propTrimmed.startsWith('#')) { li++; continue; }
+        if (indentOf(propRaw) <= blockIndent) break;
+
+        const tokens = tokeniseLine(propTrimmed);
+        if (tokens.length < 1) { li++; continue; }
+        const kw = tokens[0].toLowerCase();
+
+        if (STYLE_PROP_KEYS.has(kw) && tokens.length >= 2) {
+          const rhs = tokens.slice(1).join(' ');
+          const parsed = parseStyleValueWithVars(kw, rhs, varMap);
+          Object.assign(def.props, parsed);
+        }
+        li++;
+      }
+    }
+  }
+
+  // Resolve inheritance (topological — up to 8 rounds to handle deep chains)
+  const resolved = new Map<string, ScreenWidgetStyleProps>();
+
+  function resolve(name: string, visited = new Set<string>()): ScreenWidgetStyleProps {
+    if (resolved.has(name)) return resolved.get(name)!;
+    if (visited.has(name)) return {};
+    visited.add(name);
+    const def = rawDefs.get(name);
+    if (!def) return {};
+    const parentProps = def.parent ? resolve(def.parent, new Set(visited)) : {};
+    const merged = { ...parentProps, ...def.props };
+    resolved.set(name, merged);
+    return merged;
+  }
+
+  for (const name of rawDefs.keys()) resolve(name);
+  return resolved;
 }
