@@ -20,7 +20,7 @@ import ColorPickerPane from './ColorPickerPane';
 type SubTabId =
     | 'characters' | 'variables' | 'screens'
     | 'images' | 'audio'
-    | 'scenes' | 'imagemaps' | 'screenLayouts'
+    | 'scenes' | 'imagemaps'
     | 'snippets' | 'menuTemplates' | 'colorPalette';
 
 interface SubPane {
@@ -64,11 +64,6 @@ const SUB_PANES: SubPane[] = [
         id: 'imagemaps',
         tooltip: 'Image Maps',
         icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>,
-    },
-    {
-        id: 'screenLayouts',
-        tooltip: 'Screen Layouts',
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-2.25z" /></svg>,
     },
     {
         id: 'snippets',
@@ -137,13 +132,6 @@ interface StoryElementsPanelProps {
     onCreateImageMap: (name?: string) => void;
     onDeleteImageMap: (imagemapId: string) => void;
 
-    // Screen Layout Props
-    screenLayouts: { id: string, name: string }[];
-    onOpenScreenLayout: (layoutId: string) => void;
-    onCreateScreenLayout: (name?: string) => void;
-    onDeleteScreenLayout: (layoutId: string) => void;
-    onDuplicateScreenLayout: (layoutId: string) => void;
-
     // Snippet Props
     userSnippets?: UserSnippet[];
     onCreateSnippet?: () => void;
@@ -185,7 +173,6 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     onHoverHighlightStart, onHoverHighlightEnd,
     scenes, onOpenScene, onCreateScene, onDeleteScene,
     imagemaps, onOpenImageMap, onCreateImageMap, onDeleteImageMap,
-    screenLayouts, onOpenScreenLayout, onCreateScreenLayout, onDeleteScreenLayout, onDuplicateScreenLayout,
     userSnippets, onCreateSnippet, onEditSnippet, onDeleteSnippet, projectRootPath,
     menuTemplates, onCreateMenuTemplate, onEditMenuTemplate, onDeleteMenuTemplate,
     onInsertColorAtCursor,
@@ -429,70 +416,6 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                         )}
                     </div>
                 )}
-
-                {/* Screen Layouts */}
-                {activeSubTab === 'screenLayouts' && (
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">Screen Layouts ({screenLayouts.length})</h2>
-                            <button onClick={() => onCreateScreenLayout()} className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-bold">+ New</button>
-                        </div>
-                        {screenLayouts.length === 0 ? (
-                            <p className="text-sm text-secondary italic">No screen layouts created yet.</p>
-                        ) : (
-                            <ul className="space-y-2">
-                                {screenLayouts.map(layout => {
-                                    const isInCode = analysisResult.screens.has(layout.name);
-                                    return (
-                                        <li key={layout.id} className="p-3 rounded-md bg-secondary border border-primary flex items-center justify-between group hover:shadow-md transition-shadow">
-                                            <div className="flex-grow cursor-pointer min-w-0" onClick={() => onOpenScreenLayout(layout.id)}>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-semibold text-sm truncate">{layout.name}</p>
-                                                    {isInCode && (
-                                                        <span className="flex-shrink-0 text-[10px] font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 rounded">
-                                                            in code
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-1 flex-shrink-0 pl-2">
-                                                {isInCode && (
-                                                    <button
-                                                        onClick={() => onFindScreenDefinition(layout.name)}
-                                                        title="Go to definition"
-                                                        className="p-1.5 text-secondary hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity rounded"
-                                                        aria-label="Go to definition"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => onDuplicateScreenLayout(layout.id)}
-                                                    title="Duplicate"
-                                                    className="p-1.5 text-secondary hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity rounded"
-                                                    aria-label="Duplicate screen layout"
-                                                >
-                                                    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                                                        <rect x="5" y="1" width="9" height="11" rx="1.5"/><rect x="1" y="4" width="9" height="11" rx="1.5"/>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => onDeleteScreenLayout(layout.id)}
-                                                    className="p-1.5 text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded"
-                                                    title="Delete Screen Layout"
-                                                    aria-label="Delete screen layout"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                </button>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </div>
-                )}
-
 
                 {/* Snippets */}
                 {activeSubTab === 'snippets' && (

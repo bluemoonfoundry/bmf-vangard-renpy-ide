@@ -634,13 +634,12 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
   sceneId?: string;
   imagemapId?: string;
-  layoutId?: string;
   scrollRequest?: { line: number; key: number };
 }
 
@@ -1058,12 +1057,11 @@ export interface ProjectSettings {
   sceneCompositions?: Record<string, SerializedSceneComposition>;
   sceneNames?: Record<string, string>;
   imagemapCompositions?: Record<string, SerializedImageMapComposition>;
-  screenLayoutCompositions?: Record<string, ScreenLayoutComposition>;
   scannedImagePaths?: string[];
   scannedAudioPaths?: string[];
   storyElementsTabState?: {
     activeTab: 'storyData' | 'assets' | 'composers' | 'tools';
-    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'screenLayouts' | 'snippets' | 'menuTemplates' | 'colorPalette';
+    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'snippets' | 'menuTemplates' | 'colorPalette';
   };
   dismissedImplicitVariableHint?: boolean;
   completedMilestones?: string[];

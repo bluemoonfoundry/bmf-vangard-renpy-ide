@@ -3,16 +3,16 @@
  * whichever Ren'Py `screen` block the Monaco cursor is currently inside.
  *
  * Context-sensitive: watches cursor position + active block, walks the parsed
- * RenpyScreen list to find the enclosing screen, then renders ScreenPreview
- * with the matching ScreenLayoutComposition (if one has been built for it).
+ * RenpyScreen list to find the enclosing screen, then parses the screen code
+ * directly from the block content to render a live preview.
  */
 
 import React, { useMemo } from 'react';
-import type { RenpyScreen, ScreenLayoutComposition, Block } from '@/types';
+import type { RenpyScreen, Block } from '@/types';
 import ScreenPreview from '@/components/ScreenPreview';
+import { parseScreenCode } from '@/lib/screenParser';
 
 export interface ScreenPreviewTabProps {
-  screenLayoutCompositions: Record<string, ScreenLayoutComposition>;
   screens: Map<string, RenpyScreen>;
   blocks: Block[];
   /** blockId of the block whose editor last had cursor focus */
@@ -22,7 +22,6 @@ export interface ScreenPreviewTabProps {
 }
 
 export default function ScreenPreviewTab({
-  screenLayoutCompositions,
   screens,
   blocks,
   cursorBlockId,
@@ -50,10 +49,19 @@ export default function ScreenPreviewTab({
 
   const composition = useMemo(() => {
     if (!activeScreen) return null;
-    return Object.values(screenLayoutCompositions).find(
-      c => c.screenName === activeScreen.name,
-    ) ?? null;
-  }, [activeScreen, screenLayoutCompositions]);
+    const block = blocks.find(b => b.id === activeScreen.definedInBlockId);
+    if (!block) return null;
+    const lines = block.content.split('\n');
+    const startIdx = Math.max(0, activeScreen.line - 1);
+    const screenLines: string[] = [lines[startIdx]];
+    for (let i = startIdx + 1; i < lines.length; i++) {
+      const l = lines[i];
+      if (l.trim() === '' || l.trim().startsWith('#')) { screenLines.push(l); continue; }
+      if (!/^\s/.test(l)) break;
+      screenLines.push(l);
+    }
+    return parseScreenCode(screenLines.join('\n'));
+  }, [activeScreen, blocks]);
 
   if (!cursorBlockId || cursorLine == null) {
     return <Placeholder message="Open a .rpy file and place your cursor inside a screen block." />;
@@ -61,14 +69,6 @@ export default function ScreenPreviewTab({
 
   if (!activeScreen) {
     return <Placeholder message="Cursor is not inside a screen block." />;
-  }
-
-  if (!composition) {
-    return (
-      <Placeholder
-        message={`No layout built for screen "${activeScreen.name}". Open the Screen Layout Composer to build one.`}
-      />
-    );
   }
 
   return (
@@ -79,7 +79,11 @@ export default function ScreenPreviewTab({
           <span className="text-gray-500">({activeScreen.parameters})</span>
         )}
       </div>
-      <ScreenPreview composition={composition} />
+      {composition ? (
+        <ScreenPreview composition={composition} />
+      ) : (
+        <Placeholder message={`Could not parse screen "${activeScreen.name}".`} />
+      )}
     </div>
   );
 }
