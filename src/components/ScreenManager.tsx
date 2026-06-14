@@ -17,10 +17,9 @@ const SCREEN_ITEM_HEIGHT = 60;
 interface ScreenManagerProps {
     screens: Map<string, RenpyScreen>;
     onFindDefinition: (screenName: string) => void;
-    onOpenInComposer: (screenName: string) => void;
 }
 
-const ScreenManager: React.FC<ScreenManagerProps> = ({ screens, onFindDefinition, onOpenInComposer }) => {
+const ScreenManager: React.FC<ScreenManagerProps> = ({ screens, onFindDefinition }) => {
     const screenList = useMemo(
         () => Array.from(screens.values()).sort((a: RenpyScreen, b: RenpyScreen) => a.name.localeCompare(b.name)),
         [screens],
@@ -50,9 +49,6 @@ const ScreenManager: React.FC<ScreenManagerProps> = ({ screens, onFindDefinition
                                     {screen.parameters && <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">{screen.parameters}</p>}
                                 </div>
                                 <div className="flex items-center space-x-1 flex-shrink-0 pl-2">
-                                    <button onClick={() => onOpenInComposer(screen.name)} title="Open in Screen Composer" className="p-1 text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 rounded">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
-                                    </button>
                                     <button onClick={() => onFindDefinition(screen.name)} title="Go to definition" className="p-1 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded">
                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                     </button>

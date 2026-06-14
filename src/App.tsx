@@ -3996,7 +3996,7 @@ const App: React.FC = () => {
             if (data.command === 'save-all') handleSaveAll();
             if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
             if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations');
+            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview');
             if (data.command === 'toggle-search') handleToggleSearch();
             if (data.command === 'open-settings') openSettingsModal();
             if (data.command === 'open-shortcuts') openShortcutsModal();
@@ -4293,16 +4293,6 @@ const App: React.FC = () => {
     if (def) handleOpenEditor(def.definedInBlockId, def.line);
   }, [analysisResult.screens, handleOpenEditor]);
 
-  const handleOpenScreenInComposer = useCallback((screenName: string) => {
-    // Re-use an existing composition for this screen if one already exists.
-    const existingId = Object.entries(screenLayoutCompositions)
-      .find(([, comp]) => comp.screenName === screenName)?.[0];
-    if (existingId) {
-      handleOpenScreenLayout(existingId);
-    } else {
-      handleCreateScreenLayout(screenName);
-    }
-  }, [screenLayoutCompositions, handleOpenScreenLayout, handleCreateScreenLayout]);
 
   const handleAddImageScanDirectory = useCallback(async () => {
     if (window.electronAPI) {
@@ -5179,7 +5169,6 @@ const App: React.FC = () => {
                 onEditVariable={handleEditVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
                 onFindScreenDefinition={handleFindScreenDefinition}
-                onOpenScreenInComposer={handleOpenScreenInComposer}
                 // Image Props
                 projectImages={images}
                 imageMetadata={imageMetadata}
