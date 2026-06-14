@@ -8,7 +8,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { RenpyScreen, Block } from '@/types';
+import type { RenpyScreen, Block, ProjectImage, ScreenWidget, ScreenLayoutComposition } from '@/types';
 import ScreenPreview from '@/components/ScreenPreview';
 import { parseScreenCode } from '@/lib/screenParser';
 
@@ -19,6 +19,52 @@ export interface ScreenPreviewTabProps {
   cursorBlockId: string | null;
   /** 1-indexed line within that block */
   cursorLine: number | null;
+  /** Project image assets keyed by path — used to resolve image data URLs in the preview */
+  projectImages?: Map<string, ProjectImage>;
+}
+
+/** Suffix-match: does projectFilePath end with the given relative path? */
+function imageMatchesSuffix(img: ProjectImage, rel: string): boolean {
+  const norm = (s: string) => s.replace(/\\/g, '/').toLowerCase();
+  return norm(img.projectFilePath ?? img.filePath).endsWith('/' + norm(rel));
+}
+
+/** Return the best data URL for a relative image path, or undefined. */
+function resolveImageUrl(rel: string, images: Map<string, ProjectImage>): string | undefined {
+  const norm = rel.replace(/\\/g, '/');
+  // Exact key (as-is or with 'game/' prefix)
+  const direct = images.get(norm) ?? images.get('game/' + norm);
+  if (direct?.dataUrl) return direct.dataUrl;
+  // Suffix scan fallback
+  for (const img of images.values()) {
+    if (imageMatchesSuffix(img, norm) && img.dataUrl) return img.dataUrl;
+  }
+  return undefined;
+}
+
+/** Walk the widget tree and fill in imageDataUrl for image widgets that have a resolvable path. */
+function resolveWidgetImages(widgets: ScreenWidget[], images: Map<string, ProjectImage>): ScreenWidget[] {
+  return widgets.map(w => {
+    const resolved: ScreenWidget = { ...w };
+    if ((w.type === 'image') && w.imagePath && !w.imageDataUrl) {
+      const url = resolveImageUrl(w.imagePath, images);
+      if (url) resolved.imageDataUrl = url;
+    }
+    if (w.styleProps?.bgImagePath && !w.styleProps.background) {
+      const url = resolveImageUrl(w.styleProps.bgImagePath, images);
+      if (url) resolved.styleProps = { ...w.styleProps, background: `url(${url}) center/cover no-repeat` };
+    }
+    if (w.children) resolved.children = resolveWidgetImages(w.children, images);
+    return resolved;
+  });
+}
+
+function withResolvedImages(
+  composition: ScreenLayoutComposition,
+  images: Map<string, ProjectImage> | undefined,
+): ScreenLayoutComposition {
+  if (!images || images.size === 0) return composition;
+  return { ...composition, widgets: resolveWidgetImages(composition.widgets, images) };
 }
 
 export default function ScreenPreviewTab({
@@ -26,6 +72,7 @@ export default function ScreenPreviewTab({
   blocks,
   cursorBlockId,
   cursorLine,
+  projectImages,
 }: ScreenPreviewTabProps) {
   const activeScreen = useMemo(() => {
     if (!cursorBlockId || cursorLine == null) return null;
@@ -60,8 +107,9 @@ export default function ScreenPreviewTab({
       if (!/^\s/.test(l)) break;
       screenLines.push(l);
     }
-    return parseScreenCode(screenLines.join('\n'));
-  }, [activeScreen, blocks]);
+    const parsed = parseScreenCode(screenLines.join('\n'));
+    return withResolvedImages(parsed, projectImages);
+  }, [activeScreen, blocks, projectImages]);
 
   if (!cursorBlockId || cursorLine == null) {
     return <Placeholder message="Open a .rpy file and place your cursor inside a screen block." />;

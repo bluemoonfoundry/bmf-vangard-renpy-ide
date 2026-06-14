@@ -118,7 +118,7 @@ describe('screenParser', () => {
     expect(comp.widgets[0].code).toContain('x = 1');
   });
 
-  it('preserves unrecognised attributes as raw child nodes', () => {
+  it('parses style properties (background, xfill) into styleProps, not raw children', () => {
     const code = `screen test():
     frame:
         background "#000"
@@ -127,24 +127,27 @@ describe('screenParser', () => {
     const comp = parseScreenCode(code);
     const frame = comp.widgets[0];
     expect(frame.children).toBeDefined();
+    // style props are absorbed — no raw children for background / xfill
     const rawCodes = frame.children!
       .filter(c => c.type === 'raw')
       .map(c => c.code);
-    expect(rawCodes).toContain('background "#000"');
-    expect(rawCodes).toContain('xfill True');
+    expect(rawCodes).not.toContain('background "#000"');
+    expect(rawCodes).not.toContain('xfill True');
+    // parsed into styleProps
+    expect(frame.styleProps?.background).toBe('#000');
+    expect(frame.styleProps?.xfill).toBe(true);
+    // text child is still a typed widget
     expect(frame.children!.some(c => c.type === 'text')).toBe(true);
   });
 
   it('emits raw child nodes verbatim in code generation round-trip', () => {
     const code = `screen test():
     frame:
-        background "#000"
-        xfill True
+        $ x = 1
         text "hi"`;
     const comp = parseScreenCode(code);
     const generated = generateScreenCode(comp);
-    expect(generated).toContain('background "#000"');
-    expect(generated).toContain('xfill True');
+    expect(generated).toContain('$ x = 1');
   });
 
   it('round-trips if/else as raw', () => {

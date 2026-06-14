@@ -1,4 +1,4 @@
-import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetType } from '@/types';
+import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetStyleProps, ScreenWidgetType } from '@/types';
 
 // Container keywords: open an indented child block with a colon.
 // Control-flow keywords (if, for, showif) are intentionally absent — they are
@@ -58,6 +58,57 @@ const SCALAR_PROPS: Record<string, keyof ScreenWidget> = {
   // imagebutton
   auto: 'auto',
 };
+
+// Inline style-property keywords that live as child lines inside a widget block.
+const STYLE_PROP_KEYS = new Set([
+  'background', 'color', 'text_color', 'size', 'bold', 'italic',
+  'xpadding', 'ypadding', 'xfill', 'yfill',
+  'xmaximum', 'ymaximum', 'xminimum', 'yminimum',
+  'text_align', 'text_halign',
+]);
+
+/** Parse the raw right-hand side of a style property line into typed fields. */
+function parseStyleValue(key: string, rawRhs: string): Partial<ScreenWidgetStyleProps> {
+  const stripped = rawRhs.trim().replace(/^["']|["']$/g, '');
+  switch (key) {
+    case 'background': {
+      if (stripped === 'None') return {};
+      if (/^#[0-9a-fA-F]{3,8}$/.test(stripped)) return { background: stripped };
+      const solidM = rawRhs.trim().match(/^Solid\s*\(\s*["']?(#[0-9a-fA-F]{3,8})["']?\s*\)/i);
+      if (solidM) return { background: solidM[1] };
+      const assetM = rawRhs.trim().match(/^(?:Frame|Image)\s*\(\s*["']([^"']+)["']/i);
+      if (assetM) return { bgImagePath: assetM[1] };
+      return {};
+    }
+    case 'color':
+    case 'text_color':
+      if (/^#[0-9a-fA-F]{3,8}$/.test(stripped)) return { color: stripped };
+      return {};
+    case 'size': {
+      const n = parseInt(stripped, 10);
+      return isNaN(n) ? {} : { fontSize: n };
+    }
+    case 'bold':   return { bold: stripped === 'True' };
+    case 'italic': return { italic: stripped === 'True' };
+    case 'xpadding': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { xpadding: n }; }
+    case 'ypadding': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { ypadding: n }; }
+    case 'xfill':  return { xfill: stripped === 'True' };
+    case 'yfill':  return { yfill: stripped === 'True' };
+    case 'xmaximum': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { xmaximum: n }; }
+    case 'ymaximum': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { ymaximum: n }; }
+    case 'xminimum': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { xminimum: n }; }
+    case 'yminimum': { const n = parseInt(stripped, 10); return isNaN(n) ? {} : { yminimum: n }; }
+    case 'text_align':
+    case 'text_halign': {
+      if (stripped === 'left')   return { textAlign: 0 };
+      if (stripped === 'center') return { textAlign: 0.5 };
+      if (stripped === 'right')  return { textAlign: 1 };
+      const f = parseFloat(stripped);
+      return isNaN(f) ? {} : { textAlign: f };
+    }
+    default: return {};
+  }
+}
 
 let _seq = 0;
 function uid(): string { return `p_${Date.now()}_${_seq++}`; }
@@ -473,6 +524,34 @@ export function parseScreenCode(code: string): ScreenLayoutComposition {
       const top = stack[stack.length - 1];
       if (lineIndent > top.indent) {
         applyKnownProp(top.widget, kw, trimmed);
+        li++;
+        continue;
+      }
+    }
+
+    // ── align (x, y) shorthand → xalign + yalign ─────────────────────────
+    if (kw === 'align' && stack.length > 0) {
+      const top = stack[stack.length - 1];
+      if (lineIndent > top.indent) {
+        const m = trimmed.match(/align\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+        if (m) {
+          top.widget.xalign = parseFloat(m[1]);
+          top.widget.yalign = parseFloat(m[2]);
+        }
+        li++;
+        continue;
+      }
+    }
+
+    // ── inline style properties (background, color, size, bold …) ─────────
+    if (STYLE_PROP_KEYS.has(kw) && stack.length > 0) {
+      const top = stack[stack.length - 1];
+      if (lineIndent > top.indent) {
+        const rhs = tokens.slice(1).join(' ');
+        const parsed = parseStyleValue(kw, rhs);
+        if (Object.keys(parsed).length > 0) {
+          top.widget.styleProps = { ...top.widget.styleProps, ...parsed };
+        }
         li++;
         continue;
       }

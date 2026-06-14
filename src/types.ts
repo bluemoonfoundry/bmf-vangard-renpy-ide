@@ -901,6 +901,30 @@ export type ScreenWidgetType =
  * Top-level widgets support absolute positioning via xpos/ypos/xalign/yalign.
  * Children of container widgets are flow-positioned by the container.
  */
+
+/**
+ * Resolved visual style properties parsed from inline style-property lines
+ * (background, color, size, bold, etc.) inside a widget block.
+ * Preview-only — not used by code generation.
+ */
+export interface ScreenWidgetStyleProps {
+  background?: string;    // CSS colour string (from "#hex" or Solid())
+  bgImagePath?: string;   // image path from Frame()/Image() background
+  color?: string;         // text / foreground colour
+  fontSize?: number;      // Ren'Py size in game pixels
+  bold?: boolean;
+  italic?: boolean;
+  xpadding?: number;      // in game pixels
+  ypadding?: number;
+  xfill?: boolean;
+  yfill?: boolean;
+  xmaximum?: number;
+  ymaximum?: number;
+  xminimum?: number;
+  yminimum?: number;
+  textAlign?: number;     // 0 = left, 0.5 = centre, 1 = right
+}
+
 export interface ScreenWidget {
   id: string;
   type: ScreenWidgetType;
@@ -925,6 +949,8 @@ export interface ScreenWidget {
   code?: string;
   /** Unrecognised attribute lines preserved verbatim; emitted before children in code gen */
   extraProps?: string[];
+  /** Parsed visual style properties — preview-only, not used in code gen */
+  styleProps?: ScreenWidgetStyleProps;
 
   // ── vpgrid / grid ────────────────────────────────────────────────────────
   cols?: number;

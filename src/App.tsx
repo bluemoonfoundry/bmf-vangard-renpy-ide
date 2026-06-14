@@ -4537,6 +4537,7 @@ const App: React.FC = () => {
         blocks={blocks}
         cursorBlockId={editorCursorBlockId}
         cursorLine={editorCursorPosition?.line ?? null}
+        projectImages={images}
       />;
     }
     if (tab.type === 'editor' && tab.blockId) {

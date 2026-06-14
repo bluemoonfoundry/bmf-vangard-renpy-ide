@@ -18,10 +18,12 @@ function PreviewWidget({
   widget,
   isTopLevel,
   gameWidth,
+  gameHeight,
 }: {
   widget: ScreenWidget;
   isTopLevel: boolean;
   gameWidth: number;
+  gameHeight: number;
 }) {
   const u = gameWidth / 1920;
 
@@ -37,7 +39,7 @@ function PreviewWidget({
   const base: React.CSSProperties = { ...pos, ...size };
 
   const children = widget.children?.map(child => (
-    <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} />
+    <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} />
   ));
 
   const r = (n: number) => Math.round(n * u);
@@ -52,30 +54,46 @@ function PreviewWidget({
   const imgH  = r(180);
 
   switch (widget.type) {
-    case 'vbox':
+    case 'vbox': {
+      const sp = widget.styleProps;
+      const boxGap = sp?.xpadding != null ? r(sp.xpadding) : gap;
+      const boxPad = sp?.ypadding != null ? r(sp.ypadding) : pad;
       return (
-        <div style={{ ...base, display: 'flex', flexDirection: 'column', gap, padding: pad, border: `${Math.max(1, r(1))}px dashed #93c5fd44` }}>
+        <div style={{ ...base, display: 'flex', flexDirection: 'column', gap: boxGap, padding: boxPad, background: sp?.background, border: `${Math.max(1, r(1))}px dashed #93c5fd44`, ...(sp?.xfill ? { width: '100%' } : {}), ...(sp?.yfill ? { height: '100%' } : {}) }}>
           {children}
         </div>
       );
-    case 'hbox':
+    }
+    case 'hbox': {
+      const sp = widget.styleProps;
+      const boxGap = sp?.ypadding != null ? r(sp.ypadding) : gap;
+      const boxPad = sp?.xpadding != null ? r(sp.xpadding) : pad;
       return (
-        <div style={{ ...base, display: 'flex', flexDirection: 'row', gap, padding: pad, border: `${Math.max(1, r(1))}px dashed #93c5fd44` }}>
+        <div style={{ ...base, display: 'flex', flexDirection: 'row', gap: boxGap, padding: boxPad, background: sp?.background, border: `${Math.max(1, r(1))}px dashed #93c5fd44`, ...(sp?.xfill ? { width: '100%' } : {}), ...(sp?.yfill ? { height: '100%' } : {}) }}>
           {children}
         </div>
       );
-    case 'frame':
+    }
+    case 'frame': {
+      const sp = widget.styleProps;
+      const padX = sp?.xpadding != null ? r(sp.xpadding) : r(12);
+      const padY = sp?.ypadding != null ? r(sp.ypadding) : r(12);
       return (
-        <div style={{ ...base, border: `${Math.max(1, r(2))}px solid #818cf8`, borderRadius: br, padding: r(12) }}>
+        <div style={{ ...base, border: sp?.background ? 'none' : `${Math.max(1, r(2))}px solid #818cf8`, borderRadius: br, padding: `${padY}px ${padX}px`, background: sp?.background, ...(sp?.xfill ? { width: '100%' } : {}), ...(sp?.yfill ? { height: '100%' } : {}), ...(sp?.xmaximum != null ? { maxWidth: r(sp.xmaximum) } : {}), ...(sp?.ymaximum != null ? { maxHeight: r(sp.ymaximum) } : {}) }}>
           {children}
         </div>
       );
-    case 'window':
+    }
+    case 'window': {
+      const sp = widget.styleProps;
+      const padX = sp?.xpadding != null ? r(sp.xpadding) : r(12);
+      const padY = sp?.ypadding != null ? r(sp.ypadding) : r(12);
       return (
-        <div style={{ ...base, border: `${Math.max(1, r(2))}px solid #0ea5e9`, borderRadius: r(6), padding: r(12), background: 'rgba(14,165,233,0.06)' }}>
+        <div style={{ ...base, border: sp?.background ? 'none' : `${Math.max(1, r(2))}px solid #0ea5e9`, borderRadius: r(6), padding: `${padY}px ${padX}px`, background: sp?.background ?? 'rgba(14,165,233,0.06)', ...(sp?.xfill ? { width: '100%' } : {}), ...(sp?.yfill ? { height: '100%' } : {}) }}>
           {children}
         </div>
       );
+    }
     case 'viewport': {
       const vpW = widget.xsize ?? r(600);
       const vpH = widget.ysize ?? r(400);
@@ -105,32 +123,60 @@ function PreviewWidget({
           {children}
         </div>
       );
-    case 'text':
+    case 'text': {
+      const sp = widget.styleProps;
+      const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
+      const ta = sp?.textAlign;
       return (
-        <span style={{ ...base, color: '#e5e7eb', fontSize: fs, whiteSpace: 'nowrap', display: 'inline-block' }}>
+        <span style={{ ...base, color: sp?.color ?? '#e5e7eb', fontSize: tfs, fontWeight: sp?.bold ? 'bold' : undefined, fontStyle: sp?.italic ? 'italic' : undefined, textAlign: ta != null ? (ta < 0.3 ? 'left' : ta > 0.7 ? 'right' : 'center') : undefined, whiteSpace: 'pre-wrap', display: 'inline-block' }}>
           {widget.text || 'text'}
         </span>
       );
-    case 'label':
+    }
+    case 'label': {
+      const sp = widget.styleProps;
+      const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
       return (
-        <div style={{ ...base, color: '#d1d5db', fontSize: fs, padding: `${r(6)}px ${r(12)}px`, border: `${Math.max(1, r(1))}px solid #6b7280`, borderRadius: br, display: 'inline-block', whiteSpace: 'nowrap' }}>
+        <div style={{ ...base, color: sp?.color ?? '#d1d5db', fontSize: tfs, fontWeight: sp?.bold ? 'bold' : undefined, fontStyle: sp?.italic ? 'italic' : undefined, padding: `${r(6)}px ${r(12)}px`, border: `${Math.max(1, r(1))}px solid #6b7280`, borderRadius: br, background: sp?.background, display: 'inline-block', whiteSpace: 'nowrap' }}>
           {widget.text || 'Label'}
         </div>
       );
-    case 'textbutton':
+    }
+    case 'textbutton': {
+      const sp = widget.styleProps;
+      const tfs = sp?.fontSize != null ? r(sp.fontSize) : fs;
+      const padX = sp?.xpadding != null ? r(sp.xpadding) : r(28);
+      const padY = sp?.ypadding != null ? r(sp.ypadding) : r(10);
       return (
-        <div style={{ ...base, background: '#c2410c', color: 'white', padding: `${r(10)}px ${r(28)}px`, borderRadius: br, fontSize: fs, display: 'inline-block', whiteSpace: 'nowrap' }}>
+        <div style={{ ...base, background: sp?.background ?? '#c2410c', color: sp?.color ?? 'white', padding: `${padY}px ${padX}px`, borderRadius: br, fontSize: tfs, fontWeight: sp?.bold ? 'bold' : undefined, fontStyle: sp?.italic ? 'italic' : undefined, display: 'inline-block', whiteSpace: 'nowrap' }}>
           {widget.text || 'Button'}
         </div>
       );
+    }
     case 'image': {
       if (widget.imageDataUrl) {
         return (
           <img
             src={widget.imageDataUrl}
             alt={widget.imagePath || 'image'}
-            style={{ ...base, objectFit: 'contain', display: 'block' }}
+            style={{ ...base, objectFit: 'contain', display: 'block',
+              width: widget.xsize ?? (isTopLevel ? gameWidth : undefined),
+              height: widget.ysize ?? (isTopLevel ? gameHeight : undefined),
+            }}
           />
+        );
+      }
+      // add "#hex" or add Solid("#hex") — render as a filled rectangle
+      const solidM = widget.imagePath?.match(/^Solid\s*\(\s*["']?(#[0-9a-fA-F]{3,8})["']?\s*\)/i);
+      const hexM   = !solidM && widget.imagePath?.match(/^#[0-9a-fA-F]{3,8}$/);
+      const fillColor = solidM?.[1] ?? (hexM ? widget.imagePath : null);
+      if (fillColor) {
+        return (
+          <div style={{ ...base,
+            background: fillColor,
+            width:  widget.xsize ?? (isTopLevel ? gameWidth  : r(240)),
+            height: widget.ysize ?? (isTopLevel ? gameHeight : r(180)),
+          }} />
         );
       }
       const imgFallbackW = widget.xsize ?? imgW;
@@ -289,7 +335,7 @@ function PreviewWidget({
             use {widget.useScreen}{widget.useArgs ? `(${widget.useArgs})` : ''}
           </div>
           {widget.children?.map(child => (
-            <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} />
+            <PreviewWidget key={child.id} widget={child} isTopLevel={false} gameWidth={gameWidth} gameHeight={gameHeight} />
           ))}
         </div>
       );
@@ -451,6 +497,7 @@ export default function ScreenPreview({ composition, className }: ScreenPreviewP
                 widget={w}
                 isTopLevel
                 gameWidth={composition.gameWidth}
+                gameHeight={composition.gameHeight}
               />
             ))}
           </div>
