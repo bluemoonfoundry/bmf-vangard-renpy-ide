@@ -1949,7 +1949,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders, setActiveTabId, setAudioScanDirectories, setAudiosLastScanned, setImageScanDirectories, setImagesLastScanned, setIsRefreshingAudios, setIsRefreshingImages, setOpenTabs, setProjectRootPath, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize, setTabs]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders, setActiveTabId, setAudioScanDirectories, setAudiosLastScanned, setImageScanDirectories, setImagesLastScanned, setIsRefreshingAudios, setIsRefreshingImages, setOpenTabs, setProjectRootPath, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize, setTabs]);
 
 
   const handleCancelLoad = useCallback(() => {
