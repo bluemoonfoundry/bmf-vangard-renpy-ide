@@ -4,7 +4,7 @@ All notable changes to Ren'IDE are documented here.
 
 ## [Unreleased]
 
-## [1.0.0]
+## [0.9.0]
 
 ### Added
 - **NEW:** E2E smoke test suite (Playwright + Electron) — 5 automated smoke tests run in CI before every release build

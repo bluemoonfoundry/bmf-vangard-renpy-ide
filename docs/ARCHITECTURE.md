@@ -734,5 +734,5 @@ For project-specific instructions when working with Claude Code, see `CLAUDE.md`
 
 ---
 
-**Last Updated**: 2026-04-28
-**Ren'IDE Version**: 0.8.0 Public Beta 4
+**Last Updated**: 2026-06-14
+**Ren'IDE Version**: 0.9.0
