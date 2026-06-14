@@ -39,6 +39,7 @@ import FirstRunTutorial from '@/components/FirstRunTutorial';
 import { SearchProvider } from '@/contexts/SearchContext';
 import StatsView from '@/components/StatsView';
 import TranslationDashboard from '@/components/TranslationDashboard';
+import ScreenPreviewTab from '@/components/ScreenPreviewTab';
 import GoToLabelModal, { GoToLabelItem } from '@/components/GoToLabelModal';
 import { useRenpyAnalysis, deriveSceneImageNames } from '@/hooks/useRenpyAnalysis';
 import { useHistory } from '@/hooks/useHistory';
@@ -430,7 +431,8 @@ const App: React.FC = () => {
   const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
   const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
   const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
-  const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
+  const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
+  const [editorCursorBlockId, setEditorCursorBlockId] = useState<string | null>(null);
   const warpTempFilePathRef = useRef<string | null>(null);
 
   // --- State: Flow Canvas (label-level flow graph) ---
@@ -1584,7 +1586,7 @@ const App: React.FC = () => {
   }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, setCenterOnChoiceStartRequest]);
 
   // --- Tab Management Helpers ---
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations') => {
+  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
         const id = type;
         // If already open in primary, activate it there
         if (openTabs.find(t => t.id === id)) {
@@ -1951,7 +1953,7 @@ const App: React.FC = () => {
                   if (tab.type === 'markdown' && tab.filePath) {
                       return true; // File existence checked on tab render
                   }
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'screen-preview';
               });
 
               const rehydratedTabs = validTabs.map(tab => {
@@ -1984,7 +1986,7 @@ const App: React.FC = () => {
                   if (tab.type === 'audio' && tab.filePath) return audioMap.has(tab.filePath);
                   if (tab.type === 'character' && tab.characterTag) return true;
                   if (tab.type === 'markdown' && tab.filePath) return true;
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'scene-composer';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'scene-composer' || tab.type === 'screen-preview';
               });
               setSplitLayout(validSecondary.length > 0 ? savedSplitLayout : 'none');
               setSplitPrimarySize(projectData.settings.splitPrimarySize ?? 600);
@@ -4533,6 +4535,7 @@ const App: React.FC = () => {
     if (tab.id === 'diagnostics' || tab.id === 'punchlist') return 'Diagnostics';
     if (tab.id === 'stats') return 'Stats';
     if (tab.id === 'translations') return 'Translations';
+    if (tab.id === 'screen-preview') return 'Screen Preview';
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
     if (tab.type === 'screen-layout-composer') return screenLayoutCompositions[tab.layoutId!]?.screenName || 'Screen Layout';
@@ -4634,6 +4637,15 @@ const App: React.FC = () => {
         isRenpyPathValid={isRenpyPathValid}
       />;
     }
+    if (tab.type === 'screen-preview') {
+      return <ScreenPreviewTab
+        screenLayoutCompositions={screenLayoutCompositions}
+        screens={analysisResult.screens}
+        blocks={blocks}
+        cursorBlockId={editorCursorBlockId}
+        cursorLine={editorCursorPosition?.line ?? null}
+      />;
+    }
     if (tab.type === 'editor' && tab.blockId) {
       const block = blocks.find(b => b.id === tab.blockId);
       if (block) return <EditorView
@@ -4646,7 +4658,7 @@ const App: React.FC = () => {
         editorFontSize={appSettings.editorFontSize} addToast={addToast}
         onEditorMount={(id, editor) => editorInstances.current.set(id, editor)}
         onEditorUnmount={(id) => { const editor = editorInstances.current.get(id); if (editor) { const block = blocksRef.current.find(b => b.id === id); if (block && editor.getValue() !== block.content) { syncEditorToStateAndMarkDirty(id, editor.getValue()); } } editorInstances.current.delete(id); }}
-        onCursorPositionChange={setEditorCursorPosition}
+        onCursorPositionChange={(pos) => { setEditorCursorPosition(pos); if (tab.blockId) setEditorCursorBlockId(tab.blockId); }}
         onWarpToLabel={handleWarpToLabel}
         draftingMode={projectSettings.draftingMode} existingImageTags={existingImageTags} existingAudioPaths={existingAudioPaths}
         userSnippets={appSettings.userSnippets}
@@ -4908,7 +4920,7 @@ const App: React.FC = () => {
         handleSave={handleSaveAll}
         onOpenSettings={() => openSettingsModal()}
         onOpenShortcuts={() => openShortcutsModal()}
-        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void}
+        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}
