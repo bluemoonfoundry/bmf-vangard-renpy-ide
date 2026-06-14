@@ -6,9 +6,11 @@
  * No drag, no selection, no property panel — purely visual output.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { ScreenLayoutComposition, ScreenWidget } from '@/types';
 import { ELEM, HINT_KW_MAP, extractRawHints, rawBlockStyle } from '@/lib/screenWidgetDefs';
+
+const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.4, 0.5, 0.6, 0.75, 1.0, 1.25, 1.5, 2.0];
 
 // ─── Read-only widget renderer ────────────────────────────────────────────────
 
@@ -358,56 +360,100 @@ export interface ScreenPreviewProps {
 
 export default function ScreenPreview({ composition, className }: ScreenPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.5);
+  const [fitScale, setFitScale] = useState(0.5);
+  // null = "fit to container"; number = manual override
+  const [manualScale, setManualScale] = useState<number | null>(null);
+
+  const scale = manualScale ?? fitScale;
+
+  const recalc = useCallback(() => {
+    if (!containerRef.current) return;
+    const cw = containerRef.current.clientWidth - 64;
+    if (cw < 20) return;
+    setFitScale(Math.min(cw / composition.gameWidth, 1));
+  }, [composition.gameWidth]);
 
   useEffect(() => {
-    function recalc() {
-      if (!containerRef.current) return;
-      const cw = containerRef.current.clientWidth - 64;
-      if (cw < 20) return;
-      setScale(Math.min(cw / composition.gameWidth, 1));
-    }
     recalc();
     const ro = new ResizeObserver(recalc);
     if (containerRef.current) ro.observe(containerRef.current);
     window.addEventListener('resize', recalc);
     return () => { ro.disconnect(); window.removeEventListener('resize', recalc); };
-  }, [composition.gameWidth]);
+  }, [recalc]);
+
+  const zoomIn = () => {
+    const next = ZOOM_STEPS.find(z => z > scale * 1.001);
+    if (next != null) setManualScale(next);
+  };
+  const zoomOut = () => {
+    const next = [...ZOOM_STEPS].reverse().find(z => z < scale * 0.999);
+    if (next != null) setManualScale(next);
+  };
+  const resetFit = () => setManualScale(null);
+
+  const canZoomIn = scale < ZOOM_STEPS[ZOOM_STEPS.length - 1] * 0.999;
+  const canZoomOut = scale > ZOOM_STEPS[0] * 1.001;
 
   return (
-    <div
-      ref={containerRef}
-      className={`flex-1 bg-gray-950 overflow-auto${className ? ` ${className}` : ''}`}
-      style={{ padding: 32 }}
-    >
-      {/* Wrapper sized to scaled dimensions so scroll area knows content size. */}
-      <div style={{
-        width: Math.round(composition.gameWidth * scale),
-        height: Math.round(composition.gameHeight * scale),
-        position: 'relative',
-        margin: '0 auto',
-      }}>
+    <div className={`flex flex-col${className ? ` ${className}` : ''}`} style={{ flex: 1, minHeight: 0 }}>
+      {/* Zoom toolbar */}
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-gray-800 bg-gray-950 flex-none select-none">
+        <button
+          onClick={zoomOut}
+          disabled={!canZoomOut}
+          title="Zoom out"
+          className="px-2 py-0.5 rounded text-gray-400 hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-mono leading-none"
+        >−</button>
+        <button
+          onClick={resetFit}
+          title="Fit to panel width"
+          className={`px-2 py-0.5 rounded text-xs font-mono leading-none min-w-[52px] text-center ${manualScale == null ? 'bg-blue-900 text-blue-300' : 'text-gray-400 hover:bg-gray-800'}`}
+        >
+          {manualScale == null ? 'fit' : `${Math.round(scale * 100)}%`}
+        </button>
+        <button
+          onClick={zoomIn}
+          disabled={!canZoomIn}
+          title="Zoom in"
+          className="px-2 py-0.5 rounded text-gray-400 hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-mono leading-none"
+        >+</button>
+        <span className="text-xs text-gray-600 ml-1 font-mono">{Math.round(scale * 100)}%</span>
+      </div>
+
+      <div
+        ref={containerRef}
+        className="flex-1 bg-gray-950 overflow-auto"
+        style={{ padding: 32 }}
+      >
+        {/* Wrapper sized to scaled dimensions so scroll area knows content size. */}
         <div style={{
-          width: composition.gameWidth,
-          height: composition.gameHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: '0 0',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          background: '#18181b',
-          overflow: 'hidden',
-          border: '4px solid #dc2626',
-          boxShadow: '0 0 32px rgba(0,0,0,0.8)',
+          width: Math.round(composition.gameWidth * scale),
+          height: Math.round(composition.gameHeight * scale),
+          position: 'relative',
+          margin: '0 auto',
         }}>
-          {composition.widgets.map(w => (
-            <PreviewWidget
-              key={w.id}
-              widget={w}
-              isTopLevel
-              gameWidth={composition.gameWidth}
-            />
-          ))}
+          <div style={{
+            width: composition.gameWidth,
+            height: composition.gameHeight,
+            transform: `scale(${scale})`,
+            transformOrigin: '0 0',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            background: '#18181b',
+            overflow: 'hidden',
+            border: '4px solid #dc2626',
+            boxShadow: '0 0 32px rgba(0,0,0,0.8)',
+          }}>
+            {composition.widgets.map(w => (
+              <PreviewWidget
+                key={w.id}
+                widget={w}
+                isTopLevel
+                gameWidth={composition.gameWidth}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
