@@ -1,4 +1,4 @@
-import { detectContext, getRenpyCompletions, CompletionItemKind, InsertTextRule } from './renpyCompletionProvider';
+import { detectContext, getRenpyCompletions, isInsideScreenBlock, CompletionItemKind, InsertTextRule } from './renpyCompletionProvider';
 import type { RenpyCompletionData, CompletionRange } from './renpyCompletionProvider';
 
 const range: CompletionRange = {
@@ -149,6 +149,24 @@ describe('getRenpyCompletions', () => {
     expect(snippet?.insertText).toContain('${1:prompt}');
   });
 
+  it('returns widget names and properties for screen context', () => {
+    const items = getRenpyCompletions('screen', sampleData, range);
+    const labels = items.map(i => i.label);
+    expect(labels).toContain('vbox');
+    expect(labels).toContain('textbutton');
+    expect(labels).toContain('xpos');
+    expect(labels).toContain('yalign');
+    expect(items.some(i => i.label === 'vbox' && i.kind === CompletionItemKind.Keyword)).toBe(true);
+    expect(items.some(i => i.label === 'xpos' && i.kind === CompletionItemKind.Variable)).toBe(true);
+  });
+
+  it('widget completions in screen context use InsertAsSnippet for container widgets', () => {
+    const items = getRenpyCompletions('screen', sampleData, range);
+    const vboxItem = items.find(i => i.label === 'vbox');
+    expect(vboxItem?.insertTextRules).toBe(InsertTextRule.InsertAsSnippet);
+    expect(vboxItem?.insertText).toContain('$0');
+  });
+
   it('returns empty array for jump context with no labels', () => {
     const emptyData: RenpyCompletionData = {
       labels: {}, characters: new Map(), variables: new Map(),
@@ -163,5 +181,55 @@ describe('getRenpyCompletions', () => {
     const kwItem = items.find(i => i.label === 'label');
     // Characters sortText starts with 1_, keywords with 2_
     expect(charItem!.sortText! < kwItem!.sortText!).toBe(true);
+  });
+});
+
+describe('isInsideScreenBlock', () => {
+  it('returns true when cursor is inside a screen definition', () => {
+    const lines = [
+      'screen my_screen():',
+      '    vbox:',
+      '        ',
+    ];
+    expect(isInsideScreenBlock(lines, 2)).toBe(true);
+  });
+
+  it('returns true at the first indent level inside a screen', () => {
+    const lines = [
+      'screen my_screen():',
+      '    ',
+    ];
+    expect(isInsideScreenBlock(lines, 1)).toBe(true);
+  });
+
+  it('returns false when cursor is inside a label block', () => {
+    const lines = [
+      'label start:',
+      '    ',
+    ];
+    expect(isInsideScreenBlock(lines, 1)).toBe(false);
+  });
+
+  it('returns false at the top level (no indent)', () => {
+    const lines = [
+      'screen my_screen():',
+      '    vbox:',
+      '',
+    ];
+    expect(isInsideScreenBlock(lines, 2)).toBe(false);
+  });
+
+  it('returns false when lineIndex is 0', () => {
+    expect(isInsideScreenBlock(['screen foo():'], 0)).toBe(false);
+  });
+
+  it('skips blank and comment lines when scanning backwards', () => {
+    const lines = [
+      'screen my_screen():',
+      '',
+      '    # a comment',
+      '    ',
+    ];
+    expect(isInsideScreenBlock(lines, 3)).toBe(true);
   });
 });
