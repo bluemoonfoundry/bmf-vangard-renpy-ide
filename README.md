@@ -1,3 +1,4 @@
+
 [![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
 ![Version](https://img.shields.io/badge/version-0.9.0-blue)
@@ -16,6 +17,17 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 **[Download the latest release (v0.9.0)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
+
+---
+
+<img width="1582" height="1030" alt="story_graph" src="https://github.com/user-attachments/assets/8150b09c-1c04-4d3f-9a1e-0845a5834567" />
+
+<img width="1582" height="1030" alt="screen_composer" src="https://github.com/user-attachments/assets/a961ee8c-6f67-4f39-897f-b37df4d7f683" />
+
+<img width="1582" height="1030" alt="stats_pane" src="https://github.com/user-attachments/assets/29f9a3a4-ea28-457f-a817-50e8e9d5081c" />
+
+<img width="1582" height="1030" alt="file_graph" src="https://github.com/user-attachments/assets/1f57a679-4d4b-4358-a7d7-a42716ca0812" />
+
 
 
 
