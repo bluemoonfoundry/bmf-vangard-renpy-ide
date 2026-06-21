@@ -1,7 +1,7 @@
 import type { ScreenLayoutComposition, ScreenWidget } from '@/types';
 
 function isExpression(s: string): boolean {
-  return /[.()\[\]]/.test(s) && !s.includes('/') && !s.includes('\\');
+  return /[.()[\]]/.test(s) && !s.includes('/') && !s.includes('\\');
 }
 
 function emitTextArg(text: string | undefined): string {
