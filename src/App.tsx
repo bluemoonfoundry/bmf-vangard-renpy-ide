@@ -21,7 +21,6 @@ import AudioEditorView from '@/components/AudioEditorView';
 import CharacterEditorView from '@/components/CharacterEditorView';
 import SceneComposer from '@/components/SceneComposer';
 import ImageMapComposer from '@/components/ImageMapComposer';
-import ScreenLayoutComposer from '@/components/ScreenLayoutComposer';
 import MarkdownPreviewView from '@/components/MarkdownPreviewView';
 import DiagnosticsPanel from '@/components/DiagnosticsPanel';
 import WarpVariablesModal from '@/components/WarpVariablesModal';
@@ -39,6 +38,7 @@ import FirstRunTutorial from '@/components/FirstRunTutorial';
 import { SearchProvider } from '@/contexts/SearchContext';
 import StatsView from '@/components/StatsView';
 import TranslationDashboard from '@/components/TranslationDashboard';
+import ScreenPreviewTab from '@/components/ScreenPreviewTab';
 import GoToLabelModal, { GoToLabelItem } from '@/components/GoToLabelModal';
 import { useRenpyAnalysis, deriveSceneImageNames } from '@/hooks/useRenpyAnalysis';
 import { useHistory } from '@/hooks/useHistory';
@@ -80,7 +80,7 @@ import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, Theme, ProjectImage, RenpyAudio, Variable,
   ImageMetadata, AudioMetadata, Character,
-  ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition, ScreenLayoutComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
+  ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition, StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -278,8 +278,6 @@ const App: React.FC = () => {
     setSceneNames,
     imagemapCompositions,
     setImagemapCompositions,
-    screenLayoutCompositions,
-    setScreenLayoutCompositions,
     addScene: _addScene,
     updateScene: _updateScene,
     removeScene: _removeScene,
@@ -287,9 +285,6 @@ const App: React.FC = () => {
     addImagemap: _addImagemap,
     updateImagemap: _updateImagemap,
     removeImagemap: _removeImagemap,
-    addScreenLayout: _addScreenLayout,
-    updateScreenLayout: _updateScreenLayout,
-    removeScreenLayout: _removeScreenLayout,
     clearAllCompositions: _clearAllCompositions,
   } = useCompositionState();
 
@@ -430,7 +425,8 @@ const App: React.FC = () => {
   const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
   const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
   const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
-  const [_editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
+  const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
+  const [editorCursorBlockId, setEditorCursorBlockId] = useState<string | null>(null);
   const warpTempFilePathRef = useRef<string | null>(null);
 
   // --- State: Flow Canvas (label-level flow graph) ---
@@ -604,10 +600,6 @@ const App: React.FC = () => {
     [imagemapCompositions]
   );
 
-  const screenLayoutsArray = useMemo(
-    () => Object.keys(screenLayoutCompositions).map(id => ({ id, name: screenLayoutCompositions[id]?.screenName || 'Screen Layout' })),
-    [screenLayoutCompositions]
-  );
 
   const settingsMerged = useMemo(
     () => ({ ...appSettings, ...projectSettings }),
@@ -786,83 +778,6 @@ const App: React.FC = () => {
       if (activeTabId === imagemapId) setActiveTabId('canvas');
       setHasUnsavedSettings(true);
   }, [setImagemapCompositions, activeTabId, setOpenTabs, setActiveTabId]);
-
-  // --- Screen Layout Composer Management ---
-  const handleCreateScreenLayout = useCallback((initialName?: string) => {
-      const id = `screenlayout-${Date.now()}`;
-      const name = initialName || `screen_${Object.keys(screenLayoutCompositions).length + 1}`;
-
-      setScreenLayoutCompositions(draft => {
-          draft[id] = {
-              screenName: name,
-              gameWidth: 1920,
-              gameHeight: 1080,
-              modal: false,
-              zorder: 0,
-              widgets: []
-          };
-      });
-
-      setOpenTabs(prev => [...prev, { id, type: 'screen-layout-composer', layoutId: id }]);
-      setActiveTabId(id);
-      setHasUnsavedSettings(true);
-  }, [screenLayoutCompositions, setScreenLayoutCompositions, setOpenTabs, setActiveTabId]);
-
-  const handleOpenScreenLayout = useCallback((layoutId: string) => {
-      setOpenTabs(prev => {
-          if (!prev.find(t => t.id === layoutId)) {
-              return [...prev, { id: layoutId, type: 'screen-layout-composer', layoutId }];
-          }
-          return prev;
-      });
-      setActiveTabId(layoutId);
-  }, [setOpenTabs, setActiveTabId]);
-
-  const handleScreenLayoutUpdate = useCallback((layoutId: string, value: React.SetStateAction<ScreenLayoutComposition>) => {
-      setScreenLayoutCompositions(draft => {
-          const prev = draft[layoutId] || { screenName: '', gameWidth: 1920, gameHeight: 1080, modal: false, zorder: 0, widgets: [] };
-          const next = typeof value === 'function' ? (value as (prevState: ScreenLayoutComposition) => ScreenLayoutComposition)(prev) : value;
-
-          if (JSON.stringify(prev) !== JSON.stringify(next)) {
-              draft[layoutId] = next;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setScreenLayoutCompositions]);
-
-  const handleRenameScreenLayout = useCallback((layoutId: string, newName: string) => {
-      setScreenLayoutCompositions(draft => {
-          if (draft[layoutId] && draft[layoutId].screenName !== newName) {
-              draft[layoutId].screenName = newName;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setScreenLayoutCompositions]);
-
-  const handleDuplicateScreenLayout = useCallback((layoutId: string) => {
-      const original = screenLayoutCompositions[layoutId];
-      if (!original) return;
-      const existingNames = new Set(Object.values(screenLayoutCompositions).map(c => c.screenName));
-      let counter = 1;
-      let newName = `${original.screenName} (${counter})`;
-      while (existingNames.has(newName)) { counter++; newName = `${original.screenName} (${counter})`; }
-      const newId = `screenlayout-${Date.now()}`;
-      setScreenLayoutCompositions(draft => { draft[newId] = { ...original, screenName: newName }; });
-      setHasUnsavedSettings(true);
-      setOpenTabs(prev => {
-          if (!prev.find(t => t.id === newId)) return [...prev, { id: newId, type: 'screen-layout-composer', layoutId: newId }];
-          return prev;
-      });
-      setActiveTabId(newId);
-  }, [screenLayoutCompositions, setScreenLayoutCompositions, setOpenTabs, setActiveTabId]);
-
-  const handleDeleteScreenLayout = useCallback((layoutId: string) => {
-      setScreenLayoutCompositions(draft => { delete draft[layoutId]; });
-
-      setOpenTabs(prev => prev.filter(t => t.id !== layoutId));
-      if (activeTabId === layoutId) setActiveTabId('canvas');
-      setHasUnsavedSettings(true);
-  }, [setScreenLayoutCompositions, activeTabId, setOpenTabs, setActiveTabId]);
 
   // --- Sync Explorer with Active Tab ---
   useEffect(() => {
@@ -1584,7 +1499,7 @@ const App: React.FC = () => {
   }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, setCenterOnChoiceStartRequest]);
 
   // --- Tab Management Helpers ---
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations') => {
+  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
         const id = type;
         // If already open in primary, activate it there
         if (openTabs.find(t => t.id === id)) {
@@ -1843,13 +1758,6 @@ const App: React.FC = () => {
                   setImagemapCompositions({});
               }
 
-              // Restore Screen Layout Compositions
-              if (projectData.settings.screenLayoutCompositions) {
-                  setScreenLayoutCompositions(projectData.settings.screenLayoutCompositions);
-              } else {
-                  setScreenLayoutCompositions({});
-              }
-
               // Restore Scan Directories
               if (projectData.settings.scannedImagePaths) {
                   const paths = projectData.settings.scannedImagePaths;
@@ -1951,7 +1859,7 @@ const App: React.FC = () => {
                   if (tab.type === 'markdown' && tab.filePath) {
                       return true; // File existence checked on tab render
                   }
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'screen-preview';
               });
 
               const rehydratedTabs = validTabs.map(tab => {
@@ -1984,7 +1892,7 @@ const App: React.FC = () => {
                   if (tab.type === 'audio' && tab.filePath) return audioMap.has(tab.filePath);
                   if (tab.type === 'character' && tab.characterTag) return true;
                   if (tab.type === 'markdown' && tab.filePath) return true;
-                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'scene-composer';
+                  return tab.type === 'canvas' || tab.type === 'route-canvas' || tab.type === 'choice-canvas' || tab.type === 'punchlist' || tab.type === 'diagnostics' || tab.type === 'stats' || tab.type === 'translations' || tab.type === 'scene-composer' || tab.type === 'screen-preview';
               });
               setSplitLayout(validSecondary.length > 0 ? savedSplitLayout : 'none');
               setSplitPrimarySize(projectData.settings.splitPrimarySize ?? 600);
@@ -2041,7 +1949,7 @@ const App: React.FC = () => {
           setLoadingMessage('');
           setLoadingProgress(0);
       }
-  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setScreenLayoutCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders, setActiveTabId, setAudioScanDirectories, setAudiosLastScanned, setImageScanDirectories, setImagesLastScanned, setIsRefreshingAudios, setIsRefreshingImages, setOpenTabs, setProjectRootPath, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize, setTabs]);
+  }, [setBlocks, setImages, setAudios, updateProjectSettings, addToast, setFileSystemTree, setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles, updateAppSettings, setSceneCompositions, setSceneNames, setPunchlistMetadata, setImagemapCompositions, setDiagnosticsTasks, setIgnoredDiagnostics, perfRecorders, setActiveTabId, setAudioScanDirectories, setAudiosLastScanned, setImageScanDirectories, setImagesLastScanned, setIsRefreshingAudios, setIsRefreshingImages, setOpenTabs, setProjectRootPath, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize, setTabs]);
 
 
   const handleCancelLoad = useCallback(() => {
@@ -2560,7 +2468,6 @@ const App: React.FC = () => {
         sceneCompositions: serializableScenes,
         sceneNames,
         imagemapCompositions: serializableImagemaps,
-        screenLayoutCompositions,
         scannedImagePaths: Array.from(imageScanDirectories.keys()),
         scannedAudioPaths: Array.from(audioScanDirectories.keys()),
       };
@@ -2571,7 +2478,7 @@ const App: React.FC = () => {
       logger.error("Failed to save IDE settings:", e);
       addToast('Failed to save workspace settings', 'error');
     }
-  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, screenLayoutCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint]);
+  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint]);
 
 
   const handleSaveAll = useCallback(async () => {
@@ -3994,7 +3901,7 @@ const App: React.FC = () => {
             if (data.command === 'save-all') handleSaveAll();
             if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
             if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations');
+            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview');
             if (data.command === 'toggle-search') handleToggleSearch();
             if (data.command === 'open-settings') openSettingsModal();
             if (data.command === 'open-shortcuts') openShortcutsModal();
@@ -4291,6 +4198,7 @@ const App: React.FC = () => {
     if (def) handleOpenEditor(def.definedInBlockId, def.line);
   }, [analysisResult.screens, handleOpenEditor]);
 
+
   const handleAddImageScanDirectory = useCallback(async () => {
     if (window.electronAPI) {
       try {
@@ -4522,9 +4430,9 @@ const App: React.FC = () => {
     if (tab.id === 'diagnostics' || tab.id === 'punchlist') return 'Diagnostics';
     if (tab.id === 'stats') return 'Stats';
     if (tab.id === 'translations') return 'Translations';
+    if (tab.id === 'screen-preview') return 'Screen Preview';
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
-    if (tab.type === 'screen-layout-composer') return screenLayoutCompositions[tab.layoutId!]?.screenName || 'Screen Layout';
     if (tab.type === 'character') return `Char: ${tab.characterTag}`;
     if (tab.type === 'editor') return blocks.find(b => b.id === tab.blockId)?.title || 'Untitled';
     if (tab.type === 'markdown') return tab.filePath?.split('/').pop() ?? 'Markdown';
@@ -4623,6 +4531,15 @@ const App: React.FC = () => {
         isRenpyPathValid={isRenpyPathValid}
       />;
     }
+    if (tab.type === 'screen-preview') {
+      return <ScreenPreviewTab
+        screens={analysisResult.screens}
+        blocks={blocks}
+        cursorBlockId={editorCursorBlockId}
+        cursorLine={editorCursorPosition?.line ?? null}
+        projectImages={images}
+      />;
+    }
     if (tab.type === 'editor' && tab.blockId) {
       const block = blocks.find(b => b.id === tab.blockId);
       if (block) return <EditorView
@@ -4635,7 +4552,7 @@ const App: React.FC = () => {
         editorFontSize={appSettings.editorFontSize} addToast={addToast}
         onEditorMount={(id, editor) => editorInstances.current.set(id, editor)}
         onEditorUnmount={(id) => { const editor = editorInstances.current.get(id); if (editor) { const block = blocksRef.current.find(b => b.id === id); if (block && editor.getValue() !== block.content) { syncEditorToStateAndMarkDirty(id, editor.getValue()); } } editorInstances.current.delete(id); }}
-        onCursorPositionChange={setEditorCursorPosition}
+        onCursorPositionChange={(pos) => { setEditorCursorPosition(pos); if (tab.blockId) setEditorCursorBlockId(tab.blockId); }}
         onWarpToLabel={handleWarpToLabel}
         draftingMode={projectSettings.draftingMode} existingImageTags={existingImageTags} existingAudioPaths={existingAudioPaths}
         userSnippets={appSettings.userSnippets}
@@ -4700,31 +4617,6 @@ const App: React.FC = () => {
         imagemapName={composition.screenName}
         onRenameImageMap={(newName) => handleRenameImageMap(tab.imagemapId!, newName)}
         labels={analysisLabelKeys}
-        activeEditor={getActiveEditor()}
-      />;
-    }
-    if (tab.type === 'screen-layout-composer' && tab.layoutId) {
-      const composition = screenLayoutCompositions[tab.layoutId] || {
-        screenName: 'new_screen',
-        gameWidth: 1920,
-        gameHeight: 1080,
-        modal: false,
-        zorder: 0,
-        widgets: []
-      };
-      const isLayoutLocked = analysisResult.screens.has(composition.screenName);
-      return <ScreenLayoutComposer
-        composition={composition}
-        onCompositionChange={(val) => handleScreenLayoutUpdate(tab.layoutId!, val)}
-        screenName={composition.screenName}
-        onRenameScreen={(newName) => handleRenameScreenLayout(tab.layoutId!, newName)}
-        labels={analysisLabelKeys}
-        isLocked={isLayoutLocked}
-        onDuplicate={() => handleDuplicateScreenLayout(tab.layoutId!)}
-        onGoToCode={isLayoutLocked ? () => {
-            const def = analysisResult.screens.get(composition.screenName);
-            if (def) handleOpenEditor(def.definedInBlockId, def.line);
-        } : undefined}
         activeEditor={getActiveEditor()}
       />;
     }
@@ -4874,7 +4766,7 @@ const App: React.FC = () => {
         handleSave={handleSaveAll}
         onOpenSettings={() => openSettingsModal()}
         onOpenShortcuts={() => openShortcutsModal()}
-        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void}
+        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}
@@ -5169,12 +5061,6 @@ const App: React.FC = () => {
                 onOpenImageMap={handleOpenImageMap}
                 onCreateImageMap={handleCreateImageMap}
                 onDeleteImageMap={handleDeleteImageMap}
-                // Screen Layout Props
-                screenLayouts={screenLayoutsArray}
-                onOpenScreenLayout={handleOpenScreenLayout}
-                onCreateScreenLayout={handleCreateScreenLayout}
-                onDeleteScreenLayout={handleDeleteScreenLayout}
-                onDuplicateScreenLayout={handleDuplicateScreenLayout}
                 // Snippet Props
                 userSnippets={appSettings.userSnippets}
                 onCreateSnippet={() => openUserSnippetModal()}

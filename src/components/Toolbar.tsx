@@ -26,7 +26,7 @@ interface ToolbarProps {
   handleSave: () => void;
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
-  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations') => void;
+  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void;
   diagnosticsErrorCount: number;
   /** null = disabled (no canvas active that supports notes) */
   onAddStickyNote: (() => void) | null;

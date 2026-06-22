@@ -29,6 +29,7 @@ export type CompletionContext =
   | 'scene'
   | 'character'
   | 'variable'
+  | 'screen'
   | 'general';
 
 export interface CompletionRange {
@@ -121,6 +122,84 @@ const KEYWORD_SNIPPETS: { label: string; insertText: string; detail: string }[] 
 ];
 
 /**
+ * Returns true when the cursor (0-based lineIndex) is nested inside a `screen` block.
+ * Scans backwards to find the first containing block header and checks whether it
+ * is a `screen` definition.
+ */
+export function isInsideScreenBlock(lines: string[], lineIndex: number): boolean {
+  if (lineIndex <= 0) return false;
+  let targetIndent = lines[lineIndex].match(/^(\s*)/)?.[1].length ?? 0;
+  if (targetIndent === 0) return false;
+  for (let i = lineIndex - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (line.trim() === '' || line.trim().startsWith('#')) continue;
+    const indent = line.match(/^(\s*)/)?.[1].length ?? 0;
+    if (indent < targetIndent) {
+      if (/^\s*screen\s+\w/.test(line)) return true;
+      if (indent === 0) return false;
+      targetIndent = indent;
+    }
+  }
+  return false;
+}
+
+const SCREEN_WIDGET_SNIPPETS: { label: string; insertText: string; detail: string }[] = [
+  { label: 'text', insertText: 'text "${1:Hello}"', detail: 'Display text' },
+  { label: 'textbutton', insertText: 'textbutton "${1:Label}" action ${2:Return()}', detail: 'Button with text label' },
+  { label: 'button', insertText: 'button action ${1:Return()}:\n    $0', detail: 'Clickable button container' },
+  { label: 'imagebutton', insertText: 'imagebutton idle "${1:idle.png}" action ${2:Return()}', detail: 'Image button' },
+  { label: 'vbox', insertText: 'vbox:\n    $0', detail: 'Vertical box layout' },
+  { label: 'hbox', insertText: 'hbox:\n    $0', detail: 'Horizontal box layout' },
+  { label: 'fixed', insertText: 'fixed:\n    $0', detail: 'Fixed-position container' },
+  { label: 'frame', insertText: 'frame:\n    $0', detail: 'Framed container' },
+  { label: 'window', insertText: 'window:\n    $0', detail: 'Window container' },
+  { label: 'side', insertText: 'side "${1:c}":\n    $0', detail: 'Side layout container' },
+  { label: 'viewport', insertText: 'viewport:\n    $0', detail: 'Scrollable viewport' },
+  { label: 'vpgrid', insertText: 'vpgrid cols ${1:2}:\n    $0', detail: 'Scrollable grid' },
+  { label: 'grid', insertText: 'grid ${1:2} ${2:2}:\n    $0', detail: 'Grid layout' },
+  { label: 'use', insertText: 'use ${1:screen_name}', detail: 'Include another screen' },
+  { label: 'transclude', insertText: 'transclude', detail: 'Transclude child content' },
+  { label: 'key', insertText: 'key "${1:K_RETURN}" action ${2:Return()}', detail: 'Keyboard shortcut binding' },
+  { label: 'timer', insertText: 'timer ${1:1.0} action ${2:Return()}', detail: 'Timed action trigger' },
+  { label: 'bar', insertText: 'bar value ${1:VariableValue("var", 0, 100)}', detail: 'Horizontal bar' },
+  { label: 'vbar', insertText: 'vbar value ${1:VariableValue("var", 0, 100)}', detail: 'Vertical bar' },
+  { label: 'input', insertText: 'input default "${1:}" length ${2:100}', detail: 'Text input field' },
+  { label: 'null', insertText: 'null', detail: 'Empty placeholder widget' },
+  { label: 'mousearea', insertText: 'mousearea hovered ${1:None} unhovered ${2:None}', detail: 'Mouse hover area' },
+  { label: 'drag', insertText: 'drag drag_name "${1:name}":\n    $0', detail: 'Draggable widget' },
+  { label: 'draggroup', insertText: 'draggroup:\n    $0', detail: 'Container for draggable widgets' },
+  { label: 'transform', insertText: 'transform ${1:name}:\n    $0', detail: 'Inline transform' },
+  { label: 'imagemap', insertText: 'imagemap:\n    ground "${1:ground.png}"\n    $0', detail: 'Image map widget' },
+  { label: 'hotspot', insertText: 'hotspot (${1:0}, ${2:0}, ${3:100}, ${4:100}) action ${5:Return()}', detail: 'Clickable hotspot on imagemap' },
+  { label: 'hotbar', insertText: 'hotbar (${1:0}, ${2:0}, ${3:100}, ${4:20}) value ${5:VariableValue("var", 0, 100)}', detail: 'Bar-style hotspot' },
+  { label: 'default', insertText: 'default ${1:var} = ${2:value}', detail: 'Screen-local variable' },
+  { label: 'on', insertText: 'on "${1:show}" action ${2:None}', detail: 'Screen event handler' },
+  { label: 'dismiss', insertText: 'dismiss action ${1:Return()}', detail: 'Dismissable overlay area' },
+  { label: 'nearrect', insertText: 'nearrect focus "${1:id}":\n    $0', detail: 'Positioned near another widget' },
+  { label: 'showif', insertText: 'showif ${1:condition}:\n    $0', detail: 'Conditionally shown content' },
+];
+
+const SCREEN_PROPERTY_COMPLETIONS: { label: string; detail: string }[] = [
+  { label: 'xpos', detail: 'Horizontal position' },
+  { label: 'ypos', detail: 'Vertical position' },
+  { label: 'xalign', detail: 'Horizontal alignment (0.0–1.0)' },
+  { label: 'yalign', detail: 'Vertical alignment (0.0–1.0)' },
+  { label: 'xsize', detail: 'Width' },
+  { label: 'ysize', detail: 'Height' },
+  { label: 'style', detail: 'Style name' },
+  { label: 'action', detail: 'Action on activation' },
+  { label: 'hovered', detail: 'Action/transform when hovered' },
+  { label: 'unhovered', detail: 'Action/transform when unhovered' },
+  { label: 'sensitive', detail: 'Whether widget is interactive' },
+  { label: 'selected', detail: 'Whether widget is selected' },
+  { label: 'text', detail: 'Text property' },
+  { label: 'spacing', detail: 'Spacing between children' },
+  { label: 'scrollbars', detail: 'Scrollbar visibility ("horizontal"/"vertical"/"both")' },
+  { label: 'cols', detail: 'Number of columns' },
+  { label: 'rows', detail: 'Number of rows' },
+];
+
+/**
  * Generates completion items for the given context and analysis data.
  */
 export function getRenpyCompletions(
@@ -188,6 +267,32 @@ export function getRenpyCompletions(
           insertText: name,
           range,
           sortText: `0_${name}`,
+        });
+      }
+      break;
+
+    case 'screen':
+      // Widget names
+      for (const widget of SCREEN_WIDGET_SNIPPETS) {
+        items.push({
+          label: widget.label,
+          kind: CompletionItemKind.Keyword,
+          detail: widget.detail,
+          insertText: widget.insertText,
+          insertTextRules: InsertTextRule.InsertAsSnippet,
+          range,
+          sortText: `0_${widget.label}`,
+        });
+      }
+      // Widget properties
+      for (const prop of SCREEN_PROPERTY_COMPLETIONS) {
+        items.push({
+          label: prop.label,
+          kind: CompletionItemKind.Variable,
+          detail: prop.detail,
+          insertText: prop.label,
+          range,
+          sortText: `1_${prop.label}`,
         });
       }
       break;

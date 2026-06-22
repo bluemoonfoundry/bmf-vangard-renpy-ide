@@ -634,13 +634,12 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-layout-composer' | 'stats' | 'markdown' | 'translations';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
   sceneId?: string;
   imagemapId?: string;
-  layoutId?: string;
   scrollRequest?: { line: number; key: number };
 }
 
@@ -877,10 +876,24 @@ export interface ImageMapComposition {
  * Maps to Ren'Py screen language statement types.
  */
 export type ScreenWidgetType =
-  'vbox' | 'hbox' | 'frame' |
-  'text' | 'image' |
-  'textbutton' | 'button' | 'imagebutton' |
-  'bar' | 'input' | 'null';
+  // Layout containers
+  'vbox' | 'hbox' | 'fixed' | 'frame' | 'window' | 'side' |
+  // Scrollable / grid containers
+  'viewport' | 'vpgrid' | 'grid' |
+  // Transform & drag containers
+  'transform' | 'drag' | 'draggroup' |
+  // Imagemap containers & hotspots
+  'imagemap' | 'hotspot' | 'hotbar' |
+  // Display
+  'text' | 'label' | 'image' |
+  // Interactive
+  'textbutton' | 'button' | 'imagebutton' | 'bar' | 'vbar' | 'input' | 'null' |
+  // Screen inclusion
+  'use' | 'transclude' |
+  // Utility statements
+  'key' | 'timer' | 'mousearea' | 'nearrect' | 'dismiss' | 'on' | 'default' |
+  // Fallback — also used for control flow (if/elif/else, for, showif, python)
+  'raw';
 
 /**
  * A single widget node in a screen layout composition.
@@ -888,6 +901,30 @@ export type ScreenWidgetType =
  * Top-level widgets support absolute positioning via xpos/ypos/xalign/yalign.
  * Children of container widgets are flow-positioned by the container.
  */
+
+/**
+ * Resolved visual style properties parsed from inline style-property lines
+ * (background, color, size, bold, etc.) inside a widget block.
+ * Preview-only — not used by code generation.
+ */
+export interface ScreenWidgetStyleProps {
+  background?: string;    // CSS colour string (from "#hex" or Solid())
+  bgImagePath?: string;   // image path from Frame()/Image() background
+  color?: string;         // text / foreground colour
+  fontSize?: number;      // Ren'Py size in game pixels
+  bold?: boolean;
+  italic?: boolean;
+  xpadding?: number;      // in game pixels
+  ypadding?: number;
+  xfill?: boolean;
+  yfill?: boolean;
+  xmaximum?: number;
+  ymaximum?: number;
+  xminimum?: number;
+  yminimum?: number;
+  textAlign?: number;     // 0 = left, 0.5 = centre, 1 = right
+}
+
 export interface ScreenWidget {
   id: string;
   type: ScreenWidgetType;
@@ -901,7 +938,86 @@ export interface ScreenWidget {
   /** Preview-only: data/media URL for displaying the image in the composer. Not used in code generation. */
   imageDataUrl?: string;
   style?: string;
+  xsize?: number;
+  ysize?: number;
   children?: ScreenWidget[];
+  /** 'viewport' widget: which scrollbars to show */
+  scrollbars?: 'vertical' | 'horizontal' | 'both';
+  /** 'viewport' widget: whether to enable mousewheel scrolling */
+  mousewheel?: boolean;
+  /** 'raw' widget: verbatim source content (also holds control-flow blocks: if/for/python/showif) */
+  code?: string;
+  /** Unrecognised attribute lines preserved verbatim; emitted before children in code gen */
+  extraProps?: string[];
+  /** Parsed visual style properties — preview-only, not used in code gen */
+  styleProps?: ScreenWidgetStyleProps;
+  /** style_prefix property — passed down to children to compute their effective style name */
+  stylePrefix?: string;
+
+  // ── vpgrid / grid ────────────────────────────────────────────────────────
+  cols?: number;
+  rows?: number;
+
+  // ── side ─────────────────────────────────────────────────────────────────
+  /** side widget: positions string, e.g. "t l c r b" */
+  sidePositions?: string;
+
+  // ── use ──────────────────────────────────────────────────────────────────
+  /** use widget: target screen name */
+  useScreen?: string;
+  /** use widget: argument string, e.g. "title=_('Save')" */
+  useArgs?: string;
+
+  // ── key / timer ──────────────────────────────────────────────────────────
+  /** key widget: keysym string, e.g. "game_menu" */
+  keyBinding?: string;
+  /** timer widget: delay expression, e.g. "0.5" */
+  timerDelay?: string;
+
+  // ── bar / vbar ───────────────────────────────────────────────────────────
+  /** bar/vbar value expression, e.g. "Preference('music volume', 'set')" */
+  barValue?: string;
+
+  // ── interactive events ───────────────────────────────────────────────────
+  hovered?: string;
+  unhovered?: string;
+  sensitive?: string;
+  selected?: string;
+
+  // ── accessibility ────────────────────────────────────────────────────────
+  alt?: string;
+
+  // ── imagebutton ──────────────────────────────────────────────────────────
+  /** imagebutton auto format string, e.g. "gui/button/%s.png" */
+  auto?: string;
+
+  // ── layout ───────────────────────────────────────────────────────────────
+  /** spacing between children (string: may reference a variable) */
+  spacing?: string;
+
+  // ── on ───────────────────────────────────────────────────────────────────
+  /** on widget: event name, e.g. "show", "hide", "replace" */
+  onEvent?: string;
+
+  // ── default ──────────────────────────────────────────────────────────────
+  /** default widget: screen variable name */
+  defaultVariable?: string;
+  /** default widget: default value expression */
+  defaultValue?: string;
+
+  // ── hotspot / hotbar ─────────────────────────────────────────────────────
+  /** hotspot/hotbar: area tuple string, e.g. "(0, 0, 100, 100)" */
+  hotspotArea?: string;
+
+  // ── nearrect ─────────────────────────────────────────────────────────────
+  /** nearrect: focus name to track */
+  nearrectFocus?: string;
+  /** nearrect: preferred side, e.g. "bottom" */
+  nearrectSide?: string;
+
+  // ── drag ─────────────────────────────────────────────────────────────────
+  /** drag widget: drag_name property */
+  dragName?: string;
 }
 
 /**
@@ -910,6 +1026,8 @@ export interface ScreenWidget {
  */
 export interface ScreenLayoutComposition {
   screenName: string;
+  /** Raw parameter list from the screen declaration, e.g. "title, scroll=None" */
+  parameters?: string;
   gameWidth: number;
   gameHeight: number;
   modal: boolean;
@@ -967,12 +1085,11 @@ export interface ProjectSettings {
   sceneCompositions?: Record<string, SerializedSceneComposition>;
   sceneNames?: Record<string, string>;
   imagemapCompositions?: Record<string, SerializedImageMapComposition>;
-  screenLayoutCompositions?: Record<string, ScreenLayoutComposition>;
   scannedImagePaths?: string[];
   scannedAudioPaths?: string[];
   storyElementsTabState?: {
     activeTab: 'storyData' | 'assets' | 'composers' | 'tools';
-    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'screenLayouts' | 'snippets' | 'menuTemplates' | 'colorPalette';
+    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'snippets' | 'menuTemplates' | 'colorPalette';
   };
   dismissedImplicitVariableHint?: boolean;
   completedMilestones?: string[];

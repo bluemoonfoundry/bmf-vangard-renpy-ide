@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 import Editor, { OnMount, BeforeMount } from '@monaco-editor/react';
 import type { Block, RenpyAnalysisResult, ToastMessage, UserSnippet, MenuTemplate, MenuChoice as MenuChoiceType } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { detectContext, getRenpyCompletions } from '@/lib/renpyCompletionProvider';
+import { detectContext, getRenpyCompletions, isInsideScreenBlock } from '@/lib/renpyCompletionProvider';
 import type { RenpyCompletionData } from '@/lib/renpyCompletionProvider';
 import { validateRenpyCode } from '@/lib/renpyValidator';
 import { initTextMate, createTextMateTokensProvider } from '@/lib/textmateGrammar';
@@ -575,7 +575,11 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
             endLineNumber: position.lineNumber,
             endColumn: position.column,
           };
-          const context = detectContext(lineContent, position.column);
+          const allLines = model.getValue().split('\n');
+          let context = detectContext(lineContent, position.column);
+          if (context === 'general' && isInsideScreenBlock(allLines, position.lineNumber - 1)) {
+            context = 'screen';
+          }
           const analysis = analysisResultRef.current;
           const data: RenpyCompletionData = {
             labels: analysis.labels,
