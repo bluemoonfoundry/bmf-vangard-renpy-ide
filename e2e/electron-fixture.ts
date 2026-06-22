@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const APP_ENTRY = path.join(__dirname, '..', 'electron.js');
 export const FIXTURE_PROJECT = path.join(__dirname, 'fixtures', 'test-project');
+const FAKE_RENPY_SDK = path.join(__dirname, 'fixtures', 'fake-renpy-sdk');
 
 type ElectronFixtures = {
   electronApp: ElectronApplication;
@@ -34,11 +35,14 @@ export const test = base.extend<ElectronFixtures>({
   },
 });
 
-/** Fixture with the test project pre-loaded via --project CLI arg. */
+/** Fixture with the test project pre-loaded via --project CLI arg.
+ *  Also points renpyPath at a stub SDK so Run/Warp toolbar buttons are
+ *  enabled — checkRenpyPath only verifies the executable exists, it never runs it. */
 export const testWithProject = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
     const app = await electron.launch({
       args: [APP_ENTRY, '--project', FIXTURE_PROJECT],
+      env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ renpyPath: FAKE_RENPY_SDK }) },
     });
     await use(app);
     await forceExit(app);
