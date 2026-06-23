@@ -5,4 +5,5 @@ label start:
 
 label scene_two:
     "Scene two of the smoke test."
+    jump nonexistent_label
     return
