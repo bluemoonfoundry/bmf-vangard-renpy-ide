@@ -131,38 +131,6 @@ const App: React.FC = () => {
   }, [projectRootPath]);
 
   const [directoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
-  
-  // Asset management state
-  const {
-    images,
-    imageMetadata,
-    imageScanDirectories,
-    imagesLastScanned,
-    isRefreshingImages,
-    setImages,
-    setImageMetadata,
-    setImageScanDirectories,
-    setImagesLastScanned,
-    setIsRefreshingImages,
-    audios,
-    audioMetadata,
-    audioScanDirectories,
-    audiosLastScanned,
-    isRefreshingAudios,
-    setAudios,
-    setAudioMetadata,
-    setAudioScanDirectories,
-    setAudiosLastScanned,
-    setIsRefreshingAudios,
-    addImage: _addImage,
-    removeImage: _removeImage,
-    updateImageMetadata: _updateImageMetadata,
-    addAudio: _addAudio,
-    removeAudio: _removeAudio,
-    updateAudioMetadata: _updateAudioMetadata,
-    clearImages: _clearImages,
-    clearAudios: _clearAudios,
-  } = useAssetManagement();
 
   // --- State: UI & Editor ---
   const {
@@ -426,6 +394,49 @@ const App: React.FC = () => {
   );
 
   const [perfSnapshot, perfRecorders] = usePerformanceMetrics();
+
+  // Asset management state
+  const {
+    images,
+    imageMetadata,
+    imageScanDirectories,
+    imagesLastScanned,
+    isRefreshingImages,
+    setImages,
+    setImageMetadata,
+    setImageScanDirectories,
+    setImagesLastScanned,
+    setIsRefreshingImages,
+    audios,
+    audioMetadata,
+    audioScanDirectories,
+    audiosLastScanned,
+    isRefreshingAudios,
+    setAudios,
+    setAudioMetadata,
+    setAudioScanDirectories,
+    setAudiosLastScanned,
+    setIsRefreshingAudios,
+    addImage: _addImage,
+    removeImage: _removeImage,
+    updateImageMetadata: _updateImageMetadata,
+    addAudio: _addAudio,
+    removeAudio: _removeAudio,
+    updateAudioMetadata: _updateAudioMetadata,
+    clearImages: _clearImages,
+    clearAudios: _clearAudios,
+    handleAddImageScanDirectory,
+    handleRefreshImages,
+    handleRemoveImageScanDirectory,
+    handleCopyImagesToProjectBulk,
+    handleAddAudioScanDirectory,
+    handleRefreshAudios,
+    handleRemoveAudioScanDirectory,
+    handleCopyAudiosToProjectBulk,
+  } = useAssetManagement({
+    projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
+  });
+
   const [analysisResult, isWorkerPending, analysisProgress] = useRenpyAnalysis(analysisBlocks, 0, perfRecorders.recordAnalysis);
   // Pending covers both: the 500ms debounce window AND the worker's async computation
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
@@ -3351,204 +3362,6 @@ const App: React.FC = () => {
     if (def) handleOpenEditor(def.definedInBlockId, def.line);
   }, [analysisResult.screens, handleOpenEditor]);
 
-
-  const handleAddImageScanDirectory = useCallback(async () => {
-    if (window.electronAPI) {
-      try {
-        const path = await window.electronAPI.openDirectory();
-        if (path) {
-          setImageScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
-          perfRecorders.recordScanStart();
-          setIsScanningAssets(true);
-          setIsRefreshingImages(true);
-          try {
-            const { images: scanned } = await window.electronAPI.scanDirectory(path);
-            setImages(prev => {
-              const next = new Map(prev);
-              scanned.forEach((img) => {
-                if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
-              });
-              return next;
-            });
-          } finally {
-            perfRecorders.recordScanEnd();
-            setIsScanningAssets(false);
-            setIsRefreshingImages(false);
-            setImagesLastScanned(Date.now());
-          }
-          setHasUnsavedSettings(true);
-        }
-      } catch (err) {
-        logger.error('Failed to scan image directory:', err);
-        addToast('Failed to scan image directory', 'error');
-      }
-    }
-  }, [addToast, perfRecorders, setImageScanDirectories, setImages, setImagesLastScanned, setIsRefreshingImages]);
-
-  const handleRefreshImages = useCallback(async () => {
-    if (!window.electronAPI) return;
-    const paths = Array.from(imageScanDirectories.keys());
-    if (paths.length === 0) return;
-    setIsRefreshingImages(true);
-    perfRecorders.recordScanStart();
-    setIsScanningAssets(true);
-    try {
-      await Promise.all(paths.map((dirPath) =>
-        window.electronAPI!.scanDirectory(dirPath).then(({ images: scanned }) => {
-          setImages(prev => {
-            const next = new Map(prev);
-            scanned.forEach((img) => {
-              if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
-            });
-            return next;
-          });
-        })
-      ));
-    } finally {
-      perfRecorders.recordScanEnd();
-      setIsScanningAssets(false);
-      setIsRefreshingImages(false);
-      setImagesLastScanned(Date.now());
-    }
-  }, [imageScanDirectories, perfRecorders, setImages, setImagesLastScanned, setIsRefreshingImages]);
-
-  const handleRemoveImageScanDirectory = useCallback((path: string) => {
-    setImageScanDirectories(prev => {
-      const next = new Map(prev);
-      next.delete(path);
-      return next;
-    });
-    setHasUnsavedSettings(true);
-  }, [setImageScanDirectories]);
-
-  const handleCopyImagesToProjectBulk = useCallback(async (sourcePaths: string[]) => {
-    if (window.electronAPI && projectRootPath) {
-      try {
-        const copied: { src: string; dest: string }[] = [];
-        for (const src of sourcePaths) {
-          const fileName = src.split('/').pop() || 'image.png';
-          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images');
-          const destPath = await window.electronAPI.path.join(destDir, fileName);
-          await window.electronAPI.copyEntry(src, destPath);
-          copied.push({ src, dest: destPath });
-        }
-        setImages(prev => {
-          const next = new Map(prev);
-          copied.forEach(({ src, dest }) => {
-            const existing = next.get(src);
-            if (existing) {
-              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
-            }
-          });
-          return next;
-        });
-        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-        setFileSystemTree(freshTree);
-      } catch (err) {
-        logger.error('Failed to copy images to project:', err);
-        addToast('Failed to copy images to project', 'error');
-      }
-    }
-  }, [projectRootPath, addToast, setFileSystemTree, setImages]);
-
-  const handleAddAudioScanDirectory = useCallback(async () => {
-    if (window.electronAPI) {
-      try {
-        const path = await window.electronAPI.openDirectory();
-        if (path) {
-          setAudioScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
-          perfRecorders.recordScanStart();
-          setIsScanningAssets(true);
-          setIsRefreshingAudios(true);
-          try {
-            const { audios: scanned } = await window.electronAPI.scanDirectory(path);
-            setAudios(prev => {
-              const next = new Map(prev);
-              scanned.forEach((aud) => {
-                if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
-              });
-              return next;
-            });
-          } finally {
-            perfRecorders.recordScanEnd();
-            setIsScanningAssets(false);
-            setIsRefreshingAudios(false);
-            setAudiosLastScanned(Date.now());
-          }
-          setHasUnsavedSettings(true);
-        }
-      } catch (err) {
-        logger.error('Failed to scan audio directory:', err);
-        addToast('Failed to scan audio directory', 'error');
-      }
-    }
-  }, [addToast, perfRecorders, setAudioScanDirectories, setAudios, setAudiosLastScanned, setIsRefreshingAudios]);
-
-  const handleRefreshAudios = useCallback(async () => {
-    if (!window.electronAPI) return;
-    const paths = Array.from(audioScanDirectories.keys());
-    if (paths.length === 0) return;
-    setIsRefreshingAudios(true);
-    perfRecorders.recordScanStart();
-    setIsScanningAssets(true);
-    try {
-      await Promise.all(paths.map((dirPath) =>
-        window.electronAPI!.scanDirectory(dirPath).then(({ audios: scanned }) => {
-          setAudios(prev => {
-            const next = new Map(prev);
-            scanned.forEach((aud) => {
-              if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
-            });
-            return next;
-          });
-        })
-      ));
-    } finally {
-      perfRecorders.recordScanEnd();
-      setIsScanningAssets(false);
-      setIsRefreshingAudios(false);
-      setAudiosLastScanned(Date.now());
-    }
-  }, [audioScanDirectories, perfRecorders, setAudios, setAudiosLastScanned, setIsRefreshingAudios]);
-
-  const handleRemoveAudioScanDirectory = useCallback((path: string) => {
-    setAudioScanDirectories(prev => {
-      const next = new Map(prev);
-      next.delete(path);
-      return next;
-    });
-    setHasUnsavedSettings(true);
-  }, [setAudioScanDirectories]);
-
-  const handleCopyAudiosToProjectBulk = useCallback(async (sourcePaths: string[]) => {
-    if (window.electronAPI && projectRootPath) {
-      try {
-        const copied: { src: string; dest: string }[] = [];
-        for (const src of sourcePaths) {
-          const fileName = src.split('/').pop() || 'audio.ogg';
-          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio');
-          const destPath = await window.electronAPI.path.join(destDir, fileName);
-          await window.electronAPI.copyEntry(src, destPath);
-          copied.push({ src, dest: destPath });
-        }
-        setAudios(prev => {
-          const next = new Map(prev);
-          copied.forEach(({ src, dest }) => {
-            const existing = next.get(src);
-            if (existing) {
-              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
-            }
-          });
-          return next;
-        });
-        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-        setFileSystemTree(freshTree);
-      } catch (err) {
-        logger.error('Failed to copy audio to project:', err);
-        addToast('Failed to copy audio to project', 'error');
-      }
-    }
-  }, [projectRootPath, addToast, setAudios, setFileSystemTree]);
 
   const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
     const tabId = `aud-${filePath}`;

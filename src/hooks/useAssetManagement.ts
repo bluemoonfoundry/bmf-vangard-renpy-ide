@@ -9,6 +9,19 @@
 
 import { useState, useCallback } from 'react';
 import type { ProjectImage, RenpyAudio, ImageMetadata, AudioMetadata } from '@/types';
+import type { PerformanceRecorders } from '@/hooks/usePerformanceMetrics';
+import { logger } from '@/lib/logger';
+
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface UseAssetManagementParams {
+  projectRootPath: string | null;
+  perfRecorders: PerformanceRecorders;
+  setIsScanningAssets: React.Dispatch<React.SetStateAction<boolean>>;
+  setHasUnsavedSettings: React.Dispatch<React.SetStateAction<boolean>>;
+  setFileSystemTree: React.Dispatch<React.SetStateAction<import('@/types').FileSystemTreeNode | null>>;
+  addToast: (message: string, type?: ToastType) => void;
+}
 
 export interface UseAssetManagementReturn {
   // Image state
@@ -44,6 +57,16 @@ export interface UseAssetManagementReturn {
   updateAudioMetadata: (path: string, metadata: AudioMetadata) => void;
   clearImages: () => void;
   clearAudios: () => void;
+
+  // Scan-directory operations
+  handleAddImageScanDirectory: () => Promise<void>;
+  handleRefreshImages: () => Promise<void>;
+  handleRemoveImageScanDirectory: (path: string) => void;
+  handleCopyImagesToProjectBulk: (sourcePaths: string[]) => Promise<void>;
+  handleAddAudioScanDirectory: () => Promise<void>;
+  handleRefreshAudios: () => Promise<void>;
+  handleRemoveAudioScanDirectory: (path: string) => void;
+  handleCopyAudiosToProjectBulk: (sourcePaths: string[]) => Promise<void>;
 }
 
 /**
@@ -76,7 +99,9 @@ export interface UseAssetManagementReturn {
  * });
  * ```
  */
-export function useAssetManagement(): UseAssetManagementReturn {
+export function useAssetManagement({
+  projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
+}: UseAssetManagementParams): UseAssetManagementReturn {
   // --- Image state ---
   const [images, setImages] = useState<Map<string, ProjectImage>>(new Map());
   const [imageMetadata, setImageMetadata] = useState<Map<string, ImageMetadata>>(new Map());
@@ -187,6 +212,216 @@ export function useAssetManagement(): UseAssetManagementReturn {
     setAudiosLastScanned(null);
   }, []);
 
+  /**
+   * Prompt for a directory, scan it for images, and merge newly found images into the collection.
+   */
+  const handleAddImageScanDirectory = useCallback(async () => {
+    if (window.electronAPI) {
+      try {
+        const path = await window.electronAPI.openDirectory();
+        if (path) {
+          setImageScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          perfRecorders.recordScanStart();
+          setIsScanningAssets(true);
+          setIsRefreshingImages(true);
+          try {
+            const { images: scanned } = await window.electronAPI.scanDirectory(path);
+            setImages(prev => {
+              const next = new Map(prev);
+              scanned.forEach((img) => {
+                if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
+              });
+              return next;
+            });
+          } finally {
+            perfRecorders.recordScanEnd();
+            setIsScanningAssets(false);
+            setIsRefreshingImages(false);
+            setImagesLastScanned(Date.now());
+          }
+          setHasUnsavedSettings(true);
+        }
+      } catch (err) {
+        logger.error('Failed to scan image directory:', err);
+        addToast('Failed to scan image directory', 'error');
+      }
+    }
+  }, [addToast, perfRecorders, setHasUnsavedSettings, setIsScanningAssets]);
+
+  /**
+   * Re-scan all registered image directories and merge newly found images.
+   */
+  const handleRefreshImages = useCallback(async () => {
+    if (!window.electronAPI) return;
+    const paths = Array.from(imageScanDirectories.keys());
+    if (paths.length === 0) return;
+    setIsRefreshingImages(true);
+    perfRecorders.recordScanStart();
+    setIsScanningAssets(true);
+    try {
+      await Promise.all(paths.map((dirPath) =>
+        window.electronAPI!.scanDirectory(dirPath).then(({ images: scanned }) => {
+          setImages(prev => {
+            const next = new Map(prev);
+            scanned.forEach((img) => {
+              if (!next.has(img.path)) next.set(img.path, { ...img, filePath: img.path, isInProject: false, fileHandle: null });
+            });
+            return next;
+          });
+        })
+      ));
+    } finally {
+      perfRecorders.recordScanEnd();
+      setIsScanningAssets(false);
+      setIsRefreshingImages(false);
+      setImagesLastScanned(Date.now());
+    }
+  }, [imageScanDirectories, perfRecorders, setIsScanningAssets]);
+
+  const handleRemoveImageScanDirectory = useCallback((path: string) => {
+    setImageScanDirectories(prev => {
+      const next = new Map(prev);
+      next.delete(path);
+      return next;
+    });
+    setHasUnsavedSettings(true);
+  }, [setHasUnsavedSettings]);
+
+  const handleCopyImagesToProjectBulk = useCallback(async (sourcePaths: string[]) => {
+    if (window.electronAPI && projectRootPath) {
+      try {
+        const copied: { src: string; dest: string }[] = [];
+        for (const src of sourcePaths) {
+          const fileName = src.split('/').pop() || 'image.png';
+          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images');
+          const destPath = await window.electronAPI.path.join(destDir, fileName);
+          await window.electronAPI.copyEntry(src, destPath);
+          copied.push({ src, dest: destPath });
+        }
+        setImages(prev => {
+          const next = new Map(prev);
+          copied.forEach(({ src, dest }) => {
+            const existing = next.get(src);
+            if (existing) {
+              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
+            }
+          });
+          return next;
+        });
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
+      } catch (err) {
+        logger.error('Failed to copy images to project:', err);
+        addToast('Failed to copy images to project', 'error');
+      }
+    }
+  }, [projectRootPath, addToast, setFileSystemTree]);
+
+  /**
+   * Prompt for a directory, scan it for audio files, and merge newly found audios into the collection.
+   */
+  const handleAddAudioScanDirectory = useCallback(async () => {
+    if (window.electronAPI) {
+      try {
+        const path = await window.electronAPI.openDirectory();
+        if (path) {
+          setAudioScanDirectories(prev => new Map(prev).set(path, null as unknown as FileSystemDirectoryHandle));
+          perfRecorders.recordScanStart();
+          setIsScanningAssets(true);
+          setIsRefreshingAudios(true);
+          try {
+            const { audios: scanned } = await window.electronAPI.scanDirectory(path);
+            setAudios(prev => {
+              const next = new Map(prev);
+              scanned.forEach((aud) => {
+                if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
+              });
+              return next;
+            });
+          } finally {
+            perfRecorders.recordScanEnd();
+            setIsScanningAssets(false);
+            setIsRefreshingAudios(false);
+            setAudiosLastScanned(Date.now());
+          }
+          setHasUnsavedSettings(true);
+        }
+      } catch (err) {
+        logger.error('Failed to scan audio directory:', err);
+        addToast('Failed to scan audio directory', 'error');
+      }
+    }
+  }, [addToast, perfRecorders, setHasUnsavedSettings, setIsScanningAssets]);
+
+  /**
+   * Re-scan all registered audio directories and merge newly found audios.
+   */
+  const handleRefreshAudios = useCallback(async () => {
+    if (!window.electronAPI) return;
+    const paths = Array.from(audioScanDirectories.keys());
+    if (paths.length === 0) return;
+    setIsRefreshingAudios(true);
+    perfRecorders.recordScanStart();
+    setIsScanningAssets(true);
+    try {
+      await Promise.all(paths.map((dirPath) =>
+        window.electronAPI!.scanDirectory(dirPath).then(({ audios: scanned }) => {
+          setAudios(prev => {
+            const next = new Map(prev);
+            scanned.forEach((aud) => {
+              if (!next.has(aud.path)) next.set(aud.path, { ...aud, filePath: aud.path, isInProject: false, fileHandle: null });
+            });
+            return next;
+          });
+        })
+      ));
+    } finally {
+      perfRecorders.recordScanEnd();
+      setIsScanningAssets(false);
+      setIsRefreshingAudios(false);
+      setAudiosLastScanned(Date.now());
+    }
+  }, [audioScanDirectories, perfRecorders, setIsScanningAssets]);
+
+  const handleRemoveAudioScanDirectory = useCallback((path: string) => {
+    setAudioScanDirectories(prev => {
+      const next = new Map(prev);
+      next.delete(path);
+      return next;
+    });
+    setHasUnsavedSettings(true);
+  }, [setHasUnsavedSettings]);
+
+  const handleCopyAudiosToProjectBulk = useCallback(async (sourcePaths: string[]) => {
+    if (window.electronAPI && projectRootPath) {
+      try {
+        const copied: { src: string; dest: string }[] = [];
+        for (const src of sourcePaths) {
+          const fileName = src.split('/').pop() || 'audio.ogg';
+          const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio');
+          const destPath = await window.electronAPI.path.join(destDir, fileName);
+          await window.electronAPI.copyEntry(src, destPath);
+          copied.push({ src, dest: destPath });
+        }
+        setAudios(prev => {
+          const next = new Map(prev);
+          copied.forEach(({ src, dest }) => {
+            const existing = next.get(src);
+            if (existing) {
+              next.set(src, { ...existing, isInProject: true, projectFilePath: dest });
+            }
+          });
+          return next;
+        });
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
+      } catch (err) {
+        logger.error('Failed to copy audio to project:', err);
+        addToast('Failed to copy audio to project', 'error');
+      }
+    }
+  }, [projectRootPath, addToast, setFileSystemTree]);
+
   return {
     // Image state
     images,
@@ -221,5 +456,15 @@ export function useAssetManagement(): UseAssetManagementReturn {
     updateAudioMetadata,
     clearImages,
     clearAudios,
+
+    // Scan-directory operations
+    handleAddImageScanDirectory,
+    handleRefreshImages,
+    handleRemoveImageScanDirectory,
+    handleCopyImagesToProjectBulk,
+    handleAddAudioScanDirectory,
+    handleRefreshAudios,
+    handleRemoveAudioScanDirectory,
+    handleCopyAudiosToProjectBulk,
   };
 }
