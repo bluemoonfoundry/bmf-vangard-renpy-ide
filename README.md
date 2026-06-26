@@ -16,7 +16,7 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 
 **[Download the latest stable release (v0.8.0)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v0.8.0)**
 
-**[Download the latest preview release (v0.9.0)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)**
+**[Download the latest preview release (v0.9.0)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/tag/v0.9.0)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
 
