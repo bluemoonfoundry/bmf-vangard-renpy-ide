@@ -49,6 +49,7 @@ import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
 import { useCharacterManagement } from '@/hooks/useCharacterManagement';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
+import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   computeStoryLayout,
@@ -71,8 +72,7 @@ import {
 } from '@/lib/warpAfterWarp';
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
-  ToastMessage, Theme, Variable,
-  ImageMetadata, AudioMetadata,
+  ToastMessage, Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
 } from '@/types';
@@ -408,7 +408,6 @@ const App: React.FC = () => {
     imagesLastScanned,
     isRefreshingImages,
     setImages,
-    setImageMetadata,
     setImageScanDirectories,
     setImagesLastScanned,
     setIsRefreshingImages,
@@ -418,7 +417,6 @@ const App: React.FC = () => {
     audiosLastScanned,
     isRefreshingAudios,
     setAudios,
-    setAudioMetadata,
     setAudioScanDirectories,
     setAudiosLastScanned,
     setIsRefreshingAudios,
@@ -438,8 +436,13 @@ const App: React.FC = () => {
     handleRefreshAudios,
     handleRemoveAudioScanDirectory,
     handleCopyAudiosToProjectBulk,
+    handleSaveImageMetadata,
+    handleCopyImageToProject,
+    handleSaveAudioMetadata,
+    handleCopyAudioToProject,
   } = useAssetManagement({
     projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
+    setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId,
   });
 
   const [analysisResult, isWorkerPending, analysisProgress] = useRenpyAnalysis(analysisBlocks, 0, perfRecorders.recordAnalysis);
@@ -1474,175 +1477,6 @@ const App: React.FC = () => {
       }
   }, [loadProject, addToast, closeWizardModal]);
 
-  // --- Stable callbacks for ImageEditorView / AudioEditorView tabs ---
-  // These are extracted from the inline renderTabContent so React.memo on the
-  // tab components can bail out when switching tabs (instead of re-rendering
-  // with 14,000 image DOM nodes every time).
-  // Saves metadata for an in-project image, moving the file if the subfolder changed.
-  // currentFilePath is the metadata-map key: relative "game/images/..." for native project
-  // files, or an absolute external path for files copied in the current session.
-  const handleSaveImageMetadata = useCallback(async (currentFilePath: string, newMeta: ImageMetadata) => {
-      if (!projectRootPath || !window.electronAPI) return;
-
-      const isRelative = currentFilePath.startsWith('game/images');
-      const fileName = currentFilePath.split(/[/\\]/).pop()!;
-      const newSubfolder = newMeta.projectSubfolder?.trim() || '';
-      const newRelPath = newSubfolder ? `game/images/${newSubfolder}/${fileName}` : `game/images/${fileName}`;
-
-      const absCurrentPath = isRelative
-          ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
-          : currentFilePath;
-      const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
-      const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
-
-      if (needsMove) {
-          const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/images/${newSubfolder}` : 'game/images') as string;
-          await window.electronAPI.createDirectory(absNewDir);
-          const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
-          if (!res.success) throw new Error(res.error || 'Move failed');
-
-          // Find the images-map key (may be the external sourcePath, not the project path)
-          const mapKey = isRelative ? currentFilePath
-              : ([...images.keys()].find(k => {
-                  const v = images.get(k)!;
-                  return (v.projectFilePath || v.filePath) === currentFilePath;
-              }) ?? currentFilePath);
-
-          setImages(prev => {
-              const next = new Map(prev);
-              const existing = next.get(mapKey);
-              next.delete(mapKey);
-              if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
-              return next;
-          });
-          setImageMetadata(prev => {
-              const next = new Map(prev);
-              next.delete(currentFilePath);
-              next.set(newRelPath, newMeta);
-              return next;
-          });
-          const oldTabId = `img-${mapKey}`;
-          const newTabId = `img-${newRelPath}`;
-          setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
-          setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
-          setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
-          setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
-      } else {
-          setImageMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
-      }
-
-      setHasUnsavedSettings(true);
-      const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-      setFileSystemTree(freshTree);
-  }, [projectRootPath, images, setActiveTabId, setFileSystemTree, setImageMetadata, setImages, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleCopyImageToProject = useCallback(async (sourcePath: string, meta: ImageMetadata) => {
-      try {
-          if (window.electronAPI && projectRootPath) {
-              const fileName = sourcePath.split('/').pop() || 'image.png';
-              const subfolder = meta.projectSubfolder || '';
-              const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images', subfolder);
-              const destPath = await window.electronAPI.path.join(destDir, fileName);
-              await window.electronAPI.copyEntry(sourcePath, destPath);
-              setImages(prev => {
-                  const next = new Map(prev);
-                  const existing = next.get(sourcePath);
-                  if (existing) {
-                      next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
-                  }
-                  return next;
-              });
-              addToast('Image copied to project', 'success');
-              const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-              setFileSystemTree(freshTree);
-          }
-      } catch (err) {
-          logger.error('Failed to copy image to project:', err);
-          addToast('Failed to copy image to project', 'error');
-      }
-  }, [projectRootPath, addToast, setFileSystemTree, setImages]);
-
-  // Saves metadata for an in-project audio file, moving it if the subfolder changed.
-  const handleSaveAudioMetadata = useCallback(async (currentFilePath: string, newMeta: AudioMetadata) => {
-      if (!projectRootPath || !window.electronAPI) return;
-
-      const isRelative = currentFilePath.startsWith('game/audio');
-      const fileName = currentFilePath.split(/[/\\]/).pop()!;
-      const newSubfolder = newMeta.projectSubfolder?.trim() || '';
-      const newRelPath = newSubfolder ? `game/audio/${newSubfolder}/${fileName}` : `game/audio/${fileName}`;
-
-      const absCurrentPath = isRelative
-          ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
-          : currentFilePath;
-      const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
-      const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
-
-      if (needsMove) {
-          const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/audio/${newSubfolder}` : 'game/audio') as string;
-          await window.electronAPI.createDirectory(absNewDir);
-          const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
-          if (!res.success) throw new Error(res.error || 'Move failed');
-
-          const mapKey = isRelative ? currentFilePath
-              : ([...audios.keys()].find(k => {
-                  const v = audios.get(k)!;
-                  return (v.projectFilePath || v.filePath) === currentFilePath;
-              }) ?? currentFilePath);
-
-          setAudios(prev => {
-              const next = new Map(prev);
-              const existing = next.get(mapKey);
-              next.delete(mapKey);
-              if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
-              return next;
-          });
-          setAudioMetadata(prev => {
-              const next = new Map(prev);
-              next.delete(currentFilePath);
-              next.set(newRelPath, newMeta);
-              return next;
-          });
-          const oldTabId = `aud-${mapKey}`;
-          const newTabId = `aud-${newRelPath}`;
-          setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
-          setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
-          setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
-          setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
-      } else {
-          setAudioMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
-      }
-
-      setHasUnsavedSettings(true);
-      const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-      setFileSystemTree(freshTree);
-  }, [projectRootPath, audios, setActiveTabId, setAudioMetadata, setAudios, setFileSystemTree, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleCopyAudioToProject = useCallback(async (sourcePath: string, meta: AudioMetadata) => {
-      try {
-          if (window.electronAPI && projectRootPath) {
-              const fileName = sourcePath.split('/').pop() || 'audio.ogg';
-              const subfolder = meta.projectSubfolder || '';
-              const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio', subfolder);
-              const destPath = await window.electronAPI.path.join(destDir, fileName);
-              await window.electronAPI.copyEntry(sourcePath, destPath);
-              setAudios(prev => {
-                  const next = new Map(prev);
-                  const existing = next.get(sourcePath);
-                  if (existing) {
-                      next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
-                  }
-                  return next;
-              });
-              addToast('Audio copied to project', 'success');
-              const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
-              setFileSystemTree(freshTree);
-          }
-      } catch (err) {
-          logger.error('Failed to copy audio to project:', err);
-          addToast('Failed to copy audio to project', 'error');
-      }
-  }, [projectRootPath, addToast, setAudios, setFileSystemTree]);
-
   // --- Drafting Mode Logic ---
   const { updateDraftingArtifacts, handleToggleDraftingMode } = useDraftingArtifacts({
       projectRootPath, blocks, draftingMode: projectSettings.draftingMode,
@@ -2490,120 +2324,16 @@ const App: React.FC = () => {
       };
   }, [closeUnsavedChangesModal, openUnsavedChangesModal]);
 
-  // --- Memoized callbacks for StoryElementsPanel and related JSX ---
-
-  const handleAddVariable = useCallback(async (v: { name: string; initialValue: string }) => {
-    const varContent = `default ${v.name} = ${v.initialValue}\n`;
-    const targetFile = 'game/variables.rpy';
-    const existing = blocks.find(b => b.filePath === targetFile);
-    if (existing) {
-      updateBlock(existing.id, { content: existing.content + '\n' + varContent });
-      addToast(`Added variable ${v.name} to variables.rpy`, 'success');
-    } else if (window.electronAPI && projectRootPath) {
-      try {
-        const fullPath = await window.electronAPI.path.join(projectRootPath, 'game', 'variables.rpy') as string;
-        const res = await window.electronAPI.writeFile(fullPath, varContent);
-        if (res.success) {
-          addBlock(targetFile, varContent);
-          const projData = await window.electronAPI.loadProject(projectRootPath);
-          setFileSystemTree(projData.tree);
-          addToast(`Created variables.rpy and added variable ${v.name}`, 'success');
-        } else {
-          const errorMsg = typeof res.error === 'string' ? res.error : 'Unknown error';
-          throw new Error(errorMsg);
-        }
-      } catch (e) {
-        addToast(`Failed to create variables.rpy: ${formatErrorMessage(e)}`, 'error');
-      }
-    } else {
-      addBlock(targetFile, varContent);
-      addToast(`Added variable ${v.name} to variables.rpy`, 'success');
-    }
-  }, [blocks, updateBlock, addToast, projectRootPath, addBlock, setFileSystemTree]);
-
-  const handleEditVariable = useCallback((oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => {
-    const escapeForRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const oldVar = analysisResult.variables.get(oldName);
-    if (!oldVar) {
-        addToast(`Error: Cannot find definition for variable '${oldName}'.`, 'error');
-        return;
-    }
-
-    const defBlock = blocks.find(b => b.id === oldVar.definedInBlockId);
-    if (!defBlock) {
-        addToast(`Error: Cannot find the file containing variable '${oldName}'.`, 'error');
-        return;
-    }
-
-    // Build regex for the definition line: `default oldName = ...` or `define oldName = ...`
-    const defRegex = new RegExp(
-        `^(\\s*(?:define|default)\\s+)${escapeForRegex(oldName)}(\\s*=)`,
-        'm'
-    );
-
-    if (!defRegex.test(defBlock.content)) {
-        addToast(`Error: Could not locate the declaration of '${oldName}' in the source file.`, 'error');
-        return;
-    }
-
-    // Update the definition line: replace name, and if the type changed, replace the keyword too
-    const newName = updated.name;
-    const newType = updated.type; // 'define' or 'default'
-    const newInitialValue = updated.initialValue;
-
-    // Replace the full definition line (keyword + name + = + value)
-    const fullDefRegex = new RegExp(
-        `^(\\s*)(?:define|default)\\s+${escapeForRegex(oldName)}\\s*=\\s*(.*)$`,
-        'm'
-    );
-    const newDefContent = defBlock.content.replace(fullDefRegex, `$1${newType} ${newName} = ${newInitialValue}`);
-
-    if (oldName !== newName) {
-        // Rename all references across all blocks
-        const usageRegex = new RegExp(`\\b${escapeForRegex(oldName)}\\b`, 'g');
-        let renamedFileCount = 0;
-
-        blocks.forEach(block => {
-            const base = block.id === defBlock.id ? newDefContent : block.content;
-            const replaced = base.replace(usageRegex, newName);
-
-            if (block.id === defBlock.id) {
-                updateBlock(block.id, { content: replaced });
-                renamedFileCount++;
-            } else if (replaced !== base) {
-                updateBlock(block.id, { content: replaced });
-                renamedFileCount++;
-            }
-        });
-
-        addToast(`Renamed "${oldName}" to "${newName}" in ${renamedFileCount} file(s).`, 'success');
-    } else {
-        // Only type or initial value changed — update just the definition block
-        updateBlock(defBlock.id, { content: newDefContent });
-        addToast(`Variable "${oldName}" updated.`, 'success');
-    }
-  }, [analysisResult.variables, blocks, updateBlock, addToast]);
-
-  const handleFindScreenDefinition = useCallback((name: string) => {
-    const def = analysisResult.screens.get(name);
-    if (def) handleOpenEditor(def.definedInBlockId, def.line);
-  }, [analysisResult.screens, handleOpenEditor]);
-
-
-
-  const handleHoverHighlightStart = useCallback((key: string, type: 'character' | 'variable') => {
-    const ids = new Set<string>();
-    if (type === 'character') {
-      analysisResult.dialogueLines.forEach((dialogues, blockId) => {
-        if (dialogues.some(d => d.tag === key)) ids.add(blockId);
-      });
-    } else {
-      analysisResult.variableUsages.get(key)?.forEach(u => ids.add(u.blockId));
-    }
-    setHoverHighlightIds(ids);
-  }, [analysisResult.dialogueLines, analysisResult.variableUsages, setHoverHighlightIds]);
-
-  const handleHoverHighlightEnd = useCallback(() => setHoverHighlightIds(null), [setHoverHighlightIds]);
+  // --- StoryElementsPanel callbacks ---
+  const {
+    handleAddVariable, handleEditVariable,
+    handleFindScreenDefinition,
+    handleHoverHighlightStart, handleHoverHighlightEnd,
+  } = useStoryElementsPanel({
+    blocks, analysisResult, updateBlock, addBlock,
+    setFileSystemTree, setHoverHighlightIds,
+    projectRootPath, addToast, handleOpenEditor,
+  });
 
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({

@@ -8,7 +8,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ProjectImage, RenpyAudio, ImageMetadata, AudioMetadata } from '@/types';
+import type React from 'react';
+import type { ProjectImage, RenpyAudio, ImageMetadata, AudioMetadata, EditorTab } from '@/types';
 import type { PerformanceRecorders } from '@/hooks/usePerformanceMetrics';
 import { logger } from '@/lib/logger';
 
@@ -21,6 +22,10 @@ export interface UseAssetManagementParams {
   setHasUnsavedSettings: React.Dispatch<React.SetStateAction<boolean>>;
   setFileSystemTree: React.Dispatch<React.SetStateAction<import('@/types').FileSystemTreeNode | null>>;
   addToast: (message: string, type?: ToastType) => void;
+  setOpenTabs: React.Dispatch<React.SetStateAction<EditorTab[]>>;
+  setSecondaryOpenTabs: React.Dispatch<React.SetStateAction<EditorTab[]>>;
+  setActiveTabId: React.Dispatch<React.SetStateAction<string>>;
+  setSecondaryActiveTabId: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export interface UseAssetManagementReturn {
@@ -67,6 +72,12 @@ export interface UseAssetManagementReturn {
   handleRefreshAudios: () => Promise<void>;
   handleRemoveAudioScanDirectory: (path: string) => void;
   handleCopyAudiosToProjectBulk: (sourcePaths: string[]) => Promise<void>;
+
+  // Single-file metadata / copy operations (used by ImageEditorView / AudioEditorView tabs)
+  handleSaveImageMetadata: (currentFilePath: string, newMeta: ImageMetadata) => Promise<void>;
+  handleCopyImageToProject: (sourcePath: string, meta: ImageMetadata) => Promise<void>;
+  handleSaveAudioMetadata: (currentFilePath: string, newMeta: AudioMetadata) => Promise<void>;
+  handleCopyAudioToProject: (sourcePath: string, meta: AudioMetadata) => Promise<void>;
 }
 
 /**
@@ -101,6 +112,7 @@ export interface UseAssetManagementReturn {
  */
 export function useAssetManagement({
   projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
+  setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId,
 }: UseAssetManagementParams): UseAssetManagementReturn {
   // --- Image state ---
   const [images, setImages] = useState<Map<string, ProjectImage>>(new Map());
@@ -422,6 +434,166 @@ export function useAssetManagement({
     }
   }, [projectRootPath, addToast, setFileSystemTree]);
 
+  const handleSaveImageMetadata = useCallback(async (currentFilePath: string, newMeta: ImageMetadata) => {
+    if (!projectRootPath || !window.electronAPI) return;
+
+    const isRelative = currentFilePath.startsWith('game/images');
+    const fileName = currentFilePath.split(/[/\\]/).pop()!;
+    const newSubfolder = newMeta.projectSubfolder?.trim() || '';
+    const newRelPath = newSubfolder ? `game/images/${newSubfolder}/${fileName}` : `game/images/${fileName}`;
+
+    const absCurrentPath = isRelative
+      ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
+      : currentFilePath;
+    const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
+    const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
+
+    if (needsMove) {
+      const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/images/${newSubfolder}` : 'game/images') as string;
+      await window.electronAPI.createDirectory(absNewDir);
+      const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
+      if (!res.success) throw new Error(res.error || 'Move failed');
+
+      const mapKey = isRelative ? currentFilePath
+        : ([...images.keys()].find(k => {
+            const v = images.get(k)!;
+            return (v.projectFilePath || v.filePath) === currentFilePath;
+          }) ?? currentFilePath);
+
+      setImages(prev => {
+        const next = new Map(prev);
+        const existing = next.get(mapKey);
+        next.delete(mapKey);
+        if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
+        return next;
+      });
+      setImageMetadata(prev => {
+        const next = new Map(prev);
+        next.delete(currentFilePath);
+        next.set(newRelPath, newMeta);
+        return next;
+      });
+      const oldTabId = `img-${mapKey}`;
+      const newTabId = `img-${newRelPath}`;
+      setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+      setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+      setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+      setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+    } else {
+      setImageMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
+    }
+
+    setHasUnsavedSettings(true);
+    const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+    setFileSystemTree(freshTree);
+  }, [projectRootPath, images, setActiveTabId, setFileSystemTree, setImageMetadata, setImages, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setHasUnsavedSettings]);
+
+  const handleCopyImageToProject = useCallback(async (sourcePath: string, meta: ImageMetadata) => {
+    try {
+      if (window.electronAPI && projectRootPath) {
+        const fileName = sourcePath.split('/').pop() || 'image.png';
+        const subfolder = meta.projectSubfolder || '';
+        const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'images', subfolder);
+        const destPath = await window.electronAPI.path.join(destDir, fileName);
+        await window.electronAPI.copyEntry(sourcePath, destPath);
+        setImages(prev => {
+          const next = new Map(prev);
+          const existing = next.get(sourcePath);
+          if (existing) {
+            next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
+          }
+          return next;
+        });
+        addToast('Image copied to project', 'success');
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
+      }
+    } catch (err) {
+      logger.error('Failed to copy image to project:', err);
+      addToast('Failed to copy image to project', 'error');
+    }
+  }, [projectRootPath, addToast, setFileSystemTree, setImages]);
+
+  const handleSaveAudioMetadata = useCallback(async (currentFilePath: string, newMeta: AudioMetadata) => {
+    if (!projectRootPath || !window.electronAPI) return;
+
+    const isRelative = currentFilePath.startsWith('game/audio');
+    const fileName = currentFilePath.split(/[/\\]/).pop()!;
+    const newSubfolder = newMeta.projectSubfolder?.trim() || '';
+    const newRelPath = newSubfolder ? `game/audio/${newSubfolder}/${fileName}` : `game/audio/${fileName}`;
+
+    const absCurrentPath = isRelative
+      ? await window.electronAPI.path.join(projectRootPath, currentFilePath) as string
+      : currentFilePath;
+    const absNewPath = await window.electronAPI.path.join(projectRootPath, newRelPath) as string;
+    const needsMove = absCurrentPath.replace(/\\/g, '/') !== absNewPath.replace(/\\/g, '/');
+
+    if (needsMove) {
+      const absNewDir = await window.electronAPI.path.join(projectRootPath, newSubfolder ? `game/audio/${newSubfolder}` : 'game/audio') as string;
+      await window.electronAPI.createDirectory(absNewDir);
+      const res = await window.electronAPI.moveFile(absCurrentPath, absNewPath);
+      if (!res.success) throw new Error(res.error || 'Move failed');
+
+      const mapKey = isRelative ? currentFilePath
+        : ([...audios.keys()].find(k => {
+            const v = audios.get(k)!;
+            return (v.projectFilePath || v.filePath) === currentFilePath;
+          }) ?? currentFilePath);
+
+      setAudios(prev => {
+        const next = new Map(prev);
+        const existing = next.get(mapKey);
+        next.delete(mapKey);
+        if (existing) next.set(newRelPath, { ...existing, filePath: newRelPath, projectFilePath: undefined });
+        return next;
+      });
+      setAudioMetadata(prev => {
+        const next = new Map(prev);
+        next.delete(currentFilePath);
+        next.set(newRelPath, newMeta);
+        return next;
+      });
+      const oldTabId = `aud-${mapKey}`;
+      const newTabId = `aud-${newRelPath}`;
+      setOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+      setSecondaryOpenTabs(prev => prev.map(t => t.id === oldTabId ? { ...t, id: newTabId, filePath: newRelPath } : t));
+      setActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+      setSecondaryActiveTabId(prev => prev === oldTabId ? newTabId : prev);
+    } else {
+      setAudioMetadata(prev => { const next = new Map(prev); next.set(currentFilePath, newMeta); return next; });
+    }
+
+    setHasUnsavedSettings(true);
+    const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+    setFileSystemTree(freshTree);
+  }, [projectRootPath, audios, setActiveTabId, setAudioMetadata, setAudios, setFileSystemTree, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setHasUnsavedSettings]);
+
+  const handleCopyAudioToProject = useCallback(async (sourcePath: string, meta: AudioMetadata) => {
+    try {
+      if (window.electronAPI && projectRootPath) {
+        const fileName = sourcePath.split('/').pop() || 'audio.ogg';
+        const subfolder = meta.projectSubfolder || '';
+        const destDir = await window.electronAPI.path.join(projectRootPath, 'game', 'audio', subfolder);
+        const destPath = await window.electronAPI.path.join(destDir, fileName);
+        await window.electronAPI.copyEntry(sourcePath, destPath);
+        setAudios(prev => {
+          const next = new Map(prev);
+          const existing = next.get(sourcePath);
+          if (existing) {
+            next.set(sourcePath, { ...existing, isInProject: true, projectFilePath: destPath });
+          }
+          return next;
+        });
+        addToast('Audio copied to project', 'success');
+        const freshTree = await window.electronAPI.refreshProjectTree(projectRootPath);
+        setFileSystemTree(freshTree);
+      }
+    } catch (err) {
+      logger.error('Failed to copy audio to project:', err);
+      addToast('Failed to copy audio to project', 'error');
+    }
+  }, [projectRootPath, addToast, setFileSystemTree, setAudios]);
+
   return {
     // Image state
     images,
@@ -466,5 +638,11 @@ export function useAssetManagement({
     handleRefreshAudios,
     handleRemoveAudioScanDirectory,
     handleCopyAudiosToProjectBulk,
+
+    // Single-file metadata / copy operations
+    handleSaveImageMetadata,
+    handleCopyImageToProject,
+    handleSaveAudioMetadata,
+    handleCopyAudioToProject,
   };
 }
