@@ -1873,6 +1873,7 @@ const App: React.FC = () => {
 
   const {
     handleCloseTab,
+    processTabCloseRequest,
     handleCloseOthersRequest,
     handleCloseAllRequest,
     handleCloseLeftRequest,
@@ -2702,7 +2703,6 @@ const App: React.FC = () => {
     editorInstances, blocksRef, pendingTagRenameRef,
     blocks, groups, selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds,
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile,
-    dirtyBlockIds, dirtyEditors,
     analysisResult, analysisResultWithProfiles, routeAnalysisResult, diagnosticsResult,
     diagnosticsTasks, setDiagnosticsTasks, ignoredDiagnostics, setIgnoredDiagnostics,
     setHasUnsavedSettings, analysisLabelKeys,
@@ -2725,15 +2725,12 @@ const App: React.FC = () => {
     existingImageTags, existingAudioPaths,
     perfSnapshot, handleGenerateTranslations, isGeneratingTranslations, isRenpyPathValid,
     editorCursorBlockId, editorCursorPosition,
-    setBlocks, setDirtyEditors, handleSaveBlock, syncEditorToStateAndMarkDirty,
+    setBlocks, handleSaveBlock, syncEditorToStateAndMarkDirty,
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
     projectRootPath,
-    splitLayout, activePaneId, draggedTabId, handleTabDrop, handleSwitchTab, handleTabDragStart,
-    handleTabDragOver, handleTabContextMenu, handleCloseTab, handleCreateSplit,
-    handleClosePrimaryPane, handleCloseSecondaryPane,
   });
   const focusedTabId = activePaneId === 'secondary' && splitLayout !== 'none'
     ? secondaryActiveTabId
@@ -2776,6 +2773,12 @@ const App: React.FC = () => {
     findTab: _findTab, getActiveTab: _getActiveTab,
     dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
     dirtyBlockIdsRef, dirtyEditorsRef,
+    handleCloseTab, processTabCloseRequest, handleCloseOthersRequest, handleCloseAllRequest,
+    handleCloseLeftRequest, handleCloseRightRequest,
+    handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
+    handleCloseSecondaryPane, handleClosePrimaryPane,
+    handleTabDragStart, handleTabDragOver, handleTabDrop,
+    handleTabContextMenu,
   };
 
   return (
