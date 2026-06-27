@@ -1,16 +1,22 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Toolbar from './Toolbar';
+import { useDualPane } from '@/contexts/DualPaneContext';
 
 // Mock the logo import — jsdom can't handle image imports
 vi.mock('../renide-512x512.png', () => ({ default: 'logo.png' }));
+
+vi.mock('@/contexts/DualPaneContext', () => ({
+  useDualPane: vi.fn(() => ({
+    dirtyBlockIds: new Set<string>(),
+    dirtyEditors: new Set<string>(),
+  })),
+}));
 
 describe('Toolbar', () => {
   const createProps = (overrides?: Partial<Parameters<typeof Toolbar>[0]>) => ({
     projectRootPath: '/project',
     activeCanvasType: 'story' as const,
-    dirtyBlockIds: new Set<string>(),
-    dirtyEditors: new Set<string>(),
     hasUnsavedSettings: false,
     saveStatus: 'saved' as const,
     canUndo: false,
@@ -99,7 +105,11 @@ describe('Toolbar', () => {
   });
 
   it('shows save button as enabled when there are unsaved changes', () => {
-    render(<Toolbar {...createProps({ dirtyBlockIds: new Set(['block-1']) })} />);
+    vi.mocked(useDualPane).mockReturnValueOnce({
+      dirtyBlockIds: new Set(['block-1']),
+      dirtyEditors: new Set<string>(),
+    } as ReturnType<typeof useDualPane>);
+    render(<Toolbar {...createProps()} />);
     const saveBtn = screen.getByTitle(/Save All/);
     expect(saveBtn).not.toBeDisabled();
   });

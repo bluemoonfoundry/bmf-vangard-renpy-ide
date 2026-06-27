@@ -25,6 +25,8 @@ import NewProjectWizardModal from '@/components/NewProjectWizardModal';
 import { MenuConstructorModal } from '@/components/MenuConstructorModal';
 import FirstRunTutorial from '@/components/FirstRunTutorial';
 import { SearchProvider } from '@/contexts/SearchContext';
+import { DualPaneContext } from '@/contexts/DualPaneContext';
+import type { DualPaneContextValue } from '@/contexts/DualPaneContext';
 import GoToLabelModal, { GoToLabelItem } from '@/components/GoToLabelModal';
 import { useRenpyAnalysis, deriveSceneImageNames } from '@/hooks/useRenpyAnalysis';
 import { useHistory } from '@/hooks/useHistory';
@@ -2760,7 +2762,24 @@ const App: React.FC = () => {
     activeCanvasType === 'choice' ? () => addChoiceStickyNote() :
     null;
 
+  const dualPaneContextValue: DualPaneContextValue = {
+    openTabs, activeTabId, setOpenTabs, setActiveTabId,
+    secondaryOpenTabs, secondaryActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+    activePaneId, setActivePaneId,
+    splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
+    draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
+    openTab: _openTab, closeTab: _closeTab, switchTab: _switchTab, updateTab: _updateTab,
+    closeTabs: _closeTabs, setTabs,
+    createSplit: _createSplit, closeSplit: _closeSplit, setSplitSize: _setSplitSize,
+    moveTabToPane: _moveTabToPane,
+    startDrag: _startTabDrag, endDrag: _endTabDrag,
+    findTab: _findTab, getActiveTab: _getActiveTab,
+    dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+    dirtyBlockIdsRef, dirtyEditorsRef,
+  };
+
   return (
+    <DualPaneContext.Provider value={dualPaneContextValue}>
     <SearchProvider
       blocks={blocks}
       projectRootPath={projectRootPath}
@@ -2774,8 +2793,6 @@ const App: React.FC = () => {
       <Toolbar
         activeCanvasType={activeCanvasType}
         projectRootPath={projectRootPath}
-        dirtyBlockIds={dirtyBlockIds}
-        dirtyEditors={dirtyEditors}
         hasUnsavedSettings={hasUnsavedSettings}
         saveStatus={saveStatus}
         canUndo={canUndo}
@@ -3213,7 +3230,6 @@ const App: React.FC = () => {
               y={contextMenuInfo.y}
               tabId={contextMenuInfo.tabId}
               paneId={contextMenuInfo.paneId}
-              splitLayout={splitLayout}
               onClose={() => closeContextMenu()}
               onCloseTab={(id) => handleCloseTab(id, contextMenuInfo.paneId)}
               onCloseOthers={(id) => handleCloseOthersRequest(id, contextMenuInfo.paneId)}
@@ -3330,6 +3346,7 @@ const App: React.FC = () => {
       />
     </div>
     </SearchProvider>
+    </DualPaneContext.Provider>
   );
 };
 

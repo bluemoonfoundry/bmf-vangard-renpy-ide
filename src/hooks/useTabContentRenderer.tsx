@@ -266,7 +266,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         selectedBlockIds={selectedBlockIds} setSelectedBlockIds={setSelectedBlockIds}
         selectedGroupIds={selectedGroupIds} setSelectedGroupIds={setSelectedGroupIds}
         findUsagesHighlightIds={findUsagesHighlightIds} clearFindUsages={handleClearFindUsages}
-        dirtyBlockIds={dirtyBlockIds} canvasFilters={canvasFilters} setCanvasFilters={setCanvasFilters}
+        canvasFilters={canvasFilters} setCanvasFilters={setCanvasFilters}
         centerOnBlockRequest={centerOnBlockRequest} flashBlockRequest={flashBlockRequest}
         hoverHighlightIds={hoverHighlightIds} transform={storyCanvasTransform} onTransformChange={setStoryCanvasTransform}
         onCreateBlock={handleCreateBlockFromCanvas} onAddStickyNote={addStickyNote} mouseGestures={appSettings.mouseGestures}

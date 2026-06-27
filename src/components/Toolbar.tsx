@@ -8,13 +8,12 @@
  */
 import React, { useMemo } from 'react';
 import logo from '../../renide-512x512.png';
+import { useDualPane } from '@/contexts/DualPaneContext';
 type SaveStatus = 'saving' | 'saved' | 'error';
 
 interface ToolbarProps {
   activeCanvasType: 'story' | 'route' | 'choice' | null;
   projectRootPath: string | null;
-  dirtyBlockIds: Set<string>;
-  dirtyEditors: Set<string>;
   hasUnsavedSettings: boolean;
   saveStatus: SaveStatus;
   canUndo: boolean;
@@ -64,8 +63,6 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const Toolbar: React.FC<ToolbarProps> = ({
   projectRootPath,
   activeCanvasType,
-  dirtyBlockIds,
-  dirtyEditors,
   hasUnsavedSettings,
   saveStatus,
   canUndo,
@@ -89,6 +86,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToggleDraftingMode,
   hideUndoRedo = false,
 }) => {
+  const { dirtyBlockIds, dirtyEditors } = useDualPane();
 
   const totalUnsavedCount = useMemo(() => {
     return new Set([...dirtyBlockIds, ...dirtyEditors]).size;
