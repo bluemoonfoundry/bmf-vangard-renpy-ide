@@ -50,17 +50,9 @@ import { useCharacterManagement } from '@/hooks/useCharacterManagement';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
+import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
-import {
-  computeStoryLayout,
-  computeStoryLayoutFingerprint,
-  getStoryLayoutVersion,
-} from '@/lib/storyCanvasLayout';
-import {
-  computeRouteCanvasLayout,
-  computeRouteCanvasLayoutFingerprint,
-  getRouteCanvasLayoutVersion,
-} from '@/lib/routeCanvasLayout';
+import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
 import { UI_TIMING } from '@/lib/constants';
@@ -72,9 +64,9 @@ import {
 } from '@/lib/warpAfterWarp';
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
-  ToastMessage, Theme,
+  Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
+  UserSnippet, MenuTemplate
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -1057,328 +1049,22 @@ const App: React.FC = () => {
   }, [blocks, projectRootPath, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
 
   // --- Layout ---
-  // Ref so applyStoryLayout always reads the latest blocks without needing blocks in its
-  // dependency array. Without this, every block position change (drag) recreates the callback,
-  // which cascades to handleTidyUp → Toolbar re-render, causing the cursor-hover delay.
-  const blocksForLayoutRef = useRef(blocks);
-  blocksForLayoutRef.current = blocks;
-
-  const applyStoryLayout = useCallback((
-    layoutMode: StoryCanvasLayoutMode,
-    groupingMode: StoryCanvasGroupingMode,
-    options?: { showToast?: boolean; successMessage?: string; statusMessage?: string; toastType?: ToastMessage['type']; },
-  ) => {
-    try {
-        const links = analysisResult.links;
-        const newLayout = computeStoryLayout(blocksForLayoutRef.current, links, layoutMode, groupingMode);
-        const layoutFingerprint = computeStoryLayoutFingerprint(newLayout, links, layoutMode, groupingMode);
-        setBlocks(newLayout);
-        updateProjectSettings(draft => {
-            draft.storyCanvasLayoutMode = layoutMode;
-            draft.storyCanvasGroupingMode = groupingMode;
-            draft.storyCanvasLayoutFingerprint = layoutFingerprint;
-            draft.storyCanvasLayoutVersion = getStoryLayoutVersion();
-            draft.storyCanvasLayoutWasUserAdjusted = false;
-        });
-        setHasUnsavedSettings(true);
-        if (options?.showToast ?? true) {
-            addToast(options?.successMessage ?? 'Layout organized', options?.toastType ?? 'success');
-        }
-    } catch (e) {
-        logger.error("Failed to tidy up layout:", e);
-        if (options?.showToast ?? true) {
-            addToast('Failed to organize layout', 'error');
-        }
-    }
-  }, [analysisResult.links, setBlocks, addToast, updateProjectSettings]);
-
-  const handleTidyUp = useCallback((showToast = true) => {
-    applyStoryLayout(
-      projectSettings.storyCanvasLayoutMode ?? 'flow-lr',
-      projectSettings.storyCanvasGroupingMode ?? 'none',
-      { showToast },
-    );
-  }, [applyStoryLayout, projectSettings.storyCanvasGroupingMode, projectSettings.storyCanvasLayoutMode]);
-
-  const handleChangeStoryCanvasLayoutMode = useCallback((mode: StoryCanvasLayoutMode) => {
-    const currentGroupingMode = projectSettings.storyCanvasGroupingMode ?? 'none';
-    // Switching away from clustered-flow makes the active grouping meaningless — reset it.
-    const newGroupingMode: StoryCanvasGroupingMode =
-      mode !== 'clustered-flow' && currentGroupingMode !== 'none' ? 'none' : currentGroupingMode;
-
-    updateProjectSettings(draft => {
-      draft.storyCanvasLayoutMode = mode;
-      draft.storyCanvasGroupingMode = newGroupingMode;
-    });
-    setHasUnsavedSettings(true);
-    if (blocks.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      setTimeout(() => {
-        applyStoryLayout(mode, newGroupingMode, {
-          showToast: false,
-          statusMessage: 'Story layout updated.',
-        });
-      }, 0);
-    }
-  }, [
-    updateProjectSettings,
-    blocks.length,
-    isAnalysisPending,
-    isInitialAnalysisPending,
-    projectSettings.storyCanvasGroupingMode,
-    applyStoryLayout,
-  ]);
-
-  const handleChangeStoryCanvasGroupingMode = useCallback((mode: StoryCanvasGroupingMode) => {
-    const currentLayoutMode = projectSettings.storyCanvasLayoutMode ?? 'flow-lr';
-    // Grouping only takes effect in clustered-flow; auto-switch when a group is chosen.
-    // Clearing grouping while in clustered-flow reverts to flow-lr.
-    const newLayoutMode: StoryCanvasLayoutMode =
-      mode !== 'none' ? 'clustered-flow'
-      : currentLayoutMode === 'clustered-flow' ? 'flow-lr'
-      : currentLayoutMode;
-
-    updateProjectSettings(draft => {
-      draft.storyCanvasGroupingMode = mode;
-      draft.storyCanvasLayoutMode = newLayoutMode;
-    });
-    setHasUnsavedSettings(true);
-    if (blocks.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      setTimeout(() => {
-        applyStoryLayout(newLayoutMode, mode, {
-          showToast: false,
-          statusMessage: 'Story layout updated.',
-        });
-      }, 0);
-    }
-  }, [
-    updateProjectSettings,
-    blocks.length,
-    isAnalysisPending,
-    isInitialAnalysisPending,
-    projectSettings.storyCanvasLayoutMode,
-    applyStoryLayout,
-  ]);
-
-  const applyRouteLayout = useCallback((
-    layoutMode: StoryCanvasLayoutMode,
-    groupingMode: StoryCanvasGroupingMode,
-    options?: { showToast?: boolean; successMessage?: string; statusMessage?: string; toastType?: ToastMessage['type']; },
-  ) => {
-    try {
-        const sourceNodes = routeAnalysisResult.labelNodes.map(node => ({
-            ...node,
-            position: routeNodeLayoutCache.get(node.id) ?? node.position,
-        }));
-        const newLayout = computeRouteCanvasLayout(sourceNodes, routeAnalysisResult.routeLinks, layoutMode, groupingMode);
-        const layoutFingerprint = computeRouteCanvasLayoutFingerprint(newLayout, routeAnalysisResult.routeLinks, layoutMode, groupingMode);
-        setRouteNodeLayoutCache(new Map(newLayout.map(node => [node.id, node.position])));
-        updateProjectSettings(draft => {
-            draft.routeCanvasLayoutMode = layoutMode;
-            draft.routeCanvasGroupingMode = groupingMode;
-            draft.routeCanvasLayoutFingerprint = layoutFingerprint;
-            draft.routeCanvasLayoutVersion = getRouteCanvasLayoutVersion();
-            draft.routeCanvasLayoutWasUserAdjusted = false;
-        });
-        setHasUnsavedSettings(true);
-        if (options?.showToast ?? true) {
-            addToast(options?.successMessage ?? 'Route layout organized', options?.toastType ?? 'success');
-        }
-    } catch (error) {
-        logger.error('Failed to organize route layout:', error);
-        if (options?.showToast ?? true) {
-            addToast('Failed to organize route layout', 'error');
-        }
-    }
-  }, [routeAnalysisResult.labelNodes, routeAnalysisResult.routeLinks, routeNodeLayoutCache, updateProjectSettings, addToast]);
-
-  const handleChangeRouteCanvasLayoutMode = useCallback((mode: StoryCanvasLayoutMode) => {
-    const currentGroupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
-    // Switching away from clustered-flow makes the active grouping meaningless — reset it.
-    const newGroupingMode: StoryCanvasGroupingMode =
-      mode !== 'clustered-flow' && currentGroupingMode !== 'none' ? 'none' : currentGroupingMode;
-
-    updateProjectSettings(draft => {
-      draft.routeCanvasLayoutMode = mode;
-      draft.routeCanvasGroupingMode = newGroupingMode;
-    });
-    setHasUnsavedSettings(true);
-    if (routeAnalysisResult.labelNodes.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      setTimeout(() => {
-        applyRouteLayout(mode, newGroupingMode, {
-          showToast: false,
-          statusMessage: 'Route layout updated.',
-        });
-      }, 0);
-    }
-  }, [
-    updateProjectSettings,
-    routeAnalysisResult.labelNodes.length,
-    isAnalysisPending,
-    isInitialAnalysisPending,
-    projectSettings.routeCanvasGroupingMode,
+  const {
+    handleTidyUp,
     applyRouteLayout,
-  ]);
+    handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode,
+    handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
+  } = useCanvasLayout({
+    blocks, setBlocks,
+    analysisResult, routeAnalysisResult,
+    routeNodeLayoutCache, setRouteNodeLayoutCache,
+    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+    projectSettings, updateProjectSettings, setHasUnsavedSettings, addToast,
+    isAnalysisPending, isInitialAnalysisPending,
+    setCenterOnBlockRequest, setCenterOnRouteStartRequest, setCenterOnChoiceStartRequest,
+  });
 
-  const handleChangeRouteCanvasGroupingMode = useCallback((mode: StoryCanvasGroupingMode) => {
-    const currentLayoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
-    // Grouping only takes effect in clustered-flow; auto-switch when a group is chosen.
-    // Clearing grouping while in clustered-flow reverts to flow-lr.
-    const newLayoutMode: StoryCanvasLayoutMode =
-      mode !== 'none' ? 'clustered-flow'
-      : currentLayoutMode === 'clustered-flow' ? 'flow-lr'
-      : currentLayoutMode;
-
-    updateProjectSettings(draft => {
-      draft.routeCanvasGroupingMode = mode;
-      draft.routeCanvasLayoutMode = newLayoutMode;
-    });
-    setHasUnsavedSettings(true);
-    if (routeAnalysisResult.labelNodes.length > 0 && !isAnalysisPending && !isInitialAnalysisPending) {
-      setTimeout(() => {
-        applyRouteLayout(newLayoutMode, mode, {
-          showToast: false,
-          statusMessage: 'Route layout updated.',
-        });
-      }, 0);
-    }
-  }, [
-    updateProjectSettings,
-    routeAnalysisResult.labelNodes.length,
-    isAnalysisPending,
-    isInitialAnalysisPending,
-    projectSettings.routeCanvasLayoutMode,
-    applyRouteLayout,
-  ]);
-
-  useEffect(() => {
-    const pendingRefresh = pendingStoryLayoutRefreshRef.current;
-    if (!pendingRefresh || blocks.length === 0 || isInitialAnalysisPending || isAnalysisPending) {
-        return;
-    }
-    pendingStoryLayoutRefreshRef.current = null;
-
-    const layoutMode = projectSettings.storyCanvasLayoutMode ?? 'flow-lr';
-    const groupingMode = projectSettings.storyCanvasGroupingMode ?? 'none';
-    const currentFingerprint = computeStoryLayoutFingerprint(blocks, analysisResult.links, layoutMode, groupingMode);
-    const savedVersionMatches = pendingRefresh.savedVersion === getStoryLayoutVersion();
-    const shouldRefreshLayout =
-      !pendingRefresh.hasSavedLayouts ||
-      !pendingRefresh.savedFingerprint ||
-      !savedVersionMatches ||
-      pendingRefresh.savedFingerprint !== currentFingerprint;
-
-    if (shouldRefreshLayout) {
-      if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
-        updateProjectSettings(draft => {
-          draft.storyCanvasLayoutFingerprint = currentFingerprint;
-          draft.storyCanvasLayoutVersion = getStoryLayoutVersion();
-        });
-        setHasUnsavedSettings(true);
-        addToast('Story graph changed. Layout preserved; use Redraw to reorganize.', 'info');
-      } else {
-        applyStoryLayout(layoutMode, groupingMode, {
-          showToast: pendingRefresh.hasSavedLayouts,
-          successMessage: pendingRefresh.hasSavedLayouts
-            ? 'Story layout refreshed for changed graph'
-            : 'Story layout generated',
-          statusMessage: pendingRefresh.hasSavedLayouts
-            ? 'Story layout refreshed.'
-            : 'Story layout generated.',
-          toastType: 'info',
-        });
-      }
-    }
-
-    if (pendingAutoCenterRef.current.story) {
-      pendingAutoCenterRef.current.story = false;
-      const startLabelNode = analysisResult.labelNodes.find(n => n.label === 'start');
-      if (startLabelNode) {
-        setCenterOnBlockRequest({ blockId: startLabelNode.blockId, key: Date.now() });
-      }
-    }
-  }, [
-    blocks,
-    isInitialAnalysisPending,
-    isAnalysisPending,
-    projectSettings.storyCanvasGroupingMode,
-    projectSettings.storyCanvasLayoutMode,
-    analysisResult.links,
-    analysisResult.labelNodes,
-    applyStoryLayout,
-    addToast,
-    updateProjectSettings,
-    setCenterOnBlockRequest,
-  ]);
-
-  useEffect(() => {
-    const pendingRefresh = pendingRouteLayoutRefreshRef.current;
-    if (!pendingRefresh || isInitialAnalysisPending || isAnalysisPending) {
-      return;
-    }
-    pendingRouteLayoutRefreshRef.current = null;
-
-    const layoutMode = projectSettings.routeCanvasLayoutMode ?? 'flow-lr';
-    const groupingMode = projectSettings.routeCanvasGroupingMode ?? 'none';
-    const sourceNodes = routeAnalysisResult.labelNodes.map(node => ({
-      ...node,
-      position: routeNodeLayoutCache.get(node.id) ?? node.position,
-    }));
-    const currentFingerprint = computeRouteCanvasLayoutFingerprint(sourceNodes, routeAnalysisResult.routeLinks, layoutMode, groupingMode);
-    const savedVersionMatches = pendingRefresh.savedVersion === getRouteCanvasLayoutVersion();
-    const shouldRefreshLayout =
-      !pendingRefresh.hasSavedLayouts ||
-      !pendingRefresh.savedFingerprint ||
-      !savedVersionMatches ||
-      pendingRefresh.savedFingerprint !== currentFingerprint;
-
-    if (shouldRefreshLayout) {
-      if (pendingRefresh.hasSavedLayouts && pendingRefresh.savedWasUserAdjusted) {
-        updateProjectSettings(draft => {
-          draft.routeCanvasLayoutFingerprint = currentFingerprint;
-          draft.routeCanvasLayoutVersion = getRouteCanvasLayoutVersion();
-        });
-        setHasUnsavedSettings(true);
-        addToast('Route graph changed. Layout preserved; use Redraw to reorganize.', 'info');
-      } else {
-        applyRouteLayout(layoutMode, groupingMode, {
-          showToast: pendingRefresh.hasSavedLayouts,
-          successMessage: pendingRefresh.hasSavedLayouts
-            ? 'Route layout refreshed for changed graph'
-            : 'Route layout generated',
-          statusMessage: pendingRefresh.hasSavedLayouts
-            ? 'Route layout refreshed.'
-            : 'Route layout generated.',
-          toastType: 'info',
-        });
-      }
-    }
-
-    if (pendingAutoCenterRef.current.route) {
-      pendingAutoCenterRef.current.route = false;
-      setCenterOnRouteStartRequest({ key: Date.now() });
-    }
-  }, [
-    isInitialAnalysisPending,
-    isAnalysisPending,
-    routeAnalysisResult.labelNodes,
-    routeAnalysisResult.routeLinks,
-    routeNodeLayoutCache,
-    projectSettings.routeCanvasLayoutMode,
-    projectSettings.routeCanvasGroupingMode,
-    applyRouteLayout,
-    addToast,
-    updateProjectSettings,
-    setCenterOnRouteStartRequest,
-  ]);
-
-  // Auto-center Choices Canvas on first project open
-  useEffect(() => {
-    if (isInitialAnalysisPending || isAnalysisPending) return;
-    if (!pendingAutoCenterRef.current.choice) return;
-    if (!routeAnalysisResult.labelNodes.some(n => n.label === 'start')) return;
-    pendingAutoCenterRef.current.choice = false;
-    setCenterOnChoiceStartRequest({ key: Date.now() });
-  }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, setCenterOnChoiceStartRequest]);
+  // (Layout callbacks and effects extracted to useCanvasLayout)
 
 
   // --- File System Integration ---
