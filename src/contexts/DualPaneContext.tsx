@@ -2,8 +2,9 @@ import React, { createContext, useContext } from 'react';
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import type { UseTabManagementReturn } from '@/hooks/useTabManagement';
 import type { UseTabLifecycleReturn } from '@/hooks/useTabLifecycle';
+import type { UseTabOpenersReturn } from '@/hooks/useTabOpeners';
 
-export interface DualPaneContextValue extends UseTabManagementReturn, UseTabLifecycleReturn {
+export interface DualPaneContextValue extends UseTabManagementReturn, UseTabLifecycleReturn, UseTabOpenersReturn {
   // Dirty tracking
   dirtyBlockIds: Set<string>;
   dirtyEditors: Set<string>;

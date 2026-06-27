@@ -48,6 +48,7 @@ import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
 import { useCharacterManagement } from '@/hooks/useCharacterManagement';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
+import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   computeStoryLayout,
@@ -1376,33 +1377,6 @@ const App: React.FC = () => {
     setCenterOnChoiceStartRequest({ key: Date.now() });
   }, [isInitialAnalysisPending, isAnalysisPending, routeAnalysisResult.labelNodes, setCenterOnChoiceStartRequest]);
 
-  // --- Tab Management Helpers ---
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
-        const id = type;
-        // If already open in primary, activate it there
-        if (openTabs.find(t => t.id === id)) {
-            setActiveTabId(id);
-            setActivePaneId('primary');
-            return;
-        }
-        // If already open in secondary, activate it there
-        if (secondaryOpenTabs.find(t => t.id === id)) {
-            setSecondaryActiveTabId(id);
-            setActivePaneId('secondary');
-            return;
-        }
-        // Open in active pane
-        if (activePaneId === 'secondary' && splitLayout !== 'none') {
-            setSecondaryOpenTabs(prev => [...prev, { id, type }]);
-            setSecondaryActiveTabId(id);
-        } else {
-            setOpenTabs(prev => [...prev, { id, type }]);
-            setActiveTabId(id);
-        }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleOpenRouteCanvasTab = useCallback(() => handleOpenStaticTab('route-canvas'), [handleOpenStaticTab]);
-  const _handleOpenChoiceCanvasTab = useCallback(() => handleOpenStaticTab('choice-canvas'), [handleOpenStaticTab]);
 
   // --- File System Integration ---
   
@@ -1798,78 +1772,16 @@ const App: React.FC = () => {
   }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   // --- Tab Management ---
-  const handleOpenEditor = useCallback((blockId: string, line?: number) => {
-    const block = blocks.find(b => b.id === blockId);
-    if (!block) return;
-
-    // If already in primary, activate there
-    if (openTabs.find(t => t.id === blockId)) {
-        if (line) setOpenTabs(prev => prev.map(t => t.id === blockId ? { ...t, scrollRequest: { line, key: Date.now() } } : t));
-        setActiveTabId(blockId);
-        setActivePaneId('primary');
-        return;
-    }
-    // If already in secondary, activate there
-    if (secondaryOpenTabs.find(t => t.id === blockId)) {
-        if (line) setSecondaryOpenTabs(prev => prev.map(t => t.id === blockId ? { ...t, scrollRequest: { line, key: Date.now() } } : t));
-        setSecondaryActiveTabId(blockId);
-        setActivePaneId('secondary');
-        return;
-    }
-    // Open in active pane
-    const newTab: EditorTab = { id: blockId, type: 'editor', blockId, filePath: block.filePath, scrollRequest: line ? { line, key: Date.now() } : undefined };
-    if (activePaneId === 'secondary' && splitLayout !== 'none') {
-        setSecondaryOpenTabs(prev => [...prev, newTab]);
-        setSecondaryActiveTabId(blockId);
-    } else {
-        setOpenTabs(prev => [...prev, newTab]);
-        setActiveTabId(blockId);
-    }
-  }, [blocks, openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleOpenImageEditorTab = useCallback((filePath: string) => {
-    const tabId = `img-${filePath}`;
-    if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
-    if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
-    const newTab: EditorTab = { id: tabId, type: 'image', filePath };
-    if (activePaneId === 'secondary' && splitLayout !== 'none') {
-        setSecondaryOpenTabs(prev => [...prev, newTab]);
-        setSecondaryActiveTabId(tabId);
-    } else {
-        setOpenTabs(prev => [...prev, newTab]);
-        setActiveTabId(tabId);
-    }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleOpenMarkdownTab = useCallback((filePath: string) => {
-    const tabId = `md-${filePath}`;
-    if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
-    if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
-    const newTab: EditorTab = { id: tabId, type: 'markdown', filePath };
-    if (activePaneId === 'secondary' && splitLayout !== 'none') {
-        setSecondaryOpenTabs(prev => [...prev, newTab]);
-        setSecondaryActiveTabId(tabId);
-    } else {
-        setOpenTabs(prev => [...prev, newTab]);
-        setActiveTabId(tabId);
-    }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handlePathDoubleClick = useCallback((filePath: string) => {
-    const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
-    const lowerFilePath = filePath.toLowerCase();
-
-    if (lowerFilePath.endsWith('.rpy')) {
-      const block = blocks.find(b => b.filePath === filePath);
-      if (block) {
-        handleOpenEditor(block.id);
-      }
-    } else if (imageExtensions.some(ext => lowerFilePath.endsWith(ext))) {
-      handleOpenImageEditorTab(filePath);
-    } else if (lowerFilePath.endsWith('.md')) {
-      handleOpenMarkdownTab(filePath);
-    }
-  }, [blocks, handleOpenEditor, handleOpenImageEditorTab, handleOpenMarkdownTab]);
+  const {
+    handleOpenEditor,
+    handleOpenStaticTab,
+    handleOpenRouteCanvasTab,
+    handleOpenChoiceCanvasTab,
+    handleOpenImageEditorTab,
+    handleOpenMarkdownTab,
+    handleOpenAudioEditorInTab,
+    handlePathDoubleClick,
+  } = useTabOpeners({ blocksRef });
 
   const {
     handleCloseTab,
@@ -2673,16 +2585,6 @@ const App: React.FC = () => {
   }, [analysisResult.screens, handleOpenEditor]);
 
 
-  const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
-    const tabId = `aud-${filePath}`;
-    setOpenTabs(prev => {
-      if (!prev.find(t => t.id === tabId)) {
-        return [...prev, { id: tabId, type: 'audio' as const, filePath }];
-      }
-      return prev;
-    });
-    setActiveTabId(tabId);
-  }, [setActiveTabId, setOpenTabs]);
 
   const handleHoverHighlightStart = useCallback((key: string, type: 'character' | 'variable') => {
     const ids = new Set<string>();
@@ -2719,7 +2621,7 @@ const App: React.FC = () => {
     appSettings, projectSettings,
     handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode,
     handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
-    handleOpenEditor, handleCreateBlockFromCanvas, handleOpenRouteCanvasTab, handleOpenStaticTab,
+    handleCreateBlockFromCanvas,
     images, imagesArray, imageMetadata, audios, audioMetadata,
     handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject,
     existingImageTags, existingAudioPaths,
@@ -2779,6 +2681,8 @@ const App: React.FC = () => {
     handleCloseSecondaryPane, handleClosePrimaryPane,
     handleTabDragStart, handleTabDragOver, handleTabDrop,
     handleTabContextMenu,
+    handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
+    handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
   };
 
   return (
@@ -2787,7 +2691,6 @@ const App: React.FC = () => {
       blocks={blocks}
       projectRootPath={projectRootPath}
       addToast={addToast}
-      onOpenEditor={handleOpenEditor}
     >
     <div
       data-app-ready={appSettingsLoaded ? "true" : undefined}

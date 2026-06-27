@@ -126,10 +126,7 @@ export interface UseTabContentRendererParams {
   handleChangeRouteCanvasGroupingMode: (mode: StoryCanvasGroupingMode) => void;
 
   // Block / canvas actions
-  handleOpenEditor: (blockId: string, line?: number) => void;
   handleCreateBlockFromCanvas: (type: BlockType, position: Position) => void;
-  handleOpenRouteCanvasTab: () => void;
-  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
 
   // Assets
   images: Map<string, ProjectImage>;
@@ -206,7 +203,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     appSettings, projectSettings,
     handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode,
     handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
-    handleOpenEditor, handleCreateBlockFromCanvas, handleOpenRouteCanvasTab, handleOpenStaticTab,
+    handleCreateBlockFromCanvas,
     images, imagesArray, imageMetadata, audios, audioMetadata,
     handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject,
     existingImageTags, existingAudioPaths,
@@ -226,6 +223,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
     handleTabContextMenu, handleCloseTab, handleCreateSplit,
     handleClosePrimaryPane, handleCloseSecondaryPane,
+    handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
   } = useDualPane();
 
   const getTabLabel = (tab: EditorTab): React.ReactNode => {
