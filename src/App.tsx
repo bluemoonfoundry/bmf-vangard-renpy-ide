@@ -44,6 +44,8 @@ import { useStickyNotes } from '@/hooks/useStickyNotes';
 import { useProjectIO, type PendingStoryLayoutRefresh, type PendingRouteLayoutRefresh } from '@/hooks/useProjectIO';
 import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
+import { useCharacterManagement } from '@/hooks/useCharacterManagement';
+import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import {
   computeStoryLayout,
@@ -67,8 +69,8 @@ import {
 import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   ToastMessage, Theme, Variable,
-  ImageMetadata, AudioMetadata, Character,
-  ProjectSettings, SceneComposition, ImageMapComposition, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
+  ImageMetadata, AudioMetadata,
+  ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   StoryCanvasGroupingMode, StoryCanvasLayoutMode, UserSnippet, MenuTemplate
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -207,25 +209,6 @@ const App: React.FC = () => {
     selectGroups: _selectGroups,
     toggleBlockSelection: _toggleBlockSelection,
   } = useCanvasInteraction();
-  
-  // Composition state (Scene/ImageMap/ScreenLayout composers)
-  const {
-    sceneCompositions,
-    sceneNames,
-    setSceneCompositions,
-    setSceneNames,
-    imagemapCompositions,
-    setImagemapCompositions,
-    addScene: _addScene,
-    updateScene: _updateScene,
-    removeScene: _removeScene,
-    renameScene: _renameScene,
-    addImagemap: _addImagemap,
-    updateImagemap: _updateImagemap,
-    removeImagemap: _removeImagemap,
-    clearAllCompositions: _clearAllCompositions,
-  } = useCompositionState();
-
   // Punchlist State (kept for migration — not written on save)
   const [punchlistMetadata, setPunchlistMetadata] = useImmer<Record<string, PunchlistMetadata>>({});
   // Diagnostics Tasks State
@@ -242,6 +225,27 @@ const App: React.FC = () => {
   useEffect(() => { dirtyEditorsRef.current = dirtyEditors; }, [dirtyEditors]);
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false); // Track project setting changes like sticky notes
   const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saved');
+
+  // Composition state (Scene/ImageMap/ScreenLayout composers)
+  const {
+    sceneCompositions,
+    sceneNames,
+    setSceneCompositions,
+    setSceneNames,
+    imagemapCompositions,
+    setImagemapCompositions,
+    clearAllCompositions: _clearAllCompositions,
+    handleCreateScene,
+    handleOpenScene,
+    handleSceneUpdate,
+    handleRenameScene,
+    handleDeleteScene,
+    handleCreateImageMap,
+    handleOpenImageMap,
+    handleImageMapUpdate,
+    handleRenameImageMap,
+    handleDeleteImageMap,
+  } = useCompositionState({ activeTabId, setOpenTabs, setActiveTabId, setHasUnsavedSettings });
   const [isScanningAssets, setIsScanningAssets] = useState(false);
 
   // Toast notifications
@@ -650,120 +654,6 @@ const App: React.FC = () => {
       return { ...routeRaw, labelNodes: finalNodes };
   }, [routeRaw, routeNodeLayoutCache]);
 
-  // --- Scene Composer Management ---
-  const handleCreateScene = useCallback((initialName?: string) => {
-      const id = `scene-${Date.now()}`;
-      const name = initialName || `Scene ${Object.keys(sceneCompositions).length + 1}`;
-      
-      setSceneCompositions(draft => {
-          draft[id] = { background: null, sprites: [] };
-      });
-      setSceneNames(draft => {
-          draft[id] = name;
-      });
-      
-      setOpenTabs(prev => [...prev, { id, type: 'scene-composer', sceneId: id }]);
-      setActiveTabId(id);
-      setHasUnsavedSettings(true);
-  }, [sceneCompositions, setSceneCompositions, setSceneNames, setOpenTabs, setActiveTabId]);
-
-  const handleOpenScene = useCallback((sceneId: string) => {
-      setOpenTabs(prev => {
-          if (!prev.find(t => t.id === sceneId)) {
-              return [...prev, { id: sceneId, type: 'scene-composer', sceneId }];
-          }
-          return prev;
-      });
-      setActiveTabId(sceneId);
-  }, [setOpenTabs, setActiveTabId]);
-
-  const handleSceneUpdate = useCallback((sceneId: string, value: React.SetStateAction<SceneComposition>) => {
-      setSceneCompositions(draft => {
-          const prev = draft[sceneId] || { background: null, sprites: [] };
-          const next = typeof value === 'function' ? (value as (prevState: SceneComposition) => SceneComposition)(prev) : value;
-          
-          if (JSON.stringify(prev) !== JSON.stringify(next)) {
-              draft[sceneId] = next;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setSceneCompositions]);
-
-  const handleRenameScene = useCallback((sceneId: string, newName: string) => {
-      setSceneNames(draft => {
-          if (draft[sceneId] !== newName) {
-              draft[sceneId] = newName;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setSceneNames]);
-
-  const handleDeleteScene = useCallback((sceneId: string) => {
-      setSceneCompositions(draft => { delete draft[sceneId]; });
-      setSceneNames(draft => { delete draft[sceneId]; });
-
-      setOpenTabs(prev => prev.filter(t => t.id !== sceneId));
-      if (activeTabId === sceneId) setActiveTabId('canvas');
-      setHasUnsavedSettings(true);
-  }, [setSceneCompositions, setSceneNames, activeTabId, setOpenTabs, setActiveTabId]);
-
-  // --- ImageMap Composer Management ---
-  const handleCreateImageMap = useCallback((initialName?: string) => {
-      const id = `imagemap-${Date.now()}`;
-      const name = initialName || `imagemap_${Object.keys(imagemapCompositions).length + 1}`;
-
-      setImagemapCompositions(draft => {
-          draft[id] = {
-              screenName: name,
-              groundImage: null,
-              hoverImage: null,
-              hotspots: []
-          };
-      });
-
-      setOpenTabs(prev => [...prev, { id, type: 'imagemap-composer', imagemapId: id }]);
-      setActiveTabId(id);
-      setHasUnsavedSettings(true);
-  }, [imagemapCompositions, setImagemapCompositions, setOpenTabs, setActiveTabId]);
-
-  const handleOpenImageMap = useCallback((imagemapId: string) => {
-      setOpenTabs(prev => {
-          if (!prev.find(t => t.id === imagemapId)) {
-              return [...prev, { id: imagemapId, type: 'imagemap-composer', imagemapId }];
-          }
-          return prev;
-      });
-      setActiveTabId(imagemapId);
-  }, [setOpenTabs, setActiveTabId]);
-
-  const handleImageMapUpdate = useCallback((imagemapId: string, value: React.SetStateAction<ImageMapComposition>) => {
-      setImagemapCompositions(draft => {
-          const prev = draft[imagemapId] || { screenName: '', groundImage: null, hoverImage: null, hotspots: [] };
-          const next = typeof value === 'function' ? (value as (prevState: ImageMapComposition) => ImageMapComposition)(prev) : value;
-
-          if (JSON.stringify(prev) !== JSON.stringify(next)) {
-              draft[imagemapId] = next;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setImagemapCompositions]);
-
-  const handleRenameImageMap = useCallback((imagemapId: string, newName: string) => {
-      setImagemapCompositions(draft => {
-          if (draft[imagemapId] && draft[imagemapId].screenName !== newName) {
-              draft[imagemapId].screenName = newName;
-              setHasUnsavedSettings(true);
-          }
-      });
-  }, [setImagemapCompositions]);
-
-  const handleDeleteImageMap = useCallback((imagemapId: string) => {
-      setImagemapCompositions(draft => { delete draft[imagemapId]; });
-
-      setOpenTabs(prev => prev.filter(t => t.id !== imagemapId));
-      if (activeTabId === imagemapId) setActiveTabId('canvas');
-      setHasUnsavedSettings(true);
-  }, [setImagemapCompositions, activeTabId, setOpenTabs, setActiveTabId]);
 
   // --- Sync Explorer with Active Tab ---
   useEffect(() => {
@@ -1979,236 +1869,35 @@ const App: React.FC = () => {
     }
   }, [blocks, handleOpenEditor, handleOpenImageEditorTab, handleOpenMarkdownTab]);
 
-  const handleCloseTab = useCallback((tabId: string, paneId: 'primary' | 'secondary', e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (paneId === 'primary') {
-        setOpenTabs(prev => {
-            const next = prev.filter(t => t.id !== tabId);
-            if (activeTabId === tabId) {
-                // Find adjacent tab: prefer next, then previous
-                const closedIdx = prev.findIndex(t => t.id === tabId);
-                const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
-                setActiveTabId(fallback?.id ?? '');
-            }
-            return next;
-        });
-    } else {
-        setSecondaryOpenTabs(prev => {
-            const next = prev.filter(t => t.id !== tabId);
-            if (next.length === 0) {
-                // Auto-close pane when last secondary tab removed
-                setSplitLayout('none');
-                setActivePaneId('primary');
-                setSecondaryActiveTabId('');
-            } else {
-                if (secondaryActiveTabId === tabId) setSecondaryActiveTabId(next[next.length - 1].id);
-            }
-            return next;
-        });
-    }
-  }, [activeTabId, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
+  const {
+    handleCloseTab,
+    handleCloseOthersRequest,
+    handleCloseAllRequest,
+    handleCloseLeftRequest,
+    handleCloseRightRequest,
+    handleSwitchTab,
+    handleCreateSplit,
+    handleOpenInSplit,
+    handleMoveToOtherPane,
+    handleCloseSecondaryPane,
+    handleClosePrimaryPane,
+    handleTabDragStart,
+    handleTabDragOver,
+    handleTabDrop,
+  } = useTabLifecycle({
+    openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, splitLayout,
+    draggedTabId, dragSourcePaneId,
+    setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
+    setSplitLayout, setSplitPrimarySize, setDraggedTabId, setDragSourcePaneId,
+    dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+    openUnsavedChangesModal, closeUnsavedChangesModal,
+    handleSaveAll, setHasUnsavedSettings,
+  });
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
       openContextMenu(e.clientX, e.clientY, tabId, paneId);
   }, [openContextMenu]);
-
-  const processTabCloseRequest = useCallback((tabsToClose: EditorTab[], fallbackTabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    if (tabsToClose.length === 0) return;
-
-    const hasUnsaved = tabsToClose.some(t => t.blockId && (dirtyBlockIds.has(t.blockId) || dirtyEditors.has(t.blockId)));
-
-    const performClose = () => {
-        const idsToClose = new Set(tabsToClose.map(t => t.id));
-        if (paneId === 'primary') {
-            setOpenTabs(prev => {
-                const next = prev.filter(t => !idsToClose.has(t.id));
-                if (idsToClose.has(activeTabId)) {
-                    // Use the explicit fallback if it's still open, otherwise pick adjacent
-                    if (fallbackTabId && !idsToClose.has(fallbackTabId)) {
-                        setActiveTabId(fallbackTabId);
-                    } else {
-                        const closedIdx = prev.findIndex(t => t.id === activeTabId);
-                        const adjacent = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
-                        setActiveTabId(adjacent?.id ?? '');
-                    }
-                }
-                return next;
-            });
-        } else {
-            setSecondaryOpenTabs(prev => {
-                const next = prev.filter(t => !idsToClose.has(t.id));
-                if (next.length === 0) { setSplitLayout('none'); setActivePaneId('primary'); setSecondaryActiveTabId(''); }
-                else if (idsToClose.has(secondaryActiveTabId)) setSecondaryActiveTabId(next[0].id);
-                return next;
-            });
-        }
-    };
-
-    if (hasUnsaved) {
-        openUnsavedChangesModal({
-            title: `Close ${tabsToClose.length > 1 ? 'Tabs' : 'Tab'}`,
-            message: `You have unsaved changes in ${tabsToClose.length > 1 ? 'some tabs' : 'this tab'}. Do you want to save them before closing?`,
-            confirmText: 'Save & Close',
-            dontSaveText: "Don't Save & Close",
-            onConfirm: async () => {
-                await handleSaveAll();
-                performClose();
-                closeUnsavedChangesModal();
-            },
-            onDontSave: () => {
-                // Clear dirty state for closed tabs without saving
-                const blockIdsToClean = tabsToClose.map(t => t.blockId).filter(Boolean) as string[];
-                setDirtyBlockIds(prev => {
-                    const next = new Set(prev);
-                    blockIdsToClean.forEach(id => next.delete(id));
-                    return next;
-                });
-                 setDirtyEditors(prev => {
-                    const next = new Set(prev);
-                    blockIdsToClean.forEach(id => next.delete(id));
-                    return next;
-                });
-                performClose();
-                closeUnsavedChangesModal();
-            },
-            onCancel: () => {
-                closeUnsavedChangesModal();
-            }
-        });
-    } else {
-        performClose();
-    }
-}, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
-
-  const handleCloseOthersRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const tabsToClose = tabs.filter(t => t.id !== tabId);
-    processTabCloseRequest(tabsToClose, tabId, paneId);
-  }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
-
-  const handleCloseAllRequest = useCallback((paneId: 'primary' | 'secondary' = 'primary') => {
-    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const tabsToClose = [...tabs];
-    processTabCloseRequest(tabsToClose, '', paneId);
-  }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
-
-  const handleCloseLeftRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const index = tabs.findIndex(t => t.id === tabId);
-    if (index === -1) return;
-    const tabsToClose = tabs.slice(0, index);
-    processTabCloseRequest(tabsToClose, tabId, paneId);
-  }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
-
-  const handleCloseRightRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const index = tabs.findIndex(t => t.id === tabId);
-    if (index === -1) return;
-    const tabsToClose = tabs.slice(index + 1);
-    processTabCloseRequest(tabsToClose, tabId, paneId);
-  }, [openTabs, secondaryOpenTabs, processTabCloseRequest]);
-
-  const handleSwitchTab = (tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    if (paneId === 'primary') { setActiveTabId(tabId); setActivePaneId('primary'); }
-    else { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); }
-  };
-
-  // --- Split Pane Management ---
-  const handleCreateSplit = useCallback((direction: 'right' | 'bottom') => {
-    if (splitLayout !== 'none') return;
-    const activeTab = openTabs.find(t => t.id === activeTabId);
-    if (!activeTab) return;
-    // Move the active tab to secondary so canvas/route-canvas are never duplicated across both panes
-    const remaining = openTabs.filter(t => t.id !== activeTabId);
-    setOpenTabs(remaining);
-    if (remaining.length > 0) {
-      const fallback = remaining.find(t => t.type === 'canvas') ?? remaining[0];
-      setActiveTabId(fallback.id);
-    }
-    setSecondaryOpenTabs([activeTab]);
-    setSecondaryActiveTabId(activeTab.id);
-    setSplitLayout(direction);
-    setSplitPrimarySize(direction === 'right' ? 600 : 400);
-    setActivePaneId('secondary');
-  }, [splitLayout, openTabs, activeTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize]);
-
-  const handleOpenInSplit = useCallback((tabId: string, direction: 'right' | 'bottom') => {
-    const tab = openTabs.find(t => t.id === tabId);
-    if (!tab) return;
-    if (splitLayout !== 'none') {
-      // Already split — move to secondary
-      if (!secondaryOpenTabs.find(t => t.id === tabId)) setSecondaryOpenTabs(prev => [...prev, tab]);
-      setSecondaryActiveTabId(tabId);
-      setOpenTabs(prev => prev.filter(t => t.id !== tabId));
-      if (activeTabId === tabId) setActiveTabId('canvas');
-      setActivePaneId('secondary');
-      return;
-    }
-    // Create split and move tab to secondary
-    setOpenTabs(prev => prev.filter(t => t.id !== tabId));
-    if (activeTabId === tabId) setActiveTabId('canvas');
-    setSecondaryOpenTabs([tab]);
-    setSecondaryActiveTabId(tabId);
-    setSplitLayout(direction);
-    setSplitPrimarySize(direction === 'right' ? 600 : 400);
-    setActivePaneId('secondary');
-  }, [openTabs, activeTabId, secondaryOpenTabs, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setSplitPrimarySize]);
-
-  const handleMoveToOtherPane = useCallback((tabId: string, fromPaneId: 'primary' | 'secondary') => {
-    if (fromPaneId === 'primary') {
-      const tab = openTabs.find(t => t.id === tabId);
-      if (!tab) return;
-      setOpenTabs(prev => prev.filter(t => t.id !== tabId));
-      if (activeTabId === tabId) setActiveTabId('canvas');
-      if (!secondaryOpenTabs.find(t => t.id === tabId)) setSecondaryOpenTabs(prev => [...prev, tab]);
-      setSecondaryActiveTabId(tabId);
-      setActivePaneId('secondary');
-    } else {
-      const tab = secondaryOpenTabs.find(t => t.id === tabId);
-      if (!tab) return;
-      const newSecondary = secondaryOpenTabs.filter(t => t.id !== tabId);
-      if (newSecondary.length === 0) {
-        setSecondaryOpenTabs([]);
-        setSecondaryActiveTabId('');
-        setSplitLayout('none');
-        setActivePaneId('primary');
-      } else {
-        setSecondaryOpenTabs(newSecondary);
-        if (secondaryActiveTabId === tabId) setSecondaryActiveTabId(newSecondary[0].id);
-      }
-      if (!openTabs.find(t => t.id === tabId)) setOpenTabs(prev => [...prev, tab]);
-      setActiveTabId(tabId);
-      setActivePaneId('primary');
-    }
-  }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
-
-  const handleCloseSecondaryPane = useCallback(() => {
-    // Merge secondary tabs into primary (skip any already present) so nothing is lost
-    if (secondaryOpenTabs.length > 0) {
-      setOpenTabs(prev => {
-        const existingIds = new Set(prev.map(t => t.id));
-        const toAdd = secondaryOpenTabs.filter(t => !existingIds.has(t.id));
-        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
-      });
-    }
-    setSecondaryOpenTabs([]);
-    setSecondaryActiveTabId('');
-    setSplitLayout('none');
-    setActivePaneId('primary');
-  }, [secondaryOpenTabs, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
-
-  const handleClosePrimaryPane = useCallback(() => {
-    // Promote secondary pane to primary; append any unique primary tabs after it
-    const existingIds = new Set(secondaryOpenTabs.map(t => t.id));
-    const uniquePrimaryTabs = openTabs.filter(t => !existingIds.has(t.id));
-    setOpenTabs([...secondaryOpenTabs, ...uniquePrimaryTabs]);
-    setActiveTabId(secondaryActiveTabId || secondaryOpenTabs[0]?.id || 'canvas');
-    setSecondaryOpenTabs([]);
-    setSecondaryActiveTabId('');
-    setSplitLayout('none');
-    setActivePaneId('primary');
-  }, [openTabs, secondaryOpenTabs, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleCenterOnBlock = useCallback((target: string) => {
       let blockId = target;
@@ -2429,95 +2118,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal]);
 
-  // DnD Handlers for Tabs
-  const handleTabDragStart = (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
-    setDraggedTabId(tabId);
-    setDragSourcePaneId(paneId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', tabId);
-  };
-
-  const handleTabDragOver = (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => {
-    e.preventDefault();
-    if (draggedTabId && draggedTabId !== targetTabId) {
-       e.dataTransfer.dropEffect = 'move';
-    }
-  };
-
-  const handleTabDrop = (e: React.DragEvent<HTMLDivElement>, targetTabId: string | null, targetPaneId: 'primary' | 'secondary') => {
-    e.preventDefault();
-    if (!draggedTabId) { setDraggedTabId(null); return; }
-    const sourcePaneId = dragSourcePaneId;
-
-    // ── Same-pane reorder ──────────────────────────────────────────────────
-    if (sourcePaneId === targetPaneId) {
-      if (!targetTabId || draggedTabId === targetTabId) { setDraggedTabId(null); return; }
-      const setTabs = targetPaneId === 'primary' ? setOpenTabs : setSecondaryOpenTabs;
-      const tabs    = targetPaneId === 'primary' ? openTabs   : secondaryOpenTabs;
-      const fromIndex = tabs.findIndex(t => t.id === draggedTabId);
-      const toIndex   = tabs.findIndex(t => t.id === targetTabId);
-      if (fromIndex !== -1 && toIndex !== -1) {
-        setTabs(prev => {
-          const next = [...prev];
-          const [moved] = next.splice(fromIndex, 1);
-          next.splice(toIndex, 0, moved);
-          return next;
-        });
-        setHasUnsavedSettings(true);
-      }
-      setDraggedTabId(null);
-      return;
-    }
-
-    // ── Cross-pane move ────────────────────────────────────────────────────
-    const sourceTabs = sourcePaneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const targetTabs = targetPaneId === 'primary' ? openTabs : secondaryOpenTabs;
-    const tab = sourceTabs.find(t => t.id === draggedTabId);
-    if (!tab) { setDraggedTabId(null); return; }
-
-    // Remove from source pane
-    const newSourceTabs = sourceTabs.filter(t => t.id !== draggedTabId);
-    if (sourcePaneId === 'primary') {
-      setOpenTabs(newSourceTabs);
-      if (activeTabId === draggedTabId) {
-        const fallback = newSourceTabs.find(t => t.type === 'canvas') ?? newSourceTabs[0];
-        if (fallback) setActiveTabId(fallback.id);
-      }
-    } else {
-      if (newSourceTabs.length === 0) {
-        // Secondary is now empty — collapse the split
-        setSecondaryOpenTabs([]);
-        setSecondaryActiveTabId('');
-        setSplitLayout('none');
-        setActivePaneId('primary');
-      } else {
-        setSecondaryOpenTabs(newSourceTabs);
-        if (secondaryActiveTabId === draggedTabId) setSecondaryActiveTabId(newSourceTabs[0].id);
-      }
-    }
-
-    // Insert into target pane (at the hovered tab position, or append)
-    const insertAt = targetTabId !== null ? targetTabs.findIndex(t => t.id === targetTabId) : -1;
-    if (targetPaneId === 'primary') {
-      setOpenTabs(prev => {
-        const next = [...prev];
-        next.splice(insertAt >= 0 ? insertAt : next.length, 0, tab);
-        return next;
-      });
-      setActiveTabId(tab.id);
-    } else {
-      setSecondaryOpenTabs(prev => {
-        const next = [...prev];
-        next.splice(insertAt >= 0 ? insertAt : next.length, 0, tab);
-        return next;
-      });
-      setSecondaryActiveTabId(tab.id);
-    }
-
-    setActivePaneId(targetPaneId);
-    setHasUnsavedSettings(true);
-    setDraggedTabId(null);
-  };
 
   const handleFindUsages = (id: string, type: 'character' | 'variable') => {
       const ids = new Set<string>();
@@ -2568,142 +2168,14 @@ const App: React.FC = () => {
   }, [analysisResult.characters, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   // --- Character Editor ---
-  const handleOpenCharacterEditor = useCallback((tag: string) => {
-      const tabId = `char-${tag}`;
-      if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
-      if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
-      const newTab: EditorTab = { id: tabId, type: 'character', characterTag: tag };
-      if (activePaneId === 'secondary' && splitLayout !== 'none') {
-          setSecondaryOpenTabs(prev => [...prev, newTab]);
-          setSecondaryActiveTabId(tabId);
-      } else {
-          setOpenTabs(prev => [...prev, newTab]);
-          setActiveTabId(tabId);
-      }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
-
-  const handleUpdateCharacter = useCallback(async (char: Character, oldTag?: string) => {
-    const buildCharacterString = (char: Character): string => {
-        const args: string[] = [];
-        if (char.name && char.name !== char.tag) {
-            args.push(`"${char.name}"`);
-        }
-
-        const kwargs: Record<string, string> = {};
-        if (char.color) kwargs.color = `"${char.color}"`;
-        if (char.image) kwargs.image = `"${char.image}"`;
-        if (char.who_prefix) kwargs.who_prefix = `"${char.who_prefix}"`;
-        if (char.who_suffix) kwargs.who_suffix = `"${char.who_suffix}"`;
-        if (char.what_prefix) kwargs.what_prefix = `"${char.what_prefix}"`;
-        if (char.what_suffix) kwargs.what_suffix = `"${char.what_suffix}"`;
-        if (char.what_color) kwargs.what_color = `"${char.what_color}"`;
-        if (char.slow) kwargs.slow = 'True';
-        if (char.ctc) kwargs.ctc = `"${char.ctc}"`;
-        if (char.ctc_position && char.ctc_position !== 'nestled') kwargs.ctc_position = `"${char.ctc_position}"`;
-
-        const kwargStrings = Object.entries(kwargs).map(([key, value]) => `${key}=${value}`);
-        const allArgs = [...args, ...kwargStrings].join(', ');
-
-        return `define ${char.tag} = Character(${allArgs})`;
-    };
-
-    const newCharString = buildCharacterString(char);
-
-    setCharacterProfiles(draft => {
-        if (oldTag && oldTag !== char.tag) {
-            delete draft[oldTag];
-        }
-        if (char.profile) {
-            draft[char.tag] = char.profile;
-        } else {
-            delete draft[char.tag];
-        }
-    });
-    setHasUnsavedSettings(true);
-
-    if (oldTag) { // Updating existing character
-        const originalCharDef = analysisResult.characters.get(oldTag);
-        if (!originalCharDef) {
-            addToast(`Error: Cannot find original definition for character '${oldTag}'.`, 'error');
-            return;
-        }
-
-        const blockToUpdate = blocks.find(b => b.id === originalCharDef.definedInBlockId);
-        if (!blockToUpdate) {
-            addToast(`Error: Cannot find file for character '${oldTag}'.`, 'error');
-            return;
-        }
-
-        const regex = new RegExp(`^(\\s*define\\s+${oldTag}\\s*=\\s*Character\\s*\\([\\s\\S]*?\\))`, 'm');
-        if (!regex.test(blockToUpdate.content)) {
-            addToast(`Error: Could not find the Character definition for '${oldTag}' to update.`, 'error');
-            return;
-        }
-
-        // Rename the define statement.
-        const newDefineContent = blockToUpdate.content.replace(regex, newCharString);
-
-        if (oldTag !== char.tag) {
-            // Scan every block directly for dialogue lines — same pattern as DIALOGUE_REGEX
-            // in useRenpyAnalysis.ts: indent + TAG + whitespace + opening quote.
-            // We do NOT use analysisResult.dialogueLines here because the analysis populates
-            // it in a single pass: if characters.rpy is processed after script.rpy, the
-            // dialogue lines for the old tag will be missing from the map.
-            const dialogueReplaceRegex = new RegExp(`^([ \\t]*)${oldTag}(\\s+")`, 'gm');
-            let renamedFileCount = 0;
-
-            blocks.forEach(block => {
-                // For the define block, start from already-renamed content so a combined
-                // file (define + dialogue in one .rpy) gets both changes in one write.
-                const base = block.id === blockToUpdate.id ? newDefineContent : block.content;
-                const updated = base.replace(dialogueReplaceRegex, `$1${char.tag}$2`);
-
-                if (block.id === blockToUpdate.id) {
-                    updateBlock(block.id, { content: updated });
-                    renamedFileCount++;
-                } else if (updated !== base) {
-                    updateBlock(block.id, { content: updated });
-                    renamedFileCount++;
-                }
-            });
-
-            // Defer tab update until analysis re-runs and recognises the new tag.
-            pendingTagRenameRef.current = { oldTag, newTag: char.tag };
-            addToast(`Renamed "${oldTag}" to "${char.tag}" in ${renamedFileCount} file(s).`, 'success');
-            return;
-        }
-
-        updateBlock(blockToUpdate.id, { content: newDefineContent });
-    } else { // Creating new character
-        const charFilePath = 'game/characters.rpy';
-        const existingFileBlock = blocks.find(b => b.filePath === charFilePath);
-        
-        if (existingFileBlock) {
-            const newContent = `${existingFileBlock.content.trim()}\n\n${newCharString}\n`;
-            updateBlock(existingFileBlock.id, { content: newContent });
-        } else {
-            const newContent = `# This file stores character definitions.\n\n${newCharString}\n`;
-            if (window.electronAPI && projectRootPath) {
-                try {
-                    const fullPath = await window.electronAPI.path.join(projectRootPath, charFilePath) as string;
-                    const res = await window.electronAPI.writeFile(fullPath, newContent);
-                    if (res.success) {
-                        addBlock(charFilePath, newContent);
-                        const projData = await window.electronAPI.loadProject(projectRootPath);
-                        setFileSystemTree(projData.tree);
-                    } else { throw new Error((res.error as string) || 'Unknown file creation error'); }
-                } catch (e) {
-                    addToast(`Failed to create characters.rpy: ${formatErrorMessage(e)}`, 'error');
-                    return;
-                }
-            } else {
-                addBlock(charFilePath, newContent);
-            }
-        }
-    }
-    
-    addToast(`Character '${char.name}' saved.`, 'success');
-  }, [addToast, analysisResult.characters, blocks, projectRootPath, setCharacterProfiles, updateBlock, addBlock, setFileSystemTree]);
+  const { handleOpenCharacterEditor, handleUpdateCharacter } = useCharacterManagement({
+    blocks, analysisResult, projectRootPath,
+    updateBlock, addBlock, setFileSystemTree,
+    setCharacterProfiles, setHasUnsavedSettings, addToast,
+    pendingTagRenameRef,
+    openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId,
+  });
 
   // --- Search ---
   const handleToggleSearch = useCallback(() => {
