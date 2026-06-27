@@ -7,7 +7,7 @@ import SearchPanel from '@/components/SearchPanel';
 import StoryElementsPanel from '@/components/StoryElementsPanel';
 import SettingsModal from '@/components/SettingsModal';
 import ConfirmModal from '@/components/ConfirmModal';
-import CreateBlockModal, { BlockType } from '@/components/CreateBlockModal';
+import CreateBlockModal from '@/components/CreateBlockModal';
 import ConfigureRenpyModal from '@/components/ConfigureRenpyModal';
 import Toast from '@/components/Toast';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -51,6 +51,7 @@ import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
+import { useBlockManagement } from '@/hooks/useBlockManagement';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -809,244 +810,21 @@ const App: React.FC = () => {
     }
   }, [appSettings.renpyPath, setIsRenpyPathValid]);
 
-  const buildNewBlockContent = useCallback((name: string, type: BlockType) => {
-    switch (type) {
-      case 'story':
-        return `label ${name}:\n    "Start writing your story here..."\n    return\n`;
-      case 'screen':
-      case 'config':
-        return '';
-    }
-    return '';
-  }, []);
-
-  // Safety timeout: dismiss the analysis overlay if the worker hasn't finished
-  // within 30 seconds. Prevents the UI from being permanently locked on very
-  // large projects where analysis exceeds reasonable bounds.
-  useEffect(() => {
-    if (!isInitialAnalysisPending) return;
-    const timeout = setTimeout(() => {
-      setIsInitialAnalysisPending(false);
-      addToast('Analysis took too long and was skipped. Results may be incomplete.', 'warning');
-    }, UI_TIMING.ANALYSIS_TIMEOUT_MS);
-    return () => clearTimeout(timeout);
-  }, [isInitialAnalysisPending, addToast]);
-
-  // --- Block Management ---
-  const updateBlock = useCallback((id: string, data: Partial<Block>) => {
-    setBlocks(prev => prev.map(b => b.id === id ? { ...b, ...data } : b));
-    if (data.content !== undefined) {
-      setDirtyBlockIds(prev => new Set(prev).add(id));
-    }
-    if (data.position || data.width !== undefined || data.height !== undefined || data.color !== undefined) {
-      updateProjectSettings(draft => {
-        draft.storyCanvasLayoutWasUserAdjusted = true;
-      });
-      setHasUnsavedSettings(true);
-    }
-  }, [setBlocks, updateProjectSettings]);
-
-  const updateGroup = useCallback((id: string, data: Partial<BlockGroup>) => {
-    setGroups(draft => {
-      const idx = draft.findIndex(g => g.id === id);
-      if (idx !== -1) Object.assign(draft[idx], data);
-    });
-  }, [setGroups]);
-
-  const updateBlockPositions = useCallback((updates: { id: string, position: Position }[]) => {
-    setBlocks(prev => {
-        const next = [...prev];
-        updates.forEach(u => {
-            const idx = next.findIndex(b => b.id === u.id);
-            if (idx !== -1) next[idx] = { ...next[idx], position: u.position };
-        });
-        return next;
-    });
-    updateProjectSettings(draft => {
-        draft.storyCanvasLayoutWasUserAdjusted = true;
-    });
-    setHasUnsavedSettings(true);
-  }, [setBlocks, updateProjectSettings]);
-
-   const updateGroupPositions = useCallback((updates: { id: string, position: Position }[]) => {
-    setGroups(draft => {
-      updates.forEach(u => {
-        const g = draft.find(g => g.id === u.id);
-        if (g) g.position = u.position;
-      });
-    });
-    updateProjectSettings(draft => {
-        draft.storyCanvasLayoutWasUserAdjusted = true;
-    });
-    setHasUnsavedSettings(true);
-  }, [setGroups, updateProjectSettings]);
-
-
-  const addBlock = useCallback((filePath: string, content: string, initialPosition?: Position) => {
-    const id = `block-${Date.now()}`;
-    const blockWidth = 320;
-    const blockHeight = 200;
-
-    let position: Position;
-
-    if (initialPosition) {
-        position = initialPosition;
-    } else {
-        const leftOffset = appSettings.isLeftSidebarOpen ? appSettings.leftSidebarWidth : 0;
-        const rightOffset = appSettings.isRightSidebarOpen ? appSettings.rightSidebarWidth : 0;
-        const topOffset = 64; // h-16 (header)
-
-        const visibleWidth = window.innerWidth - leftOffset - rightOffset;
-        const visibleHeight = window.innerHeight - topOffset;
-
-        const screenCenterX = leftOffset + (visibleWidth / 2);
-        const screenCenterY = topOffset + (visibleHeight / 2);
-
-        const worldCenterX = (screenCenterX - storyCanvasTransform.x) / storyCanvasTransform.scale;
-        const worldCenterY = (screenCenterY - storyCanvasTransform.y) / storyCanvasTransform.scale;
-
-        position = {
-            x: worldCenterX - (blockWidth / 2),
-            y: worldCenterY - (blockHeight / 2)
-        };
-    }
-
-    const newBlock: Block = {
-      id,
-      content,
-      position,
-      width: blockWidth,
-      height: blockHeight,
-      title: filePath.split('/').pop(),
-      filePath
-    };
-    
-    setBlocks(prev => [...prev, newBlock]);
-    setDirtyBlockIds(prev => new Set(prev).add(id));
-
-    setSelectedBlockIds([id]);
-    setFlashBlockRequest({ blockId: id, key: Date.now() });
-    // Zoom to the newly created block on Project Canvas
-    setCenterOnBlockRequest({ blockId: id, key: Date.now() });
-
-    if (fileSystemTree && filePath) {
-        setFileSystemTree(prev => {
-            if (!prev) return null;
-            return prev;
-        });
-    }
-    return id;
-  }, [setBlocks, fileSystemTree, storyCanvasTransform, appSettings, setCenterOnBlockRequest, setFileSystemTree, setFlashBlockRequest, setSelectedBlockIds]);
-
-  const handleCreateBlockConfirm = async (name: string, type: BlockType, folderPath: string, initialPosition?: Position) => {
-    const safeName = name.replace(/\.rpy$/, '');
-    const fileName = `${safeName}.rpy`;
-    const content = buildNewBlockContent(safeName, type);
-
-    if (window.electronAPI && projectRootPath) {
-        try {
-            const cleanFolderPath = folderPath.endsWith('/') ? folderPath.slice(0, -1) : folderPath;
-            const relativePath = cleanFolderPath ? `${cleanFolderPath}/${fileName}` : fileName;
-            const fullPath = await window.electronAPI.path.join(projectRootPath!, cleanFolderPath, fileName) as string;
-            
-            const res = await window.electronAPI.writeFile(fullPath, content);
-            if (res.success) {
-                addBlock(relativePath, content, initialPosition);
-                addToast(`Created ${fileName} in ${cleanFolderPath || 'root'}`, 'success');
-                const projData = await window.electronAPI.loadProject(projectRootPath!);
-                setFileSystemTree(projData.tree);
-            } else {
-                const errorMsg = typeof res.error === 'string' ? res.error : 'Unknown error occurred during file creation';
-                throw new Error(errorMsg);
-            }
-        } catch (e) {
-            logger.error('File creation error', e);
-            const errorMessage = formatErrorMessage(e);
-            addToast(`Failed to create file: ${errorMessage}`, 'error');
-        }
-    } else {
-        addBlock(fileName, content, initialPosition);
-        addToast(`Created block ${fileName}`, 'success');
-    }
-  };
-
-  // Sticky note handlers now provided by useStickyNotes hook
-
-
-  const getSelectedFolderForNewBlock = useCallback(() => {
-    if (explorerSelectedPaths.size === 1) {
-        const selectedPath = Array.from(explorerSelectedPaths)[0];
-        if (!fileSystemTree) return 'game/';
-        const findNode = (node: FileSystemTreeNode, targetPath: string): FileSystemTreeNode | null => {
-            if (node.path === targetPath) return node;
-            if (node.children) {
-                for (const child of node.children) {
-                    const found = findNode(child, targetPath);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-        const node = findNode(fileSystemTree, selectedPath);
-        if (node) {
-            if (node.children) {
-                return node.path ? (node.path.endsWith('/') ? node.path : node.path + '/') : ''; 
-            } else {
-                const parts = node.path.split('/');
-                parts.pop();
-                return parts.length > 0 ? parts.join('/') + '/' : '';
-            }
-        }
-    }
-    return 'game/';
-  }, [explorerSelectedPaths, fileSystemTree]);
-
-  const handleCreateBlockFromCanvas = useCallback((type: BlockType, position: Position) => {
-      openCreateBlockModal(type, position, getSelectedFolderForNewBlock());
-  }, [openCreateBlockModal, getSelectedFolderForNewBlock]);
-
-  const deleteBlock = useCallback((id: string) => {
-    setGroups(draft => {
-        draft.forEach(g => {
-            g.blockIds = g.blockIds.filter(bid => bid !== id);
-        });
-    });
-
-    setBlocks(prev => prev.filter(b => b.id !== id));
-    setOpenTabs(prev => prev.filter(t => t.blockId !== id));
-    if (activeTabId === id) setActiveTabId('canvas');
-  }, [setBlocks, setGroups, activeTabId, setActiveTabId, setOpenTabs]);
-
-  // Delete block AND its associated file from disk
-  const deleteBlockWithFile = useCallback(async (id: string) => {
-    const block = blocks.find(b => b.id === id);
-    if (!block || !block.filePath || !projectRootPath || !window.electronAPI) {
-      // If no file path or no project, just delete the block from state
-      deleteBlock(id);
-      return;
-    }
-
-    // Show confirmation modal
-    openDeleteConfirmModal([block.filePath], async () => {
-        try {
-          // Delete the file from disk
-          const fullPath = await window.electronAPI.path.join(projectRootPath, block.filePath) as string;
-          await window.electronAPI.removeEntry(fullPath);
-
-          // Remove the block from state
-          deleteBlock(id);
-
-          // Reload file system tree
-          const projData = await window.electronAPI.loadProject(projectRootPath);
-          setFileSystemTree(projData.tree);
-
-          addToast(`Deleted ${block.filePath}`, 'success');
-        } catch (err) {
-          logger.error('Failed to delete file:', err);
-          addToast(`Failed to delete ${block.filePath}`, 'error');
-        }
-    });
-  }, [blocks, projectRootPath, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
+  const {
+    updateBlock, updateGroup, updateBlockPositions, updateGroupPositions,
+    addBlock, handleCreateBlockConfirm, handleCreateBlockFromCanvas,
+    deleteBlock, deleteBlockWithFile, getSelectedFolderForNewBlock,
+  } = useBlockManagement({
+    blocks, setBlocks, setGroups, setDirtyBlockIds,
+    updateProjectSettings, setHasUnsavedSettings,
+    appSettings, storyCanvasTransform,
+    setCenterOnBlockRequest, setFlashBlockRequest, setSelectedBlockIds,
+    activeTabId, setActiveTabId, setOpenTabs,
+    fileSystemTree, setFileSystemTree,
+    projectRootPath, explorerSelectedPaths,
+    openCreateBlockModal, openDeleteConfirmModal,
+    addToast,
+  });
 
   // --- Layout ---
   const {
