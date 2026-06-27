@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import RouteCanvas from './RouteCanvas';
 import {
   createLabelNode,
-  createRouteLink,
 } from '@/test/mocks/sampleData';
 import type { LabelNode, RouteLink } from '@/types';
 
@@ -13,12 +12,12 @@ vi.mock('./LabelBlock', () => ({
   ),
 }));
 vi.mock('./FileBlock', () => ({
-  default: ({ node }: { node: any }) => (
+  default: ({ node }: { node: { id: string } }) => (
     <div data-testid="file-block" data-node-id={node.id}>{node.id}</div>
   ),
 }));
 vi.mock('./StickyNote', () => ({
-  default: ({ note }: { note: any }) => (
+  default: ({ note }: { note: { content: string } }) => (
     <div data-testid="sticky-note">{note.content}</div>
   ),
 }));
@@ -29,7 +28,7 @@ vi.mock('./CanvasContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasNodeContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasLayoutControls', () => ({ default: () => null }));
 vi.mock('./CanvasToolbox', () => ({
-  default: ({ children }: { children: any }) => <div data-testid="canvas-toolbox">{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas-toolbox">{children}</div>,
 }));
 vi.mock('./CanvasNavControls', () => ({ default: () => null }));
 vi.mock('@/lib/routeCanvasLayout', () => ({

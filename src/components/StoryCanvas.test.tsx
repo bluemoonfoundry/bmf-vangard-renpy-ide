@@ -27,7 +27,7 @@ vi.mock('./Minimap', () => ({ default: () => <div data-testid="minimap" /> }));
 vi.mock('./CanvasContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasLayoutControls', () => ({ default: () => null }));
 vi.mock('./CanvasToolbox', () => ({
-  default: ({ children }: { children: any }) => <div data-testid="canvas-toolbox">{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas-toolbox">{children}</div>,
 }));
 vi.mock('./CanvasNavControls', () => ({ default: () => null }));
 
