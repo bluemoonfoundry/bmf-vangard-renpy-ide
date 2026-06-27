@@ -1781,7 +1781,12 @@ const App: React.FC = () => {
     handleOpenMarkdownTab,
     handleOpenAudioEditorInTab,
     handlePathDoubleClick,
-  } = useTabOpeners({ blocksRef });
+  } = useTabOpeners({
+    blocksRef,
+    openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+    setOpenTabs, setSecondaryOpenTabs,
+    setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
+  });
 
   const {
     handleCloseTab,
@@ -2622,6 +2627,12 @@ const App: React.FC = () => {
     handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode,
     handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
     handleCreateBlockFromCanvas,
+    dirtyBlockIds, dirtyEditors, setDirtyEditors,
+    splitLayout, activePaneId, draggedTabId,
+    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
+    handleTabContextMenu, handleCloseTab, handleCreateSplit,
+    handleClosePrimaryPane, handleCloseSecondaryPane,
+    handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
     images, imagesArray, imageMetadata, audios, audioMetadata,
     handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject,
     existingImageTags, existingAudioPaths,

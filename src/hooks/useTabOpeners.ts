@@ -1,10 +1,18 @@
 import { useCallback } from 'react';
-import type { MutableRefObject } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import type { Block, EditorTab } from '@/types';
-import { useDualPane } from '@/contexts/DualPaneContext';
 
 export interface UseTabOpenersProps {
   blocksRef: MutableRefObject<Block[]>;
+  openTabs: EditorTab[];
+  secondaryOpenTabs: EditorTab[];
+  activePaneId: 'primary' | 'secondary';
+  splitLayout: 'none' | 'right' | 'bottom';
+  setOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
+  setSecondaryOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
+  setActiveTabId: Dispatch<SetStateAction<string>>;
+  setSecondaryActiveTabId: Dispatch<SetStateAction<string>>;
+  setActivePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
 }
 
 export interface UseTabOpenersReturn {
@@ -20,12 +28,12 @@ export interface UseTabOpenersReturn {
 
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
 
-export function useTabOpeners({ blocksRef }: UseTabOpenersProps): UseTabOpenersReturn {
-  const {
-    openTabs, secondaryOpenTabs, activePaneId, splitLayout,
-    setOpenTabs, setSecondaryOpenTabs,
-    setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
-  } = useDualPane();
+export function useTabOpeners({
+  blocksRef,
+  openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  setOpenTabs, setSecondaryOpenTabs,
+  setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
+}: UseTabOpenersProps): UseTabOpenersReturn {
 
   const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
     const id = type;

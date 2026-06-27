@@ -6,7 +6,7 @@
  */
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { useDualPane } from '@/contexts/DualPaneContext';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Updater } from 'use-immer';
 import StoryCanvas from '@/components/StoryCanvas';
 import RouteCanvas from '@/components/RouteCanvas';
@@ -128,6 +128,32 @@ export interface UseTabContentRendererParams {
   // Block / canvas actions
   handleCreateBlockFromCanvas: (type: BlockType, position: Position) => void;
 
+  // Dirty tracking
+  dirtyBlockIds: Set<string>;
+  dirtyEditors: Set<string>;
+  setDirtyEditors: Dispatch<SetStateAction<Set<string>>>;
+
+  // Split / pane state
+  splitLayout: 'none' | 'right' | 'bottom';
+  activePaneId: 'primary' | 'secondary';
+  draggedTabId: string | null;
+
+  // Tab lifecycle handlers
+  handleTabDrop: (e: React.DragEvent<HTMLDivElement>, targetId: string | null, paneId: 'primary' | 'secondary') => void;
+  handleSwitchTab: (tabId: string, paneId?: 'primary' | 'secondary') => void;
+  handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
+  handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
+  handleTabContextMenu: (e: React.MouseEvent, tabId: string, paneId?: 'primary' | 'secondary') => void;
+  handleCloseTab: (tabId: string, paneId: 'primary' | 'secondary', e?: React.MouseEvent) => void;
+  handleCreateSplit: (direction: 'right' | 'bottom', tabId?: string) => void;
+  handleClosePrimaryPane: () => void;
+  handleCloseSecondaryPane: () => void;
+
+  // Tab opener handlers
+  handleOpenEditor: (blockId: string, line?: number) => void;
+  handleOpenRouteCanvasTab: () => void;
+  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
+
   // Assets
   images: Map<string, ProjectImage>;
   imagesArray: ProjectImage[];
@@ -204,6 +230,12 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode,
     handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
     handleCreateBlockFromCanvas,
+    dirtyBlockIds, dirtyEditors, setDirtyEditors,
+    splitLayout, activePaneId, draggedTabId,
+    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
+    handleTabContextMenu, handleCloseTab, handleCreateSplit,
+    handleClosePrimaryPane, handleCloseSecondaryPane,
+    handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
     images, imagesArray, imageMetadata, audios, audioMetadata,
     handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject,
     existingImageTags, existingAudioPaths,
@@ -216,15 +248,6 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
     projectRootPath,
   } = params;
-
-  const {
-    dirtyBlockIds, dirtyEditors, setDirtyEditors,
-    splitLayout, activePaneId, draggedTabId,
-    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
-    handleTabContextMenu, handleCloseTab, handleCreateSplit,
-    handleClosePrimaryPane, handleCloseSecondaryPane,
-    handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
-  } = useDualPane();
 
   const getTabLabel = (tab: EditorTab): React.ReactNode => {
     if (tab.id === 'canvas') return 'Project Canvas';
