@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 
 interface UseModalAccessibilityOptions {
   isOpen: boolean;
   onClose: () => void;
   titleId?: string;
+  /** Provide an existing ref to use as the focus-trap container instead of creating a new one. */
+  contentRef?: RefObject<HTMLDivElement>;
 }
 
 interface ModalProps {
@@ -14,8 +17,9 @@ interface ModalProps {
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function useModalAccessibility({ isOpen, onClose, titleId }: UseModalAccessibilityOptions) {
-  const contentRef = useRef<HTMLDivElement>(null);
+export function useModalAccessibility({ isOpen, onClose, titleId, contentRef: externalRef }: UseModalAccessibilityOptions) {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const contentRef = externalRef ?? internalRef;
   const previousFocusRef = useRef<Element | null>(null);
 
   // Store onClose in a ref to avoid re-running effects when callback identity changes

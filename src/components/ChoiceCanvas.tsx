@@ -40,8 +40,11 @@ const SNIPPET_MAX = 34;
 const CHOICE_MAX  = 20;
 const MAX_BREADCRUMBS = 8; // Limit breadcrumb trail length
 
+// Colors chosen for WCAG AA contrast (≥4.5:1) against white pill text.
+// #047857 (emerald-700 ~4.9:1) and #b45309 (amber-700 ~4.7:1) replace their
+// -600 variants which fell below 4.5:1.
 const PILL_COLORS = [
-  '#4f46e5', '#7c3aed', '#0369a1', '#059669', '#d97706', '#db2777',
+  '#4f46e5', '#7c3aed', '#0369a1', '#047857', '#b45309', '#db2777',
 ] as const;
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
