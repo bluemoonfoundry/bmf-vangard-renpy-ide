@@ -1663,6 +1663,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
               <button
                 onClick={handleStartTrace}
                 title="Walk this graph one step at a time"
+                aria-label="Trace — walk this graph one step at a time"
                 className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
               >
                 Trace ⇝

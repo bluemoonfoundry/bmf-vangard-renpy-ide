@@ -4,8 +4,7 @@ test.describe('flow canvas', () => {
   test('switching to Flow canvas renders label nodes for the fixture labels', async ({ window }) => {
     await expect(window.locator('[data-block-id]').first()).toBeVisible({ timeout: 30_000 });
 
-    // The Flow canvas button has no aria-label, only a title attribute
-    await window.getByTitle(/flow canvas/i).click();
+    await window.getByLabel('Flow Canvas').click();
 
     // The fixture has labels start and scene_two — both rendered as font-mono node cards
     await expect(window.locator('.font-mono').getByText('start').first()).toBeVisible({ timeout: 15_000 });
