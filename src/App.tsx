@@ -43,7 +43,8 @@ import { useCompositionState } from '@/hooks/useCompositionState';
 import { useSettingsManagement } from '@/hooks/useSettingsManagement';
 import { useFileSystemState } from '@/hooks/useFileSystemState';
 import { useStickyNotes } from '@/hooks/useStickyNotes';
-import { useProjectIO, type PendingStoryLayoutRefresh, type PendingRouteLayoutRefresh } from '@/hooks/useProjectIO';
+import { useProjectLoad, type PendingStoryLayoutRefresh, type PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
+import { useProjectIO } from '@/hooks/useProjectIO';
 import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
 import { useCharacterManagement } from '@/hooks/useCharacterManagement';
@@ -846,37 +847,46 @@ const App: React.FC = () => {
 
 
   // --- File System Integration ---
-  
+
+  const { loadProject } = useProjectLoad({
+      loadCancelRef, blocksRef, pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef,
+      pendingAutoCenterRef,
+      setIsLoading, setLoadingProgress, setLoadingMessage,
+      setProjectRootPath, setFileSystemTree,
+      updateAppSettings, updateProjectSettings,
+      setBlocks,
+      setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
+      setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+      setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
+      setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
+      setSceneCompositions, setSceneNames, setImagemapCompositions,
+      setRouteNodeLayoutCache,
+      setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+      setSplitLayout, setSplitPrimarySize, setTabs,
+      setHasUnsavedSettings, setIsInitialAnalysisPending, perfRecorders, addToast,
+  });
+
   const {
-      loadProject,
       handleSaveProjectSettings,
       handleSaveAll,
       handleReloadFromDisk,
       handleRefreshProject,
   } = useProjectIO({
-      loadCancelRef, blocksRef, pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef,
-      pendingAutoCenterRef, editorInstances, dirtyBlockIdsRef, dirtyEditorsRef,
-      setIsLoading, setLoadingProgress, setLoadingMessage,
-      projectRootPath, setProjectRootPath, setFileSystemTree,
-      updateAppSettings, projectSettings, updateProjectSettings,
+      blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
+      projectRootPath, setFileSystemTree,
+      projectSettings,
       blocks, setBlocks, directoryHandle,
-      setImages, setAudios, imageScanDirectories, setImageScanDirectories,
-      audioScanDirectories, setAudioScanDirectories, setIsScanningAssets,
-      setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-      stickyNotes, setStickyNotes, routeStickyNotes, setRouteStickyNotes,
-      choiceStickyNotes, setChoiceStickyNotes, characterProfiles, setCharacterProfiles,
-      punchlistMetadata, setPunchlistMetadata, diagnosticsTasks, setDiagnosticsTasks,
-      ignoredDiagnostics, setIgnoredDiagnostics, dismissedImplicitVarHint, setDismissedImplicitVarHint,
-      sceneCompositions, setSceneCompositions, sceneNames, setSceneNames,
-      imagemapCompositions, setImagemapCompositions,
-      routeNodeLayoutCache, setRouteNodeLayoutCache,
-      openTabs, setOpenTabs, activeTabId, setActiveTabId,
-      secondaryOpenTabs, setSecondaryOpenTabs, secondaryActiveTabId, setSecondaryActiveTabId,
-      splitLayout, setSplitLayout, splitPrimarySize, setSplitPrimarySize, setTabs,
+      setImages, setAudios, imageScanDirectories, audioScanDirectories,
+      stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles,
+      punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
+      sceneCompositions, sceneNames, imagemapCompositions,
+      routeNodeLayoutCache,
+      openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, splitLayout, splitPrimarySize,
       dirtyBlockIds, setDirtyBlockIds, dirtyEditors, setDirtyEditors,
       setHasUnsavedSettings, setSaveStatus, filesWithDiskConflict, setFilesWithDiskConflict,
       setExternallyChangedFiles, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal,
-      setIsInitialAnalysisPending, perfRecorders, addToast,
+      setOpenTabs,
+      addToast,
   });
 
 
