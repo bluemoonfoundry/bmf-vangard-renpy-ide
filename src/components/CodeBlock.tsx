@@ -286,10 +286,11 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
         </div>
         <div className="flex items-center space-x-1 pl-2 flex-shrink-0">
            <div className="relative">
-               <button 
+               <button
                    onClick={(e) => { e.stopPropagation(); setIsColorPickerOpen(!isColorPickerOpen); }}
                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white opacity-50 hover:opacity-100"
                    title="Change Color"
+                   aria-label="Change block color"
                >
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" /></svg>
                </button>
@@ -307,6 +308,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
                                    className={`w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 hover:scale-110 transition-transform ${block.color === key || (!block.color && key === 'default') ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
                                    style={{ backgroundColor: style.dot }}
                                    title={key.charAt(0).toUpperCase() + key.slice(1)}
+                                   aria-label={key.charAt(0).toUpperCase() + key.slice(1)}
                                />
                            ))}
                        </div>
