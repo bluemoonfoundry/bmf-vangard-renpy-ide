@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import type { Block, RenpyAnalysisResult, Variable, FileSystemTreeNode } from '@/types';
-import { formatErrorMessage } from '@/lib/errorUtils';
+import { formatErrorMessage } from '@/lib/formatErrorMessage';
 
 export interface UseStoryElementsPanelParams {
   blocks: Block[];
