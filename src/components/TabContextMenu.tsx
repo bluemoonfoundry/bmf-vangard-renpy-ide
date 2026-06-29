@@ -7,13 +7,13 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { useDualPane } from '@/contexts/DualPaneContext';
 
 interface TabContextMenuProps {
   x: number;
   y: number;
   tabId: string;
   paneId: 'primary' | 'secondary';
-  splitLayout: 'none' | 'right' | 'bottom';
   onClose: () => void;
   onCloseTab: (tabId: string) => void;
   onCloseOthers: (tabId: string) => void;
@@ -26,10 +26,11 @@ interface TabContextMenuProps {
 }
 
 const TabContextMenu: React.FC<TabContextMenuProps> = ({
-  x, y, tabId, paneId, splitLayout, onClose,
+  x, y, tabId, paneId, onClose,
   onCloseTab, onCloseOthers, onCloseLeft, onCloseRight, onCloseAll,
   onSplitRight, onSplitBottom, onMoveToOtherPane,
 }) => {
+  const { splitLayout } = useDualPane();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

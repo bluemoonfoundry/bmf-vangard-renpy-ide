@@ -286,10 +286,11 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
         </div>
         <div className="flex items-center space-x-1 pl-2 flex-shrink-0">
            <div className="relative">
-               <button 
+               <button
                    onClick={(e) => { e.stopPropagation(); setIsColorPickerOpen(!isColorPickerOpen); }}
                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white opacity-50 hover:opacity-100"
                    title="Change Color"
+                   aria-label="Change block color"
                >
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" /></svg>
                </button>
@@ -307,26 +308,28 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
                                    className={`w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 hover:scale-110 transition-transform ${block.color === key || (!block.color && key === 'default') ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
                                    style={{ backgroundColor: style.dot }}
                                    title={key.charAt(0).toUpperCase() + key.slice(1)}
+                                   aria-label={key.charAt(0).toUpperCase() + key.slice(1)}
                                />
                            ))}
                        </div>
                    </div>
                )}
            </div>
-           <button onClick={() => onOpenEditor(block.id)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white" title="Open in Tab"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3.586L3.293 6.707A1 1 0 013 6V3zm3.146 2.146a.5.5 0 01.708 0l2.5 2.5a.5.5 0 010 .708l-2.5 2.5a.5.5 0 01-.708-.708L7.793 8 6.146 6.354a.5.5 0 010-.708z" clipRule="evenodd" /></svg></button>
+           <button onClick={() => onOpenEditor(block.id)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white" title="Open in Tab" aria-label="Open in tab"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3.586L3.293 6.707A1 1 0 013 6V3zm3.146 2.146a.5.5 0 01.708 0l2.5 2.5a.5.5 0 010 .708l-2.5 2.5a.5.5 0 01-.708-.708L7.793 8 6.146 6.354a.5.5 0 010-.708z" clipRule="evenodd" /></svg></button>
            {onOpenRouteCanvas && (
              <button
                onClick={(e) => { e.stopPropagation(); onOpenRouteCanvas(); }}
                onPointerDown={e => e.stopPropagation()}
                className="p-1 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"
                title="Open in Flow Canvas"
+               aria-label="Open in Flow Canvas"
              >
                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                  <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                </svg>
              </button>
            )}
-           <button onClick={() => deleteBlock(block.id)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white" title="Delete Block"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+           <button onClick={() => deleteBlock(block.id)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white" title="Delete Block" aria-label="Delete block"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
       </div>
       <div

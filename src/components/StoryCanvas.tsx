@@ -18,6 +18,7 @@ import CanvasNavControls from './CanvasNavControls';
 import type { MinimapItem } from './Minimap';
 import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult } from '@/types';
 import type { BlockType } from './CreateBlockModal';
+import { useDualPane } from '@/contexts/DualPaneContext';
 
 interface StoryCanvasProps {
   blocks: Block[];
@@ -39,7 +40,6 @@ interface StoryCanvasProps {
   setSelectedGroupIds: (ids: string[] | ((prev: string[]) => string[])) => void;
   findUsagesHighlightIds: Set<string> | null;
   clearFindUsages: () => void;
-  dirtyBlockIds: Set<string>;
   canvasFilters: { story: boolean; screens: boolean; config: boolean; notes: boolean; minimap: boolean };
   setCanvasFilters: React.Dispatch<React.SetStateAction<{ story: boolean; screens: boolean; config: boolean; notes: boolean; minimap: boolean }>>;
   centerOnBlockRequest: { blockId: string, key: number } | null;
@@ -237,11 +237,12 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, updateStickyNote, deleteStickyNote,
     onInteractionEnd, deleteBlock, onOpenEditor, 
     selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds, 
-    findUsagesHighlightIds, clearFindUsages, dirtyBlockIds, 
+    findUsagesHighlightIds, clearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     transform, onTransformChange, onCreateBlock, onAddStickyNote, onOpenRouteCanvas, mouseGestures,
     layoutMode, groupingMode, onChangeLayoutMode, onChangeGroupingMode, diagnosticsResult,
 }) => {
+  const { dirtyBlockIds } = useDualPane();
   const [rubberBandRect, setRubberBandRect] = useState<Rect | null>(null);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldPos: Position } | null>(null);

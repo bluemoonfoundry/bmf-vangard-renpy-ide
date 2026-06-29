@@ -245,6 +245,7 @@ const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, met
           <button
             onClick={zoomOut}
             title="Zoom out (scroll down)"
+            aria-label="Zoom out"
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold"
           >−</button>
           <span className="min-w-[3rem] text-center font-mono text-gray-700 dark:text-gray-300">
@@ -253,17 +254,20 @@ const ImageEditorView: React.FC<ImageEditorViewProps> = ({ image, allImages, met
           <button
             onClick={zoomIn}
             title="Zoom in (scroll up)"
+            aria-label="Zoom in"
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold"
           >+</button>
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={() => setZoom(null)}
             title="Fit to viewport"
+            aria-label="Fit to viewport"
             className={`px-2 h-6 rounded text-xs font-medium transition-colors ${zoom === null ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
           >Fit</button>
           <button
             onClick={() => setZoom(1)}
             title="100% — one screen pixel per image pixel"
+            aria-label="100% zoom"
             className={`px-2 h-6 rounded text-xs font-medium transition-colors ${zoom === 1 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
           >1:1</button>
           {dimensions && (

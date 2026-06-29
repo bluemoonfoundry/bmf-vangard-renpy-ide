@@ -8,7 +8,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { ScreenLayoutComposition, ScreenWidget, ScreenWidgetStyleProps, ScreenWidgetType } from '@/types';
-import { ELEM, HINT_KW_MAP, extractRawHints, rawBlockStyle } from '@/lib/screenWidgetDefs';
+import { ELEM, extractRawHints, rawBlockStyle } from '@/lib/screenWidgetDefs';
 
 const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.4, 0.5, 0.6, 0.75, 1.0, 1.25, 1.5, 2.0];
 

@@ -27,9 +27,15 @@ vi.mock('./Minimap', () => ({ default: () => <div data-testid="minimap" /> }));
 vi.mock('./CanvasContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasLayoutControls', () => ({ default: () => null }));
 vi.mock('./CanvasToolbox', () => ({
-  default: ({ children }: { children: any }) => <div data-testid="canvas-toolbox">{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas-toolbox">{children}</div>,
 }));
 vi.mock('./CanvasNavControls', () => ({ default: () => null }));
+vi.mock('@/contexts/DualPaneContext', () => ({
+  useDualPane: vi.fn(() => ({
+    dirtyBlockIds: new Set<string>(),
+    dirtyEditors: new Set<string>(),
+  })),
+}));
 
 const createProps = (overrides: Record<string, unknown> = {}) => ({
   blocks: [] as Block[],
@@ -51,7 +57,6 @@ const createProps = (overrides: Record<string, unknown> = {}) => ({
   setSelectedGroupIds: vi.fn(),
   findUsagesHighlightIds: null,
   clearFindUsages: vi.fn(),
-  dirtyBlockIds: new Set<string>(),
   canvasFilters: { story: true, screens: true, config: true, notes: true, minimap: true },
   setCanvasFilters: vi.fn(),
   centerOnBlockRequest: null,

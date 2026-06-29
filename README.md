@@ -76,7 +76,7 @@ A full Monaco editor (the VS Code engine) built right in. Split panes let you ed
 - **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables
 - **Go to Definition** — `Ctrl+Click` on a label, character, or screen reference to jump to its definition
 - **Dialogue Preview** — an inline "Player View" panel below the editor shows a mock Ren'Py textbox (or choice menu) that updates in real time as the cursor moves through dialogue lines
-- **28+ built-in Ren'Py snippets** with tab-stop placeholders
+- **33 built-in Ren'Py snippets** with tab-stop placeholders
 - **User-defined snippets** — create custom snippets with trigger prefixes that integrate with IntelliSense
 - Cursor position (Ln/Col) in status bar
 
@@ -95,7 +95,6 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 | | Audio | Audio asset manager with built-in player. |
 | **Composers** | Scenes | Scene Composer — layer backgrounds and sprites, export PNG. |
 | | ImageMaps | ImageMap Composer — draw hotspots, generate imagemap screen code. |
-| | Screen Layouts | Screen Layout Composer — visual DSL builder for Ren'Py screens. |
 | **Tools** | Snippets | Grid-browsable snippet library with fuzzy search and category filters. Built-in snippets + user global + project-specific. |
 | | Menus | Visual menu and choice designer with custom code block support. |
 | | Colors | Color picker with four built-in palettes (Ren'Py Standard, HTML Named, Material 500, Pastel) and a live Project Theme palette scanned from your `.rpy` files. Insert at cursor, wrap in `{color}` tags, or copy hex. |
@@ -121,10 +120,6 @@ Layer backgrounds and sprites on a stage. Per-sprite controls: zoom, flip, rotat
 #### ImageMap Composer
 
 Draw clickable hotspot rectangles over a ground image (with optional hover overlay). Each hotspot has a configurable action type (`jump` or `call`) and target label. Generates `imagebutton`/`imagemap` screen code ready to copy into your project. Ground and hover images are set by dragging from the Image Assets panel.
-
-#### Screen Layout Composer
-
-Build Ren'Py screens visually. Drag widgets (`vbox`, `hbox`, `frame`, `text`, `image`, `textbutton`, `button`, `imagebutton`, `bar`, `input`, `null`) onto the stage and nest them. Configure properties per widget. Generates ready-to-use `screen` code with copy-to-clipboard support. Existing screens can be viewed in read-only mode; duplicate to create an editable copy.
 
 ---
 
@@ -188,7 +183,7 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 - **Character profile editor** — a dedicated editor view for each character with all Ren'Py `Character()` parameters: name/dialogue styling, text speed, CTC, window properties, and a free-form notes field.
 - **Canvas minimap** — a toggle-able minimap overlay on each canvas showing your viewport position within the full graph.
 - **Keyboard-accessible canvases** — Tab to move focus between blocks/nodes, Arrow keys for spatial navigation, Enter to open in editor, Escape to deselect. Every canvas element has an `aria-label` for screen readers (NVDA, VoiceOver, JAWS). Visible focus indicators for keyboard-only users.
-- **11 Themes** — system, light, dark, solarized light/dark, colorful, colorful light, neon dark, ocean dark, candy light, forest light.
+- **12 Themes** — system, light, dark, solarized light/dark, colorful, colorful light, neon dark, ocean dark, candy light, forest light, synthwave.
 - **Auto-updater** — checks for new releases on launch and prompts to install.
 - **Version in status bar** — the app version is always visible at the right end of the status bar.
 - **Cross-platform** — Windows (NSIS installer), macOS (DMG), Linux (AppImage).

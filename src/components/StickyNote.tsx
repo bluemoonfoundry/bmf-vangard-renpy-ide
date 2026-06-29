@@ -50,11 +50,12 @@ const StickyNote = React.memo(forwardRef<HTMLDivElement, StickyNoteProps>(({ not
     >
       <div className={`drag-handle h-7 ${styles.header} rounded-t-md flex items-center justify-between px-2 cursor-grab flex-shrink-0 group`}>
         <div className="relative">
-            <button 
-                className="w-3 h-3 rounded-full border border-black/10 hover:scale-125 transition-transform" 
+            <button
+                className="w-3 h-3 rounded-full border border-black/10 hover:scale-125 transition-transform"
                 style={{ backgroundColor: 'currentColor', opacity: 0.5 }}
                 onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
                 title="Change Color"
+                aria-label="Change note color"
             ></button>
             {isColorPickerOpen && (
                 <div className="absolute top-5 left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded p-1 flex gap-1 z-50">
@@ -63,16 +64,18 @@ const StickyNote = React.memo(forwardRef<HTMLDivElement, StickyNoteProps>(({ not
                             key={c}
                             className={`w-4 h-4 rounded-full border border-gray-300 ${c === note.color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
                             style={{ backgroundColor: c === 'yellow' ? '#fef3c7' : c === 'blue' ? '#dbeafe' : c === 'green' ? '#dcfce7' : c === 'pink' ? '#fce7f3' : c === 'purple' ? '#f3e8ff' : '#fee2e2' }} // Approximate tailwind 100 colors for preview
+                            aria-label={c.charAt(0).toUpperCase() + c.slice(1)}
                             onClick={(e) => { e.stopPropagation(); handleColorChange(c); }}
                         />
                     ))}
                 </div>
             )}
         </div>
-        <button 
+        <button
             onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
             className="text-black/30 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
             title="Delete Note"
+            aria-label="Delete note"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
         </button>

@@ -94,6 +94,11 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       include: ['**/*.test.{ts,tsx}'],
       exclude: ['node_modules', 'dist', 'release'],
+      alias: {
+        // Monaco cannot run in jsdom — redirect to a minimal stub for all tests.
+        'monaco-editor': resolve(__dirname, './src/test/mocks/monaco.ts'),
+        'monaco-editor/esm/vs/editor/editor.api': resolve(__dirname, './src/test/mocks/monaco.ts'),
+      },
       coverage: {
         provider: 'v8',
         include: ['src/**'],
@@ -104,6 +109,14 @@ export default defineConfig(({ mode }) => {
           'src/components/MarkdownPreviewView.tsx': { statements: 70 },
           'src/lib/storyCanvasLayout.ts': { statements: 40 },
           'src/hooks/useRenpyAnalysis.ts': { statements: 75 },
+          // Canvas interaction logic — tests exist; gate against regressions
+          'src/components/StoryCanvas.tsx': { statements: 22 },
+          'src/components/RouteCanvas.tsx': { statements: 30 },
+          'src/components/ChoiceCanvas.tsx': { statements: 39 },
+          // Filesystem manager
+          'src/hooks/useFileSystemManager.ts': { statements: 28 },
+          // Menu constructor modal (tests added in 0yy)
+          'src/components/MenuConstructorModal.tsx': { statements: 60 },
         },
       },
     },

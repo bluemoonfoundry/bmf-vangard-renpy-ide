@@ -8,13 +8,12 @@
  */
 import React, { useMemo } from 'react';
 import logo from '../../renide-512x512.png';
+import { useDualPane } from '@/contexts/DualPaneContext';
 type SaveStatus = 'saving' | 'saved' | 'error';
 
 interface ToolbarProps {
   activeCanvasType: 'story' | 'route' | 'choice' | null;
   projectRootPath: string | null;
-  dirtyBlockIds: Set<string>;
-  dirtyEditors: Set<string>;
   hasUnsavedSettings: boolean;
   saveStatus: SaveStatus;
   canUndo: boolean;
@@ -64,8 +63,6 @@ const ToolbarButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const Toolbar: React.FC<ToolbarProps> = ({
   projectRootPath,
   activeCanvasType,
-  dirtyBlockIds,
-  dirtyEditors,
   hasUnsavedSettings,
   saveStatus,
   canUndo,
@@ -89,6 +86,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToggleDraftingMode,
   hideUndoRedo = false,
 }) => {
+  const { dirtyBlockIds, dirtyEditors } = useDualPane();
 
   const totalUnsavedCount = useMemo(() => {
     return new Set([...dirtyBlockIds, ...dirtyEditors]).size;
@@ -156,6 +154,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           onClick={addBlock}
           disabled={activeCanvasType !== 'story'}
           title={activeCanvasType === 'story' ? "New Scene (N)" : "Switch to Project Canvas to add scenes"}
+          aria-label="New Scene"
           variant="primary"
           data-tutorial="new-scene-button"
         >
@@ -166,6 +165,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           onClick={onAddStickyNote ?? undefined}
           disabled={!onAddStickyNote}
           title={onAddStickyNote ? 'Leave a Note on active canvas' : 'Open a canvas to add notes'}
+          aria-label="Add sticky note"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
         </ToolbarButton>
@@ -174,6 +174,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           onClick={canRedraw ? handleTidyUp : undefined}
           disabled={!canRedraw}
           title={canRedraw ? `Organize ${redrawLabel} Layout` : 'No active canvas to organize'}
+          aria-label={canRedraw ? `Organize ${redrawLabel} Layout` : 'Organize layout'}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M7.5 12l3 3m-3-3l-3 3" /></svg>
         </ToolbarButton>
@@ -217,6 +218,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={() => onOpenStaticTab('canvas')}
             className={canvasBtn(activeCanvasType === 'story')}
             title="Project Canvas — bird's-eye view of your script files"
+            aria-label="Project Canvas"
             aria-pressed={activeCanvasType === 'story'}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -227,6 +229,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={() => onOpenStaticTab('route-canvas')}
             className={canvasBtn(activeCanvasType === 'route')}
             title="Flow Canvas — trace your story's narrative flow"
+            aria-label="Flow Canvas"
             aria-pressed={activeCanvasType === 'route'}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
@@ -237,6 +240,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={() => onOpenStaticTab('choice-canvas')}
             className={canvasBtn(activeCanvasType === 'choice')}
             title="Choices Canvas — player decision tree"
+            aria-label="Choices Canvas"
             aria-pressed={activeCanvasType === 'choice'}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
@@ -297,6 +301,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
               ? 'No changes to save'
               : `Save All (${unsavedItemsCount} unsaved change${unsavedItemsCount === 1 ? '' : 's'}) (Ctrl+S)`
           }
+          aria-label="Save All"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v4.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5-.5H7a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5h2V2H2z"/>

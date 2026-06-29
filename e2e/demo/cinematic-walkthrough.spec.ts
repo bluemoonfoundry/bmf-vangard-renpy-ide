@@ -189,6 +189,7 @@ async function setupOverlays(p: Page): Promise<void> {
     }, { capture: true });
 
     // caption helpers
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__pwCap = (label: string, body: string) => {
       let el = document.getElementById('pw-caption');
       if (!el) {
@@ -204,6 +205,7 @@ async function setupOverlays(p: Page): Promise<void> {
       el.classList.add('pw-vis');
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__pwCapHide = () => {
       const el = document.getElementById('pw-caption');
       if (el) el.classList.remove('pw-vis');
@@ -213,12 +215,14 @@ async function setupOverlays(p: Page): Promise<void> {
 
 async function showCaption(p: Page, label: string, body: string): Promise<void> {
   await p.evaluate(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ([lbl, bod]) => (window as any).__pwCap(lbl, bod),
     [label, body] as [string, string],
   );
 }
 
 async function hideCaption(p: Page): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await p.evaluate(() => (window as any).__pwCapHide());
 }
 

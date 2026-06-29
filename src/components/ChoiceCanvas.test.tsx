@@ -9,7 +9,7 @@ import {
 import type { LabelNode, RouteLink } from '@/types';
 
 vi.mock('./StickyNote', () => ({
-  default: ({ note }: { note: any }) => (
+  default: ({ note }: { note: { content: string } }) => (
     <div data-testid="sticky-note">{note.content}</div>
   ),
 }));
@@ -17,7 +17,7 @@ vi.mock('./Minimap', () => ({ default: () => <div data-testid="minimap" /> }));
 vi.mock('./CanvasContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasNodeContextMenu', () => ({ default: () => null }));
 vi.mock('./CanvasToolbox', () => ({
-  default: ({ children }: { children: any }) => <div data-testid="canvas-toolbox">{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas-toolbox">{children}</div>,
 }));
 vi.mock('./CanvasNavControls', () => ({ default: () => null }));
 

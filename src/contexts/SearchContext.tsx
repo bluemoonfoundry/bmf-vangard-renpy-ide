@@ -9,6 +9,7 @@ import React, { createContext, useState, useCallback, useContext, useMemo } from
 import { logger } from '@/lib/logger';
 import { useImmer } from 'use-immer';
 import type { SearchResult, Block } from '@/types';
+import { useDualPane } from '@/contexts/DualPaneContext';
 
 interface SearchOptions {
   isCaseSensitive: boolean;
@@ -54,7 +55,6 @@ interface SearchProviderProps {
   blocks: Block[];
   projectRootPath: string | null;
   addToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
-  onOpenEditor: (blockId: string, line?: number) => void;
 }
 
 export const SearchProvider: React.FC<SearchProviderProps> = ({
@@ -62,8 +62,8 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
   blocks,
   projectRootPath,
   addToast,
-  onOpenEditor,
 }) => {
+  const { handleOpenEditor } = useDualPane();
   const [searchQuery, setSearchQuery] = useState('');
   const [replaceQuery, setReplaceQuery] = useState('');
   const [searchOptions, setSearchOptions] = useImmer<SearchOptions>({
@@ -99,8 +99,8 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
 
   const handleResultClick = useCallback((filePath: string, lineNumber: number) => {
     const block = blocks.find(b => b.filePath === filePath);
-    if (block) onOpenEditor(block.id, lineNumber);
-  }, [blocks, onOpenEditor]);
+    if (block) handleOpenEditor(block.id, lineNumber);
+  }, [blocks, handleOpenEditor]);
 
   const value = useMemo(() => ({
     searchQuery,
