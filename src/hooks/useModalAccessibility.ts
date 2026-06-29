@@ -86,7 +86,7 @@ export function useModalAccessibility({ isOpen, onClose, titleId, contentRef: ex
         previousFocusRef.current.focus();
       }
     };
-  }, [isOpen]);
+  }, [isOpen, contentRef]);
 
   const modalProps: ModalProps = {
     role: 'dialog',

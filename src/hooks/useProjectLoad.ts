@@ -21,7 +21,7 @@ import type {
   Block, Position, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
   AppSettings, ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
-  SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
+  SerializedSprite, SerializedSceneComposition,
 } from '@/types';
 
 export interface PendingStoryLayoutRefresh {
