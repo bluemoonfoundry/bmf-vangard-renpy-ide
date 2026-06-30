@@ -21,6 +21,7 @@ import StatusBar from '@/components/StatusBar';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import AboutModal from '@/components/AboutModal';
 import LegacyMigrationModal from '@/components/LegacyMigrationModal';
+import ExternalChangesBanner from '@/components/ExternalChangesBanner';
 import UserSnippetModal from '@/components/UserSnippetModal';
 import NewProjectWizardModal from '@/components/NewProjectWizardModal';
 import { MenuConstructorModal } from '@/components/MenuConstructorModal';
@@ -75,6 +76,31 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 
 
+function applyTheme(root: HTMLElement, theme: Theme): void {
+  root.classList.remove(
+    'dark',
+    'theme-solarized-light',
+    'theme-solarized-dark',
+    'theme-colorful',
+    'theme-colorful-light',
+    'theme-neon-dark',
+    'theme-ocean-dark',
+    'theme-candy-light',
+    'theme-forest-light',
+    'theme-synthwave',
+  );
+  if (theme === 'dark') root.classList.add('dark');
+  if (theme === 'solarized-light') root.classList.add('theme-solarized-light');
+  if (theme === 'solarized-dark') root.classList.add('dark', 'theme-solarized-dark');
+  if (theme === 'colorful') root.classList.add('dark', 'theme-colorful');
+  if (theme === 'colorful-light') root.classList.add('theme-colorful-light');
+  if (theme === 'neon-dark') root.classList.add('dark', 'theme-neon-dark');
+  if (theme === 'ocean-dark') root.classList.add('dark', 'theme-ocean-dark');
+  if (theme === 'candy-light') root.classList.add('theme-candy-light');
+  if (theme === 'forest-light') root.classList.add('theme-forest-light');
+  if (theme === 'synthwave') root.classList.add('dark', 'theme-synthwave');
+}
+
 // --- Main App Component ---
 
 const App: React.FC = () => {
@@ -127,8 +153,6 @@ const App: React.FC = () => {
       document.title = "Vangard Studio";
     }
   }, [projectRootPath]);
-
-  const [directoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
   // --- State: UI & Editor ---
   const {
@@ -598,8 +622,8 @@ const App: React.FC = () => {
   );
 
   const menuLabels = useMemo(
-    () => new Set(Object.keys(analysisResult.labels)),
-    [analysisResult.labels]
+    () => new Set(analysisLabelKeys),
+    [analysisLabelKeys]
   );
 
   const menuVariables = useMemo(
@@ -794,40 +818,10 @@ const App: React.FC = () => {
     }
     
     const root = window.document.documentElement;
-    const applyTheme = (theme: Theme) => {
-      root.classList.remove(
-          'dark',
-          'theme-solarized-light',
-          'theme-solarized-dark',
-          'theme-colorful',
-          'theme-colorful-light',
-          'theme-neon-dark',
-          'theme-ocean-dark',
-          'theme-candy-light',
-          'theme-forest-light',
-          'theme-synthwave'
-      );
-      
-      if (theme === 'dark') root.classList.add('dark');
-      if (theme === 'solarized-light') root.classList.add('theme-solarized-light');
-      if (theme === 'solarized-dark') root.classList.add('dark', 'theme-solarized-dark');
-      if (theme === 'colorful') root.classList.add('dark', 'theme-colorful');
-      if (theme === 'colorful-light') root.classList.add('theme-colorful-light');
-      
-      // New Themes
-      if (theme === 'neon-dark') root.classList.add('dark', 'theme-neon-dark');
-      if (theme === 'ocean-dark') root.classList.add('dark', 'theme-ocean-dark');
-      if (theme === 'candy-light') root.classList.add('theme-candy-light');
-      if (theme === 'forest-light') root.classList.add('theme-forest-light');
-      if (theme === 'synthwave') root.classList.add('dark', 'theme-synthwave');
-    };
-
-    if (appSettings.theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      applyTheme(systemTheme);
-    } else {
-      applyTheme(appSettings.theme);
-    }
+    const resolvedTheme = appSettings.theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : appSettings.theme;
+    applyTheme(root, resolvedTheme);
   }, [appSettings, appSettingsLoaded]);
 
   // --- Check Ren'Py Path Validity ---
@@ -880,18 +874,23 @@ const App: React.FC = () => {
       loadCancelRef, blocksRef, pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef,
       pendingAutoCenterRef,
       setIsLoading, setLoadingProgress, setLoadingMessage,
-      setProjectRootPath, setFileSystemTree,
-      updateAppSettings, updateProjectSettings,
-      setBlocks,
-      setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
-      setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-      setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
-      setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
-      setSceneCompositions, setSceneNames, setImagemapCompositions,
-      setRouteNodeLayoutCache,
-      setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
-      setSplitLayout, setSplitPrimarySize, setTabs,
+      updateAppSettings,
       setHasUnsavedSettings, setIsInitialAnalysisPending, perfRecorders, addToast,
+      hydrateSetters: {
+          pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+          setProjectRootPath, setFileSystemTree,
+          updateProjectSettings,
+          setBlocks,
+          setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
+          setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
+          setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
+          setSceneCompositions, setSceneNames, setImagemapCompositions,
+          setRouteNodeLayoutCache,
+          setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+          setSplitLayout, setSplitPrimarySize, setTabs,
+          perfRecorders,
+      },
   });
 
   const {
@@ -903,7 +902,7 @@ const App: React.FC = () => {
       blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
       projectRootPath, setFileSystemTree,
       projectSettings,
-      blocks, setBlocks, directoryHandle,
+      blocks, setBlocks,
       setImages, setAudios, imageScanDirectories, audioScanDirectories,
       stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles,
       punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
@@ -1375,25 +1374,21 @@ const App: React.FC = () => {
   }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal]);
 
 
-  const handleFindUsages = (id: string, type: 'character' | 'variable') => {
+  const handleFindUsages = useCallback((id: string, type: 'character' | 'variable') => {
       const ids = new Set<string>();
       if (type === 'character') {
-          const lines = analysisResult.dialogueLines;
-          lines.forEach((dialogues, blockId) => {
+          analysisResult.dialogueLines.forEach((dialogues, blockId) => {
               if (dialogues.some(d => d.tag === id)) ids.add(blockId);
           });
       } else {
-          const usages = analysisResult.variableUsages.get(id);
-          usages?.forEach(u => ids.add(u.blockId));
+          analysisResult.variableUsages.get(id)?.forEach(u => ids.add(u.blockId));
       }
-      
       setFindUsagesHighlightIds(ids);
       setActiveTabId('canvas');
       addToast(`Found usages in ${ids.size} blocks`, 'info');
-  };
+  }, [analysisResult.dialogueLines, analysisResult.variableUsages, setFindUsagesHighlightIds, setActiveTabId, addToast]);
 
   const analysisResultWithProfiles = useMemo(() => {
-    if (!analysisResult) return analysisResult;
     const newCharacters = new Map(analysisResult.characters);
     newCharacters.forEach((char, tag) => {
         const profile = characterProfiles[tag];
@@ -1483,49 +1478,40 @@ const App: React.FC = () => {
   });
 
   // --- User Snippet CRUD ---
-  const handleSaveSnippet = (snippet: UserSnippet) => {
+  const handleSaveSnippet = useCallback((snippet: UserSnippet) => {
       updateAppSettings(draft => {
           if (!draft.userSnippets) draft.userSnippets = [];
           const idx = draft.userSnippets.findIndex(s => s.id === snippet.id);
-          if (idx >= 0) {
-              draft.userSnippets[idx] = snippet;
-          } else {
-              draft.userSnippets.push(snippet);
-          }
+          if (idx >= 0) { draft.userSnippets[idx] = snippet; }
+          else { draft.userSnippets.push(snippet); }
       });
       setHasUnsavedSettings(true);
-  };
-  const handleDeleteSnippet = (snippetId: string) => {
+  }, [updateAppSettings, setHasUnsavedSettings]);
+
+  const handleDeleteSnippet = useCallback((snippetId: string) => {
       updateAppSettings(draft => {
-          if (draft.userSnippets) {
-              draft.userSnippets = draft.userSnippets.filter(s => s.id !== snippetId);
-          }
+          if (draft.userSnippets) draft.userSnippets = draft.userSnippets.filter(s => s.id !== snippetId);
       });
       setHasUnsavedSettings(true);
-  };
+  }, [updateAppSettings, setHasUnsavedSettings]);
 
   // --- Menu Template CRUD ---
-  const handleSaveMenuTemplate = (template: MenuTemplate) => {
+  const handleSaveMenuTemplate = useCallback((template: MenuTemplate) => {
       updateAppSettings(draft => {
           if (!draft.menuTemplates) draft.menuTemplates = [];
           const idx = draft.menuTemplates.findIndex(t => t.id === template.id);
-          if (idx >= 0) {
-              draft.menuTemplates[idx] = { ...template, updatedAt: Date.now() };
-          } else {
-              draft.menuTemplates.push(template);
-          }
+          if (idx >= 0) { draft.menuTemplates[idx] = { ...template, updatedAt: Date.now() }; }
+          else { draft.menuTemplates.push(template); }
       });
       setHasUnsavedSettings(true);
-  };
+  }, [updateAppSettings, setHasUnsavedSettings]);
 
-  const handleDeleteMenuTemplate = (templateId: string) => {
+  const handleDeleteMenuTemplate = useCallback((templateId: string) => {
       updateAppSettings(draft => {
-          if (draft.menuTemplates) {
-              draft.menuTemplates = draft.menuTemplates.filter(t => t.id !== templateId);
-          }
+          if (draft.menuTemplates) draft.menuTemplates = draft.menuTemplates.filter(t => t.id !== templateId);
       });
       setHasUnsavedSettings(true);
-  };
+  }, [updateAppSettings, setHasUnsavedSettings]);
 
   // --- Active Editor Helper ---
   // Returns the currently active editor instance from either primary or secondary panel
@@ -1554,11 +1540,8 @@ const App: React.FC = () => {
       }
   }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, activePaneId]);
 
-  // Legacy alias for color picker (uses same logic)
-  const getActiveColorPickerEditor = getActiveEditor;
-
   const handleInsertColor = useCallback((hex: string) => {
-      const editor = getActiveColorPickerEditor();
+      const editor = getActiveEditor();
       if (!editor) { addToast('Open a file in the editor to insert a color.', 'warning'); return; }
       const pos = editor.getPosition();
       if (!pos) return;
@@ -1890,21 +1873,23 @@ const App: React.FC = () => {
   const activeCanvasGroupingMode = activeCanvasType === 'route'
     ? (projectSettings.routeCanvasGroupingMode ?? 'none')
     : (projectSettings.storyCanvasGroupingMode ?? 'none');
-  const handleActiveCanvasTidyUp = () => {
+  const handleActiveCanvasTidyUp = useCallback(() => {
     if (activeCanvasType === 'route') {
       applyRouteLayout(activeCanvasLayoutMode, activeCanvasGroupingMode, { showToast: true });
       return;
     }
-    if (activeCanvasType === 'choice') return; // Choice canvas has no tidy-up (auto-layout only)
+    if (activeCanvasType === 'choice') return;
     handleTidyUp(true);
-  };
-  const activeCanvasOnAddStickyNote: (() => void) | null =
-    activeCanvasType === 'story' ? () => addStickyNote() :
-    activeCanvasType === 'route' ? () => addRouteStickyNote() :
-    activeCanvasType === 'choice' ? () => addChoiceStickyNote() :
-    null;
+  }, [activeCanvasType, activeCanvasLayoutMode, activeCanvasGroupingMode, applyRouteLayout, handleTidyUp]);
 
-  const dualPaneContextValue: DualPaneContextValue = {
+  const activeCanvasOnAddStickyNote = useMemo<(() => void) | null>(() => {
+    if (activeCanvasType === 'story') return () => addStickyNote();
+    if (activeCanvasType === 'route') return () => addRouteStickyNote();
+    if (activeCanvasType === 'choice') return () => addChoiceStickyNote();
+    return null;
+  }, [activeCanvasType, addStickyNote, addRouteStickyNote, addChoiceStickyNote]);
+
+  const dualPaneContextValue = useMemo<DualPaneContextValue>(() => ({
     openTabs, activeTabId, setOpenTabs, setActiveTabId,
     secondaryOpenTabs, secondaryActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
     activePaneId, setActivePaneId,
@@ -1926,7 +1911,25 @@ const App: React.FC = () => {
     handleTabContextMenu,
     handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
     handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
-  };
+  }), [
+    openTabs, activeTabId, setOpenTabs, setActiveTabId,
+    secondaryOpenTabs, secondaryActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+    activePaneId, setActivePaneId,
+    splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
+    draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
+    _openTab, _closeTab, _switchTab, _updateTab, _closeTabs, setTabs,
+    _createSplit, _closeSplit, _setSplitSize, _moveTabToPane,
+    _startTabDrag, _endTabDrag, _findTab, _getActiveTab,
+    dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+    dirtyBlockIdsRef, dirtyEditorsRef,
+    handleCloseTab, processTabCloseRequest, handleCloseOthersRequest, handleCloseAllRequest,
+    handleCloseLeftRequest, handleCloseRightRequest,
+    handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
+    handleCloseSecondaryPane, handleClosePrimaryPane,
+    handleTabDragStart, handleTabDragOver, handleTabDrop, handleTabContextMenu,
+    handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
+    handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
+  ]);
 
   return (
     <DualPaneContext.Provider value={dualPaneContextValue}>
@@ -2095,32 +2098,11 @@ const App: React.FC = () => {
           ) : (
             <>
             {/* External file change notifications */}
-            {externallyChangedFiles.length > 0 && (
-              <div className="flex-none border-b border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30">
-                {externallyChangedFiles.map(item => {
-                  const fileName = item.relativePath.split('/').pop() ?? item.relativePath;
-                  return (
-                    <div key={item.relativePath} className="flex items-center gap-2 px-3 py-1.5 text-sm text-yellow-800 dark:text-yellow-200">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-8a1 1 0 00-1 1v3a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                      <span className="font-medium truncate max-w-xs" title={item.relativePath}>{fileName}</span>
-                      <span className="text-yellow-700 dark:text-yellow-300">was modified outside the editor.</span>
-                      <button
-                        onClick={() => handleReloadFromDisk(item)}
-                        className="ml-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-200 hover:bg-yellow-300 dark:bg-yellow-700 dark:hover:bg-yellow-600 text-yellow-900 dark:text-yellow-100 transition-colors"
-                      >
-                        Reload
-                      </button>
-                      <button
-                        onClick={() => handleKeepCurrentFile(item.relativePath)}
-                        className="px-2 py-0.5 rounded text-xs font-medium text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-800/50 transition-colors"
-                      >
-                        Keep current
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <ExternalChangesBanner
+              items={externallyChangedFiles}
+              onReload={handleReloadFromDisk}
+              onKeep={handleKeepCurrentFile}
+            />
             {/* Panes container — flex-row for right split, flex-col for bottom split */}
             <div className={`flex-grow flex ${splitLayout === 'bottom' ? 'flex-col' : 'flex-row'} overflow-hidden min-h-0`}>
 

@@ -44,7 +44,6 @@ export interface UseProjectIOParams {
   // Blocks
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
-  directoryHandle: FileSystemDirectoryHandle | null;
 
   // Assets (read for save, write for refresh)
   setImages: React.Dispatch<React.SetStateAction<Map<string, ProjectImage>>>;
@@ -112,7 +111,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
     projectRootPath, setFileSystemTree,
     projectSettings,
-    blocks, setBlocks, directoryHandle,
+    blocks, setBlocks,
     setImages, setAudios, imageScanDirectories, audioScanDirectories,
     stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles,
     punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
@@ -225,7 +224,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
 
           const blocksToSave = new Set([...dirtyBlockIds, ...dirtyEditors]);
 
-          if (!projectRootPath && !directoryHandle) {
+          if (!projectRootPath) {
                setDirtyBlockIds(new Set());
                setDirtyEditors(new Set());
                setHasUnsavedSettings(false);
@@ -282,7 +281,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     }
 
     await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, directoryHandle, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict]);
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict]);
 
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);
