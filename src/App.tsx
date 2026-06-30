@@ -59,6 +59,7 @@ import { useLoadingState } from '@/hooks/useLoadingState';
 import { useDirtyState } from '@/hooks/useDirtyState';
 import { useExternalFileChanges } from '@/hooks/useExternalFileChanges';
 import { useGameExecution } from '@/hooks/useGameExecution';
+import { useWarpLaunch } from '@/hooks/useWarpLaunch';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -381,12 +382,8 @@ const App: React.FC = () => {
   });
 
   // --- State: Misc ---
-  const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
-  const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
-  const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
   const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
   const [editorCursorBlockId, setEditorCursorBlockId] = useState<string | null>(null);
-  const warpTempFilePathRef = useRef<string | null>(null);
 
   // --- State: Flow Canvas (label-level flow graph) ---
   const [routeNodeLayoutCache, setRouteNodeLayoutCache] = useState<Map<string, Position>>(new Map());
@@ -467,6 +464,25 @@ const App: React.FC = () => {
     loadCancelRef,
     handleCancelLoad,
   } = useLoadingState({ isWorkerPending, addToast });
+
+  const {
+    pendingWarpLabelName,
+    pendingWarpTarget,
+    pendingWarpVariableDrafts,
+    cleanupWarpTempFile,
+    resetWarpLaunchState,
+    handleConfirmWarpVariables,
+    handleWarpToLabel,
+  } = useWarpLaunch({
+    projectRootPath,
+    renpyPath: appSettings.renpyPath,
+    blocks,
+    analysisResult,
+    addToast,
+    closeWarpVariablesModal,
+    closeWarpToLabelModal,
+    openWarpVariablesModal,
+  });
 
   // Memoized flat arrays — Map.values() iteration is O(n); without this every
   // renderTabContent call recreated 14,000-item arrays on each re-render.
@@ -1227,25 +1243,6 @@ const App: React.FC = () => {
     }
   }, [activeCanvasTabId, closeGoToLabelModal, setCenterOnBlockRequest, setCenterOnChoiceNodeRequest, setCenterOnRouteNodeRequest]);
 
-  const cleanupWarpTempFile = useCallback(async () => {
-    if (!window.electronAPI || !projectRootPath) return;
-
-    const tempPath = warpTempFilePathRef.current
-      ?? await window.electronAPI.path.join(projectRootPath, 'game', '_ide_after_warp.rpy');
-
-    try {
-      if (await window.electronAPI.fileExists(tempPath)) {
-        await window.electronAPI.removeEntry(tempPath);
-      }
-    } catch (error) {
-      logger.error('Failed to clean up temporary warp file:', error);
-    } finally {
-      if (warpTempFilePathRef.current === tempPath) {
-        warpTempFilePathRef.current = null;
-      }
-    }
-  }, [projectRootPath]);
-
   const {
     isGameRunning,
     screenshotCount,
@@ -1259,63 +1256,6 @@ const App: React.FC = () => {
     addToast,
     cleanupWarpTempFile,
   });
-
-  const resetWarpLaunchState = useCallback(() => {
-    closeWarpVariablesModal();
-    setPendingWarpLabelName(null);
-    setPendingWarpTarget(null);
-    setPendingWarpVariableDrafts([]);
-  }, [closeWarpVariablesModal]);
-
-  const handleConfirmWarpVariables = useCallback(async (variableDrafts: WarpVariableDraft[]) => {
-    if (!window.electronAPI || !projectRootPath || !pendingWarpTarget) return;
-
-    const tempPath = await window.electronAPI.path.join(projectRootPath, 'game', '_ide_after_warp.rpy');
-    const needsTempFile = variableDrafts.length > 0 || !hasAfterWarpLabel(analysisResult.labels);
-
-    try {
-      if (needsTempFile) {
-        const script = buildAfterWarpScript(variableDrafts, !hasAfterWarpLabel(analysisResult.labels));
-        await cleanupWarpTempFile();
-
-        const writeResult = await window.electronAPI.writeFile(tempPath, script, 'utf-8');
-        if (!writeResult.success) {
-          throw new Error(writeResult.error || 'Failed to write temporary warp file.');
-        }
-
-        warpTempFilePathRef.current = tempPath;
-      } else {
-        await cleanupWarpTempFile();
-      }
-
-      const warpTarget = pendingWarpTarget;
-      resetWarpLaunchState();
-      window.electronAPI.runGame(appSettings.renpyPath, projectRootPath, warpTarget);
-    } catch (error) {
-      logger.error('Failed to launch warped game:', error);
-      addToast(`Failed to launch warp: ${formatErrorMessage(error)}`, 'error');
-    }
-  }, [analysisResult.labels, addToast, appSettings.renpyPath, cleanupWarpTempFile, pendingWarpTarget, projectRootPath, resetWarpLaunchState]);
-
-  const handleWarpToLabel = useCallback((labelName: string) => {
-    if (!window.electronAPI || !projectRootPath) return;
-
-    const warpTarget = resolveWarpTarget(blocks, analysisResult.labels, labelName);
-    closeWarpToLabelModal();
-
-    if (!warpTarget) {
-      addToast(`Could not resolve warp target for "${labelName}"`, 'warning');
-      return;
-    }
-
-    setPendingWarpLabelName(labelName);
-    setPendingWarpTarget(warpTarget);
-    setPendingWarpVariableDrafts(getWarpVariableDrafts(
-      analysisResult.variables,
-      analysisResult.translationData.translatableStrings,
-    ));
-    openWarpVariablesModal();
-  }, [analysisResult.labels, analysisResult.translationData.translatableStrings, analysisResult.variables, addToast, blocks, projectRootPath, closeWarpToLabelModal, openWarpVariablesModal]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
