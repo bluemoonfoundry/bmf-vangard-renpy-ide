@@ -57,6 +57,7 @@ import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
 import { useLoadingState } from '@/hooks/useLoadingState';
 import { useDirtyState } from '@/hooks/useDirtyState';
+import { useExternalFileChanges } from '@/hooks/useExternalFileChanges';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -327,9 +328,6 @@ const App: React.FC = () => {
   } = useModalState();
 
   const [nonRenpyWarningPath, setNonRenpyWarningPath] = useState<string | null>(null);
-  const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
-  // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
-  const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
   
   // --- State: Game Execution ---
   const [isGameRunning, setIsGameRunning] = useState(false);
@@ -508,6 +506,21 @@ const App: React.FC = () => {
   const pendingRouteLayoutRefreshRef = useRef<PendingRouteLayoutRefresh | null>(null);
   const pendingTagRenameRef = useRef<{ oldTag: string; newTag: string } | null>(null);
   const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
+
+  const {
+    externallyChangedFiles,
+    setExternallyChangedFiles,
+    filesWithDiskConflict,
+    setFilesWithDiskConflict,
+    handleKeepCurrentFile,
+  } = useExternalFileChanges({
+    projectRootPath,
+    blocksRef,
+    dirtyBlockIdsRef,
+    dirtyEditorsRef,
+    setBlocks,
+    editorInstances,
+  });
 
   // --- Utility Functions ---
   const _getCurrentContext = useCallback(() => {
@@ -1022,12 +1035,6 @@ const App: React.FC = () => {
     await doSave();
   }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
-
-  const handleKeepCurrentFile = useCallback((relativePath: string) => {
-      setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== relativePath));
-      setFilesWithDiskConflict(prev => { const next = new Set(prev); next.add(relativePath); return next; });
-  }, []);
-
 
   const handleGenerateTranslations = useCallback(async (language: string) => {
     if (!appSettings.renpyPath || !projectRootPath) return;
@@ -1679,37 +1686,6 @@ const App: React.FC = () => {
           removeDownloaded();
       };
   }, [addToast]);
-
-  // --- External File Change Detection ---
-  useEffect(() => {
-      if (!window.electronAPI?.onFileChangedExternally || !projectRootPath) return;
-      const unsub = window.electronAPI.onFileChangedExternally((data) => {
-          const block = blocksRef.current.find(b => b.filePath === data.relativePath);
-          if (!block) return;
-
-          const isDirty = dirtyBlockIdsRef.current.has(block.id) || dirtyEditorsRef.current.has(block.id);
-          if (!isDirty) {
-              // Not dirty — silently reload from disk
-              window.electronAPI!.readFile(data.absolutePath).then((content: string) => {
-                  setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, content } : b));
-                  const editor = editorInstances.current.get(block.id);
-                  if (editor) {
-                      const model = editor.getModel();
-                      if (model && model.getValue() !== content) {
-                          model.setValue(content);
-                      }
-                  }
-              }).catch(err => logger.error('Failed to reload externally changed file', err));
-          } else {
-              // Has unsaved edits — queue for user decision
-              setExternallyChangedFiles(prev =>
-                  prev.some(f => f.relativePath === data.relativePath) ? prev : [...prev, data]
-              );
-          }
-      });
-      return unsub;
-   
-  }, [projectRootPath, setBlocks]);
 
   // --- Exit Handling ---
   const hasUnsavedSettingsRef = useRef(hasUnsavedSettings);
