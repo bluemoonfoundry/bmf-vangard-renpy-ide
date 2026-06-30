@@ -55,6 +55,7 @@ import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
+import { useLoadingState } from '@/hooks/useLoadingState';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -326,11 +327,6 @@ const App: React.FC = () => {
     closeMenuConstructorModal,
   } = useModalState();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitialAnalysisPending, setIsInitialAnalysisPending] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const loadCancelRef = useRef(false);
   const [nonRenpyWarningPath, setNonRenpyWarningPath] = useState<string | null>(null);
   const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
   // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
@@ -469,26 +465,14 @@ const App: React.FC = () => {
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
   const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata, ignoredDiagnostics);
 
-  // Ref that latches to true once the analysis worker starts (isWorkerPending goes true)
-  // after a project load. Prevents the overlay from closing during the one-render gap
-  // between debouncedBlocks updating (which makes isAnalysisPending briefly false) and
-  // the useRenpyAnalysis effect actually posting to the worker.
-  const analysisWorkerHasStartedRef = useRef(false);
-
-  useEffect(() => {
-    if (!isInitialAnalysisPending) {
-      // Reset the latch so the next project load works correctly.
-      analysisWorkerHasStartedRef.current = false;
-      return;
-    }
-    if (isWorkerPending) {
-      // Worker has started — latch on.
-      analysisWorkerHasStartedRef.current = true;
-    } else if (analysisWorkerHasStartedRef.current) {
-      // Worker was running and is now done — safe to close the overlay.
-      setIsInitialAnalysisPending(false);
-    }
-  }, [isWorkerPending, isInitialAnalysisPending]);
+  const {
+    isLoading, setIsLoading,
+    isInitialAnalysisPending, setIsInitialAnalysisPending,
+    loadingMessage, setLoadingMessage,
+    loadingProgress, setLoadingProgress,
+    loadCancelRef,
+    handleCancelLoad,
+  } = useLoadingState({ isWorkerPending, addToast });
 
   // Memoized flat arrays — Map.values() iteration is O(n); without this every
   // renderTabContent call recreated 14,000-item arrays on each re-render.
@@ -917,16 +901,6 @@ const App: React.FC = () => {
   });
 
 
-  const handleCancelLoad = useCallback(() => {
-      loadCancelRef.current = true;
-      window.electronAPI?.cancelProjectLoad?.();
-      // Close the overlay immediately — don't wait for the IPC to reject.
-      // The loadProject finally block will also call setIsLoading(false) harmlessly.
-      setIsLoading(false);
-      setLoadingMessage('');
-      setLoadingProgress(0);
-      addToast('Project loading cancelled.', 'info');
-  }, [addToast]);
 
   // Checks whether the selected folder looks like a Ren'Py project before loading.
   // If it doesn't (no game/ folder, no .rpy files), shows a confirmation warning first.
