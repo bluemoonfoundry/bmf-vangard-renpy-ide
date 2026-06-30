@@ -1183,6 +1183,70 @@ export interface ScanDirectoryResult {
   error?: string;
 }
 
+export interface PendingStoryLayoutRefresh {
+  hasSavedLayouts: boolean;
+  savedFingerprint?: string;
+  savedVersion?: number;
+  savedWasUserAdjusted: boolean;
+}
+
+export interface PendingRouteLayoutRefresh {
+  hasSavedLayouts: boolean;
+  savedFingerprint?: string;
+  savedVersion?: number;
+  savedWasUserAdjusted: boolean;
+}
+
+/**
+ * Pure value object representing the fully-deserialized project state produced
+ * from a `ProjectLoadResult`. Has no React setters or IPC references.
+ * Produced by `deserializeProjectData`; consumed by `hydrateFromProjectData`.
+ */
+export interface ProjectSnapshot {
+  rootPath: string;
+  tree: FileSystemTreeNode;
+  blocks: Block[];
+  /** Non-null when the project had no files and a default script.rpy was synthesised — caller must write it via IPC. */
+  defaultScriptBlock: Block | null;
+  images: Map<string, ProjectImage>;
+  audios: Map<string, RenpyAudio>;
+  imageScanPaths: string[];
+  audioScanPaths: string[];
+  stickyNotes: StickyNote[];
+  routeStickyNotes: StickyNote[];
+  choiceStickyNotes: StickyNote[];
+  characterProfiles: Record<string, string>;
+  punchlistMetadata: Record<string, PunchlistMetadata>;
+  diagnosticsTasks: DiagnosticsTask[];
+  ignoredDiagnostics: IgnoredDiagnosticRule[];
+  dismissedImplicitVariableHint: boolean;
+  sceneCompositions: Record<string, SceneComposition>;
+  sceneNames: Record<string, string>;
+  imagemapCompositions: Record<string, ImageMapComposition>;
+  routeNodeLayoutCache: Map<string, Position>;
+  primaryTabs: EditorTab[];
+  primaryActiveTabId: string;
+  secondaryTabs: EditorTab[];
+  secondaryActiveTabId: string;
+  splitLayout: 'none' | 'right' | 'bottom';
+  splitPrimarySize: number;
+  pendingStoryLayoutRefresh: PendingStoryLayoutRefresh;
+  pendingRouteLayoutRefresh: PendingRouteLayoutRefresh;
+  canvasSettings: {
+    draftingMode: boolean;
+    storyCanvasLayoutMode: string;
+    storyCanvasGroupingMode: string;
+    storyCanvasLayoutFingerprint: string | undefined;
+    storyCanvasLayoutVersion: number;
+    storyCanvasLayoutWasUserAdjusted: boolean;
+    routeCanvasLayoutMode: string;
+    routeCanvasGroupingMode: string;
+    routeCanvasLayoutFingerprint: string | undefined;
+    routeCanvasLayoutVersion: number;
+    routeCanvasLayoutWasUserAdjusted: boolean;
+  };
+}
+
 /** Serialized sprite for saving scene compositions (paths only, no data URLs). */
 export interface SerializedSprite {
   id: string;
