@@ -748,7 +748,7 @@ async function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    icon: path.join(__dirname, 'vangard-512x512.png')
+    icon: path.join(__dirname, 'vangard.png')
   });
 
   mainWindowRef = mainWindow;
