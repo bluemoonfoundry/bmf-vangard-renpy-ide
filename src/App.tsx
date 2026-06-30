@@ -56,6 +56,7 @@ import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
 import { useLoadingState } from '@/hooks/useLoadingState';
+import { useDirtyState } from '@/hooks/useDirtyState';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -239,15 +240,13 @@ const App: React.FC = () => {
   const [ignoredDiagnostics, setIgnoredDiagnostics] = useImmer<IgnoredDiagnosticRule[]>([]);
   const [dismissedImplicitVarHint, setDismissedImplicitVarHint] = useState(false);
 
-  const [dirtyBlockIds, setDirtyBlockIds] = useState<Set<string>>(new Set());
-  const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set()); // Blocks modified in editor but not synced to block state yet
-  // Refs mirroring dirty state for callbacks that need current values without re-creating on every change.
-  const dirtyBlockIdsRef = useRef(dirtyBlockIds);
-  const dirtyEditorsRef = useRef(dirtyEditors);
-  useEffect(() => { dirtyBlockIdsRef.current = dirtyBlockIds; }, [dirtyBlockIds]);
-  useEffect(() => { dirtyEditorsRef.current = dirtyEditors; }, [dirtyEditors]);
-  const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false); // Track project setting changes like sticky notes
-  const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saved');
+  const {
+    dirtyBlockIds, setDirtyBlockIds,
+    dirtyEditors, setDirtyEditors,
+    dirtyBlockIdsRef, dirtyEditorsRef,
+    hasUnsavedSettings, setHasUnsavedSettings,
+    saveStatus, setSaveStatus,
+  } = useDirtyState();
 
   // Composition state (Scene/ImageMap/ScreenLayout composers)
   const {
