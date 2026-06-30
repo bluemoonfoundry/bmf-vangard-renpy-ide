@@ -20,11 +20,19 @@ async function forceExit(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ app: electronApp }) => electronApp.exit(0)).catch(() => {});
 }
 
+// Suppress the legacy-migration modal in all test runs — the flag is normally
+// persisted to disk after first dismiss, but e2e tests use a fresh userData
+// directory on each run so the modal would appear every time.
+const BASE_SETTINGS_OVERRIDE = JSON.stringify({ legacyMigrationChecked: true });
+
 /** Base fixture — no project loaded. Used for launch/startup tests. */
 /* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
 export const test = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
-    const app = await electron.launch({ args: [APP_ENTRY] });
+    const app = await electron.launch({
+      args: [APP_ENTRY],
+      env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: BASE_SETTINGS_OVERRIDE },
+    });
     await use(app);
     await forceExit(app);
   },
@@ -42,7 +50,7 @@ export const testWithProject = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
     const app = await electron.launch({
       args: [APP_ENTRY, '--project', FIXTURE_PROJECT],
-      env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ renpyPath: FAKE_RENPY_SDK }) },
+      env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ renpyPath: FAKE_RENPY_SDK, legacyMigrationChecked: true }) },
     });
     await use(app);
     await forceExit(app);
