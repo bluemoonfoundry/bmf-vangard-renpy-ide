@@ -62,6 +62,7 @@ import { useGameExecution } from '@/hooks/useGameExecution';
 import { useWarpLaunch } from '@/hooks/useWarpLaunch';
 import { useMenuCommandDispatch } from '@/hooks/useMenuCommandDispatch';
 import { useGoToLabel } from '@/hooks/useGoToLabel';
+import { useLegacyMigration } from '@/hooks/useLegacyMigration';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -787,31 +788,10 @@ const App: React.FC = () => {
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Legacy Ren'IDE migration ---
-  const [showLegacyMigrationModal, setShowLegacyMigrationModal] = useState(false);
-
-  useEffect(() => {
-    if (!appSettingsLoaded || !window.electronAPI?.checkLegacyMigration) return;
-    window.electronAPI.checkLegacyMigration()
-      .then(({ available }) => { if (available) setShowLegacyMigrationModal(true); })
-      .catch(err => logger.error('Legacy migration check failed:', err));
-  }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleLegacyMigrationImport = async () => {
-    setShowLegacyMigrationModal(false);
-    try {
-      const result = await window.electronAPI?.performLegacyMigration?.();
-      if (result?.success && result.settings) updateAppSettings(result.settings);
-    } catch (err) {
-      logger.error('Legacy migration failed:', err);
-    }
-  };
-
-  const handleLegacyMigrationSkip = async () => {
-    setShowLegacyMigrationModal(false);
-    window.electronAPI?.dismissLegacyMigration?.().catch(err =>
-      logger.error('Failed to dismiss legacy migration:', err)
-    );
-  };
+  const { showLegacyMigrationModal, handleLegacyMigrationImport, handleLegacyMigrationSkip } = useLegacyMigration({
+    appSettingsLoaded,
+    updateAppSettings,
+  });
 
   useEffect(() => {
     if (!appSettingsLoaded) return;
