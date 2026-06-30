@@ -1409,6 +1409,55 @@ app.whenReady().then(() => {
     }
   });
 
+  // --- Legacy Ren'IDE migration ---
+  // The app was previously distributed as "renide"; Electron stored userData under that name.
+  // On first launch of the renamed app, offer to import settings from the old directory.
+  function getLegacyUserDataPath() {
+    return path.join(app.getPath('appData'), 'renide');
+  }
+
+  ipcMain.handle('app:check-legacy-migration', async () => {
+    const current = await loadAppSettings();
+    if (current?.legacyMigrationChecked) return { available: false };
+    try {
+      await fs.access(getLegacyUserDataPath());
+      return { available: true };
+    } catch {
+      // Mark as checked so we never ask again even when no legacy dir exists
+      const merged = { ...(current || {}), legacyMigrationChecked: true };
+      await saveAppSettings(merged);
+      return { available: false };
+    }
+  });
+
+  ipcMain.handle('app:perform-legacy-migration', async () => {
+    const legacyDir = getLegacyUserDataPath();
+    const currentDir = app.getPath('userData');
+    const errors = [];
+
+    for (const file of ['app-settings.json', 'api-keys.enc']) {
+      try {
+        await fs.copyFile(path.join(legacyDir, file), path.join(currentDir, file));
+      } catch {
+        // api-keys.enc is optional; app-settings.json absence is also non-fatal
+        errors.push(file);
+      }
+    }
+
+    // Mark checked and return newly-imported settings
+    const imported = await loadAppSettings() || {};
+    imported.legacyMigrationChecked = true;
+    await saveAppSettings(imported);
+    await updateApplicationMenu();
+    return { success: true, settings: imported };
+  });
+
+  ipcMain.handle('app:dismiss-legacy-migration', async () => {
+    const current = await loadAppSettings() || {};
+    await saveAppSettings({ ...current, legacyMigrationChecked: true });
+    return { success: true };
+  });
+
   ipcMain.handle('app:get-settings', async () => {
     return await loadAppSettings();
   });

@@ -20,6 +20,7 @@ import Sash from '@/components/Sash';
 import StatusBar from '@/components/StatusBar';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import AboutModal from '@/components/AboutModal';
+import LegacyMigrationModal from '@/components/LegacyMigrationModal';
 import UserSnippetModal from '@/components/UserSnippetModal';
 import NewProjectWizardModal from '@/components/NewProjectWizardModal';
 import { MenuConstructorModal } from '@/components/MenuConstructorModal';
@@ -749,6 +750,33 @@ const App: React.FC = () => {
       if (projectPath) loadProject(projectPath);
     }).catch(err => logger.error('Failed to read startup args:', err));
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Legacy Ren'IDE migration ---
+  const [showLegacyMigrationModal, setShowLegacyMigrationModal] = useState(false);
+
+  useEffect(() => {
+    if (!appSettingsLoaded || !window.electronAPI?.checkLegacyMigration) return;
+    window.electronAPI.checkLegacyMigration()
+      .then(({ available }) => { if (available) setShowLegacyMigrationModal(true); })
+      .catch(err => logger.error('Legacy migration check failed:', err));
+  }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLegacyMigrationImport = async () => {
+    setShowLegacyMigrationModal(false);
+    try {
+      const result = await window.electronAPI?.performLegacyMigration?.();
+      if (result?.success && result.settings) updateAppSettings(result.settings);
+    } catch (err) {
+      logger.error('Legacy migration failed:', err);
+    }
+  };
+
+  const handleLegacyMigrationSkip = async () => {
+    setShowLegacyMigrationModal(false);
+    window.electronAPI?.dismissLegacyMigration?.().catch(err =>
+      logger.error('Failed to dismiss legacy migration:', err)
+    );
+  };
 
   useEffect(() => {
     if (!appSettingsLoaded) return;
@@ -2434,6 +2462,11 @@ const App: React.FC = () => {
       <AboutModal
         isOpen={aboutModalOpen}
         onClose={() => closeAboutModal()}
+      />
+      <LegacyMigrationModal
+        isOpen={showLegacyMigrationModal}
+        onImport={handleLegacyMigrationImport}
+        onSkip={handleLegacyMigrationSkip}
       />
       <GoToLabelModal
         isOpen={isGoToLabelOpen}
