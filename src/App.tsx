@@ -55,6 +55,14 @@ import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
+import { useLoadingState } from '@/hooks/useLoadingState';
+import { useDirtyState } from '@/hooks/useDirtyState';
+import { useExternalFileChanges } from '@/hooks/useExternalFileChanges';
+import { useGameExecution } from '@/hooks/useGameExecution';
+import { useWarpLaunch } from '@/hooks/useWarpLaunch';
+import { useMenuCommandDispatch } from '@/hooks/useMenuCommandDispatch';
+import { useGoToLabel } from '@/hooks/useGoToLabel';
+import { useLegacyMigration } from '@/hooks/useLegacyMigration';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -238,15 +246,13 @@ const App: React.FC = () => {
   const [ignoredDiagnostics, setIgnoredDiagnostics] = useImmer<IgnoredDiagnosticRule[]>([]);
   const [dismissedImplicitVarHint, setDismissedImplicitVarHint] = useState(false);
 
-  const [dirtyBlockIds, setDirtyBlockIds] = useState<Set<string>>(new Set());
-  const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set()); // Blocks modified in editor but not synced to block state yet
-  // Refs mirroring dirty state for callbacks that need current values without re-creating on every change.
-  const dirtyBlockIdsRef = useRef(dirtyBlockIds);
-  const dirtyEditorsRef = useRef(dirtyEditors);
-  useEffect(() => { dirtyBlockIdsRef.current = dirtyBlockIds; }, [dirtyBlockIds]);
-  useEffect(() => { dirtyEditorsRef.current = dirtyEditors; }, [dirtyEditors]);
-  const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false); // Track project setting changes like sticky notes
-  const [saveStatus, setSaveStatus] = useState<'saving' | 'saved' | 'error'>('saved');
+  const {
+    dirtyBlockIds, setDirtyBlockIds,
+    dirtyEditors, setDirtyEditors,
+    dirtyBlockIdsRef, dirtyEditorsRef,
+    hasUnsavedSettings, setHasUnsavedSettings,
+    saveStatus, setSaveStatus,
+  } = useDirtyState();
 
   // Composition state (Scene/ImageMap/ScreenLayout composers)
   const {
@@ -326,20 +332,8 @@ const App: React.FC = () => {
     closeMenuConstructorModal,
   } = useModalState();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitialAnalysisPending, setIsInitialAnalysisPending] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const loadCancelRef = useRef(false);
   const [nonRenpyWarningPath, setNonRenpyWarningPath] = useState<string | null>(null);
-  const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
-  // Tracks files where the user chose "Keep current" after a disk change, so we can warn before overwriting.
-  const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
   
-  // --- State: Game Execution ---
-  const [isGameRunning, setIsGameRunning] = useState(false);
-  const [screenshotCount, setScreenshotCount] = useState(0);
-
   // --- State: Application and Project Settings ---
   const {
     appSettings,
@@ -391,12 +385,8 @@ const App: React.FC = () => {
   });
 
   // --- State: Misc ---
-  const [pendingWarpLabelName, setPendingWarpLabelName] = useState<string | null>(null);
-  const [pendingWarpTarget, setPendingWarpTarget] = useState<string | null>(null);
-  const [pendingWarpVariableDrafts, setPendingWarpVariableDrafts] = useState<WarpVariableDraft[]>([]);
   const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
   const [editorCursorBlockId, setEditorCursorBlockId] = useState<string | null>(null);
-  const warpTempFilePathRef = useRef<string | null>(null);
 
   // --- State: Flow Canvas (label-level flow graph) ---
   const [routeNodeLayoutCache, setRouteNodeLayoutCache] = useState<Map<string, Position>>(new Map());
@@ -469,26 +459,33 @@ const App: React.FC = () => {
   const isAnalysisPending = blocks !== debouncedBlocks || isWorkerPending;
   const diagnosticsResult = useDiagnostics(debouncedBlocks, analysisResult, images, imageMetadata, audios, audioMetadata, ignoredDiagnostics);
 
-  // Ref that latches to true once the analysis worker starts (isWorkerPending goes true)
-  // after a project load. Prevents the overlay from closing during the one-render gap
-  // between debouncedBlocks updating (which makes isAnalysisPending briefly false) and
-  // the useRenpyAnalysis effect actually posting to the worker.
-  const analysisWorkerHasStartedRef = useRef(false);
+  const {
+    isLoading, setIsLoading,
+    isInitialAnalysisPending, setIsInitialAnalysisPending,
+    loadingMessage, setLoadingMessage,
+    loadingProgress, setLoadingProgress,
+    loadCancelRef,
+    handleCancelLoad,
+  } = useLoadingState({ isWorkerPending, addToast });
 
-  useEffect(() => {
-    if (!isInitialAnalysisPending) {
-      // Reset the latch so the next project load works correctly.
-      analysisWorkerHasStartedRef.current = false;
-      return;
-    }
-    if (isWorkerPending) {
-      // Worker has started — latch on.
-      analysisWorkerHasStartedRef.current = true;
-    } else if (analysisWorkerHasStartedRef.current) {
-      // Worker was running and is now done — safe to close the overlay.
-      setIsInitialAnalysisPending(false);
-    }
-  }, [isWorkerPending, isInitialAnalysisPending]);
+  const {
+    pendingWarpLabelName,
+    pendingWarpTarget,
+    pendingWarpVariableDrafts,
+    cleanupWarpTempFile,
+    resetWarpLaunchState,
+    handleConfirmWarpVariables,
+    handleWarpToLabel,
+  } = useWarpLaunch({
+    projectRootPath,
+    renpyPath: appSettings.renpyPath,
+    blocks,
+    analysisResult,
+    addToast,
+    closeWarpVariablesModal,
+    closeWarpToLabelModal,
+    openWarpVariablesModal,
+  });
 
   // Memoized flat arrays — Map.values() iteration is O(n); without this every
   // renderTabContent call recreated 14,000-item arrays on each re-render.
@@ -525,6 +522,21 @@ const App: React.FC = () => {
   const pendingRouteLayoutRefreshRef = useRef<PendingRouteLayoutRefresh | null>(null);
   const pendingTagRenameRef = useRef<{ oldTag: string; newTag: string } | null>(null);
   const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
+
+  const {
+    externallyChangedFiles,
+    setExternallyChangedFiles,
+    filesWithDiskConflict,
+    setFilesWithDiskConflict,
+    handleKeepCurrentFile,
+  } = useExternalFileChanges({
+    projectRootPath,
+    blocksRef,
+    dirtyBlockIdsRef,
+    dirtyEditorsRef,
+    setBlocks,
+    editorInstances,
+  });
 
   // --- Utility Functions ---
   const _getCurrentContext = useCallback(() => {
@@ -776,31 +788,10 @@ const App: React.FC = () => {
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Legacy Ren'IDE migration ---
-  const [showLegacyMigrationModal, setShowLegacyMigrationModal] = useState(false);
-
-  useEffect(() => {
-    if (!appSettingsLoaded || !window.electronAPI?.checkLegacyMigration) return;
-    window.electronAPI.checkLegacyMigration()
-      .then(({ available }) => { if (available) setShowLegacyMigrationModal(true); })
-      .catch(err => logger.error('Legacy migration check failed:', err));
-  }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleLegacyMigrationImport = async () => {
-    setShowLegacyMigrationModal(false);
-    try {
-      const result = await window.electronAPI?.performLegacyMigration?.();
-      if (result?.success && result.settings) updateAppSettings(result.settings);
-    } catch (err) {
-      logger.error('Legacy migration failed:', err);
-    }
-  };
-
-  const handleLegacyMigrationSkip = async () => {
-    setShowLegacyMigrationModal(false);
-    window.electronAPI?.dismissLegacyMigration?.().catch(err =>
-      logger.error('Failed to dismiss legacy migration:', err)
-    );
-  };
+  const { showLegacyMigrationModal, handleLegacyMigrationImport, handleLegacyMigrationSkip } = useLegacyMigration({
+    appSettingsLoaded,
+    updateAppSettings,
+  });
 
   useEffect(() => {
     if (!appSettingsLoaded) return;
@@ -917,16 +908,6 @@ const App: React.FC = () => {
   });
 
 
-  const handleCancelLoad = useCallback(() => {
-      loadCancelRef.current = true;
-      window.electronAPI?.cancelProjectLoad?.();
-      // Close the overlay immediately — don't wait for the IPC to reject.
-      // The loadProject finally block will also call setIsLoading(false) harmlessly.
-      setIsLoading(false);
-      setLoadingMessage('');
-      setLoadingProgress(0);
-      addToast('Project loading cancelled.', 'info');
-  }, [addToast]);
 
   // Checks whether the selected folder looks like a Ren'Py project before loading.
   // If it doesn't (no game/ folder, no .rpy files), shows a confirmation warning first.
@@ -1049,12 +1030,6 @@ const App: React.FC = () => {
     await doSave();
   }, [projectRootPath, projectSettings.draftingMode, addToast, setBlocks, updateDraftingArtifacts, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
-
-  const handleKeepCurrentFile = useCallback((relativePath: string) => {
-      setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== relativePath));
-      setFilesWithDiskConflict(prev => { const next = new Set(prev); next.add(relativePath); return next; });
-  }, []);
-
 
   const handleGenerateTranslations = useCallback(async (language: string) => {
     if (!appSettings.renpyPath || !projectRootPath) return;
@@ -1217,119 +1192,29 @@ const App: React.FC = () => {
   const activeCanvasTabId = activeTabId === 'canvas' || activeTabId === 'route-canvas' || activeTabId === 'choice-canvas'
     ? activeTabId : null;
 
-  const goToLabelItems = useMemo<GoToLabelItem[]>(() => {
-    if (activeCanvasTabId === 'canvas') {
-      return analysisResult.labelNodes.map(n => ({ label: n.label, id: n.blockId }));
-    }
-    if (activeCanvasTabId === 'route-canvas' || activeCanvasTabId === 'choice-canvas') {
-      return routeAnalysisResult.labelNodes.map(n => ({ label: n.label, id: n.id }));
-    }
-    return [];
-  }, [activeCanvasTabId, analysisResult.labelNodes, routeAnalysisResult.labelNodes]);
+  const { goToLabelItems, goToLabelCanvasName, warpLabelItems, handleGoToLabel } = useGoToLabel({
+    activeCanvasTabId,
+    analysisResult,
+    routeAnalysisResult,
+    closeGoToLabelModal,
+    setCenterOnBlockRequest,
+    setCenterOnRouteNodeRequest,
+    setCenterOnChoiceNodeRequest,
+  });
 
-  const goToLabelCanvasName = activeCanvasTabId === 'canvas' ? 'Story'
-    : activeCanvasTabId === 'route-canvas' ? 'Route'
-    : activeCanvasTabId === 'choice-canvas' ? 'Choice'
-    : '';
-
-  const warpLabelItems = useMemo<GoToLabelItem[]>(() => {
-    return Object.values(analysisResult.labels)
-      .slice()
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .map(loc => ({ label: loc.label, id: loc.label }));
-  }, [analysisResult.labels]);
-
-  const handleGoToLabel = useCallback((id: string) => {
-    closeGoToLabelModal();
-    if (activeCanvasTabId === 'canvas') {
-      setCenterOnBlockRequest({ blockId: id, key: Date.now() });
-    } else if (activeCanvasTabId === 'route-canvas') {
-      setCenterOnRouteNodeRequest({ nodeId: id, key: Date.now() });
-    } else if (activeCanvasTabId === 'choice-canvas') {
-      setCenterOnChoiceNodeRequest({ nodeId: id, key: Date.now() });
-    }
-  }, [activeCanvasTabId, closeGoToLabelModal, setCenterOnBlockRequest, setCenterOnChoiceNodeRequest, setCenterOnRouteNodeRequest]);
-
-  const handleRunGame = useCallback(() => {
-    if (!window.electronAPI || !projectRootPath) return;
-    window.electronAPI.runGame(appSettings.renpyPath, projectRootPath);
-  }, [appSettings.renpyPath, projectRootPath]);
-
-  const cleanupWarpTempFile = useCallback(async () => {
-    if (!window.electronAPI || !projectRootPath) return;
-
-    const tempPath = warpTempFilePathRef.current
-      ?? await window.electronAPI.path.join(projectRootPath, 'game', '_ide_after_warp.rpy');
-
-    try {
-      if (await window.electronAPI.fileExists(tempPath)) {
-        await window.electronAPI.removeEntry(tempPath);
-      }
-    } catch (error) {
-      logger.error('Failed to clean up temporary warp file:', error);
-    } finally {
-      if (warpTempFilePathRef.current === tempPath) {
-        warpTempFilePathRef.current = null;
-      }
-    }
-  }, [projectRootPath]);
-
-  const resetWarpLaunchState = useCallback(() => {
-    closeWarpVariablesModal();
-    setPendingWarpLabelName(null);
-    setPendingWarpTarget(null);
-    setPendingWarpVariableDrafts([]);
-  }, [closeWarpVariablesModal]);
-
-  const handleConfirmWarpVariables = useCallback(async (variableDrafts: WarpVariableDraft[]) => {
-    if (!window.electronAPI || !projectRootPath || !pendingWarpTarget) return;
-
-    const tempPath = await window.electronAPI.path.join(projectRootPath, 'game', '_ide_after_warp.rpy');
-    const needsTempFile = variableDrafts.length > 0 || !hasAfterWarpLabel(analysisResult.labels);
-
-    try {
-      if (needsTempFile) {
-        const script = buildAfterWarpScript(variableDrafts, !hasAfterWarpLabel(analysisResult.labels));
-        await cleanupWarpTempFile();
-
-        const writeResult = await window.electronAPI.writeFile(tempPath, script, 'utf-8');
-        if (!writeResult.success) {
-          throw new Error(writeResult.error || 'Failed to write temporary warp file.');
-        }
-
-        warpTempFilePathRef.current = tempPath;
-      } else {
-        await cleanupWarpTempFile();
-      }
-
-      const warpTarget = pendingWarpTarget;
-      resetWarpLaunchState();
-      window.electronAPI.runGame(appSettings.renpyPath, projectRootPath, warpTarget);
-    } catch (error) {
-      logger.error('Failed to launch warped game:', error);
-      addToast(`Failed to launch warp: ${formatErrorMessage(error)}`, 'error');
-    }
-  }, [analysisResult.labels, addToast, appSettings.renpyPath, cleanupWarpTempFile, pendingWarpTarget, projectRootPath, resetWarpLaunchState]);
-
-  const handleWarpToLabel = useCallback((labelName: string) => {
-    if (!window.electronAPI || !projectRootPath) return;
-
-    const warpTarget = resolveWarpTarget(blocks, analysisResult.labels, labelName);
-    closeWarpToLabelModal();
-
-    if (!warpTarget) {
-      addToast(`Could not resolve warp target for "${labelName}"`, 'warning');
-      return;
-    }
-
-    setPendingWarpLabelName(labelName);
-    setPendingWarpTarget(warpTarget);
-    setPendingWarpVariableDrafts(getWarpVariableDrafts(
-      analysisResult.variables,
-      analysisResult.translationData.translatableStrings,
-    ));
-    openWarpVariablesModal();
-  }, [analysisResult.labels, analysisResult.translationData.translatableStrings, analysisResult.variables, addToast, blocks, projectRootPath, closeWarpToLabelModal, openWarpVariablesModal]);
+  const {
+    isGameRunning,
+    screenshotCount,
+    handleRunGame,
+    handleOpenScreenshotsFolder,
+    handleClearScreenshots,
+    handleCopyLatestScreenshotPath,
+  } = useGameExecution({
+    projectRootPath,
+    renpyPath: appSettings.renpyPath,
+    addToast,
+    cleanupWarpTempFile,
+  });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1436,39 +1321,6 @@ const App: React.FC = () => {
     }
   }, [appSettings.isLeftSidebarOpen, updateAppSettings]);
 
-  // --- Screenshot Handlers ---
-  const refreshScreenshotCount = useCallback(async () => {
-    if (!window.electronAPI?.getScreenshotCount) return;
-    const count = await window.electronAPI.getScreenshotCount();
-    setScreenshotCount(count);
-  }, []);
-
-  // Note: Screenshot capture is now handled entirely in main process via global shortcut.
-
-  const handleOpenScreenshotsFolder = useCallback(async () => {
-    if (!window.electronAPI?.openScreenshotsFolder) return;
-    await window.electronAPI.openScreenshotsFolder();
-  }, []);
-
-  const handleClearScreenshots = useCallback(async () => {
-    if (!window.electronAPI?.clearScreenshots) return;
-    const result = await window.electronAPI.clearScreenshots();
-    if (result.success) {
-      addToast(`Cleared ${result.count} screenshot${result.count !== 1 ? 's' : ''}`, 'success');
-      await refreshScreenshotCount();
-      window.electronAPI.updateExplorerMenuState?.({ hasScreenshots: false });
-    }
-  }, [addToast, refreshScreenshotCount]);
-
-  const handleCopyLatestScreenshotPath = useCallback(async () => {
-    if (!window.electronAPI?.getLatestScreenshotPath) return;
-    const path = await window.electronAPI.getLatestScreenshotPath();
-    if (path) {
-      await navigator.clipboard.writeText(path);
-      addToast('Screenshot path copied to clipboard', 'success');
-    }
-  }, [addToast]);
-
   const {
       handleCreateNode, handleRenameNode, handleDeleteNode, handleMoveNode,
       handleCut, handleCopy, handlePaste,
@@ -1551,10 +1403,10 @@ const App: React.FC = () => {
           forceMoveMarkers: true,
       }]);
       editor.focus();
-  }, [getActiveColorPickerEditor, addToast]);
+  }, [getActiveEditor, addToast]);
 
   const handleWrapSelectionWithColor = useCallback((hex: string) => {
-      const editor = getActiveColorPickerEditor();
+      const editor = getActiveEditor();
       if (!editor) { addToast('Open a file in the editor to wrap text with a color tag.', 'warning'); return; }
       const selection = editor.getSelection();
       if (!selection || selection.isEmpty()) {
@@ -1568,7 +1420,7 @@ const App: React.FC = () => {
           forceMoveMarkers: true,
       }]);
       editor.focus();
-  }, [getActiveColorPickerEditor, addToast]);
+  }, [getActiveEditor, addToast]);
 
   const handleCopyColorHex = useCallback((hex: string) => {
       navigator.clipboard.writeText(hex)
@@ -1606,137 +1458,31 @@ const App: React.FC = () => {
   }, [explorerSelectedPaths, fileSystemTree]);
 
   // --- Menu Command Handling ---
-  useEffect(() => {
-        if (!window.electronAPI) return;
-        const removeListener = window.electronAPI.onMenuCommand((data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist', path?: string }) => {
-            if (data.command === 'new-project') handleNewProjectRequest();
-            if (data.command === 'open-project') handleOpenProjectFolder();
-            if (data.command === 'open-recent' && data.path) handleOpenWithRenpyCheck(data.path);
-            if (data.command === 'save-all') handleSaveAll();
-            if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
-            if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview');
-            if (data.command === 'toggle-search') handleToggleSearch();
-            if (data.command === 'open-settings') openSettingsModal();
-            if (data.command === 'open-shortcuts') openShortcutsModal();
-            if (data.command === 'open-about') openAboutModal();
-            if (data.command === 'show-tutorial') openTutorial();
-            if (data.command === 'toggle-left-sidebar') updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; });
-            if (data.command === 'toggle-right-sidebar') updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; });
-            if (data.command === 'explorer-new-file') setExplorerExternalAction({ type: 'new-file', key: Date.now() });
-            if (data.command === 'explorer-new-folder') setExplorerExternalAction({ type: 'new-folder', key: Date.now() });
-            if (data.command === 'explorer-rename') setExplorerExternalAction({ type: 'rename', key: Date.now() });
-            if (data.command === 'explorer-delete') handleDeleteNode(Array.from(explorerSelectedPaths));
-            if (data.command === 'explorer-refresh') handleRefreshProject();
-            // Note: 'capture-screenshot' command removed - screenshots are now captured
-            // entirely in main process via global shortcut for reliability during crashes
-            if (data.command === 'open-screenshots-folder') handleOpenScreenshotsFolder();
-            if (data.command === 'close-tab') {
-                // Close the currently active tab
-                const currentPaneId = activePaneId;
-                const currentTabId = currentPaneId === 'primary' ? activeTabId : secondaryActiveTabId;
-                if (currentTabId) {
-                    handleCloseTab(currentTabId, currentPaneId);
-                }
-            }
-        });
-        return removeListener;
-  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths, handleRefreshProject, handleOpenScreenshotsFolder, handleCloseTab, activePaneId, activeTabId, secondaryActiveTabId, openAboutModal, openSettingsModal, openShortcutsModal, openTutorial, setExplorerExternalAction]);
-
-  // --- Screenshot Count ---
-  useEffect(() => {
-    if (projectRootPath) {
-      void refreshScreenshotCount();
-    }
-  }, [projectRootPath, refreshScreenshotCount]);
-
-  // Listen for screenshot capture events from main process
-  useEffect(() => {
-    if (!window.electronAPI?.onScreenshotCaptured) return;
-    const removeListener = window.electronAPI.onScreenshotCaptured((data: { filename: string; filepath: string }) => {
-      // Show in-app toast (only works if renderer is alive)
-      addToast(`Screenshot saved: ${data.filename}`, 'success');
-      // Refresh count
-      void refreshScreenshotCount();
-    });
-    return removeListener;
-  }, [addToast, refreshScreenshotCount]);
-
-  // Update menu state when screenshot count changes
-  useEffect(() => {
-    if (window.electronAPI?.updateExplorerMenuState) {
-      window.electronAPI.updateExplorerMenuState({ hasScreenshots: screenshotCount > 0 });
-    }
-  }, [screenshotCount]);
-
-  // --- Game Running State ---
-  useEffect(() => {
-      if (!window.electronAPI) return;
-      const removeStarted = window.electronAPI.onGameStarted(() => setIsGameRunning(true));
-      const removeStopped = window.electronAPI.onGameStopped(() => {
-        setIsGameRunning(false);
-        void cleanupWarpTempFile();
-      });
-      const removeError = window.electronAPI.onGameError(() => {
-        setIsGameRunning(false);
-        void cleanupWarpTempFile();
-      });
-      return () => { removeStarted(); removeStopped(); removeError(); };
-  }, [cleanupWarpTempFile]);
-
-  // --- Auto-update notifications ---
-  useEffect(() => {
-      if (!window.electronAPI?.onUpdateAvailable) return;
-      const removeAvailable = window.electronAPI.onUpdateAvailable((version: string) => {
-          addToast(`Update v${version} is downloading in the background.`, 'info');
-      });
-      const removeNotAvailable = window.electronAPI.onUpdateNotAvailable?.(() => {
-          addToast("Vangard Studio is up to date.", 'info');
-      });
-      const removeError = window.electronAPI.onUpdateError?.(() => {
-          addToast('Could not check for updates. Check your connection and try again.', 'error');
-      });
-      const removeDownloaded = window.electronAPI.onUpdateDownloaded((version: string) => {
-          addToast(`Update v${version} ready — restart Vangard Studio to install.`, 'success');
-      });
-      return () => {
-          removeAvailable();
-          removeNotAvailable?.();
-          removeError?.();
-          removeDownloaded();
-      };
-  }, [addToast]);
-
-  // --- External File Change Detection ---
-  useEffect(() => {
-      if (!window.electronAPI?.onFileChangedExternally || !projectRootPath) return;
-      const unsub = window.electronAPI.onFileChangedExternally((data) => {
-          const block = blocksRef.current.find(b => b.filePath === data.relativePath);
-          if (!block) return;
-
-          const isDirty = dirtyBlockIdsRef.current.has(block.id) || dirtyEditorsRef.current.has(block.id);
-          if (!isDirty) {
-              // Not dirty — silently reload from disk
-              window.electronAPI!.readFile(data.absolutePath).then((content: string) => {
-                  setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, content } : b));
-                  const editor = editorInstances.current.get(block.id);
-                  if (editor) {
-                      const model = editor.getModel();
-                      if (model && model.getValue() !== content) {
-                          model.setValue(content);
-                      }
-                  }
-              }).catch(err => logger.error('Failed to reload externally changed file', err));
-          } else {
-              // Has unsaved edits — queue for user decision
-              setExternallyChangedFiles(prev =>
-                  prev.some(f => f.relativePath === data.relativePath) ? prev : [...prev, data]
-              );
-          }
-      });
-      return unsub;
-   
-  }, [projectRootPath, setBlocks]);
+  useMenuCommandDispatch({
+    onNewProject: handleNewProjectRequest,
+    onOpenProject: handleOpenProjectFolder,
+    onOpenRecent: handleOpenWithRenpyCheck,
+    onSaveAll: handleSaveAll,
+    onRunProject: () => { if (projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath); },
+    onOpenStaticTab: (type) => handleOpenStaticTab(type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview'),
+    onToggleSearch: handleToggleSearch,
+    onOpenSettings: openSettingsModal,
+    onOpenShortcuts: openShortcutsModal,
+    onOpenAbout: openAboutModal,
+    onShowTutorial: openTutorial,
+    onToggleLeftSidebar: () => updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; }),
+    onToggleRightSidebar: () => updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; }),
+    onExplorerNewFile: () => setExplorerExternalAction({ type: 'new-file', key: Date.now() }),
+    onExplorerNewFolder: () => setExplorerExternalAction({ type: 'new-folder', key: Date.now() }),
+    onExplorerRename: () => setExplorerExternalAction({ type: 'rename', key: Date.now() }),
+    onExplorerDelete: () => handleDeleteNode(Array.from(explorerSelectedPaths)),
+    onExplorerRefresh: handleRefreshProject,
+    onOpenScreenshotsFolder: handleOpenScreenshotsFolder,
+    onCloseTab: () => {
+      const currentTabId = activePaneId === 'primary' ? activeTabId : secondaryActiveTabId;
+      if (currentTabId) handleCloseTab(currentTabId, activePaneId);
+    },
+  });
 
   // --- Exit Handling ---
   const hasUnsavedSettingsRef = useRef(hasUnsavedSettings);
