@@ -78,7 +78,7 @@ jobs:
           for f in release/*.exe release/*.dmg release/*.AppImage release/*.deb release/*.zip; do
             [ -f "$f" ] || continue
             ext="${f##*.}"
-            mv "$f" "final-artifacts/renide-nightly-${PLATFORM}.${ext}"
+            mv "$f" "final-artifacts/Vangard_Studio_Nightly_${PLATFORM}.${ext}"
           done
 
       - name: Upload artifacts
@@ -152,11 +152,11 @@ jobs:
             ## Platform downloads
             | Platform | Filename |
             |---|---|
-            | macOS (Apple Silicon) | `renide-nightly-macos-arm64.dmg` |
-            | macOS (Intel) | `renide-nightly-macos-intel.dmg` |
-            | Windows | `renide-nightly-win.exe` |
-            | Linux (Universal) | `renide-nightly-linux.AppImage` |
-            | Linux (Debian/Ubuntu) | `renide-nightly-linux.deb` |
+            | macOS (Apple Silicon) | `Vangard_Studio_Nightly_macos-arm64.dmg` |
+            | macOS (Intel) | `Vangard_Studio_Nightly_macos-intel.dmg` |
+            | Windows | `Vangard_Studio_Nightly_win.exe` |
+            | Linux (Universal) | `Vangard_Studio_Nightly_linux.AppImage` |
+            | Linux (Debian/Ubuntu) | `Vangard_Studio_Nightly_linux.deb` |
 
             **Checksums:** See `SHA256SUMS.txt` below.
           files: |

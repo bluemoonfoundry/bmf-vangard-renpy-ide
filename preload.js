@@ -81,6 +81,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppSettings: () => ipcRenderer.invoke('app:get-settings'),
   saveAppSettings: (settings) => ipcRenderer.invoke('app:save-settings', settings),
   getUserDataPath: () => ipcRenderer.invoke('app:getUserDataPath'),
+  // --- Legacy migration ---
+  checkLegacyMigration: () => ipcRenderer.invoke('app:check-legacy-migration'),
+  performLegacyMigration: () => ipcRenderer.invoke('app:perform-legacy-migration'),
+  dismissLegacyMigration: () => ipcRenderer.invoke('app:dismiss-legacy-migration'),
   // --- Path utils ---
   path: {
     join: (...args) => ipcRenderer.invoke('path:join', ...args),

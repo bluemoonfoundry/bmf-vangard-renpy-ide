@@ -133,7 +133,7 @@ const WarpVariablesModal: React.FC<WarpVariablesModalProps> = ({
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-gray-700 bg-gray-950/30 px-4 py-6 text-sm text-gray-400">
-                No default variables were found. RenIDE can still generate the temporary after_warp hook if needed.
+                No default variables were found. Vangard Studio can still generate the temporary after_warp hook if needed.
               </div>
             )}
 

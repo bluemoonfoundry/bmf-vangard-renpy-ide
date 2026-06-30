@@ -707,6 +707,7 @@ export interface AppSettings {
   userSnippets?: UserSnippet[];
   menuTemplates?: MenuTemplate[];
   lastProjectDir?: string;
+  legacyMigrationChecked?: boolean;
 }
 
 /**
@@ -1265,6 +1266,9 @@ declare global {
           getAppSettings: () => Promise<Partial<AppSettings> | null>;
           saveAppSettings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
           getUserDataPath: () => Promise<string>;
+          checkLegacyMigration: () => Promise<{ available: boolean }>;
+          performLegacyMigration: () => Promise<{ success: boolean; settings: Partial<AppSettings> }>;
+          dismissLegacyMigration: () => Promise<{ success: boolean }>;
           selectRenpy: () => Promise<string | null>;
           runGame: (renpyPath: string, projectPath: string, warpTarget?: string) => void;
           stopGame: () => void;
