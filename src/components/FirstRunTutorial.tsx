@@ -270,7 +270,7 @@ const FirstRunTutorial: React.FC<FirstRunTutorialProps> = ({ onComplete, forceSh
           <div className="p-8 flex flex-col items-center text-center">
             <div className="text-5xl mb-4">👋</div>
             <h2 id="tutorial-welcome-title" className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Welcome to Ren'IDE!
+              Welcome to Vangard Studio!
             </h2>
             <p className="text-gray-600 dark:text-gray-300 text-base leading-relaxed mb-2">
               Want a quick tour to get started?

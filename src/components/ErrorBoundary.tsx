@@ -32,7 +32,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    logger.error(`Ren'IDE: Unhandled render error\nComponent stack: ${info.componentStack}`, error);
+    logger.error(`Vangard Studio: Unhandled render error\nComponent stack: ${info.componentStack}`, error);
   }
 
   handleReload = () => {
@@ -55,7 +55,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           <div>
             <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
             <p className="text-gray-400 text-sm">
-              Ren'IDE encountered an unexpected error. Your project files are safe — reload to recover.
+              Vangard Studio encountered an unexpected error. Your project files are safe — reload to recover.
             </p>
           </div>
           {this.state.error && (
@@ -67,7 +67,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             onClick={this.handleReload}
             className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
           >
-            Reload Ren'IDE
+            Reload Vangard Studio
           </button>
         </div>
       </div>

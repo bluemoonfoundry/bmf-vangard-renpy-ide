@@ -121,9 +121,9 @@ const App: React.FC = () => {
   // Update window title based on project path
   useEffect(() => {
     if (projectRootPath) {
-      document.title = `Ren'IDE (${projectRootPath})`;
+      document.title = `Vangard Studio (${projectRootPath})`;
     } else {
-      document.title = "Ren'IDE";
+      document.title = "Vangard Studio";
     }
   }, [projectRootPath]);
 
@@ -1680,13 +1680,13 @@ const App: React.FC = () => {
           addToast(`Update v${version} is downloading in the background.`, 'info');
       });
       const removeNotAvailable = window.electronAPI.onUpdateNotAvailable?.(() => {
-          addToast("Ren'IDE is up to date.", 'info');
+          addToast("Vangard Studio is up to date.", 'info');
       });
       const removeError = window.electronAPI.onUpdateError?.(() => {
           addToast('Could not check for updates. Check your connection and try again.', 'error');
       });
       const removeDownloaded = window.electronAPI.onUpdateDownloaded((version: string) => {
-          addToast(`Update v${version} ready — restart Ren'IDE to install.`, 'success');
+          addToast(`Update v${version} ready — restart Vangard Studio to install.`, 'success');
       });
       return () => {
           removeAvailable();

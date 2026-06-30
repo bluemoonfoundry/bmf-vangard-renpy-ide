@@ -7,7 +7,7 @@
  * and all action callbacks directly from `App.tsx` state.
  */
 import React, { useMemo } from 'react';
-import logo from '../../renide-512x512.png';
+import logo from '../../vangard-512x512.png';
 import { useDualPane } from '@/contexts/DualPaneContext';
 type SaveStatus = 'saving' | 'saved' | 'error';
 
@@ -135,7 +135,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     <header className="flex-shrink-0 h-16 bg-header border-b border-primary relative flex items-center px-6 z-30">
 
       {/* ── Far left: logo ── */}
-      <img src={logo} alt="Ren'IDE Logo" className="h-12 w-auto shrink-0" />
+      <img src={logo} alt="Vangard Studio Logo" className="h-12 w-auto shrink-0" />
       <div className="h-6 w-px bg-primary shrink-0 ml-3" />
 
       {/* ── Absolutely centered: editing tools + canvas switcher ── */}
