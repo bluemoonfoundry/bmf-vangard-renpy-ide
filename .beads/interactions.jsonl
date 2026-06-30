@@ -46,3 +46,4 @@
 {"id":"int-ee308ecf","kind":"field_change","created_at":"2026-06-30T02:13:05.4684693Z","actor":"G.Hirpara","issue_id":"bmf-vangard-renpy-ide-31c","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-da59af9f","kind":"field_change","created_at":"2026-06-30T02:13:05.5320721Z","actor":"G.Hirpara","issue_id":"bmf-vangard-renpy-ide-rjz","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-b235b2c5","kind":"field_change","created_at":"2026-06-30T02:13:05.5949532Z","actor":"G.Hirpara","issue_id":"bmf-vangard-renpy-ide-0sg","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-3b94a3cd","kind":"field_change","created_at":"2026-06-30T02:15:21.2474974Z","actor":"G.Hirpara","issue_id":"bmf-vangard-renpy-ide-yiu","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
