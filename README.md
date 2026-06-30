@@ -4,11 +4,13 @@
 ![Version](https://img.shields.io/badge/version-0.9.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
-# Ren'IDE : The Ren'Py Visual Designer
+# Vangard Studio : The Ren'Py Visual Designer
 
 > **The IDE that lets you see your story.**
 
-Ren'IDE is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and a color picker are all built in.
+> _Formerly known as Ren'IDE._
+
+Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and a color picker are all built in.
 
 It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. No lock-in.
 
@@ -35,7 +37,7 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 
 ---
 
-## Why Ren'IDE?
+## Why Vangard Studio?
 
 Managing a Ren'Py project in a plain text editor means juggling dozens of `.rpy` files with no way to see the whole picture. You lose track of where jumps lead, which characters appear in which scenes, and whether your branching structure even makes sense.
 
@@ -140,9 +142,9 @@ Click any issue to jump directly to the source. Filter by severity (error / warn
 
 ### Warp to Label
 
-Jump straight into any point in your game without playing through from the start. Press `Ctrl+Shift+G` (or click the toolbar button) to open a label picker, select a target, and Ren'IDE launches the game at that label using Ren'Py's `--warp` flag.
+Jump straight into any point in your game without playing through from the start. Press `Ctrl+Shift+G` (or click the toolbar button) to open a label picker, select a target, and Vangard Studio launches the game at that label using Ren'Py's `--warp` flag.
 
-Before warping, a **Variable Overrides** modal lets you set values for any `default` variables and interpolated text variables (like `[mc_name]`) that the game would normally set during earlier scenes. Ren'IDE writes a temporary `_ide_after_warp.rpy` that applies these overrides in Ren'Py's `after_warp` hook, then removes the file automatically when the game stops. If your project already defines its own `label after_warp`, the IDE detects it and avoids creating a conflicting label.
+Before warping, a **Variable Overrides** modal lets you set values for any `default` variables and interpolated text variables (like `[mc_name]`) that the game would normally set during earlier scenes. Vangard Studio writes a temporary `_ide_after_warp.rpy` that applies these overrides in Ren'Py's `after_warp` hook, then removes the file automatically when the game stops. If your project already defines its own `label after_warp`, the IDE detects it and avoids creating a conflicting label.
 
 You can also warp from within the code editor — right-click a label line and choose **"Warp to here"** — or from any canvas node's context menu.
 
@@ -223,11 +225,11 @@ Go to the **[releases page](https://github.com/bluemoonfoundry/vangard-renpy-ide
 
 #### Windows
 
-**Download:** `renide-Setup-<version>.exe`
+**Download:** `Vangard_Studio_Windows_<version>.exe`
 
 1. Run the installer executable
 2. Follow the installation wizard
-3. Launch Ren'IDE from the Start Menu or desktop shortcut
+3. Launch Vangard Studio from the Start Menu or desktop shortcut
 
 **⚠️ Security Warning:** Windows SmartScreen will show "Windows protected your PC" because the application is not code-signed. This is expected behavior for open-source software.
 
@@ -239,26 +241,26 @@ The app is safe - Windows blocks it only because it doesn't have a commercial co
 
 #### macOS
 
-**Download:** `renide-<version>.dmg` (choose `macos-arm64` for Apple Silicon or `macos-intel` for Intel Macs)
+**Download:** `Vangard_Studio_macOS_<version>.dmg` (choose `macos-arm64` for Apple Silicon or `macos-intel` for Intel Macs)
 
 1. Open the `.dmg` file
-2. Drag **RenIDE.app** to your **Applications** folder
+2. Drag **Vangard Studio.app** to your **Applications** folder
 3. Launch from Applications
 
 **⚠️ Security Warning:** macOS Gatekeeper will block unsigned applications on first launch.
 
-**To run RenIDE:**
+**To run Vangard Studio:**
 
 **Method 1 (Recommended):**
-1. Right-click (or Control+click) **RenIDE.app** in Applications
+1. Right-click (or Control+click) **Vangard Studio.app** in Applications
 2. Select **"Open"** from the context menu
 3. Click **"Open"** in the security dialog that appears
 
 **Method 2 (System Settings):**
-1. Try to launch RenIDE normally (it will be blocked)
+1. Try to launch Vangard Studio normally (it will be blocked)
 2. Go to **System Settings → Privacy & Security**
 3. Scroll down to the **Security** section
-4. Click **"Open Anyway"** next to the RenIDE message
+4. Click **"Open Anyway"** next to the Vangard Studio message
 5. Click **"Open"** in the confirmation dialog
 
 After the first successful launch, macOS will remember your choice and allow the app to run normally.
@@ -269,15 +271,15 @@ After the first successful launch, macOS will remember your choice and allow the
 
 ##### Option 1: .deb Package (Recommended for Debian/Ubuntu)
 
-**Download:** `renide_<version>_amd64.deb`
+**Download:** `Vangard_Studio_Linux_<version>.deb`
 
 **Installation:**
 ```bash
 # Install the package
-sudo apt install ./renide_<version>_amd64.deb
+sudo apt install ./Vangard_Studio_Linux_<version>.deb
 
 # Launch from terminal
-renide
+vangard-studio
 
 # Or launch from your application menu
 ```
@@ -286,13 +288,13 @@ renide
 - ✅ No additional dependencies required
 - ✅ Integrates with system menus and file associations
 - ✅ Automatic updates via APT package manager
-- ✅ Cleaner uninstallation (`sudo apt remove renide`)
+- ✅ Cleaner uninstallation (`sudo apt remove vangard-studio`)
 
 **Best for:** Ubuntu, Debian, Linux Mint, Pop!_OS, elementary OS, and other Debian-based distributions
 
 ##### Option 2: AppImage (Universal - All Distros)
 
-**Download:** `renide-<version>.AppImage`
+**Download:** `Vangard_Studio_Linux_<version>.AppImage`
 
 **Method A: With FUSE (Traditional)**
 
@@ -314,8 +316,8 @@ sudo zypper install fuse
 
 Then run the AppImage:
 ```bash
-chmod +x renide-<version>.AppImage
-./renide-<version>.AppImage
+chmod +x Vangard_Studio_Linux_<version>.AppImage
+./Vangard_Studio_Linux_<version>.AppImage
 ```
 
 **Method B: Without FUSE (Extract Mode)**
@@ -323,8 +325,8 @@ chmod +x renide-<version>.AppImage
 If you don't want to install FUSE, use extract mode:
 
 ```bash
-chmod +x renide-<version>.AppImage
-./renide-<version>.AppImage --appimage-extract-and-run
+chmod +x Vangard_Studio_Linux_<version>.AppImage
+./Vangard_Studio_Linux_<version>.AppImage --appimage-extract-and-run
 ```
 
 This extracts the AppImage to a temporary directory each time it runs (slightly slower startup, but requires no system dependencies).
@@ -341,7 +343,7 @@ This extracts the AppImage to a temporary directory each time it runs (slightly 
 
 ### First Launch
 
-On first launch, Ren'IDE will prompt you to either:
+On first launch, Vangard Studio will prompt you to either:
 1. **Open an existing Ren'Py project folder**, or
 2. **Create a new project** using the 3-step wizard (name + location, resolution, theme + color)
 
@@ -415,4 +417,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Ren'IDE — v0.9.0*
+*Vangard Studio — v0.9.0*

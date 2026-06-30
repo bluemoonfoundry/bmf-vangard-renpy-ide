@@ -8,9 +8,9 @@
  * 3. Toast (critical errors) - User-facing notifications
  *
  * Log file locations:
- * - macOS: ~/Library/Logs/renide/main.log
- * - Windows: %USERPROFILE%\AppData\Roaming\renide\logs\main.log
- * - Linux: ~/.config/renide/logs/main.log
+ * - macOS: ~/Library/Logs/Vangard Studio/main.log
+ * - Windows: %APPDATA%\Vangard Studio\logs\main.log
+ * - Linux: ~/.config/vangard-studio/logs/main.log
  *
  * Usage:
  *   logger.error('Failed to save', err, { showToast: true });

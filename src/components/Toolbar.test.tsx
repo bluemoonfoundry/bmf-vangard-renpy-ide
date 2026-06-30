@@ -4,7 +4,7 @@ import Toolbar from './Toolbar';
 import { useDualPane } from '@/contexts/DualPaneContext';
 
 // Mock the logo import — jsdom can't handle image imports
-vi.mock('../renide-512x512.png', () => ({ default: 'logo.png' }));
+vi.mock('../vangard-512x512.png', () => ({ default: 'logo.png' }));
 
 vi.mock('@/contexts/DualPaneContext', () => ({
   useDualPane: vi.fn(() => ({

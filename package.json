@@ -1,5 +1,5 @@
 {
-  "name": "renide",
+  "name": "vangard-studio",
   "version": "0.9.0",
   "author": {
     "name": "Blue Moon Foundry Software",
@@ -85,9 +85,9 @@
     "vitest": "^4.0.18"
   },
   "build": {
-    "appId": "com.bluemoonfoundry.renide",
-    "productName": "RenIDE",
-    "executableName": "renide",
+    "appId": "com.bluemoonfoundry.vangard",
+    "productName": "Vangard Studio",
+    "executableName": "vangard-studio",
     "publish": {
       "provider": "github",
       "owner": "bluemoonfoundry",
@@ -97,7 +97,7 @@
       "dist/**/*",
       "electron.js",
       "preload.js",
-      "renide-512x512.png",
+      "vangard-512x512.png",
       "src/lib/**/*"
     ],
     "asarUnpack": [
@@ -108,28 +108,28 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "renide-512x512.png",
-      "artifactName": "${name}-Setup-${version}.${ext}"
+      "icon": "vangard-512x512.png",
+      "artifactName": "Vangard_Studio_Windows_${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "RenIDE"
+      "shortcutName": "Vangard Studio"
     },
     "mac": {
       "target": "dmg",
-      "icon": "renide-512x512.png",
-      "artifactName": "${name}-${version}.${ext}"
+      "icon": "vangard-512x512.png",
+      "artifactName": "Vangard_Studio_macOS_${version}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "icon": "renide-512x512.png",
-      "artifactName": "${name}-${version}.${ext}",
+      "icon": "vangard-512x512.png",
+      "artifactName": "Vangard_Studio_Linux_${version}.${ext}",
       "category": "Development"
     },
     "extraResources": [
