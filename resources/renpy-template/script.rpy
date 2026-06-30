@@ -1,3 +1,6 @@
+# Created with Vangard Studio — The Ren'Py Visual Designer
+# https://github.com/bluemoonfoundry/vangard-renpy-ide
+
 # The script of the game starts here.
 
 label start:
