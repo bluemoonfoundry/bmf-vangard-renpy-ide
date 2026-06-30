@@ -60,6 +60,7 @@ import { useDirtyState } from '@/hooks/useDirtyState';
 import { useExternalFileChanges } from '@/hooks/useExternalFileChanges';
 import { useGameExecution } from '@/hooks/useGameExecution';
 import { useWarpLaunch } from '@/hooks/useWarpLaunch';
+import { useMenuCommandDispatch } from '@/hooks/useMenuCommandDispatch';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -1499,42 +1500,31 @@ const App: React.FC = () => {
   }, [explorerSelectedPaths, fileSystemTree]);
 
   // --- Menu Command Handling ---
-  useEffect(() => {
-        if (!window.electronAPI) return;
-        const removeListener = window.electronAPI.onMenuCommand((data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist', path?: string }) => {
-            if (data.command === 'new-project') handleNewProjectRequest();
-            if (data.command === 'open-project') handleOpenProjectFolder();
-            if (data.command === 'open-recent' && data.path) handleOpenWithRenpyCheck(data.path);
-            if (data.command === 'save-all') handleSaveAll();
-            if (data.command === 'run-project' && projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath);
-            if (data.command === 'stop-project') window.electronAPI?.stopGame();
-            if (data.command === 'open-static-tab' && data.type) handleOpenStaticTab(data.type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview');
-            if (data.command === 'toggle-search') handleToggleSearch();
-            if (data.command === 'open-settings') openSettingsModal();
-            if (data.command === 'open-shortcuts') openShortcutsModal();
-            if (data.command === 'open-about') openAboutModal();
-            if (data.command === 'show-tutorial') openTutorial();
-            if (data.command === 'toggle-left-sidebar') updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; });
-            if (data.command === 'toggle-right-sidebar') updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; });
-            if (data.command === 'explorer-new-file') setExplorerExternalAction({ type: 'new-file', key: Date.now() });
-            if (data.command === 'explorer-new-folder') setExplorerExternalAction({ type: 'new-folder', key: Date.now() });
-            if (data.command === 'explorer-rename') setExplorerExternalAction({ type: 'rename', key: Date.now() });
-            if (data.command === 'explorer-delete') handleDeleteNode(Array.from(explorerSelectedPaths));
-            if (data.command === 'explorer-refresh') handleRefreshProject();
-            // Note: 'capture-screenshot' command removed - screenshots are now captured
-            // entirely in main process via global shortcut for reliability during crashes
-            if (data.command === 'open-screenshots-folder') handleOpenScreenshotsFolder();
-            if (data.command === 'close-tab') {
-                // Close the currently active tab
-                const currentPaneId = activePaneId;
-                const currentTabId = currentPaneId === 'primary' ? activeTabId : secondaryActiveTabId;
-                if (currentTabId) {
-                    handleCloseTab(currentTabId, currentPaneId);
-                }
-            }
-        });
-        return removeListener;
-  }, [handleNewProjectRequest, handleOpenProjectFolder, handleOpenWithRenpyCheck, loadProject, handleSaveAll, projectRootPath, appSettings.renpyPath, handleOpenStaticTab, handleToggleSearch, updateAppSettings, handleDeleteNode, explorerSelectedPaths, handleRefreshProject, handleOpenScreenshotsFolder, handleCloseTab, activePaneId, activeTabId, secondaryActiveTabId, openAboutModal, openSettingsModal, openShortcutsModal, openTutorial, setExplorerExternalAction]);
+  useMenuCommandDispatch({
+    onNewProject: handleNewProjectRequest,
+    onOpenProject: handleOpenProjectFolder,
+    onOpenRecent: handleOpenWithRenpyCheck,
+    onSaveAll: handleSaveAll,
+    onRunProject: () => { if (projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath); },
+    onOpenStaticTab: (type) => handleOpenStaticTab(type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview'),
+    onToggleSearch: handleToggleSearch,
+    onOpenSettings: openSettingsModal,
+    onOpenShortcuts: openShortcutsModal,
+    onOpenAbout: openAboutModal,
+    onShowTutorial: openTutorial,
+    onToggleLeftSidebar: () => updateAppSettings(draft => { draft.isLeftSidebarOpen = !draft.isLeftSidebarOpen; }),
+    onToggleRightSidebar: () => updateAppSettings(draft => { draft.isRightSidebarOpen = !draft.isRightSidebarOpen; }),
+    onExplorerNewFile: () => setExplorerExternalAction({ type: 'new-file', key: Date.now() }),
+    onExplorerNewFolder: () => setExplorerExternalAction({ type: 'new-folder', key: Date.now() }),
+    onExplorerRename: () => setExplorerExternalAction({ type: 'rename', key: Date.now() }),
+    onExplorerDelete: () => handleDeleteNode(Array.from(explorerSelectedPaths)),
+    onExplorerRefresh: handleRefreshProject,
+    onOpenScreenshotsFolder: handleOpenScreenshotsFolder,
+    onCloseTab: () => {
+      const currentTabId = activePaneId === 'primary' ? activeTabId : secondaryActiveTabId;
+      if (currentTabId) handleCloseTab(currentTabId, activePaneId);
+    },
+  });
 
   // --- Exit Handling ---
   const hasUnsavedSettingsRef = useRef(hasUnsavedSettings);
