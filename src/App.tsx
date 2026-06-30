@@ -1403,10 +1403,10 @@ const App: React.FC = () => {
           forceMoveMarkers: true,
       }]);
       editor.focus();
-  }, [getActiveColorPickerEditor, addToast]);
+  }, [getActiveEditor, addToast]);
 
   const handleWrapSelectionWithColor = useCallback((hex: string) => {
-      const editor = getActiveColorPickerEditor();
+      const editor = getActiveEditor();
       if (!editor) { addToast('Open a file in the editor to wrap text with a color tag.', 'warning'); return; }
       const selection = editor.getSelection();
       if (!selection || selection.isEmpty()) {
@@ -1420,7 +1420,7 @@ const App: React.FC = () => {
           forceMoveMarkers: true,
       }]);
       editor.focus();
-  }, [getActiveColorPickerEditor, addToast]);
+  }, [getActiveEditor, addToast]);
 
   const handleCopyColorHex = useCallback((hex: string) => {
       navigator.clipboard.writeText(hex)
