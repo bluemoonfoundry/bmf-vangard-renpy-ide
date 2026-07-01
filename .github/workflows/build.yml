@@ -65,10 +65,82 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Build the React application and package with Electron Builder
       - name: Build and Package
         run: npm run dist
         env:
-          # Required if you have configured GitHub releases in package.json
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ── Windows installer smoke test ────────────────────────────────────────
+      - name: Install and smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*.exe | Select-Object -First 1
+          if (-not $installer) { Write-Error "No .exe installer found in release/"; exit 1 }
+          Write-Host "Running installer: $($installer.FullName)"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+
+          # Locate the installed executable (silent NSIS installs to %LOCALAPPDATA%\Programs\{productName})
+          $exe = "$env:LOCALAPPDATA\Programs\Vangard Studio\vangard-studio.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "Installed executable not found at: $exe"
+            exit 1
+          }
+          Write-Host "Found installed app: $exe"
+
+          # Launch and verify it stays alive for 10 seconds
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($proc.HasExited) {
+            Write-Error "App exited unexpectedly (exit code $($proc.ExitCode))"
+            exit 1
+          }
+          Write-Host "App is running (PID $($proc.Id)) — smoke test passed"
+          $proc.Kill()
+
+      # ── macOS installer smoke test ──────────────────────────────────────────
+      - name: Install and smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          DMG=$(ls release/*.dmg 2>/dev/null | head -1)
+          if [ -z "$DMG" ]; then echo "No .dmg found in release/"; exit 1; fi
+          echo "Mounting: $DMG"
+          hdiutil attach "$DMG" -nobrowse -quiet
+
+          # Copy app bundle to /Applications
+          cp -r "/Volumes/Vangard Studio/Vangard Studio.app" /Applications/
+          hdiutil detach "/Volumes/Vangard Studio" -quiet
+
+          # Remove quarantine flag so Gatekeeper does not block the unsigned CI build
+          xattr -cr "/Applications/Vangard Studio.app"
+
+          # Launch and verify it stays alive for 10 seconds
+          open -a "Vangard Studio"
+          sleep 10
+          if ! pgrep -x "vangard-studio" > /dev/null; then
+            echo "App process not found — smoke test failed"
+            exit 1
+          fi
+          echo "App is running — smoke test passed"
+          pkill -x "vangard-studio" || true
+
+      # ── Linux installer smoke test ──────────────────────────────────────────
+      - name: Install and smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          APPIMAGE=$(ls release/*.AppImage 2>/dev/null | head -1)
+          if [ -z "$APPIMAGE" ]; then echo "No .AppImage found in release/"; exit 1; fi
+          echo "Testing: $APPIMAGE"
+          chmod +x "$APPIMAGE"
+
+          # Launch with a virtual display; --no-sandbox required in rootless CI containers
+          xvfb-run --auto-servernum "$APPIMAGE" --no-sandbox &
+          APP_PID=$!
+          sleep 10
+
+          if ! kill -0 "$APP_PID" 2>/dev/null; then
+            echo "App exited unexpectedly — smoke test failed"
+            exit 1
+          fi
+          echo "App is running (PID $APP_PID) — smoke test passed"
+          kill "$APP_PID" || true
