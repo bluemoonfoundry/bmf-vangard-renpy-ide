@@ -1464,6 +1464,13 @@ app.whenReady().then(() => {
   });
   
   ipcMain.handle('app:save-settings', async (event, settings) => {
+      // Preserve legacyMigrationChecked if already set on disk — the renderer's
+      // first save races with checkLegacyMigration on fresh installs and would
+      // otherwise overwrite the flag before the renderer has loaded it.
+      if (!settings.legacyMigrationChecked) {
+          const current = await loadAppSettings();
+          if (current?.legacyMigrationChecked) settings = { ...settings, legacyMigrationChecked: true };
+      }
       const result = await saveAppSettings(settings);
       if (result.success) {
           await updateApplicationMenu();
