@@ -104,6 +104,8 @@ export default defineConfig(({ mode }) => {
         include: ['src/**'],
         exclude: ['**/*.test.{ts,tsx}', 'src/test/**'],
         thresholds: {
+          // Global floor — prevents silent coverage regression across new files
+          statements: 20,
           // Per-file minimums for risky modules
           'src/lib/ipcSecurity.js': { statements: 90 },
           'src/components/MarkdownPreviewView.tsx': { statements: 70 },

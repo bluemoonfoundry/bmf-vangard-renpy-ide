@@ -200,6 +200,29 @@ describe('deserializeProjectData', () => {
     expect(snap.pendingStoryLayoutRefresh.savedWasUserAdjusted).toBe(true);
   });
 
+  it('preserves completedMilestones from saved settings', () => {
+    const data = makeResult({
+      settings: {
+        openTabs: [],
+        activeTabId: 'canvas',
+        draftingMode: false,
+        completedMilestones: ['first-block', 'scenes-10'],
+      } as ProjectLoadResult['settings'],
+    });
+    const snap = deserializeProjectData(data, []);
+    expect(snap.canvasSettings.completedMilestones).toEqual(['first-block', 'scenes-10']);
+  });
+
+  it('defaults completedMilestones to empty array when absent from settings', () => {
+    const snap = deserializeProjectData(makeResult(), []);
+    expect(snap.canvasSettings.completedMilestones).toEqual([]);
+  });
+
+  it('defaults completedMilestones to empty array when settings is null', () => {
+    const snap = deserializeProjectData(makeResult({ settings: null }), []);
+    expect(snap.canvasSettings.completedMilestones).toEqual([]);
+  });
+
   it('returns empty scan paths when settings has no scanned directories', () => {
     const snap = deserializeProjectData(makeResult(), []);
     expect(snap.imageScanPaths).toEqual([]);
