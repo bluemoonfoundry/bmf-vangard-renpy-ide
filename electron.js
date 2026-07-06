@@ -2,16 +2,16 @@
 // Must inject flags into process.argv BEFORE importing electron
 const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
 if (isAppImage) {
-    console.log('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
+    logger.info('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
     if (!process.argv.includes('--no-sandbox')) {
         process.argv.push('--no-sandbox');
     }
     if (!process.argv.includes('--disable-dev-shm-usage')) {
         process.argv.push('--disable-dev-shm-usage');
     }
-    console.log('[Vangard] process.argv:', process.argv);
+    logger.info('[Vangard] process.argv:', process.argv);
 } else {
-    console.log('[Vangard] Not running in AppImage mode');
+    logger.info('[Vangard] Not running in AppImage mode');
 }
 
 import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage, globalShortcut, Notification } from 'electron';

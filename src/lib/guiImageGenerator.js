@@ -7,6 +7,7 @@
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
+import { logger } from './logger.main.js';
 
 /**
  * Create a solid color rectangle SVG
@@ -45,7 +46,7 @@ async function generateButtonBackgrounds(guiDir, colors) {
     .png()
     .toFile(path.join(buttonDir, 'hover_background.png'));
 
-  console.log('Generated button backgrounds');
+  logger.info('Generated button backgrounds');
 }
 
 /**
@@ -79,7 +80,7 @@ async function generateBarElements(guiDir, colors) {
     .png()
     .toFile(path.join(barDir, 'bottom.png'));
 
-  console.log('Generated bar elements');
+  logger.info('Generated bar elements');
 }
 
 /**
@@ -129,7 +130,7 @@ async function generateScrollbarElements(guiDir, colors) {
     .png()
     .toFile(path.join(scrollbarDir, 'vertical_hover_bar.png'));
 
-  console.log('Generated scrollbar elements');
+  logger.info('Generated scrollbar elements');
 }
 
 /**
@@ -183,7 +184,7 @@ async function generateSliderElements(guiDir, colors) {
     .png()
     .toFile(path.join(sliderDir, 'vertical_hover_bar.png'));
 
-  console.log('Generated slider elements');
+  logger.info('Generated slider elements');
 }
 
 /**
@@ -209,7 +210,7 @@ async function generateTextbox(guiDir, colors, width = 1920, height = 720) {
     .png()
     .toFile(path.join(guiDir, 'textbox.png'));
 
-  console.log('Generated textbox');
+  logger.info('Generated textbox');
 }
 
 /**
@@ -224,7 +225,7 @@ async function generateNamebox(guiDir, colors) {
     .png()
     .toFile(path.join(guiDir, 'namebox.png'));
 
-  console.log('Generated namebox');
+  logger.info('Generated namebox');
 }
 
 /**
@@ -253,7 +254,7 @@ async function generateOverlays(guiDir, colors, width = 1920, height = 1080) {
     .png()
     .toFile(path.join(overlayDir, 'confirm.png'));
 
-  console.log('Generated overlays');
+  logger.info('Generated overlays');
 }
 
 /**
@@ -278,7 +279,7 @@ async function generateGuiImages(projectDir, colors, width, height) {
   await generateNamebox(guiDir, colors);
   await generateOverlays(guiDir, colors, width, height);
 
-  console.log('All GUI images generated successfully');
+  logger.info('All GUI images generated successfully');
 }
 
 export {

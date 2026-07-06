@@ -28,6 +28,9 @@ export default tseslint.config(
 
       // Allow empty catch blocks (common in Electron IPC handlers)
       'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // Enforce centralized logger — console calls leak to DevTools in production
+      'no-console': 'error',
     },
   },
 
@@ -53,6 +56,32 @@ export default tseslint.config(
       'no-undef': 'off',
       // preload.js uses CommonJS require() — that's intentional
       '@typescript-eslint/no-require-imports': 'off',
+      // Enforce centralized logger in main process too
+      'no-console': 'error',
+    },
+  },
+
+  // Dev-only CLI scripts (docs/, scripts/, version.js) — console output is their purpose
+  {
+    files: ['docs/**/*.js', 'scripts/**/*.js', 'version.js'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Logger implementation files — console IS the implementation here
+  {
+    files: ['src/lib/logger.ts', 'src/lib/logger.main.js'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Test files — console.log is acceptable in tests
+  {
+    files: ['**/*.test.{ts,tsx}', 'src/test/**'],
+    rules: {
+      'no-console': 'off',
     },
   },
 
