@@ -23,6 +23,7 @@ interface StatsViewProps {
   projectAudios: Map<string, RenpyAudio>;
   diagnosticsErrorCount: number;
   onOpenDiagnostics: () => void;
+  onOpenEditor?: (blockId: string, line: number) => void;
   performanceMetrics?: PerformanceSnapshot;
 }
 
@@ -343,6 +344,7 @@ const StatsView: React.FC<StatsViewProps> = ({
   projectAudios,
   diagnosticsErrorCount,
   onOpenDiagnostics,
+  onOpenEditor,
   performanceMetrics,
 }) => {
   const fps = useCanvasFps(!!performanceMetrics);
@@ -356,6 +358,27 @@ const StatsView: React.FC<StatsViewProps> = ({
 
   const { branchingBlockIds, labels, characters, dialogueLines, variables, variableUsages } = analysisResult;
   const { identifiedRoutes, labelNodes, routeLinks, routesTruncated } = routeAnalysisResult;
+
+  // BFS from the 'start' label to find all transitively unreachable labels.
+  const unreachableLabels = useMemo(() => {
+    const entryId = labelNodes.find(n => n.label === 'start')?.id;
+    if (!entryId) return [] as LabelNode[];
+    const outgoing = new Map<string, string[]>();
+    routeLinks.forEach(l => {
+      const targets = outgoing.get(l.sourceId) ?? [];
+      targets.push(l.targetId);
+      outgoing.set(l.sourceId, targets);
+    });
+    const reachable = new Set<string>();
+    const queue = [entryId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      if (reachable.has(curr)) continue;
+      reachable.add(curr);
+      (outgoing.get(curr) ?? []).forEach(t => { if (!reachable.has(t)) queue.push(t); });
+    }
+    return labelNodes.filter(n => !reachable.has(n.id)).sort((a, b) => a.label.localeCompare(b.label));
+  }, [labelNodes, routeLinks]);
 
   const [totalWords, setTotalWords] = useState<number | null>(null);
   useEffect(() => {
@@ -705,7 +728,7 @@ const StatsView: React.FC<StatsViewProps> = ({
 
       {/* Structure */}
       <SectionLabel>Structure</SectionLabel>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <StatCard
           label="Script Files"
           value={blocks.length.toLocaleString()}
@@ -731,7 +754,60 @@ const StatsView: React.FC<StatsViewProps> = ({
           value={`${identifiedRoutes.length.toLocaleString()}${routesTruncated ? '+' : ''}`}
           sub={routesTruncated ? 'unique story paths (limit reached)' : 'unique story paths'}
         />
+        <StatCard
+          label="Unreachable Labels"
+          value={unreachableLabels.length > 0
+            ? <span className="text-orange-500 dark:text-orange-400">{unreachableLabels.length.toLocaleString()}</span>
+            : <span className="text-green-500">0</span>
+          }
+          sub="not reachable from start"
+        />
       </div>
+
+      {/* Unreachable Labels detail */}
+      {unreachableLabels.length > 0 && (
+        <div className="mb-8 overflow-x-auto rounded-lg border border-orange-200 dark:border-orange-800">
+          <table className="w-full text-sm">
+            <caption className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-widest text-left px-3 py-2 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-800">
+              Unreachable Labels — no path from &ldquo;start&rdquo; leads here
+            </caption>
+            <thead>
+              <tr className="bg-orange-50/60 dark:bg-orange-950/20 border-b border-orange-200 dark:border-orange-800 text-secondary text-xs">
+                <th className="px-3 py-2 text-left font-semibold">Label</th>
+                <th className="px-3 py-2 text-left font-semibold">File</th>
+                <th className="px-3 py-2 text-left font-semibold w-20">Line</th>
+                {onOpenEditor && <th className="px-3 py-2 w-10" />}
+              </tr>
+            </thead>
+            <tbody>
+              {unreachableLabels.map((node, i) => {
+                const block = blocks.find(b => b.id === node.blockId);
+                const fileName = block?.filePath.split(/[/\\]/).pop() ?? node.blockId;
+                return (
+                  <tr
+                    key={node.id}
+                    className={`border-b border-orange-100 dark:border-orange-900 last:border-0 ${i % 2 === 1 ? 'bg-secondary/20' : ''} ${onOpenEditor ? 'cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-950/30 group' : ''}`}
+                    onClick={onOpenEditor ? () => onOpenEditor(node.blockId, node.startLine) : undefined}
+                    title={onOpenEditor ? `Open "${node.label}" in editor` : undefined}
+                  >
+                    <td className="px-3 py-2 font-mono text-xs text-primary">{node.label}</td>
+                    <td className="px-3 py-2 text-xs text-secondary truncate max-w-[200px]" title={block?.filePath}>{fileName}</td>
+                    <td className="px-3 py-2 text-xs text-secondary tabular-nums">{node.startLine + 1}</td>
+                    {onOpenEditor && (
+                      <td className="px-3 py-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                        </svg>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Variables */}
       {variableStats.total > 0 && (<>

@@ -344,6 +344,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         projectAudios={audios}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onOpenDiagnostics={() => handleOpenStaticTab('diagnostics')}
+        onOpenEditor={handleOpenEditor}
         performanceMetrics={perfSnapshot}
       />;
     }
