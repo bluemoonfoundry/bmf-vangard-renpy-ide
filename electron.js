@@ -1421,11 +1421,12 @@ app.whenReady().then(() => {
     if (current?.legacyMigrationChecked) return { available: false };
     try {
       await fs.access(getLegacyUserDataPath());
+      // Mark checked now so the prompt never reappears even if the user closes
+      // the app before clicking Import or Skip.
+      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
       return { available: true };
     } catch {
-      // Mark as checked so we never ask again even when no legacy dir exists
-      const merged = { ...(current || {}), legacyMigrationChecked: true };
-      await saveAppSettings(merged);
+      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
       return { available: false };
     }
   });
