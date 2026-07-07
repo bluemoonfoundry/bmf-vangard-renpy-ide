@@ -54,6 +54,7 @@ const FileBlock: React.FC<FileBlockProps> = React.memo(({
         aria-label="Drill into labels"
         className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-md bg-indigo-600 text-white opacity-90 hover:opacity-100 hover:bg-indigo-700 transition-colors z-10"
         onClick={e => { e.stopPropagation(); onDrillDown(node.id); }}
+        onDoubleClick={e => e.stopPropagation()}
       >
         {/* Magnifying glass / zoom-in icon */}
         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">

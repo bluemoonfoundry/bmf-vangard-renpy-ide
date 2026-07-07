@@ -1,7 +1,13 @@
+import { vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import Sash from './Sash';
 
 describe('Sash', () => {
+  afterEach(() => {
+    // Clean up any window listeners left open by tests that fired pointerDown without pointerUp
+    fireEvent.pointerUp(window);
+  });
+
   it('renders horizontal sash by default', () => {
     const { container } = render(<Sash onDrag={vi.fn()} />);
     const sash = container.firstChild as HTMLElement;
@@ -21,6 +27,7 @@ describe('Sash', () => {
     const sash = container.firstChild as HTMLElement;
     const setPointerCapture = vi.fn();
     sash.setPointerCapture = setPointerCapture;
+    sash.releasePointerCapture = vi.fn();
 
     fireEvent.pointerDown(sash, { pointerId: 42 });
 
@@ -32,6 +39,7 @@ describe('Sash', () => {
     const { container } = render(<Sash onDrag={onDrag} />);
     const sash = container.firstChild as HTMLElement;
     sash.setPointerCapture = vi.fn();
+    sash.releasePointerCapture = vi.fn();
 
     fireEvent.pointerDown(sash, { pointerId: 1 });
     fireEvent.pointerMove(window, { movementX: 15, movementY: 8 });
@@ -44,6 +52,7 @@ describe('Sash', () => {
     const { container } = render(<Sash onDrag={onDrag} direction="vertical" />);
     const sash = container.firstChild as HTMLElement;
     sash.setPointerCapture = vi.fn();
+    sash.releasePointerCapture = vi.fn();
 
     fireEvent.pointerDown(sash, { pointerId: 1 });
     fireEvent.pointerMove(window, { movementX: 15, movementY: 8 });
@@ -83,6 +92,7 @@ describe('Sash', () => {
     const { container } = render(<Sash onDrag={onDrag} />);
     const sash = container.firstChild as HTMLElement;
     sash.setPointerCapture = vi.fn();
+    sash.releasePointerCapture = vi.fn();
 
     fireEvent.pointerDown(sash, { pointerId: 1 });
     fireEvent.pointerMove(window, { movementX: 5 });

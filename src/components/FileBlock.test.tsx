@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FileBlock from './FileBlock';
@@ -7,8 +8,8 @@ const node = createLabelNode({ id: 'block-1', label: 'script.rpy' });
 
 function renderFileBlock(overrides: {
   labelCount?: number;
-  onDrillDown?: ReturnType<typeof vi.fn>;
-  onOpenEditor?: ReturnType<typeof vi.fn>;
+  onDrillDown?: (id: string) => void;
+  onOpenEditor?: (id: string, line: number) => void;
   isSelected?: boolean;
   isDimmed?: boolean;
 } = {}) {
@@ -40,6 +41,8 @@ describe('FileBlock', () => {
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper.className).toContain('border-indigo-500');
     expect(wrapper.className).toContain('bg-indigo-50');
+    expect(wrapper.className).not.toContain('border-gray-300');
+    expect(wrapper.className).not.toContain('bg-white');
   });
 
   it('applies unselected classes when isSelected=false', () => {
@@ -47,6 +50,8 @@ describe('FileBlock', () => {
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper.className).toContain('border-gray-300');
     expect(wrapper.className).toContain('bg-white');
+    expect(wrapper.className).not.toContain('border-indigo-500');
+    expect(wrapper.className).not.toContain('bg-indigo-50');
   });
 
   it('applies dimmed opacity class when isDimmed=true', () => {
@@ -83,14 +88,12 @@ describe('FileBlock', () => {
     expect(onOpenEditor).toHaveBeenCalledWith('block-1', 1);
   });
 
-  it('drill-down button click does not propagate to the parent div', async () => {
+  it('double-clicking drill-down button does not trigger parent onDoubleClick', async () => {
     const onDrillDown = vi.fn();
-    const { container } = renderFileBlock({ onDrillDown });
-    // Click button then check onDrillDown was called exactly once (not once for button + once for bubbled dblclick)
-    await userEvent.click(screen.getByRole('button', { name: 'Drill into labels' }));
-    expect(onDrillDown).toHaveBeenCalledTimes(1);
-    // Verify double-click on parent still fires separately
-    await userEvent.dblClick(container.firstChild as HTMLElement);
-    expect(onDrillDown).toHaveBeenCalledTimes(2);
+    renderFileBlock({ onDrillDown });
+    // dblClick fires: click → onClick (×2) + dblclick → parent onDoubleClick
+    // The button must stop the dblclick event to prevent a third onDrillDown call
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Drill into labels' }));
+    expect(onDrillDown).toHaveBeenCalledTimes(2); // once per click, NOT three times
   });
 });
