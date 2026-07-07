@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
-import { createBlock, createBlockGroup, createAppSettings } from '@/test/mocks/sampleData';
+import { createBlock, createAppSettings } from '@/test/mocks/sampleData';
 import { installElectronAPI } from '@/test/mocks/electronAPI';
 import type { UseBlockManagementParams } from '@/hooks/useBlockManagement';
 

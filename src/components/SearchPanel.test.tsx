@@ -197,7 +197,6 @@ describe('SearchPanel', () => {
     const user = userEvent.setup();
     render(<SearchPanel />);
     // The expand/collapse chevron button is next to the search heading
-    const toggleBtn = screen.getAllByRole('button').find(b => b.querySelector('svg'));
     // Click the first button with SVG that isn't a named/titled button
     const chevron = screen.getAllByRole('button').find(
       b => !b.getAttribute('title') && b.querySelector('svg')
