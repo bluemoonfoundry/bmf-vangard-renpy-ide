@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useProjectIO } from '@/hooks/useProjectIO';
-import { installElectronAPI } from '@/test/mocks/electronAPI';
+import { installElectronAPI, createMockElectronAPI } from '@/test/mocks/electronAPI';
 import { createBlock } from '@/test/mocks/sampleData';
 import type { UseProjectIOParams } from '@/hooks/useProjectIO';
 
@@ -92,23 +92,446 @@ describe('useProjectIO', () => {
     expect(typeof result.current.handleRefreshProject).toBe('function');
   });
 
+  // ---------------------------------------------------------------------------
+  // handleSaveProjectSettings
+  // ---------------------------------------------------------------------------
+
   it('does nothing when projectRootPath is null', async () => {
     const setSaveStatus = vi.fn();
     const { result } = renderHook(() =>
       useProjectIO(makeParams({ projectRootPath: null, setSaveStatus })),
     );
-    await result.current.handleSaveProjectSettings();
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
     expect(setSaveStatus).not.toHaveBeenCalled();
   });
+
+  it('writes project.ide.json to the correct path', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const { result } = renderHook(() => useProjectIO(makeParams()));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+
+    expect(api.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining('project.ide.json'),
+      expect.any(String),
+    );
+  });
+
+  it('calls setHasUnsavedSettings(false) after successful settings save', async () => {
+    const setHasUnsavedSettings = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ setHasUnsavedSettings })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    expect(setHasUnsavedSettings).toHaveBeenCalledWith(false);
+  });
+
+  it('calls addToast with error when settings writeFile fails', async () => {
+    const api = createMockElectronAPI();
+    api.writeFile.mockRejectedValue(new Error('disk full'));
+    installElectronAPI(api);
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ addToast })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('serializes sceneCompositions to file-path-only sprites', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const sceneCompositions = {
+      'scene-1': {
+        background: {
+          id: 's1', image: { filePath: 'game/images/bg.png', fileName: 'bg.png', dataUrl: 'data:...', fileHandle: null, isInProject: true, lastModified: 0, size: 0 },
+          x: 0, y: 0, width: 800, height: 600, zIndex: 0, opacity: 1,
+        },
+        sprites: [],
+        resolution: { width: 1280, height: 720 },
+      },
+    } as UseProjectIOParams['sceneCompositions'];
+    const { result } = renderHook(() => useProjectIO(makeParams({ sceneCompositions })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
+    expect(written.sceneCompositions['scene-1'].background.image).toEqual({ filePath: 'game/images/bg.png' });
+  });
+
+  // ---------------------------------------------------------------------------
+  // handleSaveAll
+  // ---------------------------------------------------------------------------
 
   it('handleSaveAll does nothing when no dirty blocks and no dirty editors', async () => {
     const setSaveStatus = vi.fn();
     const { result } = renderHook(() =>
       useProjectIO(makeParams({ setSaveStatus, dirtyBlockIds: new Set(), dirtyEditors: new Set() })),
     );
-    await result.current.handleSaveAll();
-    // No dirty items → short-circuits to saving project settings only (or nothing)
-    // Just ensure it doesn't throw
-    expect(true).toBe(true);
+    await act(async () => { await result.current.handleSaveAll(); });
+    expect(true).toBe(true); // no throw
+  });
+
+  it('writes each dirty block file and clears dirty state', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'label start:\n    return\n' });
+    const setDirtyBlockIds = vi.fn();
+    const setDirtyEditors = vi.fn();
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setDirtyBlockIds,
+      setDirtyEditors,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(api.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining('script.rpy'),
+      block.content,
+    );
+    expect(setDirtyBlockIds).toHaveBeenCalledWith(new Set());
+    expect(setDirtyEditors).toHaveBeenCalledWith(new Set());
+    expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('reads content from editor instance for dirtyEditors', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'old content' });
+    const editorContent = 'new content from editor';
+    const mockEditorInstance = { getValue: vi.fn(() => editorContent) };
+
+    const setBlocks = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(),
+      dirtyEditors: new Set(['b1']),
+      editorInstances: { current: new Map([['b1', mockEditorInstance as never]]) },
+      setBlocks,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(mockEditorInstance.getValue).toHaveBeenCalled();
+    expect(api.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining('script.rpy'),
+      editorContent,
+    );
+  });
+
+  it('sets setSaveStatus to error when writeFile fails', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: false, error: 'write failed' });
+    installElectronAPI(api);
+
+    const setSaveStatus = vi.fn();
+    const addToast = vi.fn();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setSaveStatus,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(setSaveStatus).toHaveBeenCalledWith('error');
+    expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('saves to memory when projectRootPath is null', async () => {
+    const addToast = vi.fn();
+    const setDirtyBlockIds = vi.fn();
+    const notifyFirstSave = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      projectRootPath: null,
+      dirtyBlockIds: new Set(['block-1']),
+      addToast,
+      setDirtyBlockIds,
+      notifyFirstSave,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(addToast).toHaveBeenCalledWith('Changes saved to memory', 'success');
+    expect(setDirtyBlockIds).toHaveBeenCalledWith(new Set());
+    expect(notifyFirstSave).toHaveBeenCalled();
+  });
+
+  it('opens conflict modal when dirty files have disk conflicts', async () => {
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const openUnsavedChangesModal = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      filesWithDiskConflict: new Set(['game/script.rpy']),
+      openUnsavedChangesModal,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(openUnsavedChangesModal).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('Overwrite') })
+    );
+  });
+
+  it('calls notifyFirstSave after a successful save', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const notifyFirstSave = vi.fn();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      notifyFirstSave,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(notifyFirstSave).toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // handleReloadFromDisk
+  // ---------------------------------------------------------------------------
+
+  it('reads the file and updates block content on reload', async () => {
+    const api = createMockElectronAPI();
+    const newContent = 'label reloaded:\n    return\n';
+    api.readFile.mockResolvedValue(newContent);
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'old' });
+    const setBlocks = vi.fn();
+    const setDirtyBlockIds = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      setBlocks,
+      setDirtyBlockIds,
+    })));
+
+    await act(async () => {
+      await result.current.handleReloadFromDisk({ relativePath: 'game/script.rpy', absolutePath: '/project/game/script.rpy' });
+    });
+
+    expect(api.readFile).toHaveBeenCalledWith('/project/game/script.rpy');
+    expect(setBlocks).toHaveBeenCalled();
+    expect(setDirtyBlockIds).toHaveBeenCalled();
+  });
+
+  it('does nothing when block for relativePath is not found', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const setBlocks = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({ setBlocks })));
+
+    await act(async () => {
+      await result.current.handleReloadFromDisk({ relativePath: 'game/missing.rpy', absolutePath: '/project/game/missing.rpy' });
+    });
+
+    expect(api.readFile).not.toHaveBeenCalled();
+    expect(setBlocks).not.toHaveBeenCalled();
+  });
+
+  it('calls addToast with error when readFile throws on reload', async () => {
+    const api = createMockElectronAPI();
+    api.readFile.mockRejectedValue(new Error('file gone'));
+    installElectronAPI(api);
+    const addToast = vi.fn();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+
+    const { result } = renderHook(() => useProjectIO(makeParams({ blocks: [block], addToast })));
+
+    await act(async () => {
+      await result.current.handleReloadFromDisk({ relativePath: 'game/script.rpy', absolutePath: '/project/game/script.rpy' });
+    });
+
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('game/script.rpy'), 'error');
+  });
+
+  it('updates open Monaco editor model content on reload', async () => {
+    const api = createMockElectronAPI();
+    const freshContent = 'label fresh:\n    return\n';
+    api.readFile.mockResolvedValue(freshContent);
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const mockModel = { getValue: vi.fn(() => 'old'), setValue: vi.fn() };
+    const mockEditor = { getModel: vi.fn(() => mockModel) };
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      editorInstances: { current: new Map([['b1', mockEditor as never]]) },
+    })));
+
+    await act(async () => {
+      await result.current.handleReloadFromDisk({ relativePath: 'game/script.rpy', absolutePath: '/project/game/script.rpy' });
+    });
+
+    expect(mockModel.setValue).toHaveBeenCalledWith(freshContent);
+  });
+
+  it('removes entry from externallyChangedFiles after reload', async () => {
+    const api = createMockElectronAPI();
+    api.readFile.mockResolvedValue('content');
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const setExternallyChangedFiles = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      setExternallyChangedFiles,
+    })));
+
+    await act(async () => {
+      await result.current.handleReloadFromDisk({ relativePath: 'game/script.rpy', absolutePath: '/project/game/script.rpy' });
+    });
+
+    expect(setExternallyChangedFiles).toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // handleRefreshProject
+  // ---------------------------------------------------------------------------
+
+  it('does nothing when projectRootPath is null', async () => {
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() =>
+      useProjectIO(makeParams({ projectRootPath: null, setFileSystemTree })),
+    );
+    await act(async () => { await result.current.handleRefreshProject(); });
+    expect(setFileSystemTree).not.toHaveBeenCalled();
+  });
+
+  it('calls addToast with error when refreshProject throws', async () => {
+    const api = createMockElectronAPI();
+    (api as unknown as Record<string, unknown>).refreshProject = vi.fn().mockRejectedValue(new Error('network error'));
+    installElectronAPI(api);
+
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ addToast })));
+
+    await act(async () => { await result.current.handleRefreshProject(); });
+
+    expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('updates file system tree on successful refresh', async () => {
+    const api = createMockElectronAPI();
+    const freshTree = { name: 'game', path: '/project/game', children: [] };
+    (api as unknown as Record<string, unknown>).refreshProject = vi.fn().mockResolvedValue({
+      tree: freshTree,
+      files: [],
+      images: [],
+      audios: [],
+    });
+    installElectronAPI(api);
+
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ setFileSystemTree })));
+
+    await act(async () => { await result.current.handleRefreshProject(); });
+
+    expect(setFileSystemTree).toHaveBeenCalledWith(freshTree);
+  });
+
+  it('silently updates clean blocks with fresh content on refresh', async () => {
+    const api = createMockElectronAPI();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'old' });
+    const freshContent = 'label updated:\n    return\n';
+    (api as unknown as Record<string, unknown>).refreshProject = vi.fn().mockResolvedValue({
+      tree: { name: 'game', path: '/project/game', children: [] },
+      files: [{ path: 'game/script.rpy', content: freshContent }],
+      images: [],
+      audios: [],
+    });
+    installElectronAPI(api);
+
+    const setBlocks = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      setBlocks,
+    })));
+
+    await act(async () => { await result.current.handleRefreshProject(); });
+
+    expect(setBlocks).toHaveBeenCalled();
+  });
+
+  it('queues dirty blocks with changed disk content for conflict review', async () => {
+    const api = createMockElectronAPI();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'editor content' });
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    (api as unknown as Record<string, unknown>).refreshProject = vi.fn().mockResolvedValue({
+      tree: { name: 'game', path: '/project/game', children: [] },
+      files: [{ path: 'game/script.rpy', content: 'disk content different' }],
+      images: [],
+      audios: [],
+    });
+    installElectronAPI(api);
+
+    const setExternallyChangedFiles = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIdsRef: { current: new Set(['b1']) },
+      setExternallyChangedFiles,
+    })));
+
+    await act(async () => { await result.current.handleRefreshProject(); });
+
+    expect(setExternallyChangedFiles).toHaveBeenCalled();
+  });
+
+  it('shows "up to date" toast when no changes found during refresh', async () => {
+    const api = createMockElectronAPI();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'unchanged' });
+    (api as unknown as Record<string, unknown>).refreshProject = vi.fn().mockResolvedValue({
+      tree: { name: 'game', path: '/project/game', children: [] },
+      files: [{ path: 'game/script.rpy', content: 'unchanged' }],
+      images: [],
+      audios: [],
+    });
+    installElectronAPI(api);
+
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleRefreshProject(); });
+
+    expect(addToast).toHaveBeenCalledWith('Project is up to date', 'success');
   });
 });

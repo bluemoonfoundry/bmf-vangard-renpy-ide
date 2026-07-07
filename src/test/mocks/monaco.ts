@@ -26,8 +26,12 @@ const editor = {
   createModel: () => ({}),
   getModels: () => [],
   setModelLanguage: () => {},
+  setModelMarkers: () => {},
   ScrollType: { Smooth: 0 },
+  MouseTargetType: { CONTENT_TEXT: 6 },
 };
+
+const MarkerSeverity = { Error: 8, Warning: 4, Info: 2, Hint: 1 };
 
 const languages = {
   register: () => {},
@@ -74,6 +78,7 @@ export {
   languages,
   KeyMod,
   KeyCode,
+  MarkerSeverity,
   Emitter,
   Range,
 };

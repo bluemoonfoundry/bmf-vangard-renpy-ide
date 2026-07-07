@@ -8,16 +8,23 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 
 // ---------------------------------------------------------------------------
 // Monaco: vite.config.ts already aliases monaco-editor → src/test/mocks/monaco.ts
 // We only need to mock the @monaco-editor/react wrapper component.
+// Capture onMount / beforeMount so tests can trigger editor setup paths.
 // ---------------------------------------------------------------------------
 
+let capturedOnMount: ((editor: unknown, monaco: unknown) => void) | undefined;
+let capturedBeforeMount: ((monaco: unknown) => void) | undefined;
+
 vi.mock('@monaco-editor/react', () => ({
-  default: (_props: Record<string, unknown>) =>
-    React.createElement('div', { 'data-testid': 'monaco-editor' }),
+  default: (props: Record<string, unknown>) => {
+    capturedBeforeMount = props.beforeMount as (monaco: unknown) => void;
+    capturedOnMount = props.onMount as (editor: unknown, monaco: unknown) => void;
+    return React.createElement('div', { 'data-testid': 'monaco-editor' });
+  },
   __esModule: true,
 }));
 
@@ -270,6 +277,82 @@ describe('FileExplorerPanel', () => {
 });
 
 // ============================================================================
+// EditorView helpers
+// ============================================================================
+
+function createMockEditorInstance(content = '') {
+  const mockModel = {
+    getValue: vi.fn(() => content),
+    setValue: vi.fn(),
+    updateOptions: vi.fn(),
+    getLanguageId: vi.fn(() => 'renpy'),
+  };
+  const mockEd = {
+    getValue: vi.fn(() => content),
+    getModel: vi.fn(() => mockModel),
+    focus: vi.fn(),
+    addAction: vi.fn(),
+    createContextKey: vi.fn(() => ({ set: vi.fn(), get: vi.fn(() => false) })),
+    getDomNode: vi.fn(() => null),
+    getPosition: vi.fn(() => null),
+    setPosition: vi.fn(),
+    revealLineInCenter: vi.fn(),
+    deltaDecorations: vi.fn(() => []),
+    onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
+    onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
+    onContextMenu: vi.fn(() => ({ dispose: vi.fn() })),
+    pushUndoStop: vi.fn(),
+    executeEdits: vi.fn(),
+  };
+  return { mockEd, mockModel };
+}
+
+function createMockMonacoInstance() {
+  return {
+    languages: {
+      getLanguages: vi.fn(() => []),
+      register: vi.fn(),
+      setLanguageConfiguration: vi.fn(),
+      setMonarchTokensProvider: vi.fn(),
+      setTokensProvider: vi.fn(),
+      registerDocumentSemanticTokensProvider: vi.fn(() => ({ dispose: vi.fn() })),
+      registerCompletionItemProvider: vi.fn(() => ({ dispose: vi.fn() })),
+    },
+    editor: {
+      setModelLanguage: vi.fn(),
+      setModelMarkers: vi.fn(),
+      getModels: vi.fn(() => []),
+      defineTheme: vi.fn(),
+      ScrollType: { Smooth: 0 },
+      MouseTargetType: { CONTENT_TEXT: 6 },
+    },
+    KeyMod: { CtrlCmd: 2048, Shift: 1024 },
+    KeyCode: { KeyS: 49 },
+    MarkerSeverity: { Error: 8, Warning: 4, Info: 2, Hint: 1 },
+    Range: class {
+      constructor(
+        public startLineNumber: number,
+        public startColumn: number,
+        public endLineNumber: number,
+        public endColumn: number
+      ) {}
+    },
+  };
+}
+
+async function renderAndMount(props: ReturnType<typeof makeEditorViewProps>) {
+  const result = render(<EditorView {...props} />);
+  const { mockEd, mockModel } = createMockEditorInstance(props.block.content);
+  const mockMonaco = createMockMonacoInstance();
+  await act(async () => {
+    capturedBeforeMount?.(mockMonaco);
+    capturedOnMount?.(mockEd, mockMonaco);
+  });
+  return { ...result, mockEd, mockModel, mockMonaco };
+}
+
+// ============================================================================
 // EditorView
 // ============================================================================
 
@@ -376,5 +459,147 @@ describe('EditorView', () => {
     const { rerender } = render(<EditorView {...props} />);
     const updated = { ...props, block: { ...props.block, content: 'label updated:\n    return\n' } };
     expect(() => rerender(<EditorView {...updated} />)).not.toThrow();
+  });
+
+  // ---- post-mount tests (require renderAndMount) ----
+
+  it('calls onEditorMount with blockId and editor instance on mount', async () => {
+    const onEditorMount = vi.fn();
+    const props = makeEditorViewProps({ onEditorMount });
+    await renderAndMount(props);
+    expect(onEditorMount).toHaveBeenCalledTimes(1);
+    expect(onEditorMount).toHaveBeenCalledWith('block-1', expect.anything());
+  });
+
+  it('registers the save-block action on editor mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    const actionIds = mockEd.addAction.mock.calls.map((c: unknown[]) => (c[0] as { id: string }).id);
+    expect(actionIds).toContain('save-block');
+  });
+
+  it('registers all five editor actions on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    const actionIds = mockEd.addAction.mock.calls.map((c: unknown[]) => (c[0] as { id: string }).id);
+    expect(actionIds).toContain('save-block');
+    expect(actionIds).toContain('create-menu');
+    expect(actionIds).toContain('insert-menu-template');
+    expect(actionIds).toContain('warp-to-here');
+    expect(actionIds).toContain('insert-copied-code');
+  });
+
+  it('calls editor.focus() on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    expect(mockEd.focus).toHaveBeenCalled();
+  });
+
+  it('registers onDidChangeModelContent listener on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    expect(mockEd.onDidChangeModelContent).toHaveBeenCalled();
+  });
+
+  it('registers onDidChangeCursorPosition listener on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    expect(mockEd.onDidChangeCursorPosition).toHaveBeenCalled();
+  });
+
+  it('calls beforeMount and registers renpy language (getLanguages returns empty)', async () => {
+    const props = makeEditorViewProps();
+    const { mockMonaco } = await renderAndMount(props);
+    expect(mockMonaco.languages.register).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'renpy' })
+    );
+  });
+
+  it('calls setModelMarkers after mount (initial validation)', async () => {
+    const props = makeEditorViewProps();
+    const { mockMonaco } = await renderAndMount(props);
+    expect(mockMonaco.editor.setModelMarkers).toHaveBeenCalled();
+  });
+
+  it('sets model language to renpy on mount when model is available', async () => {
+    const props = makeEditorViewProps();
+    const { mockMonaco } = await renderAndMount(props);
+    expect(mockMonaco.editor.setModelLanguage).toHaveBeenCalledWith(
+      expect.anything(),
+      'renpy'
+    );
+  });
+
+  it('creates warp context key on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    expect(mockEd.createContextKey).toHaveBeenCalledWith('renpyCanWarpHere', false);
+  });
+
+  it('calls onEditorUnmount after mount + unmount', async () => {
+    const onEditorUnmount = vi.fn();
+    const props = makeEditorViewProps({ onEditorUnmount });
+    const { unmount } = await renderAndMount(props);
+    unmount();
+    expect(onEditorUnmount).toHaveBeenCalledWith('block-1');
+  });
+
+  it('handles onDidChangeModelContent firing dirty state change', async () => {
+    const onDirtyChange = vi.fn();
+    const block = createBlock({ content: 'label start:\n    return\n' });
+    const props = makeEditorViewProps({ onDirtyChange, block });
+    const { mockEd } = await renderAndMount(props);
+
+    // Get the registered content-change listener
+    const contentListener = mockEd.onDidChangeModelContent.mock.calls[0][0] as () => void;
+    // Simulate editor content diverging from saved content
+    mockEd.getValue.mockReturnValue('label start:\n    "new"\n    return\n');
+    act(() => { contentListener(); });
+
+    expect(onDirtyChange).toHaveBeenCalledWith('block-1', true);
+  });
+
+  it('defines renpy-dark and renpy-light themes in beforeMount', async () => {
+    const props = makeEditorViewProps();
+    const { mockMonaco } = await renderAndMount(props);
+    const themeNames = mockMonaco.editor.defineTheme.mock.calls.map((c: unknown[]) => c[0]);
+    expect(themeNames).toContain('renpy-dark');
+    expect(themeNames).toContain('renpy-light');
+  });
+
+  it('skips language registration when renpy is already registered', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd: _ed, mockMonaco: firstMonaco } = await renderAndMount(props);
+
+    // Simulate already-registered language for second mount
+    firstMonaco.languages.getLanguages.mockReturnValue([{ id: 'renpy' }]);
+
+    vi.clearAllMocks();
+    const { mockEd: ed2 } = createMockEditorInstance(props.block.content);
+    await act(async () => {
+      capturedBeforeMount?.(firstMonaco);
+      capturedOnMount?.(ed2, firstMonaco);
+    });
+
+    // register should NOT have been called again (language already present)
+    expect(firstMonaco.languages.register).not.toHaveBeenCalled();
+  });
+
+  it('re-renders cleanly when analysisResult changes after mount', async () => {
+    const props = makeEditorViewProps();
+    const { rerender } = await renderAndMount(props);
+    const newAnalysis = createEmptyAnalysisResult({
+      labels: { myLabel: { blockId: 'block-1', label: 'myLabel', line: 1, column: 7, type: 'label' } },
+    });
+    expect(() => rerender(<EditorView {...props} analysisResult={newAnalysis} />)).not.toThrow();
+  });
+
+  it('scrolls to initialScrollRequest line after mount', async () => {
+    const props = makeEditorViewProps({ initialScrollRequest: { line: 5, key: 1 } });
+    const { mockEd } = await renderAndMount(props);
+    // revealLineInCenter should be scheduled (via setTimeout)
+    await waitFor(() => {
+      expect(mockEd.revealLineInCenter).toHaveBeenCalledWith(5, expect.anything());
+    });
   });
 });
