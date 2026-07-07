@@ -1,0 +1,50 @@
+name: Docs Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Path to a project to screenshot (defaults to DemoProject)'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+jobs:
+  capture:
+    name: Capture screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install xvfb
+        run: sudo apt-get install -y xvfb libgbm-dev
+
+      - name: Build renderer (required by Electron)
+        run: npm run build
+
+      - name: Capture screenshots
+        run: xvfb-run --auto-servernum npm run capture-screenshots -- --project "${{ github.event.inputs.project || 'DemoProject' }}"
+
+      - name: Open PR with updated screenshots
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'docs: regenerate screenshots'
+          branch: docs/screenshot-refresh
+          title: 'docs: regenerate screenshots'
+          body: Automated screenshot refresh via the `Docs Screenshots` workflow. Review the image diffs before merging.
+          add-paths: docs/images/*.png

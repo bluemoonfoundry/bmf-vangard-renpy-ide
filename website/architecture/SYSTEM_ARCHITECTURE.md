@@ -40,7 +40,7 @@ Vangard Studio is an Electron-based desktop application built with React and Typ
 
 Vangard Studio follows Electron's standard multi-process architecture with three distinct runtime environments:
 
-![Process Architecture Diagram](images/architecture-process.png)
+![Process Architecture Diagram](/architecture-process.png)
 
 ### Main Process (electron.js)
 
@@ -173,7 +173,7 @@ Vangard Studio uses a **centralized state architecture** where all core applicat
 
 `App.tsx` is the single source of truth for application state. All state is managed through React hooks (`useState`, `useImmer`, custom hooks) and flows downward via props.
 
-![State Hub Pattern Diagram](images/architecture-state-hub.png)
+![State Hub Pattern Diagram](/architecture-state-hub.png)
 
 ### State Categories
 
@@ -285,7 +285,7 @@ const { settings, updateSettings } = useSettingsManagement();
 
 ### Block Lifecycle (Creation → Editing → Persistence → Analysis)
 
-![Block Lifecycle Diagram](images/architecture-block-lifecycle.png)
+![Block Lifecycle Diagram](/architecture-block-lifecycle.png)
 
 **Key Points:**
 1. **File is created on disk first** via IPC — ensures `.rpy` files exist before state updates
@@ -316,7 +316,7 @@ File system operations follow a strict request/response pattern through IPC to m
 
 ### Analysis Pipeline (Content → Worker → Result → UI)
 
-![Analysis Pipeline Diagram](images/architecture-analysis-pipeline.png)
+![Analysis Pipeline Diagram](/architecture-analysis-pipeline.png)
 
 **Key Data Structures:**
 

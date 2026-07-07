@@ -1,6 +1,6 @@
 # Types Reference
 
-This document provides a high-level overview of the major type categories in Vangard Ren'Py IDE and explains how they relate to each other. For detailed property definitions and JSDoc comments, see [`src/types.ts`](../../src/types.ts) directly.
+This document provides a high-level overview of the major type categories in Vangard Studio and explains how they relate to each other. For detailed property definitions and JSDoc comments, see [`src/types.ts`](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/src/types.ts) directly.
 
 ## Purpose
 
@@ -350,6 +350,6 @@ When modifying types:
 
 ## See Also
 
-- **[`src/types.ts`](../../src/types.ts)** - Complete type definitions with JSDoc
-- **[SYSTEM_ARCHITECTURE.md](../architecture/SYSTEM_ARCHITECTURE.md)** - Overall system architecture
-- **[CLAUDE.md](../../CLAUDE.md)** - Project conventions and patterns
+- **[`src/types.ts`](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/src/types.ts)** - Complete type definitions with JSDoc
+- **[System Architecture](/architecture/SYSTEM_ARCHITECTURE)** - Overall system architecture
+- **[`CLAUDE.md`](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/CLAUDE.md)** - Project conventions and patterns

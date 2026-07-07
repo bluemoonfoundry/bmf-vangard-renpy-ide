@@ -4,6 +4,13 @@
 
 Version 0.9.0
 
+> **This guide is migrating to a new documentation site.** Chapters 1 (Welcome), 3
+> (Getting Started), and 5 (The Three Canvases) have moved to
+> [the new docs site](https://bluemoonfoundry.github.io/bmf-vangard-renpy-ide/) under
+> `website/guide/` and now include real screenshots — edit them there, not here. The
+> remaining chapters and the full reference section are still tracked here until their
+> migration (tracked in beads) is complete.
+
 ---
 
 # Table of Contents

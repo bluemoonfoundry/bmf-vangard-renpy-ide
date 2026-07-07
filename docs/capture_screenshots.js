@@ -22,6 +22,7 @@ import fs from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { APP_ENTRY, forceExit, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -103,32 +104,21 @@ async function waitForAppReady(page) {
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
-/** Click a canvas-type button in the toolbar by partial title text */
-async function clickCanvasTab(page, titleFragment) {
-    await page.click(`[aria-label="Switch canvas"] button[title*="${titleFragment}"]`);
+/** Click a canvas-switcher button in the toolbar by its exact aria-label
+ *  (one of "Project Canvas", "Flow Canvas", "Choices Canvas"). */
+async function clickCanvasTab(page, ariaLabel) {
+    await page.click(`[aria-label="Switch canvas"] button[aria-label="${ariaLabel}"]`);
     await page.waitForTimeout(600);
 }
 
 /**
- * Navigate the two-level right sidebar.
- * Top categories: Story | Assets | Compose | Tools
- * Sub-tabs per category:
- *   Story   → Characters, Variables, Screens
- *   Assets  → Images, Audio
- *   Compose → Scenes, ImageMaps, Screen Layouts
- *   Tools   → Snippets, Menus, Colors
+ * Click a Story Elements sidebar tab by its exact aria-label. The sidebar is a
+ * single flat tablist — one of Characters, Variables, Screens, Images, Audio,
+ * Scene Compositions, Image Maps, Code Snippets, Menu Templates, Color Palette.
  */
-async function clickSidebarTab(page, category, subTab) {
-    // 1. Click the top-level category
-    await page.click(`[aria-label="Story Elements categories"] button:has-text("${category}")`);
-    await page.waitForTimeout(300);
-    // 2. Click the sub-tab (the sub-tablist aria-label is "<Category> sections")
-    if (subTab) {
-        await page.click(
-            `[aria-label="${category} sections"] button:has-text("${subTab}")`
-        );
-        await page.waitForTimeout(400);
-    }
+async function clickSidebarTab(page, tooltip) {
+    await page.click(`[role="tablist"][aria-label="Story Elements"] button[aria-label="${tooltip}"]`);
+    await page.waitForTimeout(400);
 }
 
 // ---------------------------------------------------------------------------
@@ -148,26 +138,26 @@ const SCREENSHOTS = [
     // --- Section 3: Interface ---
     {
         filename: 'app-layout.png',
-        description: 'Full application layout with Story Canvas visible',
+        description: 'Full application layout with Project Canvas visible',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Story Canvas');
+            await clickCanvasTab(page, 'Project Canvas');
         },
     },
     {
         filename: 'story-elements-characters.png',
-        description: 'Right sidebar — Characters sub-tab',
+        description: 'Right sidebar — Characters tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Story', 'Characters');
+            await clickSidebarTab(page, 'Characters');
         },
     },
     {
         filename: 'story-elements-images.png',
-        description: 'Right sidebar — Images sub-tab',
+        description: 'Right sidebar — Images tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Assets', 'Images');
+            await clickSidebarTab(page, 'Images');
         },
     },
 
@@ -177,41 +167,46 @@ const SCREENSHOTS = [
         description: 'Monaco editor with a Ren\'Py script open',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Story Canvas');
-            // Fit all blocks into the viewport first so the characters block is reachable
-            await page.click('button[aria-label="Fit all to screen"]');
-            await page.waitForTimeout(500);
-            // Click the "Open in Tab" button on the characters CodeBlock
-            await page.locator(
-                'div.code-block-wrapper:has(span[title*="characters"]) button[title="Open in Tab"]'
-            ).click({ force: true });
+            await clickCanvasTab(page, 'Project Canvas');
+            // DemoProject has 72 files — "Fit all to screen" zooms out so far that
+            // blocks (and buttons inside them) shrink to sub-pixel size and become
+            // unclickable. Use Go to Label instead: it centers the target block at
+            // a readable zoom regardless of project size, then double-click the
+            // block itself to open it in the editor.
+            await page.keyboard.press('Control+g');
+            await page.waitForSelector('[role="dialog"][aria-labelledby="goto-modal-title"]', { timeout: 5000 });
+            await page.keyboard.type('stage1_arrival');
+            await page.waitForTimeout(400);
+            await page.keyboard.press('Enter');
+            await page.waitForTimeout(600);
+            await page.dblclick('[data-block-id]:has-text("stage1_arrival.rpy")');
             await page.waitForSelector('.monaco-editor', { timeout: 8000 });
             await page.waitForTimeout(600);
         },
     },
     {
         filename: 'story-canvas-basic.png',
-        description: 'Story Canvas',
+        description: 'Project Canvas',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Story Canvas');
+            await clickCanvasTab(page, 'Project Canvas');
         },
     },
     {
         filename: 'route-canvas-basic.png',
-        description: 'Route Canvas',
+        description: 'Flow Canvas',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Route Canvas');
+            await clickCanvasTab(page, 'Flow Canvas');
             await page.waitForTimeout(1000);
         },
     },
     {
         filename: 'choice-canvas-basic.png',
-        description: 'Choice Canvas',
+        description: 'Choices Canvas',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Choice Canvas');
+            await clickCanvasTab(page, 'Choices Canvas');
             await page.waitForTimeout(1000);
         },
     },
@@ -220,10 +215,8 @@ const SCREENSHOTS = [
         description: 'Diagnostics panel',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Story Canvas');
-            await page.click('button[title*="Diagnostics"]').catch(() =>
-                page.click('button:has-text("Diagnostics")')
-            );
+            await clickCanvasTab(page, 'Project Canvas');
+            await page.click('button[aria-label="Diagnostics"]');
             await page.waitForTimeout(800);
         },
     },
@@ -232,8 +225,14 @@ const SCREENSHOTS = [
         description: 'Global search panel',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickCanvasTab(page, 'Story Canvas');
-            await page.keyboard.press('Control+Shift+F');
+            await clickCanvasTab(page, 'Project Canvas');
+            // Ctrl+Shift+F is registered as an Electron menu accelerator, not a page
+            // keydown listener — Playwright's page.keyboard.press() dispatches a DOM
+            // event that doesn't reliably trigger it. Click the left-sidebar "Search"
+            // tab directly instead. Uses a locator (not page.click, which silently
+            // clicks the first match on an ambiguous selector) since exact button
+            // name matching needs strict-mode ambiguity checking to be trustworthy.
+            await page.getByRole('button', { name: 'Search', exact: true }).click();
             await page.waitForTimeout(600);
         },
     },
@@ -254,28 +253,28 @@ const SCREENSHOTS = [
         description: 'Character editor tab for Maya',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Story', 'Characters');
+            await clickSidebarTab(page, 'Characters');
             // Click the pencil icon for Maya to open her character editor tab
             await page.click(
-                'div[title="Drag to editor to insert dialogue"]:has-text("Maya") button[aria-label="Edit character"]'
+                'div[title="Drag to insert dialogue · Double-click to edit"]:has-text("Maya") button[aria-label="Edit character"]'
             );
             await page.waitForTimeout(800);
         },
     },
     {
         filename: 'writer-variables.png',
-        description: 'Variables sub-tab',
+        description: 'Variables tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Story', 'Variables');
+            await clickSidebarTab(page, 'Variables');
         },
     },
     {
         filename: 'writer-menu-builder.png',
-        description: 'Menus sub-tab',
+        description: 'Menu Templates tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Tools', 'Menus');
+            await clickSidebarTab(page, 'Menu Templates');
         },
     },
     {
@@ -283,9 +282,9 @@ const SCREENSHOTS = [
         description: 'Menu editor modal (new menu)',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Tools', 'Menus');
+            await clickSidebarTab(page, 'Menu Templates');
             // Click + New to open the menu constructor modal
-            await page.click('h2:has-text("Menu Templates") ~ div button:has-text("+ New"), button.bg-accent:has-text("+ New")');
+            await page.click('h2:has-text("Menu Templates") ~ button:has-text("+ New")');
             await page.waitForSelector('[role="dialog"][aria-labelledby="menu-constructor-title"]', { timeout: 8000 });
             await page.waitForTimeout(600);
         },
@@ -299,22 +298,31 @@ const SCREENSHOTS = [
     // --- Section 6: For Artists ---
     {
         filename: 'artist-images-tab.png',
-        description: 'Images sub-tab with an image opened',
+        description: 'Images tab with an image opened',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Assets', 'Images');
+            await clickSidebarTab(page, 'Images');
             await page.waitForTimeout(600); // let thumbnails load
-            // Double-click the m.png thumbnail to open the image editor tab
-            await page.dblclick('div:has(img[alt="m.png"])');
+            // Filter to a single unique match first — the images grid is virtualized
+            // (so an unfiltered scroll position can hide the target thumbnail) and a
+            // bare `img[alt="h.png"]` selector risks matching an unrelated character
+            // avatar elsewhere on the page. Filtering guarantees exactly one match.
+            await page.fill('input[placeholder*="Search images by name"]', 'h.png');
+            await page.waitForTimeout(400);
+            // `> img` (direct-child) matters: a plain `div:has(img[alt=...])` matches
+            // every ancestor container too (grid, panel, sidebar), and page.dblclick()
+            // silently double-clicks the first (outermost) match instead of erroring,
+            // so a loose selector here "succeeds" while clicking the wrong element.
+            await page.dblclick('div:has(> img[alt="h.png"])');
             await page.waitForTimeout(800);
         },
     },
     {
         filename: 'artist-audio-tab.png',
-        description: 'Audio sub-tab',
+        description: 'Audio tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Assets', 'Audio');
+            await clickSidebarTab(page, 'Audio');
         },
     },
     {
@@ -322,7 +330,7 @@ const SCREENSHOTS = [
         description: 'Scene Composer tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Compose', 'Scenes');
+            await clickSidebarTab(page, 'Scene Compositions');
             // Click the "Garden" scene to open it in the composer
             await page.click('li p.font-semibold:has-text("Garden")');
             // Wait for the SceneComposer tab to render (unique heading in SceneComposer)
@@ -332,10 +340,10 @@ const SCREENSHOTS = [
     },
     {
         filename: 'artist-imagemaps-composer.png',
-        description: 'ImageMaps composer tab',
+        description: 'Image Maps composer tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Compose', 'ImageMaps');
+            await clickSidebarTab(page, 'Image Maps');
             // Click "Imagemap_1" to open it in the composer
             await page.click('li p.font-semibold:has-text("Imagemap_1")');
             // Wait for ImageMapComposer canvas to render
@@ -343,48 +351,36 @@ const SCREENSHOTS = [
             await page.waitForTimeout(800);
         },
     },
-    {
-        filename: 'artist-screen-layouts-composer.png',
-        description: 'Screen Layout Composer',
-        setup: async (page) => {
-            await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Compose', 'Screen Layouts');
-            // Click + New to create and open a new screen layout composer tab.
-            // Use the scoped selector so we don't accidentally hit another "+ New" button.
-            await page.click('div:has(h2:has-text("Screen Layouts")) button:has-text("+ New")');
-            // Wait for the composer toolbar label which is always rendered
-            await page.waitForSelector('span:has-text("Screen Layout Composer")', { timeout: 8000 });
-            await page.waitForTimeout(600);
-        },
-        teardown: async (page) => {
-            // Navigate away rather than closing the tab — avoids tab-close timing issues
-            await clickSidebarTab(page, 'Tools', 'Snippets');
-        },
-    },
+    // NOTE: 'artist-screen-layouts-composer.png' was removed — the Screen Layout
+    // Composer flow this relied on (Compose > Screen Layouts > "+ New") no longer
+    // exists in the current UI (StoryElementsPanel's sidebar is now a flat tablist
+    // with a read-only "Screens" tab; no reachable trigger for a Screen Layout
+    // Composer tab was found anywhere in src/). Needs a product decision before
+    // this screenshot can be restored.
 
     // --- Section 7: For Developers ---
     {
         filename: 'dev-snippets-tab.png',
-        description: 'Snippets tab',
+        description: 'Code Snippets tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Tools', 'Snippets');
+            await clickSidebarTab(page, 'Code Snippets');
         },
     },
     {
         filename: 'dev-colors-tab.png',
-        description: 'Colors (color picker) tab',
+        description: 'Color Palette tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Tools', 'Colors');
+            await clickSidebarTab(page, 'Color Palette');
         },
     },
     {
         filename: 'dev-screens-tab.png',
-        description: 'Screens sub-tab',
+        description: 'Screens tab',
         setup: async (page) => {
             await waitForProjectReady(page);
-            await clickSidebarTab(page, 'Story', 'Screens');
+            await clickSidebarTab(page, 'Screens');
         },
     },
 ];
@@ -399,14 +395,24 @@ async function ensureDir(dir) {
 
 async function launchApp(productionSettings, extraArgs = []) {
     const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
-    if (productionSettings) {
-        env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify(productionSettings);
-    }
-    return electron.launch({
-        args: [path.join(ROOT, 'electron.js'), ...extraArgs],
+    // Always suppress the legacy-migration modal: it fires on an async main-process
+    // check whose timing isn't fixed like the tutorial modal's, so it can pop up at
+    // an unpredictable point in a long capture run rather than always up front —
+    // and without a saved production app-settings.json (e.g. in CI), nothing else
+    // would set this flag.
+    env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
+        ...productionSettings,
+        legacyMigrationChecked: true,
+    });
+    const app = await electron.launch({
+        args: [APP_ENTRY, ...extraArgs],
         cwd: ROOT,
         env,
     });
+    // Must run before the first window is created — the tutorial modal's
+    // mount-time check would otherwise race a page-level init script.
+    await suppressFirstRunTutorial(app);
+    return app;
 }
 
 /** Get the main window and go full screen before taking any snapshots */
@@ -447,7 +453,7 @@ async function main() {
         await waitForAppReady(page);
         await page.waitForTimeout(600);
         await page.screenshot({ path: path.join(OUT_DIR, welcomeEntry.filename) });
-        await appNoProject.close();
+        await forceExit(appNoProject);
         console.log(`    saved.`);
     }
 
@@ -476,7 +482,7 @@ async function main() {
         }
     }
 
-    await electronApp.close();
+    await forceExit(electronApp);
 
     console.log(`\nDone: ${captured} captured, ${failed} failed.`);
     if (failed > 0) process.exit(1);

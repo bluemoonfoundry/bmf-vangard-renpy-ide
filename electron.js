@@ -676,12 +676,9 @@ async function updateApplicationMenu() {
             {
                 label: 'User Guide',
                 click: () => {
-                    const userGuidePath = app.isPackaged
-                        ? path.join(process.resourcesPath, 'docs', 'Vangard_Studio_User_Guide.html')
-                        : path.join(__dirname, 'docs', 'Vangard_Studio_User_Guide.html');
-                    shell.openPath(userGuidePath).catch(err => {
+                    shell.openExternal('https://bluemoonfoundry.github.io/bmf-vangard-renpy-ide/').catch(err => {
                         logger.error('Failed to open user guide:', err);
-                        dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');
+                        dialog.showErrorBox('Error', 'Could not open the user guide. Please check your internet connection.');
                     });
                 }
             },
@@ -692,7 +689,7 @@ async function updateApplicationMenu() {
             },
             {
                 label: 'Documentation',
-                click: () => shell.openExternal('https://github.com/bluemoonfoundry/vangard-renpy-ide/wiki'),
+                click: () => shell.openExternal('https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/wiki'),
             },
             { type: 'separator' },
             {

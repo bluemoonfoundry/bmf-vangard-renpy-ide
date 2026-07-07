@@ -268,7 +268,7 @@ Example:
 *Figure 2.1: The Vangard Studio Welcome Screen with options to open existing projects or create new ones*
 ```
 
-Pandoc will automatically include these images in the PDF.
+Reference screenshots with a root-absolute path (e.g. `/welcome-screen.png`) when adding them to a page under `website/`; VitePress serves `docs/images/` at the site root.
 
 ---
 
