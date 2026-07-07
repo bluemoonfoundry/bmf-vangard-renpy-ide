@@ -351,5 +351,5 @@ When modifying types:
 ## See Also
 
 - **[`src/types.ts`](../../src/types.ts)** - Complete type definitions with JSDoc
-- **[ARCHITECTURE.md](../ARCHITECTURE.md)** - Overall system architecture
+- **[SYSTEM_ARCHITECTURE.md](../architecture/SYSTEM_ARCHITECTURE.md)** - Overall system architecture
 - **[CLAUDE.md](../../CLAUDE.md)** - Project conventions and patterns

@@ -70,16 +70,6 @@ The JSON file follows this structure:
 }
 ```
 
-## Future Enhancements
-
-Planned features for snippet management:
-
-- User-specific snippet overrides in home directory (`~/.vangard-ide/snippets/`)
-- Per-project snippet customization (`.vangard/snippets.json`)
-- Reload button in UI to refresh snippets without restarting
-- Community snippet packs
-- Import/export snippet collections
-
 ## Notes
 
 - Changes to `default-snippets.json` require restarting the application to take effect
