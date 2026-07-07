@@ -1,4 +1,4 @@
-# Ren'IDE User Guide
+# Vangard Studio User Guide
 
 **The Visual IDE for Ren'Py Development**
 
@@ -10,7 +10,7 @@ Version 0.9.0
 
 ## Part One: Guide
 
-- Chapter 1: Welcome to Ren'IDE
+- Chapter 1: Welcome to Vangard Studio
 - Chapter 2: Who This Is For
 - Chapter 3: Getting Started
 - Chapter 4: The Interface at a Glance
@@ -46,13 +46,13 @@ Version 0.9.0
 
 ---
 
-## Chapter 1: Welcome to Ren'IDE
+## Chapter 1: Welcome to Vangard Studio
 
-### What Is Ren'IDE?
+### What Is Vangard Studio?
 
-Ren'IDE is a desktop application that turns your Ren'Py project into something you can *see*. Every `.rpy` file becomes a draggable block on a visual canvas; every `jump` and `call` becomes an arrow connecting those blocks. Instead of holding a sprawling narrative in your head, you hold it on screen -- the entire branching structure of your visual novel, laid out like a map. You write code in a full-featured editor (the same engine that powers Visual Studio Code), and the canvas updates in real time to reflect your changes.
+Vangard Studio is a desktop application that turns your Ren'Py project into something you can *see*. Every `.rpy` file becomes a draggable block on a visual canvas; every `jump` and `call` becomes an arrow connecting those blocks. Instead of holding a sprawling narrative in your head, you hold it on screen -- the entire branching structure of your visual novel, laid out like a map. You write code in a full-featured editor (the same engine that powers Visual Studio Code), and the canvas updates in real time to reflect your changes.
 
-But Ren'IDE is more than a pretty diagram. It is an integrated development environment built specifically for visual novels: a code editor with Ren'Py-aware autocomplete and diagnostics, visual composers for scenes and screen layouts, asset management for images and audio, and three distinct canvases that show your project from the file level, the label level, and the player's perspective. It runs on Windows, macOS, and Linux.
+But Vangard Studio is more than a pretty diagram. It is an integrated development environment built specifically for visual novels: a code editor with Ren'Py-aware autocomplete and diagnostics, visual composers for scenes and screen layouts, asset management for images and audio, and three distinct canvases that show your project from the file level, the label level, and the player's perspective. It runs on Windows, macOS, and Linux.
 
 ### The Problem
 
@@ -68,7 +68,7 @@ Tracking these connections in a text editor is like trying to read a subway map 
 as a list of station names. You can technically derive the information, but the format
 works against you.
 
-Ren'IDE makes those connections visible. Broken jumps glow red on the canvas before you
+Vangard Studio makes those connections visible. Broken jumps glow red on the canvas before you
 ever launch the game. Unreachable labels are flagged automatically. Missing images and
 undefined characters appear in a diagnostics panel you can click to jump straight to the
 source. The goal is simple: catch structural problems early, navigate large projects
@@ -77,19 +77,19 @@ how the story fits together.
 
 ### No Lock-In
 
-Ren'IDE works *alongside* the Ren'Py SDK, not instead of it. Your `.rpy` files stay as
+Vangard Studio works *alongside* the Ren'Py SDK, not instead of it. Your `.rpy` files stay as
 `.rpy` files. There is no proprietary format, no export step, no conversion. You can open
-a Ren'IDE project in any text editor, and you can open any existing Ren'Py project in
-Ren'IDE. The only files Ren'IDE adds to your project live in a `.renide/` directory
+a Vangard Studio project in any text editor, and you can open any existing Ren'Py project in
+Vangard Studio. The only files Vangard Studio adds to your project live in a `.renide/` directory
 (canvas positions, IDE settings, snippets) that Ren'Py ignores completely.
 
 This philosophy extends to every feature. The Scene Composer generates standard Ren'Py
 `scene` and `show` statements. The Screen Layout Composer outputs valid `screen` code.
 The Menu Constructor produces ordinary `menu:` blocks. Nothing is hidden behind a
-proprietary runtime. If you decide to stop using Ren'IDE tomorrow, your project is
+proprietary runtime. If you decide to stop using Vangard Studio tomorrow, your project is
 exactly the same set of `.rpy` files it always was.
 
-You still need the Ren'Py SDK installed to run your game. Ren'IDE is the place where you
+You still need the Ren'Py SDK installed to run your game. Vangard Studio is the place where you
 write, visualize, and debug -- then you press `F5` and the SDK launches your game as
 usual.
 
@@ -106,7 +106,7 @@ whichever chapter interests you most.
 setting, documented once for quick lookup. When you need to know the exact shortcut for
 Warp to Label or the list of all diagnostic categories, Part Two is where you go.
 
-If you are new to Ren'IDE, start here in Part One. If you already know the basics and
+If you are new to Vangard Studio, start here in Part One. If you already know the basics and
 need a specific detail, jump to Part Two.
 
 This document covers **version 0.7.1 Public Beta 4**. Some features may change in future
@@ -116,7 +116,7 @@ releases.
 
 ## Chapter 2: Who This Is For
 
-Ren'IDE is designed for anyone developing visual novels with Ren'Py. The features span a
+Vangard Studio is designed for anyone developing visual novels with Ren'Py. The features span a
 wide range -- from visual story mapping to low-level code editing -- so different people
 will gravitate toward different parts of the tool. Here is how it fits into five common
 roles.
@@ -130,7 +130,7 @@ Which label does the "forgive" choice jump to? Is there a path from the prologue
 true ending that skips the side quest? Did you accidentally orphan an entire subplot when
 you renamed that label last Tuesday?
 
-Ren'IDE gives you visual answers. The **Project Canvas** shows every `.rpy` file as a
+Vangard Studio gives you visual answers. The **Project Canvas** shows every `.rpy` file as a
 block with arrows drawn between them based on your `jump` and `call` statements. The
 **Flow Canvas** goes deeper, showing every label as a node so you can trace specific
 paths through the narrative. The **Choices Canvas** flips the perspective entirely,
@@ -152,7 +152,7 @@ right position with the right transform, and that nothing is misspelled or missi
 may not be comfortable writing Ren'Py code, but you still need a way to see how your art
 fits into the project.
 
-Ren'IDE's **Images tab** gives you a browsable, thumbnail-rich view of every image in
+Vangard Studio's **Images tab** gives you a browsable, thumbnail-rich view of every image in
 your project. You can scan external directories to reference assets without copying them
 into the project folder. Right-click any image to copy a ready-made `scene` or `show`
 statement to your clipboard. The **Scene Composer** goes further: drag backgrounds and
@@ -169,7 +169,7 @@ building the technical scaffolding that holds a complex visual novel together. Y
 proper code editor, not a toy -- and you want your tooling to understand Ren'Py
 specifically, not just treat it as generic Python.
 
-Ren'IDE's editor is powered by Monaco -- the same engine behind Visual Studio Code. You
+Vangard Studio's editor is powered by Monaco -- the same engine behind Visual Studio Code. You
 get TextMate-grade syntax highlighting with a custom Ren'Py grammar, semantic token
 overlays that color labels and characters differently depending on whether they are
 defined or undefined, context-aware IntelliSense for `jump` targets and `show` images,
@@ -183,7 +183,7 @@ technical details.
 ### Solo Creators
 
 You are all three of the above, and probably a project manager too. The advantage of
-Ren'IDE for you is consolidation. Instead of bouncing between a text editor, a file
+Vangard Studio for you is consolidation. Instead of bouncing between a text editor, a file
 manager, an image viewer, and a spreadsheet of TODOs, you have one window.
 
 Write dialogue in the code editor. Check the canvas to see how the scene connects to the
@@ -199,7 +199,7 @@ understanding. The writer renames a label and the programmer's screen code break
 artist adds sprites that nobody references in the script. Everyone has a different mental
 model of how the story is structured, and those models diverge further every week.
 
-Ren'IDE's canvas gives the team a shared visual language. The `.renide/` directory is
+Vangard Studio's canvas gives the team a shared visual language. The `.renide/` directory is
 Git-friendly (JSON files with stable keys), so canvas positions and project settings
 merge cleanly alongside your `.rpy` files. Every team member sees the same block layout,
 the same arrows, the same diagnostic warnings. The writer can point to a block on the
@@ -216,7 +216,7 @@ novels without performance issues.
 
 ### Installation
 
-Ren'IDE runs on Windows, macOS, and Linux. No runtime dependencies are required for end
+Vangard Studio runs on Windows, macOS, and Linux. No runtime dependencies are required for end
 users -- just download and run.
 
 #### Windows
@@ -225,22 +225,22 @@ Download the `.exe` installer from the releases page and run it. Windows may sho
 **SmartScreen** warning because the application is not yet signed with an Extended
 Validation certificate. This is a standard Windows security prompt for new software.
 Click `More info`, then `Run anyway`. The installer will guide you through choosing an
-installation directory and creating shortcuts. Once installed, launch Ren'IDE from the
+installation directory and creating shortcuts. Once installed, launch Vangard Studio from the
 Start menu or desktop shortcut.
 
 #### macOS
 
-Download the `.dmg` file, open it, and drag the Ren'IDE icon into your `Applications`
+Download the `.dmg` file, open it, and drag the Vangard Studio icon into your `Applications`
 folder. On first launch, macOS **Gatekeeper** will block the app because it is from an
 unidentified developer. To bypass this:
 
-1. Right-click (or Control-click) the Ren'IDE app in your Applications folder.
+1. Right-click (or Control-click) the Vangard Studio app in your Applications folder.
 2. Choose `Open` from the context menu.
 3. Click `Open` in the confirmation dialog.
 
 You only need to do this once. On subsequent launches, the app opens normally. If the
 right-click method does not work on your macOS version, go to `System Settings` >
-`Privacy & Security` and click `Open Anyway` next to the Ren'IDE entry.
+`Privacy & Security` and click `Open Anyway` next to the Vangard Studio entry.
 
 #### Linux
 
@@ -264,7 +264,7 @@ like AppImageLauncher, which adds it to your application menu.
 
 ### First Launch and the Tutorial
 
-The first time you open Ren'IDE with a project loaded, a **6-step interactive tutorial**
+The first time you open Vangard Studio with a project loaded, a **6-step interactive tutorial**
 walks you through the interface. Each step highlights a region of the screen with a
 spotlight overlay and explains what it does:
 
@@ -290,16 +290,16 @@ machine unless you explicitly replay it.
 
 If you already have a Ren'Py project, open it from the welcome screen or via `File` >
 `Open Project`. Browse to the project's root directory -- the folder that contains the
-`game/` subdirectory. Ren'IDE will scan for all `.rpy` files, build the file tree in the
+`game/` subdirectory. Vangard Studio will scan for all `.rpy` files, build the file tree in the
 Project Explorer, and populate the Project Canvas with one block per file. Arrows
 representing `jump` and `call` connections appear automatically.
 
 The initial analysis takes a moment on large projects. You will see a loading overlay
-with progress indicators while Ren'IDE parses every file, extracts labels and characters,
+with progress indicators while Vangard Studio parses every file, extracts labels and characters,
 identifies connections, and runs diagnostics. Once complete, the canvas is fully
 interactive.
 
-Ren'IDE creates a `.renide/` directory inside your project folder to store canvas
+Vangard Studio creates a `.renide/` directory inside your project folder to store canvas
 positions (`project.json`), IDE settings (`ide-settings.json`), and user snippets
 (`snippets.json`). This directory is safe to commit to version control -- it contains only
 JSON files with stable, mergeable keys. Alternatively, add `.renide/` to your
@@ -312,7 +312,7 @@ click `New Project` on the welcome screen or use `File` > `New Project`. The **N
 Project Wizard** walks you through three steps:
 
 **Step 1: Name and Location.** Enter a project name and choose a parent directory.
-Ren'IDE will create a subfolder with the project name. If you have created projects
+Vangard Studio will create a subfolder with the project name. If you have created projects
 before, the wizard remembers your last-used directory.
 
 **Step 2: Resolution.** Pick a resolution preset for your game window:
@@ -330,7 +330,7 @@ default GUI, and pick an accent color from the provided swatches (10 dark-theme 
 10 light-theme colors). These map to Ren'Py's built-in `gui.accent_color` and related
 GUI settings.
 
-Click `Create` and Ren'IDE invokes the Ren'Py SDK to generate a standard project
+Click `Create` and Vangard Studio invokes the Ren'Py SDK to generate a standard project
 structure with all the default files (`script.rpy`, `options.rpy`, `gui.rpy`, `screens.rpy`,
 etc.), then opens the project automatically. The generated project is fully
 SDK-compatible -- you can open it in the Ren'Py launcher, another text editor, or share
@@ -340,7 +340,7 @@ it with teammates who use different tools.
 
 Several features require the Ren'Py SDK to be installed on your machine:
 
-- **Running your game** (`F5`) -- Ren'IDE launches the Ren'Py process as a child of the
+- **Running your game** (`F5`) -- Vangard Studio launches the Ren'Py process as a child of the
   IDE, so you can start and stop the game without switching windows.
 - **Creating new projects** -- the wizard uses the SDK's project generation.
 - **Generating translation scaffolding** -- the Translation Dashboard needs the SDK to
@@ -350,16 +350,16 @@ Several features require the Ren'Py SDK to be installed on your machine:
 
 To configure it, open `Settings` (`Ctrl+,` / `Cmd+,`) and set the **Ren'Py SDK Path** to
 the root directory of your Ren'Py installation. On Windows, this is the folder containing
-`renpy.exe`. On macOS and Linux, it is the folder containing `renpy.sh`. Ren'IDE
+`renpy.exe`. On macOS and Linux, it is the folder containing `renpy.sh`. Vangard Studio
 supports both Ren'Py 7.x and 8.x.
 
-If you do not have the SDK installed, everything else in Ren'IDE still works -- the code
+If you do not have the SDK installed, everything else in Vangard Studio still works -- the code
 editor, the canvases, the diagnostics, the composers, the asset browser. You simply will
 not be able to run the game or create new projects from the wizard.
 
 ### Building from Source
 
-Most users will never need this section. But if you want to run Ren'IDE from source --
+Most users will never need this section. But if you want to run Vangard Studio from source --
 for contributing to development, customizing the tool, or building your own distributable
 -- you need **Node.js 18+** and npm installed. Then:
 
@@ -384,7 +384,7 @@ appears in the `release/` directory.
 
 ## Chapter 4: The Interface at a Glance
 
-When you open a project in Ren'IDE for the first time, the window arranges itself into
+When you open a project in Vangard Studio for the first time, the window arranges itself into
 several clear regions. This chapter gives you a quick orientation so you know what
 everything is called and where to find it. Later chapters explore each area in depth.
 
@@ -439,7 +439,7 @@ can:
 
 The explorer also has a `Refresh Project` option (in its context menu and the `File`
 menu) that reconciles the file tree with what is actually on disk. This is useful when
-you have been editing or adding files outside of Ren'IDE -- for example, in a terminal or
+you have been editing or adding files outside of Vangard Studio -- for example, in a terminal or
 another editor. The refresh detects new files, removed files, and externally modified
 content, updating the IDE state to match reality.
 
@@ -514,7 +514,7 @@ by design -- a quick reference line you glance at rather than interact with.
 
 ## Chapter 5: Seeing Your Story -- The Three Canvases
 
-The canvases are the heart of Ren'IDE. They take the invisible structure of your visual
+The canvases are the heart of Vangard Studio. They take the invisible structure of your visual
 novel -- the web of labels, jumps, calls, and choices buried across `.rpy` files -- and
 make it something you can see, navigate, and rearrange. Each of the three canvases shows
 your project from a different angle. Together, they answer the three fundamental questions
@@ -533,7 +533,7 @@ before you read its name.
 #### Blocks and Arrows
 
 When your code contains a `jump` or `call` statement that targets a label defined in a
-different file, Ren'IDE draws an arrow from the source block to the target block. This
+different file, Vangard Studio draws an arrow from the source block to the target block. This
 means you can *see* the connections between your script files without reading a single
 line of code.
 
@@ -580,7 +580,7 @@ route, by character involvement, or any scheme you like. Block positions are sav
 automatically to `.renide/project.json`, so your layout persists between sessions.
 
 When you want a quick automatic layout instead of manual positioning, click the
-**Organize Layout** button in the toolbar. Ren'IDE offers four layout algorithms:
+**Organize Layout** button in the toolbar. Vangard Studio offers four layout algorithms:
 
 - **Flow (Left to Right)** -- arranges blocks in a left-to-right flow following jump
   connections. Good for linear or mostly-linear stories.
@@ -852,7 +852,7 @@ saves you from scrolling blindly through the graph.
 
 ## Chapter 6: Writing Code
 
-Ren'IDE is built around a professional code editor. Not a stripped-down textarea, not a "good enough" embedded widget -- the actual Monaco editor, the same engine that powers Visual Studio Code. If you have ever used VS Code, the editing experience will feel immediately familiar. If you have not, you are about to discover why millions of developers swear by it.
+Vangard Studio is built around a professional code editor. Not a stripped-down textarea, not a "good enough" embedded widget -- the actual Monaco editor, the same engine that powers Visual Studio Code. If you have ever used VS Code, the editing experience will feel immediately familiar. If you have not, you are about to discover why millions of developers swear by it.
 
 ### The Monaco Editor
 
@@ -868,9 +868,9 @@ You can drag tabs freely between panes, close either pane independently, and res
 
 ### Syntax Highlighting
 
-Ren'IDE provides two layers of syntax coloring that work together.
+Vangard Studio provides two layers of syntax coloring that work together.
 
-The first layer is **TextMate grammar tokenization**. This is the same technology VS Code uses for its syntax highlighting. Ren'IDE ships a custom `renpy.tmLanguage.json` grammar that tokenizes Ren'Py keywords, strings, comments, Python expressions, ATL blocks, and screen language constructs. The grammar is parsed using Oniguruma (loaded as a WebAssembly module for performance), so even complex nested constructs -- triple-quoted strings inside `init python` blocks, for instance -- are colored correctly.
+The first layer is **TextMate grammar tokenization**. This is the same technology VS Code uses for its syntax highlighting. Vangard Studio ships a custom `renpy.tmLanguage.json` grammar that tokenizes Ren'Py keywords, strings, comments, Python expressions, ATL blocks, and screen language constructs. The grammar is parsed using Oniguruma (loaded as a WebAssembly module for performance), so even complex nested constructs -- triple-quoted strings inside `init python` blocks, for instance -- are colored correctly.
 
 The second layer is **semantic token overlays**. While TextMate tokenization colors syntax structurally (it knows a word after `jump` is probably a label), semantic tokens use your project's live analysis data to color things by meaning. There are nine semantic token types:
 
@@ -886,7 +886,7 @@ The practical result: when you type `jump cafe_scene` and `cafe_scene` does not 
 
 ### IntelliSense
 
-As you type, Ren'IDE offers context-aware autocomplete suggestions -- what Monaco calls **IntelliSense**. The completions are not generic; they are drawn from your project's live analysis results.
+As you type, Vangard Studio offers context-aware autocomplete suggestions -- what Monaco calls **IntelliSense**. The completions are not generic; they are drawn from your project's live analysis results.
 
 The completion provider detects what you are writing and adjusts its suggestions accordingly:
 
@@ -901,7 +901,7 @@ Each suggestion includes a detail annotation (the label's file, the character's 
 
 ### Go to Definition
 
-Hold `Ctrl` (or `Cmd` on macOS) and click on a label name, character tag, or screen reference, and the editor will jump directly to where that symbol is defined -- even if the definition lives in a different `.rpy` file. Ren'IDE opens the target file in a new editor tab (or switches to it if already open) and scrolls to the exact line.
+Hold `Ctrl` (or `Cmd` on macOS) and click on a label name, character tag, or screen reference, and the editor will jump directly to where that symbol is defined -- even if the definition lives in a different `.rpy` file. Vangard Studio opens the target file in a new editor tab (or switches to it if already open) and scrolls to the exact line.
 
 This works for:
 
@@ -913,7 +913,7 @@ For large projects with dozens of files, this one feature can save you hours of 
 
 ### Dialogue Preview
 
-Below the code editor sits a collapsible panel called **Dialogue Preview** (labeled "Player View" in the interface). This is one of Ren'IDE's most distinctive features.
+Below the code editor sits a collapsible panel called **Dialogue Preview** (labeled "Player View" in the interface). This is one of Vangard Studio's most distinctive features.
 
 As you move your cursor through dialogue lines, the preview panel renders a mock Ren'Py textbox showing exactly what the player would see. The character's name appears in a colored badge (using their defined color), and the dialogue text is rendered with Ren'Py text tag formatting -- `{b}bold{/b}`, `{i}italic{/i}`, `{color=#ff0000}colored text{/color}`, even `{s}strikethrough{/s}`. Variable interpolations like `[player_name]` appear as dimmed placeholder brackets so you can see where dynamic text will be inserted.
 
@@ -925,7 +925,7 @@ Toggle the preview panel open or closed by clicking its header bar. It remembers
 
 ### Snippets
 
-Ren'IDE ships with **28+ built-in code snippets** covering the most common Ren'Py patterns. Snippets are reusable code templates with tab-stop placeholders -- type a trigger prefix, select the snippet from the IntelliSense menu, and then press `Tab` to jump between placeholder fields and fill in your specific values.
+Vangard Studio ships with **28+ built-in code snippets** covering the most common Ren'Py patterns. Snippets are reusable code templates with tab-stop placeholders -- type a trigger prefix, select the snippet from the IntelliSense menu, and then press `Tab` to jump between placeholder fields and fill in your specific values.
 
 For example, typing `menu` in the editor triggers a snippet that expands to:
 
@@ -1103,7 +1103,7 @@ The Project Theme palette updates automatically as you add or remove hex colors 
 
 ## Chapter 8: Working with Assets
 
-Visual novels run on images and audio. Ren'IDE provides dedicated management tools for both, accessible through the Assets category in the Story Elements sidebar.
+Visual novels run on images and audio. Vangard Studio provides dedicated management tools for both, accessible through the Assets category in the Story Elements sidebar.
 
 ### Image Assets
 
@@ -1111,7 +1111,7 @@ The **Images** tab shows all images that have been registered with your project.
 
 #### Scanning Images
 
-You do not need to copy image files into a specific folder structure for Ren'IDE to find them. The scan feature lets you point at any directory on your system -- your art assets folder, a shared Dropbox directory, a downloaded asset pack -- and Ren'IDE will index the images it finds. The files stay where they are; the IDE only records references and generates thumbnails.
+You do not need to copy image files into a specific folder structure for Vangard Studio to find them. The scan feature lets you point at any directory on your system -- your art assets folder, a shared Dropbox directory, a downloaded asset pack -- and Vangard Studio will index the images it finds. The files stay where they are; the IDE only records references and generates thumbnails.
 
 This is particularly useful during development when your artist is delivering files to a shared folder and you want to reference them in your script before the final project structure is decided.
 
@@ -1157,7 +1157,7 @@ Assets are not isolated in their sidebar tab. They integrate with the rest of th
 
 ## Chapter 9: Visual Composers
 
-Not everything in a visual novel is best expressed as text. Scene layouts, clickable image maps, and UI screens are inherently visual -- and editing them as raw code means constantly running the game to check whether your coordinates and layouts look right. Ren'IDE's three visual composers let you design these elements graphically and generate correct Ren'Py code automatically.
+Not everything in a visual novel is best expressed as text. Scene layouts, clickable image maps, and UI screens are inherently visual -- and editing them as raw code means constantly running the game to check whether your coordinates and layouts look right. Vangard Studio's three visual composers let you design these elements graphically and generate correct Ren'Py code automatically.
 
 ### Scene Composer
 
@@ -1324,7 +1324,7 @@ screen character_stats():
 
 ## Chapter 10: Diagnostics and Quality
 
-You have written ten thousand words of dialogue, set up branching paths, composed scenes, and defined a cast of characters. Everything feels right -- until a playtester hits a `jump` to a label that does not exist, or a `show` statement references an image you renamed last week. These are the kinds of errors that Ren'Py itself will catch at runtime, crashing the game with a traceback. Ren'IDE's diagnostics system catches them before your players do.
+You have written ten thousand words of dialogue, set up branching paths, composed scenes, and defined a cast of characters. Everything feels right -- until a playtester hits a `jump` to a label that does not exist, or a `show` statement references an image you renamed last week. These are the kinds of errors that Ren'Py itself will catch at runtime, crashing the game with a traceback. Vangard Studio's diagnostics system catches them before your players do.
 
 ### What Diagnostics Check
 
@@ -1353,7 +1353,7 @@ The **Issues** view lists every detected problem. Each entry shows:
 - A description of the problem
 - The file and line number where the issue occurs
 
-Click any issue to jump directly to the source -- Ren'IDE opens the file, scrolls to the line, and highlights the problematic code. This one-click navigation means you can work through a list of issues methodically, fixing each one without manually searching.
+Click any issue to jump directly to the source -- Vangard Studio opens the file, scrolls to the line, and highlights the problematic code. This one-click navigation means you can work through a list of issues methodically, fixing each one without manually searching.
 
 **Filter by severity** using the filter controls at the top of the panel. When you are in bug-fixing mode, filter to errors only. When you are polishing, include warnings and info.
 
@@ -1380,7 +1380,7 @@ The **toolbar badge** reinforces this: a small red circle on the Diagnostics but
 
 ### Project Statistics
 
-Beyond finding problems, Ren'IDE helps you understand your project's scope and shape through the **Project Statistics** view. Open it from the toolbar.
+Beyond finding problems, Vangard Studio helps you understand your project's scope and shape through the **Project Statistics** view. Open it from the toolbar.
 
 The statistics dashboard presents several categories of data, each loading independently with inline spinners (so you see numbers as they become available rather than waiting for everything to compute):
 
@@ -1393,7 +1393,7 @@ The statistics dashboard presents several categories of data, each loading indep
 
 **Per-character dialogue breakdown**: a sortable table showing each character's word count, their share of total dialogue as a percentage, and a colored progress bar. For projects with more than six characters, the table becomes sortable by name or word count. This is revealing -- you might discover that your supposed secondary character actually speaks more than your protagonist.
 
-**Branching complexity**: Ren'IDE calculates a complexity score based on the ratio of branching points to total story blocks and the number of identified routes. The score falls into one of four buckets:
+**Branching complexity**: Vangard Studio calculates a complexity score based on the ratio of branching points to total story blocks and the number of identified routes. The score falls into one of four buckets:
 
 - **Linear** -- mainly one path through the story
 - **Branching** -- several distinct story paths
@@ -1424,13 +1424,13 @@ At some point, every visual novel developer stops writing and starts asking the 
 
 The difference between reading a line of script and experiencing that line as a player is enormous. Pacing feels different. A transition that seemed fine in code might feel sluggish when you actually sit through it. A joke that looked funny on screen might fall flat with the wrong timing.
 
-Ren'IDE gives you three tools to make that feedback loop as short as possible: a one-key game launcher, a warp system that teleports you to any scene, and a drafting mode that lets you run unfinished projects without crashing on missing art.
+Vangard Studio gives you three tools to make that feedback loop as short as possible: a one-key game launcher, a warp system that teleports you to any scene, and a drafting mode that lets you run unfinished projects without crashing on missing art.
 
 ### Running Your Game
 
 Press `F5`. That is all it takes.
 
-Ren'IDE launches the Ren'Py engine as a child process, passing your project directory straight to it. Your visual novel boots in its own window, and you can interact with it exactly as a player would -- click through dialogue, make choices, watch transitions play out. The green play button in the toolbar turns into a red stop button while the game is running, so you always know the current state at a glance.
+Vangard Studio launches the Ren'Py engine as a child process, passing your project directory straight to it. Your visual novel boots in its own window, and you can interact with it exactly as a player would -- click through dialogue, make choices, watch transitions play out. The green play button in the toolbar turns into a red stop button while the game is running, so you always know the current state at a glance.
 
 When you are done testing, press `Shift+F5` (or click that red stop button) and the game process shuts down cleanly. You are back in the IDE, ready to edit. No manual window-switching, no hunting for a terminal to kill a process.
 
@@ -1446,7 +1446,7 @@ The core workflow looks like this:
 
 This tight loop means you spend less time fumbling between applications and more time polishing your story. Noticed that a `with dissolve` transition feels too slow? Stop the game, change the duration, save, relaunch. The whole cycle takes seconds.
 
-Many developers coming from other engines are used to a more cumbersome testing cycle -- export, wait for a build, open the build, navigate to the right scene. With Ren'Py and Ren'IDE, the cycle is nearly instantaneous because Ren'Py interprets scripts directly. There is no compilation step. The version of your code on disk is the version Ren'Py reads.
+Many developers coming from other engines are used to a more cumbersome testing cycle -- export, wait for a build, open the build, navigate to the right scene. With Ren'Py and Vangard Studio, the cycle is nearly instantaneous because Ren'Py interprets scripts directly. There is no compilation step. The version of your code on disk is the version Ren'Py reads.
 
 A few things worth knowing about the run/stop behavior:
 
@@ -1519,7 +1519,7 @@ Drafting Mode pairs naturally with Warp to Label. You can warp to any scene in y
 
 ## Chapter 12: Translations
 
-Visual novels have a global audience. A game written in English might find passionate players in Japan, France, Brazil, or Korea -- but only if it speaks their language. Ren'Py has a mature translation system built in, and Ren'IDE wraps that system in a visual dashboard that makes it practical to manage translations across multiple languages, track progress file by file, and spot gaps before they reach players.
+Visual novels have a global audience. A game written in English might find passionate players in Japan, France, Brazil, or Korea -- but only if it speaks their language. Ren'Py has a mature translation system built in, and Vangard Studio wraps that system in a visual dashboard that makes it practical to manage translations across multiple languages, track progress file by file, and spot gaps before they reach players.
 
 Managing translations in a visual novel is not like translating a simple application. A game might have thousands of dialogue lines, each tied to a specific character voice and emotional context. Some lines are narrator text, some are spoken dialogue, and some are player choice text that needs to be concise enough to fit inside a button. Keeping track of all this across multiple languages -- especially as the source script evolves -- is a significant project management challenge. The Translation Dashboard is designed specifically for this.
 
@@ -1620,7 +1620,7 @@ One practical tip: if you are managing multiple translators working on the same 
 
 ## Chapter 13: Project Tools
 
-Beyond the canvases, the code editor, and the visual composers, Ren'IDE includes a set of project management tools that handle the day-to-day logistics of working with files, tracking changes, and keeping your project organized. These tools are not glamorous, but they make the difference between a smooth development workflow and a frustrating one. A visual novel project can grow to dozens or hundreds of files over months of development, and managing that structure well is a silent prerequisite for finishing the game.
+Beyond the canvases, the code editor, and the visual composers, Vangard Studio includes a set of project management tools that handle the day-to-day logistics of working with files, tracking changes, and keeping your project organized. These tools are not glamorous, but they make the difference between a smooth development workflow and a frustrating one. A visual novel project can grow to dozens or hundreds of files over months of development, and managing that structure well is a silent prerequisite for finishing the game.
 
 ### Project Explorer
 
@@ -1709,7 +1709,7 @@ The resolution you choose here sets the `config.screen_width` and `config.screen
 
 When you click create, the IDE calls the Ren'Py SDK to generate a complete, SDK-compatible project structure. You get a `game/` directory populated with `script.rpy` (your starting script), `options.rpy` (game configuration), `gui.rpy` (visual styling), and all the standard Ren'Py boilerplate files. The new project opens in the IDE immediately -- the Project Canvas shows your first block, and you can start writing right away.
 
-A useful detail: because the wizard generates standard Ren'Py project files, the result is fully compatible with both the IDE and the stock Ren'Py launcher. You can open the same project in either tool at any time. Nothing about the wizard's output locks you into using Ren'IDE -- it simply gives you a faster, more visual way to set up the boilerplate that every new Ren'Py project needs.
+A useful detail: because the wizard generates standard Ren'Py project files, the result is fully compatible with both the IDE and the stock Ren'Py launcher. You can open the same project in either tool at any time. Nothing about the wizard's output locks you into using Vangard Studio -- it simply gives you a faster, more visual way to set up the boilerplate that every new Ren'Py project needs.
 
 If you already have an existing Ren'Py project that you created outside the IDE, you do not need the wizard at all. Just open the project folder directly through `File` then `Open Project`. The IDE reads the `.rpy` files it finds, builds the canvas from your existing labels and jumps, and you are up and running.
 
@@ -1717,7 +1717,7 @@ If you already have an existing Ren'Py project that you created outside the IDE,
 
 ## Chapter 14: Customization
 
-Ren'IDE is designed to be comfortable for long writing sessions. A visual novel can take months -- sometimes years -- to write, and the tool you spend hours in every day should look and feel exactly the way you want it. Personal preferences matter more than most developers realize: the right font size reduces eye strain, the right theme reduces fatigue during late-night writing sessions, and the right mouse configuration prevents the small frustrations that accumulate over time. This chapter covers every way to make the IDE yours.
+Vangard Studio is designed to be comfortable for long writing sessions. A visual novel can take months -- sometimes years -- to write, and the tool you spend hours in every day should look and feel exactly the way you want it. Personal preferences matter more than most developers realize: the right font size reduces eye strain, the right theme reduces fatigue during late-night writing sessions, and the right mouse configuration prevents the small frustrations that accumulate over time. This chapter covers every way to make the IDE yours.
 
 ### Themes
 
@@ -1769,7 +1769,7 @@ These preferences apply uniformly to the Project Canvas, Flow Canvas, and Choice
 
 ### Auto-Updater
 
-Ren'IDE checks for new releases automatically when you launch the application. The check runs a few seconds after startup so it does not slow down your initial load. If an update is available, a notification appears with the new version number and an option to download and install it.
+Vangard Studio checks for new releases automatically when you launch the application. The check runs a few seconds after startup so it does not slow down your initial load. If an update is available, a notification appears with the new version number and an option to download and install it.
 
 You can also check manually at any time from the `Help` menu by clicking `Check for Updates`. The updater downloads the new version in the background. Once the download completes, it prompts you to restart the application to apply the update.
 
@@ -1779,7 +1779,7 @@ Updates are incremental and generally quick to download. The updater handles the
 
 ### First-Run Tutorial
 
-The first time you launch Ren'IDE, a 6-step interactive tutorial walks you through the core features. Each step highlights a specific area of the interface with an animated SVG spotlight effect, drawing your attention to the relevant button or panel while dimming the rest of the screen.
+The first time you launch Vangard Studio, a 6-step interactive tutorial walks you through the core features. Each step highlights a specific area of the interface with an animated SVG spotlight effect, drawing your attention to the relevant button or panel while dimming the rest of the screen.
 
 The six steps are:
 
@@ -1800,13 +1800,13 @@ The tutorial is designed to take less than a minute for a quick skim, or a few m
 
 ### Bundled User Guide
 
-A complete HTML user guide ships inside every packaged copy of Ren'IDE. Access it from `Help` then `User Guide`. It opens in a new tab within the IDE itself, so you have reference documentation available without leaving your workspace or opening a browser.
+A complete HTML user guide ships inside every packaged copy of Vangard Studio. Access it from `Help` then `User Guide`. It opens in a new tab within the IDE itself, so you have reference documentation available without leaving your workspace or opening a browser.
 
 This means you always have documentation available, even when working offline or on a machine without internet access. The guide covers every feature in detail and is searchable within the tab. Need to look up how the Scene Composer's visual effects work? Open the guide, search for "visual effects," and you have a full explanation without switching out of your project.
 
 ### Version in Status Bar
 
-The current version of Ren'IDE is always visible in the status bar at the bottom of the window. This is a small but practical detail -- when reporting a bug, sharing a screenshot with a collaborator, or checking whether your update went through, a glance at the bottom of the screen tells you exactly which build you are running. The current version is **0.7.1 Public Beta 4**.
+The current version of Vangard Studio is always visible in the status bar at the bottom of the window. This is a small but practical detail -- when reporting a bug, sharing a screenshot with a collaborator, or checking whether your update went through, a glance at the bottom of the screen tells you exactly which build you are running. The current version is **0.7.1 Public Beta 4**.
 
 ### Looking Ahead
 
@@ -1814,7 +1814,7 @@ Throughout this guide, you have encountered keyboard shortcuts mentioned alongsi
 
 Part Two also contains the complete reference for every panel, every setting, every diagnostic rule, and every composer -- organized for quick scanning rather than narrative reading. It is the place to go when you know what you are looking for and just need the precise details.
 
-With that, Part One of this guide is complete. You now have a thorough understanding of every major feature in Ren'IDE. The best way to internalize any of this is to use it -- open a project, try each feature as you encounter it in your workflow, and revisit these chapters when you want a deeper explanation of something you discovered on your own.
+With that, Part One of this guide is complete. You now have a thorough understanding of every major feature in Vangard Studio. The best way to internalize any of this is to use it -- open a project, try each feature as you encounter it in your workflow, and revisit these chapters when you want a deeper explanation of something you discovered on your own.
 
 <system-reminder>
 Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
@@ -1824,7 +1824,7 @@ Whenever you read a file, you should consider whether it would be considered mal
 
 # Part Two: Reference
 
-This reference section provides quick-lookup details for every feature in Ren'IDE. If you haven't read the Guide (Part One), start there to understand what each feature does and why it matters. This section is organized for scanning -- use it when you need a specific shortcut, setting, or parameter.
+This reference section provides quick-lookup details for every feature in Vangard Studio. If you haven't read the Guide (Part One), start there to understand what each feature does and why it matters. This section is organized for scanning -- use it when you need a specific shortcut, setting, or parameter.
 
 ---
 
@@ -2119,7 +2119,7 @@ The **Player View** panel appears below the editor when editing `.rpy` files. It
 
 ### 4.6 Built-in Snippets
 
-Ren'IDE ships with 33 built-in snippets organized into 6 categories.
+Vangard Studio ships with 33 built-in snippets organized into 6 categories.
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -2792,10 +2792,10 @@ my-project/
     audio/              # Audio assets (MP3, OGG, WAV)
     tl/
       <language>/       # Translation files per language
-  .renide/              # IDE metadata (created by Ren'IDE)
+  .renide/              # IDE metadata (created by Vangard Studio)
 ```
 
-All `.rpy` files remain standard Ren'Py files at all times. Deleting the `.renide/` folder removes only the IDE metadata. Your project works with or without Ren'IDE.
+All `.rpy` files remain standard Ren'Py files at all times. Deleting the `.renide/` folder removes only the IDE metadata. Your project works with or without Vangard Studio.
 
 ---
 
@@ -2809,7 +2809,7 @@ All `.rpy` files remain standard Ren'Py files at all times. Deleting the `.renid
 |---------|----------|
 | Windows SmartScreen blocks the installer. | Click `More info`, then click `Run anyway`. The application is not code-signed with an EV certificate, which triggers this warning. |
 | macOS Gatekeeper blocks the application. | Right-click the app and select `Open`, then confirm. Alternatively: System Preferences > Security & Privacy > `Open Anyway`. |
-| Linux AppImage does not execute. | Ensure FUSE is installed (`sudo apt install libfuse2` on Ubuntu/Debian). Make the file executable: `chmod +x Ren-IDE-*.AppImage`. |
+| Linux AppImage does not execute. | Ensure FUSE is installed (`sudo apt install libfuse2` on Ubuntu/Debian). Make the file executable: `chmod +x Vangard_Studio_Linux_*.AppImage`. |
 
 #### Performance
 
@@ -2867,27 +2867,27 @@ All `.rpy` files remain standard Ren'Py files at all times. Deleting the `.renid
 
 #### General
 
-**Q: What Ren'Py versions does Ren'IDE support?**
+**Q: What Ren'Py versions does Vangard Studio support?**
 A: Both Ren'Py 7.x and 8.x.
 
-**Q: Does Ren'IDE replace the Ren'Py SDK?**
-A: No. Ren'IDE works alongside the SDK. You still need the Ren'Py SDK installed to run and test your game.
+**Q: Does Vangard Studio replace the Ren'Py SDK?**
+A: No. Vangard Studio works alongside the SDK. You still need the Ren'Py SDK installed to run and test your game.
 
-**Q: Can I use Ren'IDE offline?**
+**Q: Can I use Vangard Studio offline?**
 A: Yes. The IDE is fully offline. No internet connection is required for any feature. The only network activity is the optional auto-update check on launch.
 
-**Q: Is my project locked into Ren'IDE?**
+**Q: Is my project locked into Vangard Studio?**
 A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data in a `.renide/` folder that Ren'Py ignores. Delete the `.renide/` folder and your project is exactly as Ren'Py expects it.
 
 #### Projects
 
-**Q: How large a project can Ren'IDE handle?**
+**Q: How large a project can Vangard Studio handle?**
 A: It has been tested with projects containing 500+ files. Performance may vary with very large projects; check `Stats` > `IDE Performance` for metrics.
 
 **Q: Can multiple people work on the same project?**
-A: Yes. Project files are Git-friendly. Each team member can use Ren'IDE independently. The `.renide/` folder can be committed to version control to share canvas layouts, compositions, and task lists.
+A: Yes. Project files are Git-friendly. Each team member can use Vangard Studio independently. The `.renide/` folder can be committed to version control to share canvas layouts, compositions, and task lists.
 
-**Q: What happens to my project if I stop using Ren'IDE?**
+**Q: What happens to my project if I stop using Vangard Studio?**
 A: Nothing. Delete the `.renide/` folder and your project remains a standard Ren'Py project with no traces of the IDE.
 
 #### Features

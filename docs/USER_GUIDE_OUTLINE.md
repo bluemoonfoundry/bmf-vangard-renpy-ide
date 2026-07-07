@@ -1,4 +1,4 @@
-# Ren'IDE User Guide - Detailed Outline
+# Vangard Studio User Guide - Detailed Outline
 
 **Version:** 0.7.1 Public Beta 4
 **Target Audience:** Ren'Py visual novel developers (writers, artists, programmers)
@@ -8,14 +8,14 @@
 
 ## Section 1: Introduction (5-7 pages)
 
-### 1.1 What is Ren'IDE?
+### 1.1 What is Vangard Studio?
 - Visual IDE for Ren'Py development
 - The problem it solves (managing complex VN projects)
 - Core philosophy: visual representation of narrative structure
 - Non-destructive: works with standard .rpy files
 - No lock-in to proprietary formats
 
-### 1.2 Who Should Use Ren'IDE?
+### 1.2 Who Should Use Vangard Studio?
 - **Writers** - visual narrative flow, character tracking, choice management
 - **Artists** - asset management, scene composition, visual previews
 - **Programmers** - code editor, diagnostics, IntelliSense, screen builders
@@ -54,7 +54,7 @@
 #### 2.1.2 macOS Installation
 - Download the .dmg file
 - Open the DMG
-- Drag Ren'IDE to Applications folder
+- Drag Vangard Studio to Applications folder
 - First launch (security prompts)
 - Granting permissions
 
@@ -79,7 +79,7 @@
 
 ### 2.3 Opening an Existing Project
 - Browse to project directory
-- What Ren'IDE looks for (.rpy files)
+- What Vangard Studio looks for (.rpy files)
 - Initial project analysis
 - Understanding the canvas view
 - File tree population
@@ -97,7 +97,7 @@
 - Settings → Ren'Py SDK Path
 - Locating your SDK installation
 - Testing the configuration
-- Running your game from Ren'IDE
+- Running your game from Vangard Studio
 
 ---
 
@@ -614,7 +614,7 @@
 - Auto-indentation
 
 #### 7.1.3 IntelliSense Deep Dive
-- How IntelliSense works in Ren'IDE
+- How IntelliSense works in Vangard Studio
 - Jump/call target completion
 - Image/audio completion
 - Character tag completion
@@ -764,7 +764,7 @@
 #### 7.7.3 Build and Distribution
 - Using Ren'Py SDK tools
 - Building distributables from SDK
-- Ren'IDE workflow integration
+- Vangard Studio workflow integration
 
 ### 7.8 File System Integration
 
@@ -774,7 +774,7 @@
 - File persistence
 
 #### 7.8.2 Project Structure
-- What Ren'IDE expects
+- What Vangard Studio expects
 - game/ directory
 - .rpy files
 - project.ide.json (settings and compositions)
@@ -1193,7 +1193,7 @@
 ### Appendix C: Frequently Asked Questions
 
 #### C.1 General
-- Is Ren'IDE free?
+- Is Vangard Studio free?
 - Does it work with existing Ren'Py projects?
 - Will it lock me into a proprietary format?
 - Can I use it alongside other editors?
@@ -1201,7 +1201,7 @@
 
 #### C.2 Features
 - Can I edit code directly?
-- Can I run my game from Ren'IDE?
+- Can I run my game from Vangard Studio?
 - Does it support version control (Git)?
 - Can multiple people work on the same project?
 - Does it support Ren'Py plugins/extensions?
@@ -1221,7 +1221,7 @@
 #### C.5 Advanced
 - Can I customize keyboard shortcuts?
 - Can I create custom themes?
-- Can I extend Ren'IDE with plugins?
+- Can I extend Vangard Studio with plugins?
 - Is there an API for automation?
 
 ### Appendix D: Glossary of Terms

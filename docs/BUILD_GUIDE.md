@@ -1,6 +1,6 @@
 # Building the User Guide
 
-This directory contains the source files for the Ren'IDE User Guide.
+This directory contains the source files for the Vangard Studio User Guide.
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This directory contains the source files for the Ren'IDE User Guide.
 make html
 ```
 
-This generates `Ren-IDE_User_Guide.html` which is bundled with the Electron app.
+This generates `Vangard_Studio_User_Guide.html` which is bundled with the Electron app.
 
 ### Generate PDF User Guide
 
@@ -23,7 +23,7 @@ This generates `Ren-IDE_User_Guide.html` which is bundled with the Electron app.
 make pdf
 ```
 
-This generates `Ren-IDE_User_Guide.pdf` with title page and full formatting.
+This generates `Vangard_Studio_User_Guide.pdf` with title page and full formatting.
 
 ### Generate Both
 
@@ -51,9 +51,9 @@ make all
 - `template-inline.html` - Pandoc template with inlined CSS (used for build)
 
 ### Generated Files (gitignored)
-- `Ren-IDE_User_Guide.html` - Bundled with app
-- `Ren-IDE_User_Guide.pdf` - For distribution
-- `Ren-IDE_User_Guide_DRAFT.pdf` - Quick draft version
+- `Vangard_Studio_User_Guide.html` - Bundled with app
+- `Vangard_Studio_User_Guide.pdf` - For distribution
+- `Vangard_Studio_User_Guide_DRAFT.pdf` - Quick draft version
 - `test.pdf` - Testing output
 
 ## Integration with Build Process
@@ -64,7 +64,7 @@ The HTML user guide is **committed to the repository** and bundled with distribu
 
 ```bash
 make html
-git add Ren-IDE_User_Guide.html
+git add Vangard_Studio_User_Guide.html
 git commit -m "Update user guide HTML"
 ```
 
@@ -94,12 +94,12 @@ In development mode, the user guide is accessible via:
 
 **Menu**: Help → User Guide
 
-**Path**: `docs/Ren-IDE_User_Guide.html`
+**Path**: `docs/Vangard_Studio_User_Guide.html`
 
 In the packaged app, it's located at:
 
-**Windows/Linux**: `resources/docs/Ren-IDE_User_Guide.html`
-**macOS**: `Contents/Resources/docs/Ren-IDE_User_Guide.html`
+**Windows/Linux**: `resources/docs/Vangard_Studio_User_Guide.html`
+**macOS**: `Contents/Resources/docs/Vangard_Studio_User_Guide.html`
 
 ## Troubleshooting
 

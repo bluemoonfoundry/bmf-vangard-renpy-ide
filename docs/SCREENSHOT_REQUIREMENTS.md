@@ -1,4 +1,4 @@
-# Screenshot Requirements for Ren'IDE User Guide
+# Screenshot Requirements for Vangard Studio User Guide
 
 This document lists all screenshots needed for the user guide, organized by section. Each screenshot should be saved in the `docs/images/` directory with the filename indicated.
 
@@ -16,13 +16,13 @@ This document lists all screenshots needed for the user guide, organized by sect
 #### Installation
 - [ ] **install-windows-smartscreen.png** - Windows SmartScreen warning dialog with "More info" button visible
 - [ ] **install-windows-installer.png** - NSIS installer wizard (any step)
-- [ ] **install-macos-dmg.png** - DMG window showing Ren'IDE icon and Applications folder
+- [ ] **install-macos-dmg.png** - DMG window showing Vangard Studio icon and Applications folder
 - [ ] **install-macos-gatekeeper.png** - macOS Gatekeeper warning dialog
 - [ ] **install-linux-appimage.png** - Terminal showing chmod command and AppImage execution
 
 #### First Launch
 - [ ] **welcome-screen.png** - Welcome screen with "Open Existing Project" and "Create New Project" buttons, recent projects list
-- [ ] **project-opened.png** - Ren'IDE immediately after opening a project (Project Canvas visible, file tree populated)
+- [ ] **project-opened.png** - Vangard Studio immediately after opening a project (Project Canvas visible, file tree populated)
 
 #### New Project Wizard
 - [ ] **wizard-step1.png** - New Project Wizard Step 1 (name and location)
@@ -150,7 +150,7 @@ This document lists all screenshots needed for the user guide, organized by sect
 - [ ] **dev-screen-composer-properties.png** - Widget properties panel showing configurable properties
 - [ ] **dev-diagnostics-detailed.png** - Diagnostics panel with detailed error messages and file/line info
 - [ ] **dev-stats-complexity.png** - Stats panel showing branching complexity metrics
-- [ ] **dev-sdk-running-game.png** - Ren'Py game window running alongside Ren'IDE (two windows side by side)
+- [ ] **dev-sdk-running-game.png** - Ren'Py game window running alongside Vangard Studio (two windows side by side)
 
 ### Section 8: Complete Feature Reference (2-3 screenshots)
 
@@ -265,7 +265,7 @@ Example:
 ```markdown
 ![Welcome Screen](images/02-getting-started/welcome-screen.png)
 
-*Figure 2.1: The Ren'IDE Welcome Screen with options to open existing projects or create new ones*
+*Figure 2.1: The Vangard Studio Welcome Screen with options to open existing projects or create new ones*
 ```
 
 Pandoc will automatically include these images in the PDF.

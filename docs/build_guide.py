@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build script: convert USER_GUIDE.md -> Ren-IDE_User_Guide.html
+Build script: convert USER_GUIDE.md -> Vangard_Studio_User_Guide.html
 using the medieval-tome Jinja2 template (template-medieval.html).
 
 Requirements:
@@ -25,9 +25,9 @@ except ImportError:
 DOCS_DIR    = Path(__file__).parent
 GUIDE_MD    = DOCS_DIR / "USER_GUIDE.md"
 TEMPLATE    = "template-medieval.html"
-OUTPUT_HTML = DOCS_DIR / "Ren-IDE_User_Guide.html"
+OUTPUT_HTML = DOCS_DIR / "Vangard_Studio_User_Guide.html"
 
-DOC_TITLE    = "Ren\u2019IDE User Guide"
+DOC_TITLE    = "Vangard Studio User Guide"
 DOC_SUBTITLE = "Being a complete guide to the mastery of the software."
 
 ROMAN = [

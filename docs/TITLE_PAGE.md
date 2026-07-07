@@ -2,7 +2,7 @@
 title: |
   ![](images/logo.png){width=3in}
 
-  **Ren'IDE**
+  **Vangard Studio**
   **User Guide**
 subtitle: |
   The Visual IDE for Ren'Py Development
@@ -12,9 +12,9 @@ author: Blue Moon Foundry
 date: April 2026
 version: Version 0.7.1 Public B<eta 4
 abstract: |
-  Welcome to Ren'IDE, the visual development environment designed specifically for Ren'Py visual novel creators. This comprehensive guide covers everything from installation to advanced features, with dedicated sections for writers, artists, and developers.
+  Welcome to Vangard Studio, the visual development environment designed specifically for Ren'Py visual novel creators. This comprehensive guide covers everything from installation to advanced features, with dedicated sections for writers, artists, and developers.
 
-  Whether you're creating your first visual novel or managing a complex branching narrative with hundreds of scenes, Ren'IDE helps you visualize structure, catch errors early, and streamline your workflow.
+  Whether you're creating your first visual novel or managing a complex branching narrative with hundreds of scenes, Vangard Studio helps you visualize structure, catch errors early, and streamline your workflow.
 keywords: [RenPy, Visual Novel, IDE, Game Development, Narrative Design, Visual Editor]
 lang: en-US
 documentclass: report
@@ -48,7 +48,7 @@ header-includes:
 \vspace*{2in}
 
 \begin{center}
-\Huge{\textbf{Ren'IDE}}
+\Huge{\textbf{Vangard Studio}}
 
 \LARGE{\textbf{User Guide}}
 
@@ -91,7 +91,7 @@ Copyright © 2026 Blue Moon Foundry. All rights reserved.\\
 
 # About This Guide
 
-This user guide provides comprehensive documentation for Ren'IDE (Vangard Ren'Py IDE), covering all features, workflows, and best practices for visual novel development.
+This user guide provides comprehensive documentation for Vangard Studio (formerly Ren'IDE), covering all features, workflows, and best practices for visual novel development.
 
 ## Who Should Read This Guide
 
@@ -105,7 +105,7 @@ This user guide provides comprehensive documentation for Ren'IDE (Vangard Ren'Py
 
 This guide is organized into nine sections:
 
-1. **Introduction** — Understanding Ren'IDE, its purpose, and benefits
+1. **Introduction** — Understanding Vangard Studio, its purpose, and benefits
 2. **Getting Started** — Installation, first launch, and basic setup
 3. **Interface Overview** — Complete UI tour and navigation
 4. **Core Features Tour** — In-depth look at the three canvas system, editor, diagnostics, and statistics
@@ -136,7 +136,7 @@ If you encounter issues or have questions not covered in this guide:
 
 ## Feedback
 
-We're continuously improving Ren'IDE and this documentation. If you have suggestions, corrections, or additions:
+We're continuously improving Vangard Studio and this documentation. If you have suggestions, corrections, or additions:
 
 - Open an issue on GitHub
 - Submit a pull request with improvements
@@ -144,12 +144,12 @@ We're continuously improving Ren'IDE and this documentation. If you have suggest
 
 ## Acknowledgments
 
-Ren'IDE is built on the shoulders of giants. We thank:
+Vangard Studio is built on the shoulders of giants. We thank:
 
 - **The Ren'Py Community** for creating an amazing visual novel engine
-- **Open Source Contributors** for the libraries and tools that power Ren'IDE
+- **Open Source Contributors** for the libraries and tools that power Vangard Studio
 - **Beta Testers** for their invaluable feedback
-- **You** for choosing Ren'IDE for your visual novel development
+- **You** for choosing Vangard Studio for your visual novel development
 
 ---
 
@@ -157,9 +157,9 @@ Ren'IDE is built on the shoulders of giants. We thank:
 
 # Quick Start Guide
 
-New to Ren'IDE? Here's a 5-minute quick start to get you up and running.
+New to Vangard Studio? Here's a 5-minute quick start to get you up and running.
 
-## 1. Install Ren'IDE
+## 1. Install Vangard Studio
 
 **Download the latest release:**
 - Visit [GitHub Releases](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)
@@ -171,7 +171,7 @@ New to Ren'IDE? Here's a 5-minute quick start to get you up and running.
 ## 2. Launch and Open a Project
 
 **First launch:**
-- Open Ren'IDE from your applications folder or start menu
+- Open Vangard Studio from your applications folder or start menu
 - You'll see the Welcome Screen
 - Click **"Open Existing Project"** to open a Ren'Py project folder
 - Or click **"Create New Project"** to start from scratch

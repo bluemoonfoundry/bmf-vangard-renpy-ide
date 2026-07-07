@@ -1,6 +1,6 @@
-# Ren'IDE User Guide Documentation
+# Vangard Studio User Guide Documentation
 
-This directory contains the complete user guide for Ren'IDE (Vangard Ren'Py IDE), including all source files, instructions, and tools needed to generate a professional PDF.
+This directory contains the complete user guide for Vangard Studio (formerly Ren'IDE), including all source files, instructions, and tools needed to generate a professional PDF.
 
 ## Quick Start
 
@@ -11,7 +11,7 @@ cd /Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs
 make pdf
 ```
 
-The PDF will be created at `Ren-IDE_User_Guide.pdf`.
+The PDF will be created at `Vangard_Studio_User_Guide.pdf`.
 
 ---
 
@@ -110,7 +110,7 @@ make help
 ```bash
 /Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc \
   TITLE_PAGE.md USER_GUIDE.md \
-  -o Ren-IDE_User_Guide.pdf \
+  -o Vangard_Studio_User_Guide.pdf \
   --pdf-engine=xelatex \
   --toc --toc-depth=3 --number-sections \
   --highlight-style=tango \
@@ -165,7 +165,7 @@ docs/
 │   ├── README.md                  # Images guide
 │   ├── logo.png                   # Logo (to be added)
 │   └── [01-09]-*/                 # Section subdirectories
-└── Ren-IDE_User_Guide.pdf         # Generated PDF (after build)
+└── Vangard_Studio_User_Guide.pdf         # Generated PDF (after build)
 ```
 
 ---
@@ -227,7 +227,7 @@ To contribute improvements to this documentation:
 
 ## License
 
-This documentation is released under the same license as Ren'IDE.
+This documentation is released under the same license as Vangard Studio.
 
 Copyright © 2026 Blue Moon Foundry. All rights reserved.
 
@@ -248,4 +248,4 @@ Copyright © 2026 Blue Moon Foundry. All rights reserved.
 make pdf
 ```
 
-**Generated PDF will be saved as:** `Ren-IDE_User_Guide.pdf`
+**Generated PDF will be saved as:** `Vangard_Studio_User_Guide.pdf`

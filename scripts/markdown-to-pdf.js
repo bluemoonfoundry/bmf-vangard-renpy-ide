@@ -233,7 +233,7 @@ async function convertMarkdownToPdf() {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Ren'IDE User Guide</title>
+        <title>Vangard Studio User Guide</title>
         ${PDF_STYLES}
       </head>
       <body>

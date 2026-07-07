@@ -27,9 +27,9 @@ DemoProject/errors.txt
 .renide/screenshots/*
 
 # Generated documentation
-# Note: Ren-IDE_User_Guide.html is committed for distribution builds
-docs/Ren-IDE_User_Guide.pdf
-docs/Ren-IDE_User_Guide_DRAFT.pdf
+# Note: Vangard_Studio_User_Guide.html is committed for distribution builds
+docs/Vangard_Studio_User_Guide.pdf
+docs/Vangard_Studio_User_Guide_DRAFT.pdf
 docs/test.pdf
 
 # Editor directories and files

@@ -134,8 +134,8 @@
     },
     "extraResources": [
       {
-        "from": "docs/Ren-IDE_User_Guide.html",
-        "to": "docs/Ren-IDE_User_Guide.html"
+        "from": "docs/Vangard_Studio_User_Guide.html",
+        "to": "docs/Vangard_Studio_User_Guide.html"
       },
       {
         "from": "resources/renpy-template",

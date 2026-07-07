@@ -1,4 +1,4 @@
-# Ren'IDE Support Runbook
+# Vangard Studio Support Runbook
 
 This document is for Blue Moon Foundry team members handling post-release support.
 For end-user help, point users to the [GitHub Issues](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/issues) page.
@@ -7,7 +7,7 @@ For end-user help, point users to the [GitHub Issues](https://github.com/bluemoo
 
 ## Log File Locations
 
-Ren'IDE uses [electron-log](https://github.com/megahertz/electron-log). Logs rotate at 5 MB.
+Vangard Studio uses [electron-log](https://github.com/megahertz/electron-log). Logs rotate at 5 MB.
 
 | Platform | Log directory |
 |---|---|

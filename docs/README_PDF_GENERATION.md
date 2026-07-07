@@ -1,4 +1,4 @@
-# PDF Generation Instructions for Ren'IDE User Guide
+# PDF Generation Instructions for Vangard Studio User Guide
 
 This README provides step-by-step instructions for generating the final PDF user guide.
 
@@ -11,7 +11,7 @@ cd /Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs
 
 /Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc \
   TITLE_PAGE.md USER_GUIDE.md \
-  -o Ren-IDE_User_Guide.pdf \
+  -o Vangard_Studio_User_Guide.pdf \
   --pdf-engine=xelatex \
   --toc \
   --toc-depth=3 \
@@ -155,7 +155,7 @@ cd /Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs
 
 /Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc \
   TITLE_PAGE.md USER_GUIDE.md \
-  -o Ren-IDE_User_Guide.pdf \
+  -o Vangard_Studio_User_Guide.pdf \
   --pdf-engine=xelatex \
   --toc \
   --toc-depth=3 \
@@ -182,7 +182,7 @@ cd /Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs
 
 The PDF will be created at:
 ```
-/Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs/Ren-IDE_User_Guide.pdf
+/Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs/Vangard_Studio_User_Guide.pdf
 ```
 
 ### Step 5: Review the PDF
@@ -231,7 +231,7 @@ cd /Users/hirparag/Development/private/bmf-vangard-renpy-ide/docs
 
 /Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc \
   TITLE_PAGE.md USER_GUIDE.md \
-  -o Ren-IDE_User_Guide_DRAFT.pdf \
+  -o Vangard_Studio_User_Guide_DRAFT.pdf \
   --pdf-engine=xelatex \
   --toc \
   --toc-depth=3 \
@@ -257,7 +257,7 @@ Create a `Makefile` in the `docs/` directory for easy regeneration.
 ```makefile
 PANDOC=/Users/hirparag/Development/pandoc-3.9.0.2-arm64/bin/pandoc
 INPUT=TITLE_PAGE.md USER_GUIDE.md
-OUTPUT=Ren-IDE_User_Guide.pdf
+OUTPUT=Vangard_Studio_User_Guide.pdf
 
 PANDOC_OPTIONS=--pdf-engine=xelatex \
   --toc \
@@ -282,10 +282,10 @@ pdf:
 	$(PANDOC) $(INPUT) -o $(OUTPUT) $(PANDOC_OPTIONS)
 
 draft:
-	$(PANDOC) USER_GUIDE.md -o Ren-IDE_User_Guide_DRAFT.pdf --toc --number-sections
+	$(PANDOC) USER_GUIDE.md -o Vangard_Studio_User_Guide_DRAFT.pdf --toc --number-sections
 
 clean:
-	rm -f $(OUTPUT) Ren-IDE_User_Guide_DRAFT.pdf *.aux *.log *.out *.tex
+	rm -f $(OUTPUT) Vangard_Studio_User_Guide_DRAFT.pdf *.aux *.log *.out *.tex
 
 help:
 	@echo "Makefile targets:"
@@ -427,7 +427,7 @@ Here's what you have in the `docs/` directory:
 pandoc USER_GUIDE.md -o test.pdf --toc --number-sections
 
 # Generate final professional PDF
-pandoc TITLE_PAGE.md USER_GUIDE.md -o Ren-IDE_User_Guide.pdf \
+pandoc TITLE_PAGE.md USER_GUIDE.md -o Vangard_Studio_User_Guide.pdf \
   --pdf-engine=xelatex --toc --toc-depth=3 --number-sections \
   --highlight-style=tango --variable geometry:margin=1in \
   --variable fontsize=11pt --variable linestretch=1.2 \

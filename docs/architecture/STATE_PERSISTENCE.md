@@ -1,6 +1,6 @@
 # State Persistence Architecture
 
-Ren'IDE splits persisted state across four locations, each with a different owner, scope, and write trigger.
+Vangard Studio splits persisted state across four locations, each with a different owner, scope, and write trigger.
 
 ---
 

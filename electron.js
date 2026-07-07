@@ -677,8 +677,8 @@ async function updateApplicationMenu() {
                 label: 'User Guide',
                 click: () => {
                     const userGuidePath = app.isPackaged
-                        ? path.join(process.resourcesPath, 'docs', 'Ren-IDE_User_Guide.html')
-                        : path.join(__dirname, 'docs', 'Ren-IDE_User_Guide.html');
+                        ? path.join(process.resourcesPath, 'docs', 'Vangard_Studio_User_Guide.html')
+                        : path.join(__dirname, 'docs', 'Vangard_Studio_User_Guide.html');
                     shell.openPath(userGuidePath).catch(err => {
                         logger.error('Failed to open user guide:', err);
                         dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');

@@ -1,6 +1,6 @@
-# Contributing to Ren'IDE
+# Contributing to Vangard Studio
 
-Thank you for contributing to Ren'IDE. This document covers environment setup, coding conventions, the PR process, and how to report issues.
+Thank you for contributing to Vangard Studio. This document covers environment setup, coding conventions, the PR process, and how to report issues.
 
 ---
 

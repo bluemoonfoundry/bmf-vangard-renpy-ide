@@ -1,6 +1,6 @@
-# Ren'IDE Architecture
+# Vangard Studio Architecture
 
-This document provides a high-level overview of Ren'IDE's system design and architecture patterns. For deeper technical details on specific modules, see the specialized documentation linked throughout this guide.
+This document provides a high-level overview of Vangard Studio's system design and architecture patterns. For deeper technical details on specific modules, see the specialized documentation linked throughout this guide.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This document provides a high-level overview of Ren'IDE's system design and arch
 
 ## System Overview
 
-Ren'IDE is an Electron-based desktop application built with React and TypeScript for visual novel development using the Ren'Py framework. The application provides a visual canvas-based interface for organizing and navigating `.rpy` script files, integrated Monaco code editors, and specialized composers for scene, imagemap, and screen layout design.
+Vangard Studio is an Electron-based desktop application built with React and TypeScript for visual novel development using the Ren'Py framework. The application provides a visual canvas-based interface for organizing and navigating `.rpy` script files, integrated Monaco code editors, and specialized composers for scene, imagemap, and screen layout design.
 
 **Key Technologies:**
 - **Electron** (v34.2.0) - Cross-platform desktop framework
@@ -38,7 +38,7 @@ Ren'IDE is an Electron-based desktop application built with React and TypeScript
 
 ## Process Architecture
 
-Ren'IDE follows Electron's standard multi-process architecture with three distinct runtime environments:
+Vangard Studio follows Electron's standard multi-process architecture with three distinct runtime environments:
 
 ![Process Architecture Diagram](images/architecture-process.png)
 
@@ -167,7 +167,7 @@ useEffect(() => {
 
 ## State Management
 
-Ren'IDE uses a **centralized state architecture** where all core application state lives in `App.tsx`. This design simplifies data flow and eliminates the complexity of deeply nested context providers or external state management libraries.
+Vangard Studio uses a **centralized state architecture** where all core application state lives in `App.tsx`. This design simplifies data flow and eliminates the complexity of deeply nested context providers or external state management libraries.
 
 ### State Hub Pattern
 
@@ -350,7 +350,7 @@ interface RenpyAnalysisResult {
 
 ## Component Hierarchy
 
-Ren'IDE follows a **hybrid component architecture**:
+Vangard Studio follows a **hybrid component architecture**:
 - Large, stateful "feature components" for major UI sections
 - Small, reusable "primitive components" for buttons, modals, inputs
 - Canvas components use `React.memo` + `forwardRef` for performance
@@ -624,7 +624,7 @@ Displayed in the **Stats** tab → **IDE Performance** section.
 
 ## Testing Philosophy
 
-Ren'IDE follows a **pragmatic testing approach** focused on critical paths and regression prevention.
+Vangard Studio follows a **pragmatic testing approach** focused on critical paths and regression prevention.
 
 ### Testing Layers
 
@@ -735,4 +735,4 @@ For project-specific instructions when working with Claude Code, see `CLAUDE.md`
 ---
 
 **Last Updated**: 2026-06-14
-**Ren'IDE Version**: 0.9.0
+**Vangard Studio Version**: 0.9.0

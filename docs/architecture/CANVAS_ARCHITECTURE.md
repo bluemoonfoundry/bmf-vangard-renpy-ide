@@ -1,6 +1,6 @@
 # Canvas Architecture
 
-Ren'IDE has three canvases, each serving a distinct level of narrative abstraction. They share a common drag-and-drop model and layout infrastructure but differ in what they display, how they highlight, and what keyboard/overlay features they expose.
+Vangard Studio has three canvases, each serving a distinct level of narrative abstraction. They share a common drag-and-drop model and layout infrastructure but differ in what they display, how they highlight, and what keyboard/overlay features they expose.
 
 ---
 

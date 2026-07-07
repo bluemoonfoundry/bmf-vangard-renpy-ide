@@ -1,6 +1,6 @@
 # IPC Architecture and Patterns
 
-Ren'IDE is an Electron app split across two OS processes. The **main process** (`electron.js`) owns the file system, OS dialogs, the game subprocess, and encryption. The **renderer process** (React/TypeScript) owns the UI. They communicate exclusively through IPC — direct Node.js API calls from renderer code are not available.
+Vangard Studio is an Electron app split across two OS processes. The **main process** (`electron.js`) owns the file system, OS dialogs, the game subprocess, and encryption. The **renderer process** (React/TypeScript) owns the UI. They communicate exclusively through IPC — direct Node.js API calls from renderer code are not available.
 
 ---
 

@@ -2,7 +2,7 @@
 /**
  * capture_screenshots.js
  *
- * Launches the Ren'IDE Electron app with the DemoProject and uses Playwright
+ * Launches the Vangard Studio Electron app with the DemoProject and uses Playwright
  * to capture screenshots for the user guide.
  *
  * Usage:
