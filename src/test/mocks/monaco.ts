@@ -6,6 +6,17 @@ const mockEditor = {
   getModel: () => null,
   dispose: () => {},
   layout: () => {},
+  revealLineInCenter: () => {},
+  setPosition: () => {},
+  deltaDecorations: () => [],
+  addCommand: () => {},
+  addAction: () => {},
+  createContextKey: () => ({ set: () => {}, get: () => false }),
+  onDidChangeCursorPosition: () => ({ dispose: () => {} }),
+  onMouseDown: () => ({ dispose: () => {} }),
+  getPosition: () => null,
+  executeEdits: () => {},
+  focus: () => {},
 };
 
 const editor = {
@@ -13,21 +24,56 @@ const editor = {
   setTheme: () => {},
   defineTheme: () => {},
   createModel: () => ({}),
+  getModels: () => [],
+  setModelLanguage: () => {},
+  ScrollType: { Smooth: 0 },
 };
 
 const languages = {
   register: () => {},
+  getLanguages: () => [],
+  setLanguageConfiguration: () => {},
   setMonarchTokensProvider: () => {},
+  setTokensProvider: () => {},
   registerCompletionItemProvider: () => ({ dispose: () => {} }),
-  CompletionItemKind: {},
+  registerDefinitionProvider: () => ({ dispose: () => {} }),
+  registerDocumentSemanticTokensProvider: () => ({ dispose: () => {} }),
+  CompletionItemKind: { Text: 0, Snippet: 27, Function: 2 },
+  CompletionItemInsertTextRule: { InsertAsSnippet: 4 },
+  SemanticTokensLegend: class {},
 };
 
 const KeyMod = { CtrlCmd: 2048, Shift: 1024, Alt: 512 };
 const KeyCode = { KeyS: 49, KeyF: 33, KeyH: 39, Enter: 3, Escape: 9, Tab: 2 };
+
+/** Minimal event emitter used by EditorView's semanticTokensChangeEmitter. */
+class Emitter<T = void> {
+  private _listeners: Array<(e: T) => void> = [];
+  event = (listener: (e: T) => void) => {
+    this._listeners.push(listener);
+    return { dispose: () => {} };
+  };
+  fire(e?: T) {
+    this._listeners.forEach(l => l(e as T));
+  }
+  dispose() {}
+}
+
+/** Minimal Range stub used in EditorView edit operations. */
+class Range {
+  constructor(
+    public startLineNumber: number,
+    public startColumn: number,
+    public endLineNumber: number,
+    public endColumn: number
+  ) {}
+}
 
 export {
   editor,
   languages,
   KeyMod,
   KeyCode,
+  Emitter,
+  Range,
 };

@@ -210,6 +210,72 @@ describe('StatusBar', () => {
     expect(screen.getByText(/save failed/i)).toBeTruthy();
     expect(screen.queryByText(/scanning/i)).toBeNull();
   });
+
+  it('shows warning count when non-zero', () => {
+    render(<StatusBar {...defaultStatusProps} warningCount={2} />);
+    expect(screen.getByText(/2 warnings/i)).toBeTruthy();
+  });
+
+  it('shows singular "error" when errorCount is 1', () => {
+    render(<StatusBar {...defaultStatusProps} errorCount={1} />);
+    expect(screen.getByText('1 error')).toBeTruthy();
+  });
+
+  it('shows singular "warning" when warningCount is 1', () => {
+    render(<StatusBar {...defaultStatusProps} warningCount={1} />);
+    expect(screen.getByText('1 warning')).toBeTruthy();
+  });
+
+  it('saving takes priority over isAnalysisPending', () => {
+    render(<StatusBar {...defaultStatusProps} saveStatus="saving" isAnalysisPending={true} />);
+    expect(screen.getByText(/saving/i)).toBeTruthy();
+    expect(screen.queryByText(/analyzing/i)).toBeNull();
+  });
+
+  it('isScanningAssets takes priority over isAnalysisPending', () => {
+    render(<StatusBar {...defaultStatusProps} isScanningAssets={true} isAnalysisPending={true} />);
+    expect(screen.getByText(/scanning assets/i)).toBeTruthy();
+    expect(screen.queryByText(/analyzing/i)).toBeNull();
+  });
+
+  it('singular "file" when blockCount is 1', () => {
+    render(<StatusBar {...defaultStatusProps} blockCount={1} />);
+    expect(screen.getByText('1 file')).toBeTruthy();
+  });
+
+  it('calls onOpenScreenshotsFolder when screenshot button is clicked', async () => {
+    const user = userEvent.setup();
+    const onOpenScreenshotsFolder = vi.fn();
+    render(
+      <StatusBar
+        {...defaultStatusProps}
+        screenshotCount={3}
+        onOpenScreenshotsFolder={onOpenScreenshotsFolder}
+      />
+    );
+    await user.click(screen.getByTitle(/view screenshots/i));
+    expect(onOpenScreenshotsFolder).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows screenshot context menu items on right-click', async () => {
+    const user = userEvent.setup();
+    render(
+      <StatusBar
+        {...defaultStatusProps}
+        screenshotCount={1}
+        onOpenScreenshotsFolder={vi.fn()}
+        onClearScreenshots={vi.fn()}
+        onCopyLatestScreenshotPath={vi.fn()}
+      />
+    );
+    await user.pointer({
+      target: screen.getByTitle(/view screenshots/i),
+      keys: '[MouseRight]',
+    });
+    expect(screen.getByText('Open Screenshots Folder')).toBeTruthy();
+    expect(screen.getByText('Copy Latest Screenshot Path')).toBeTruthy();
+    expect(screen.getByText(/Clear All Screenshots/)).toBeTruthy();
+  });
 });
 
 // ─── CodeActionButtons ────────────────────────────────────────────────────────

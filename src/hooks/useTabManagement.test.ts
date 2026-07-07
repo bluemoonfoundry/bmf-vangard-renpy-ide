@@ -158,4 +158,129 @@ describe('useTabManagement', () => {
       expect(result.current.draggedTabId).toBeNull();
     });
   });
+
+  describe('closeTabs', () => {
+    it('removes multiple tabs at once from the primary pane', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.openTab(makeTab('block-2')));
+      act(() => result.current.closeTabs(['block-1', 'block-2'], 'primary'));
+      expect(result.current.openTabs.find(t => t.id === 'block-1')).toBeUndefined();
+      expect(result.current.openTabs.find(t => t.id === 'block-2')).toBeUndefined();
+    });
+
+    it('falls back to first remaining tab when active is closed', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.openTab(makeTab('block-2')));
+      // Tabs: [canvas, block-1, block-2]; active=block-2
+      // closeTabs uses next[0] as fallback → 'canvas'
+      act(() => result.current.closeTabs(['block-2'], 'primary'));
+      expect(result.current.activeTabId).toBe('canvas');
+    });
+  });
+
+  describe('setTabs', () => {
+    it('replaces all primary tabs and sets activeTabId', () => {
+      const { result } = renderHook(() => useTabManagement());
+      const newTabs = [makeTab('t1'), makeTab('t2')];
+      act(() => result.current.setTabs(newTabs, 't2', 'primary'));
+      expect(result.current.openTabs).toEqual(newTabs);
+      expect(result.current.activeTabId).toBe('t2');
+    });
+
+    it('replaces secondary tabs when paneId is secondary', () => {
+      const { result } = renderHook(() => useTabManagement());
+      const newTabs = [makeTab('sec-1')];
+      act(() => result.current.setTabs(newTabs, 'sec-1', 'secondary'));
+      expect(result.current.secondaryOpenTabs).toEqual(newTabs);
+      expect(result.current.secondaryActiveTabId).toBe('sec-1');
+    });
+  });
+
+  describe('moveTabToPane', () => {
+    it('moves a tab from primary to secondary pane', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.createSplit('right'));
+      // After createSplit, canvas tab is in secondary; add block-1 to primary first
+      act(() => result.current.openTab(makeTab('block-1'), 'primary'));
+      const hadPrimary = result.current.openTabs.some(t => t.id === 'block-1');
+      act(() => result.current.moveTabToPane('block-1', 'primary', 'secondary'));
+      expect(hadPrimary).toBe(true);
+      expect(result.current.openTabs.find(t => t.id === 'block-1')).toBeUndefined();
+      expect(result.current.secondaryOpenTabs.find(t => t.id === 'block-1')).toBeDefined();
+    });
+
+    it('does nothing when fromPane === toPane', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      const tabsBefore = result.current.openTabs.length;
+      act(() => result.current.moveTabToPane('block-1', 'primary', 'primary'));
+      expect(result.current.openTabs.length).toBe(tabsBefore);
+    });
+  });
+
+  describe('createSplit', () => {
+    it('does nothing when split is already active', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.createSplit('right'));
+      expect(result.current.splitLayout).toBe('right');
+      act(() => result.current.createSplit('bottom'));
+      // Should stay 'right', not change to bottom
+      expect(result.current.splitLayout).toBe('right');
+    });
+
+    it('moves active tab to secondary pane on split', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      // block-1 is now active
+      act(() => result.current.createSplit('right'));
+      expect(result.current.secondaryOpenTabs.find(t => t.id === 'block-1')).toBeDefined();
+      expect(result.current.openTabs.find(t => t.id === 'block-1')).toBeUndefined();
+    });
+  });
+
+  describe('closeSplit', () => {
+    it('merges secondary tabs into primary when closing split', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.createSplit('right'));
+      // block-1 moved to secondary; close split
+      act(() => result.current.closeSplit());
+      expect(result.current.openTabs.find(t => t.id === 'block-1')).toBeDefined();
+      expect(result.current.splitLayout).toBe('none');
+    });
+  });
+
+  describe('openTab in secondary pane', () => {
+    it('adds tab to secondary pane when splitLayout is active', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.createSplit('right'));
+      act(() => result.current.openTab(makeTab('block-2'), 'secondary'));
+      expect(result.current.secondaryOpenTabs.find(t => t.id === 'block-2')).toBeDefined();
+    });
+  });
+
+  describe('switchTab in secondary pane', () => {
+    it('sets secondaryActiveTabId', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.createSplit('right'));
+      act(() => result.current.openTab(makeTab('block-2'), 'secondary'));
+      act(() => result.current.switchTab('block-1', 'secondary'));
+      expect(result.current.secondaryActiveTabId).toBe('block-1');
+    });
+  });
+
+  describe('closeTab auto-closes secondary pane', () => {
+    it('resets splitLayout to none when last secondary tab is removed', () => {
+      const { result } = renderHook(() => useTabManagement());
+      act(() => result.current.openTab(makeTab('block-1')));
+      act(() => result.current.createSplit('right'));
+      // block-1 is now in secondary; close it
+      act(() => result.current.closeTab('block-1', 'secondary'));
+      expect(result.current.splitLayout).toBe('none');
+    });
+  });
 });

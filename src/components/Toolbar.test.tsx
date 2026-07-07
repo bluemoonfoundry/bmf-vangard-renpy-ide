@@ -177,4 +177,135 @@ describe('Toolbar', () => {
 
     expect(props.handleTidyUp).toHaveBeenCalledTimes(1);
   });
+
+  // ── Settings & Shortcuts ─────────────────────────────────────────────────
+
+  it('calls onOpenSettings when Settings button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Settings'));
+    expect(props.onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onOpenShortcuts when Keyboard Shortcuts button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Keyboard Shortcuts (Ctrl+/)'));
+    expect(props.onOpenShortcuts).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Sticky note button ──────────────────────────────────────────────────
+
+  it('sticky note button is disabled when onAddStickyNote is null', () => {
+    render(<Toolbar {...createProps({ onAddStickyNote: null })} />);
+    const btn = screen.getByTitle('Open a canvas to add notes');
+    expect(btn).toBeDisabled();
+  });
+
+  it('calls onAddStickyNote when sticky note button is clicked', async () => {
+    const props = createProps({ onAddStickyNote: vi.fn() });
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Leave a Note on active canvas'));
+    expect(props.onAddStickyNote).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Diagnostics error badge ──────────────────────────────────────────────
+
+  it('shows diagnostics error count badge when diagnosticsErrorCount > 0', () => {
+    render(<Toolbar {...createProps({ diagnosticsErrorCount: 5 })} />);
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('does not show error badge when diagnosticsErrorCount is 0', () => {
+    render(<Toolbar {...createProps({ diagnosticsErrorCount: 0 })} />);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  // ── Save button behavior ─────────────────────────────────────────────────
+
+  it('calls handleSave when save button is clicked and there are unsaved changes', async () => {
+    vi.mocked(useDualPane).mockReturnValueOnce({
+      dirtyBlockIds: new Set(['block-1']),
+      dirtyEditors: new Set<string>(),
+    } as ReturnType<typeof useDualPane>);
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    const saveBtn = screen.getByTitle(/Save All/);
+    await user.click(saveBtn);
+    expect(props.handleSave).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Run/Stop game ────────────────────────────────────────────────────────
+
+  it('calls onRunGame when Run Project button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Run Project (F5)'));
+    expect(props.onRunGame).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onStopGame when Stop Game button is clicked', async () => {
+    const props = createProps({ isGameRunning: true });
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Stop Game'));
+    expect(props.onStopGame).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Canvas switcher ──────────────────────────────────────────────────────
+
+  it('calls onOpenStaticTab with "canvas" when Project Canvas button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Project Canvas — bird\'s-eye view of your script files'));
+    expect(props.onOpenStaticTab).toHaveBeenCalledWith('canvas');
+  });
+
+  it('calls onOpenStaticTab with "route-canvas" when Flow Canvas button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Flow Canvas — trace your story\'s narrative flow'));
+    expect(props.onOpenStaticTab).toHaveBeenCalledWith('route-canvas');
+  });
+
+  it('calls onOpenStaticTab with "choice-canvas" when Choices Canvas button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByTitle('Choices Canvas — player decision tree'));
+    expect(props.onOpenStaticTab).toHaveBeenCalledWith('choice-canvas');
+  });
+
+  it('disables New Scene button when active canvas is not story', () => {
+    render(<Toolbar {...createProps({ activeCanvasType: 'route' })} />);
+    const btn = screen.getByTitle('Switch to Project Canvas to add scenes');
+    expect(btn).toBeDisabled();
+  });
+
+  it('disables Organize Layout button when active canvas is choice', () => {
+    render(<Toolbar {...createProps({ activeCanvasType: 'choice' })} />);
+    const btn = screen.getByTitle('No active canvas to organize');
+    expect(btn).toBeDisabled();
+  });
+
+  it('shows Organize Route Layout when active canvas is route', () => {
+    render(<Toolbar {...createProps({ activeCanvasType: 'route' })} />);
+    expect(screen.getByTitle('Organize Route Layout')).toBeInTheDocument();
+  });
 });

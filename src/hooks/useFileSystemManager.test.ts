@@ -3,12 +3,20 @@
  * @description Tests for the pure utility functions exported from useFileSystemManager:
  * addNodeToFileTree and removeNodeFromFileTree.
  *
+ * Also tests the hook's CRUD operations (handleCreateNode, handleRenameNode,
+ * handleDeleteNode, handleCut, handleCopy, handlePaste, handleMoveNode) via renderHook.
+ *
  * Note: Both functions start at the root node and traverse children by name
  * for each path segment. Paths should NOT include the root node name.
  */
 
-import { addNodeToFileTree, removeNodeFromFileTree } from './useFileSystemManager';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { addNodeToFileTree, removeNodeFromFileTree, useFileSystemManager } from './useFileSystemManager';
 import type { FileSystemTreeNode } from '@/types';
+import type { UseFileSystemManagerParams } from './useFileSystemManager';
+import { createMockElectronAPI, installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
+import { createBlock } from '@/test/mocks/sampleData';
 
 /** Helper: create a minimal tree for testing. */
 function makeTree(): FileSystemTreeNode {
@@ -155,5 +163,309 @@ describe('removeNodeFromFileTree', () => {
     const result = removeNodeFromFileTree(tree, 'images');
 
     expect(result!.children!.some(c => c.name === 'images')).toBe(false);
+  });
+});
+
+// ===========================================================================
+// useFileSystemManager hook — CRUD operations via renderHook
+// ===========================================================================
+
+function makeHookParams(overrides: Partial<UseFileSystemManagerParams> = {}): UseFileSystemManagerParams {
+  return {
+    projectRootPath: '/project',
+    setFileSystemTree: vi.fn(),
+    blocks: [],
+    addBlock: vi.fn(),
+    deleteBlock: vi.fn(),
+    clipboard: null,
+    setClipboard: vi.fn(),
+    openDeleteConfirmModal: vi.fn(),
+    addToast: vi.fn(),
+    ...overrides,
+  };
+}
+
+describe('useFileSystemManager — handleCreateNode', () => {
+  let api: ReturnType<typeof createMockElectronAPI>;
+
+  beforeEach(() => {
+    api = createMockElectronAPI();
+    installElectronAPI(api);
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('creates a folder via createDirectory IPC and refreshes tree', async () => {
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ setFileSystemTree }))
+    );
+    await act(async () => {
+      await result.current.handleCreateNode('game', 'audio', 'folder');
+    });
+    expect(api.createDirectory).toHaveBeenCalled();
+    expect(api.loadProject).toHaveBeenCalled();
+    expect(setFileSystemTree).toHaveBeenCalled();
+  });
+
+  it('creates a non-rpy file via writeFile IPC', async () => {
+    const { result } = renderHook(() => useFileSystemManager(makeHookParams()));
+    await act(async () => {
+      await result.current.handleCreateNode('game', 'notes.txt', 'file');
+    });
+    expect(api.writeFile).toHaveBeenCalled();
+  });
+
+  it('creates a block when creating an .rpy file', async () => {
+    const addBlock = vi.fn();
+    const addToast = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addBlock, addToast }))
+    );
+    await act(async () => {
+      await result.current.handleCreateNode('game', 'chapter2.rpy', 'file');
+    });
+    expect(addBlock).toHaveBeenCalledWith('game/chapter2.rpy', '');
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('chapter2.rpy'), 'success');
+  });
+
+  it('shows error toast and does not throw when IPC fails', async () => {
+    const addToast = vi.fn();
+    api.writeFile.mockRejectedValue(new Error('disk full'));
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addToast }))
+    );
+    await act(async () => {
+      await result.current.handleCreateNode('game', 'fail.rpy', 'file');
+    });
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Failed'), 'error');
+  });
+
+  it('is a no-op when projectRootPath is null', async () => {
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ projectRootPath: null }))
+    );
+    await act(async () => {
+      await result.current.handleCreateNode('game', 'new.rpy', 'file');
+    });
+    expect(api.writeFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('useFileSystemManager — handleRenameNode', () => {
+  let api: ReturnType<typeof createMockElectronAPI>;
+
+  beforeEach(() => {
+    api = createMockElectronAPI();
+    installElectronAPI(api);
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('calls moveFile IPC and refreshes tree', async () => {
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ setFileSystemTree }))
+    );
+    await act(async () => {
+      await result.current.handleRenameNode('game/script.rpy', 'chapter1.rpy');
+    });
+    expect(api.moveFile).toHaveBeenCalled();
+    expect(setFileSystemTree).toHaveBeenCalled();
+  });
+
+  it('shows error toast when moveFile fails', async () => {
+    const addToast = vi.fn();
+    api.moveFile.mockRejectedValue(new Error('locked'));
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addToast }))
+    );
+    await act(async () => {
+      await result.current.handleRenameNode('game/script.rpy', 'newname.rpy');
+    });
+    expect(addToast).toHaveBeenCalledWith('Failed to rename file', 'error');
+  });
+});
+
+describe('useFileSystemManager — handleDeleteNode', () => {
+  let api: ReturnType<typeof createMockElectronAPI>;
+
+  beforeEach(() => {
+    api = createMockElectronAPI();
+    installElectronAPI(api);
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('calls openDeleteConfirmModal with the paths', () => {
+    const openDeleteConfirmModal = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ openDeleteConfirmModal }))
+    );
+    act(() => result.current.handleDeleteNode(['game/script.rpy']));
+    expect(openDeleteConfirmModal).toHaveBeenCalledWith(
+      ['game/script.rpy'],
+      expect.any(Function)
+    );
+  });
+
+  it('identifies .rpy blocks for deletion and deletes them on confirm', async () => {
+    const block = createBlock({ filePath: 'game/script.rpy' });
+    const deleteBlock = vi.fn();
+    const openDeleteConfirmModal = vi.fn((_paths: string[], onConfirm: () => void) => {
+      onConfirm(); // simulate user confirming
+    });
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [block], deleteBlock, openDeleteConfirmModal }))
+    );
+    await act(async () => {
+      result.current.handleDeleteNode(['game/script.rpy']);
+    });
+    expect(api.removeEntry).toHaveBeenCalled();
+    expect(deleteBlock).toHaveBeenCalledWith(block.id);
+  });
+});
+
+describe('useFileSystemManager — handleCut / handleCopy', () => {
+  beforeEach(() => {
+    installElectronAPI(createMockElectronAPI());
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('handleCut sets clipboard with cut type', () => {
+    const setClipboard = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ setClipboard }))
+    );
+    act(() => result.current.handleCut(['game/a.rpy']));
+    expect(setClipboard).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'cut' })
+    );
+  });
+
+  it('handleCopy sets clipboard with copy type', () => {
+    const setClipboard = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ setClipboard }))
+    );
+    act(() => result.current.handleCopy(['game/a.rpy', 'game/b.rpy']));
+    expect(setClipboard).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'copy' })
+    );
+  });
+});
+
+describe('useFileSystemManager — handlePaste', () => {
+  let api: ReturnType<typeof createMockElectronAPI>;
+
+  beforeEach(() => {
+    api = createMockElectronAPI();
+    installElectronAPI(api);
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('is a no-op when clipboard is null', async () => {
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ clipboard: null }))
+    );
+    await act(async () => {
+      await result.current.handlePaste('game/audio');
+    });
+    expect(api.moveFile).not.toHaveBeenCalled();
+    expect(api.copyEntry).not.toHaveBeenCalled();
+  });
+
+  it('calls copyEntry for copy-type clipboard', async () => {
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({
+        setFileSystemTree,
+        clipboard: { type: 'copy', paths: new Set(['game/a.rpy']) },
+      }))
+    );
+    await act(async () => {
+      await result.current.handlePaste('game/backup');
+    });
+    expect(api.copyEntry).toHaveBeenCalled();
+    expect(setFileSystemTree).toHaveBeenCalled();
+  });
+
+  it('calls moveFile and clears clipboard for cut-type clipboard', async () => {
+    const setClipboard = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({
+        setClipboard,
+        clipboard: { type: 'cut', paths: new Set(['game/a.rpy']) },
+      }))
+    );
+    await act(async () => {
+      await result.current.handlePaste('game/backup');
+    });
+    expect(api.moveFile).toHaveBeenCalled();
+    expect(setClipboard).toHaveBeenCalledWith(null);
+  });
+
+  it('shows error toast when paste fails', async () => {
+    const addToast = vi.fn();
+    api.copyEntry.mockRejectedValue(new Error('permission denied'));
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({
+        addToast,
+        clipboard: { type: 'copy', paths: new Set(['game/a.rpy']) },
+      }))
+    );
+    await act(async () => {
+      await result.current.handlePaste('game/backup');
+    });
+    expect(addToast).toHaveBeenCalledWith('Failed to paste file(s)', 'error');
+  });
+});
+
+describe('useFileSystemManager — handleMoveNode', () => {
+  let api: ReturnType<typeof createMockElectronAPI>;
+
+  beforeEach(() => {
+    api = createMockElectronAPI();
+    installElectronAPI(api);
+  });
+
+  afterEach(() => {
+    uninstallElectronAPI();
+  });
+
+  it('calls moveFile for each source path', async () => {
+    const setFileSystemTree = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ setFileSystemTree }))
+    );
+    await act(async () => {
+      await result.current.handleMoveNode(['game/a.rpy', 'game/b.rpy'], 'game/archive');
+    });
+    expect(api.moveFile).toHaveBeenCalledTimes(2);
+    expect(setFileSystemTree).toHaveBeenCalled();
+  });
+
+  it('shows error toast when move fails', async () => {
+    const addToast = vi.fn();
+    api.moveFile.mockRejectedValue(new Error('io error'));
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addToast }))
+    );
+    await act(async () => {
+      await result.current.handleMoveNode(['game/a.rpy'], 'game/archive');
+    });
+    expect(addToast).toHaveBeenCalledWith('Failed to move file(s)', 'error');
   });
 });

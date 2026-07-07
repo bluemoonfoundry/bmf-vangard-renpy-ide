@@ -124,5 +124,119 @@ describe('useTabLifecycle', () => {
       expect(props.openUnsavedChangesModal).not.toHaveBeenCalled();
       expect(props.setOpenTabs).toHaveBeenCalled();
     });
+
+    it('opens unsaved changes modal when dirtyEditors contains the blockId', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1')],
+        dirtyEditors: new Set(['block-1']),
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      const tabWithBlock: EditorTab = { id: 'block-1', type: 'editor', blockId: 'block-1' } as EditorTab;
+      act(() => result.current.processTabCloseRequest([tabWithBlock], 'canvas'));
+      expect(props.openUnsavedChangesModal).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleCloseOthersRequest', () => {
+    it('requests close of all tabs except the given one', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1'), makeTab('block-2')],
+        activeTabId: 'block-2',
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseOthersRequest('block-1'));
+      // setOpenTabs should be called (for the close of canvas + block-2)
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleCloseAllRequest', () => {
+    it('closes all tabs in the pane', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1'), makeTab('block-2')],
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseAllRequest('primary'));
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleCloseLeftRequest', () => {
+    it('closes tabs to the left of the given tab', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1'), makeTab('block-2')],
+        activeTabId: 'block-2',
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseLeftRequest('block-1'));
+      // canvas is to the left of block-1 — should be closed
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+
+    it('does nothing when tab is not found', () => {
+      const props = makeProps();
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseLeftRequest('nonexistent'));
+      expect(props.setOpenTabs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleCloseRightRequest', () => {
+    it('closes tabs to the right of the given tab', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1'), makeTab('block-2')],
+        activeTabId: 'canvas',
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseRightRequest('block-1'));
+      // block-2 is to the right of block-1 — should be closed
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleMoveToOtherPane', () => {
+    it('removes tab from primary pane and adds to secondary', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1')],
+        secondaryOpenTabs: [],
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleMoveToOtherPane('block-1', 'primary'));
+      expect(props.setOpenTabs).toHaveBeenCalled();
+      expect(props.setSecondaryOpenTabs).toHaveBeenCalled();
+    });
+
+    it('removes tab from secondary pane and adds to primary', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas')],
+        secondaryOpenTabs: [makeTab('block-1'), makeTab('block-2')],
+        secondaryActiveTabId: 'block-1',
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleMoveToOtherPane('block-1', 'secondary'));
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleOpenInSplit', () => {
+    it('moves tab from primary to secondary and sets split layout', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1')],
+        splitLayout: 'none',
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleOpenInSplit('block-1', 'right'));
+      expect(props.setSplitLayout).toHaveBeenCalledWith('right');
+      expect(props.setSecondaryOpenTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleSwitchTab in secondary pane', () => {
+    it('calls setSecondaryActiveTabId when pane is secondary', () => {
+      const props = makeProps();
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleSwitchTab('block-1', 'secondary'));
+      expect(props.setSecondaryActiveTabId).toHaveBeenCalledWith('block-1');
+    });
   });
 });

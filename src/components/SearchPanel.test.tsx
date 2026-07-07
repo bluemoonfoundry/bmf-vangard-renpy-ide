@@ -144,4 +144,107 @@ describe('SearchPanel', () => {
       isRegex: false,
     });
   });
+
+  it('toggles whole word option', async () => {
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+    await user.click(screen.getByTitle('Match Whole Word (Alt+W)'));
+    expect(mockUseSearch.setSearchOptions).toHaveBeenCalledWith({
+      isCaseSensitive: false,
+      isWholeWord: true,
+      isRegex: false,
+    });
+  });
+
+  it('toggles regex option', async () => {
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+    await user.click(screen.getByTitle('Use Regular Expression (Alt+R)'));
+    expect(mockUseSearch.setSearchOptions).toHaveBeenCalledWith({
+      isCaseSensitive: false,
+      isWholeWord: false,
+      isRegex: true,
+    });
+  });
+
+  it('does not show "No results found." when query is empty', () => {
+    mockUseSearch.searchQuery = '';
+    render(<SearchPanel />);
+    expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
+  });
+
+  it('renders result summary with multiple files', () => {
+    mockUseSearch.searchResults = [
+      {
+        filePath: 'game/scene_a.rpy',
+        matches: [
+          { lineNumber: 1, lineContent: 'hello world', startColumn: 1, endColumn: 6 },
+          { lineNumber: 5, lineContent: 'hello again', startColumn: 1, endColumn: 6 },
+        ],
+      },
+      {
+        filePath: 'game/scene_b.rpy',
+        matches: [
+          { lineNumber: 3, lineContent: 'say hello', startColumn: 5, endColumn: 10 },
+        ],
+      },
+    ];
+    render(<SearchPanel />);
+    expect(screen.getByText('3 results in 2 files')).toBeInTheDocument();
+  });
+
+  it('shows Replace input when the expand toggle is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+    // The expand/collapse chevron button is next to the search heading
+    const toggleBtn = screen.getAllByRole('button').find(b => b.querySelector('svg'));
+    // Click the first button with SVG that isn't a named/titled button
+    const chevron = screen.getAllByRole('button').find(
+      b => !b.getAttribute('title') && b.querySelector('svg')
+    );
+    expect(chevron).toBeDefined();
+    await user.click(chevron!);
+    expect(screen.getByPlaceholderText('Replace')).toBeInTheDocument();
+  });
+
+  it('calls executeReplaceAll when Replace All is clicked', async () => {
+    mockUseSearch.searchQuery = 'hello';
+    mockUseSearch.searchResults = [
+      {
+        filePath: 'game/script.rpy',
+        matches: [{ lineNumber: 1, lineContent: 'hello', startColumn: 1, endColumn: 6 }],
+      },
+    ];
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+
+    // Open replace bar
+    const chevron = screen.getAllByRole('button').find(
+      b => !b.getAttribute('title') && b.querySelector('svg')
+    );
+    await user.click(chevron!);
+
+    const replaceInput = screen.getByPlaceholderText('Replace');
+    await user.type(replaceInput, 'hi');
+
+    const replaceAllBtn = screen.getByTitle('Replace All');
+    expect(replaceAllBtn).not.toBeDisabled();
+    await user.click(replaceAllBtn);
+    expect(mockUseSearch.executeReplaceAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls setReplaceQuery when replace input changes', async () => {
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+
+    // Open replace bar
+    const chevron = screen.getAllByRole('button').find(
+      b => !b.getAttribute('title') && b.querySelector('svg')
+    );
+    await user.click(chevron!);
+
+    const replaceInput = screen.getByPlaceholderText('Replace');
+    await user.type(replaceInput, 'world');
+    expect(mockUseSearch.setReplaceQuery).toHaveBeenCalled();
+  });
 });
