@@ -8,7 +8,7 @@
 
 **Choice Pill** -- A colored capsule on the Choices Canvas representing a single player-visible menu choice. Each pill shows the choice text and, if present, an `if` condition guard badge.
 
-**Composition** -- A saved arrangement of images and properties in the Scene Composer, ImageMap Composer, or Screen Layout Composer. Compositions persist in `.renide/ide-settings.json`.
+**Composition** -- A saved arrangement of images and properties in the Scene Composer or ImageMap Composer. Compositions persist in `game/project.ide.json`.
 
 **Diagnostic** -- An issue detected by the IDE's analysis engine. Diagnostics have three severity levels: error, warning, and info.
 

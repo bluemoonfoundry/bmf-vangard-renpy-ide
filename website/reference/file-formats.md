@@ -1,55 +1,68 @@
 # File Formats
 
-### 10.1 Project Files (`.renide/` directory)
+### 10.1 Project Files
 
-These files are created inside your Ren'Py project root under `.renide/`. Ren'Py ignores this directory entirely. All files use JSON format.
+Vangard Studio persists project-level state in two locations inside your Ren'Py project root. Ren'Py ignores both entirely. See [State Persistence Architecture](../architecture/STATE_PERSISTENCE.md) for the full write/read model.
 
 | File | Purpose | Key Contents |
 |------|---------|-------------|
-| `project.json` | Canvas state and task tracking. | Block positions and sizes, block groups, sticky notes (three arrays: project/flow/choices canvas), diagnostics tasks, ignored diagnostic rules, character profiles, canvas layout modes and fingerprints, open tabs and active tab, split layout state. |
-| `ide-settings.json` | Asset and composition metadata. | Scanned image/audio directory paths, scene compositions, imagemap compositions, screen layout compositions, scene display names, story elements tab state. |
-| `snippets.json` | Project-specific code snippets. | Array of snippet objects with `id`, `title`, `prefix`, `description`, `code`, and optional `monacoBody`. |
+| `game/project.ide.json` | Single combined file holding all IDE-specific project metadata — canvas state, sticky notes, compositions, tasks, session state. | See field table below. |
+| `.vangard/snippets.json` | Project-specific code snippets. | `version` string plus a `categories` array of `{ name, snippets: [{ title, description, code }] }`. |
+| `.renide/screenshots/` | Saved diagnostics/canvas screenshots. | Not a data file — a directory of image files. |
 
-#### `project.json` Key Fields
+#### `game/project.ide.json` Key Fields
+
+Written by `handleSaveProjectSettings` in `src/hooks/useProjectIO.ts` on Save All / dirty tab close / app exit; read on project load. The `ProjectSettings` interface (`src/types.ts`) is the source of truth.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `draftingMode` | boolean | Whether drafting mode is currently enabled. |
 | `storyCanvasLayoutMode` | string | Layout algorithm for the Project Canvas (`flow-lr`, `flow-td`, `connected-components`, `clustered-flow`). |
-| `storyBlockLayouts` | object | Map of block ID to saved position (`x`, `y`) and dimensions (`width`, `height`). |
-| `openTabs` | array | Currently open editor tabs with type, ID, and metadata. |
-| `activeTabId` | string | ID of the tab that is currently visible. |
+| `storyCanvasGroupingMode` | string | Grouping algorithm for the Project Canvas (`none`, `connected-component`, `filename-prefix`). |
+| `storyCanvasLayoutFingerprint` / `storyCanvasLayoutVersion` / `storyCanvasLayoutWasUserAdjusted` | string / number / boolean | Layout versioning fields (see State Persistence Architecture § Layout versioning). |
+| `storyBlockLayouts` | object | Map of block ID to saved position, dimensions, and optional color. |
+| `storyCanvasHasAutocentered` | boolean | Whether the Project Canvas has already auto-centered once. |
+| `routeCanvasLayoutMode` / `routeCanvasGroupingMode` / `routeCanvasLayoutFingerprint` / `routeCanvasLayoutVersion` / `routeCanvasLayoutWasUserAdjusted` / `routeCanvasHasAutocentered` | — | Same set of layout/versioning fields as above, for the Flow Canvas. |
+| `routeNodeLayouts` | object | Map of label node ID to saved position, for the Flow Canvas. |
+| `choiceCanvasLayoutMode` / `choiceCanvasGroupingMode` / `choiceCanvasHasAutocentered` | — | Layout fields for the Choices Canvas (no fingerprint/version — it reuses route layout data). |
+| `openTabs` / `activeTabId` | array / string | Currently open editor tabs and the active tab ID (primary split pane). |
 | `splitLayout` | string | Editor split mode: `none`, `right`, or `bottom`. |
-| `stickyNotes` | array | Sticky notes on the Project Canvas (each has `id`, `x`, `y`, `width`, `height`, `color`, `text`). |
-| `routeStickyNotes` | array | Sticky notes on the Flow Canvas. Same structure as above. |
-| `choiceStickyNotes` | array | Sticky notes on the Choices Canvas. Same structure as above. |
-| `diagnosticsTasks` | array | Tracked tasks with `id`, `title`, `description`, `status` (`open`/`completed`), optional `stickyNoteId`, and `createdAt` timestamp. |
-| `ignoredDiagnostics` | array | Suppression rules for diagnostics. Each rule matches by `category`, `message`, `filePath`, or a combination. |
+| `splitPrimarySize` | number | Size of the primary split pane. |
+| `secondaryOpenTabs` / `secondaryActiveTabId` | array / string | Open tabs and active tab ID for the secondary split pane. |
+| `stickyNotes` | array | Sticky notes on the Project Canvas. Each has `id`, `content` (markdown), `position: {x, y}`, `width`, `height`, `color`. |
+| `routeStickyNotes` | array | Sticky notes on the Flow Canvas. Same shape as above. |
+| `choiceStickyNotes` | array | Sticky notes on the Choices Canvas. Same shape as above. |
 | `characterProfiles` | object | Map of character tag to profile notes (free-text). |
-
-#### `ide-settings.json` Key Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `scannedImagePaths` | array of strings | Directories scanned for image assets. |
-| `scannedAudioPaths` | array of strings | Directories scanned for audio assets. |
-| `sceneCompositions` | object | Map of composition ID to `SceneComposition` (background image, sprite array, resolution). |
+| `punchlistMetadata` | object | Legacy task tracking map, migrated to `diagnosticsTasks` on load (see State Persistence Architecture § Migration Patterns). |
+| `diagnosticsTasks` | array | Tracked tasks with `id`, `title`, optional `description`, `status` (`open`/`completed`), optional `blockId`, `line`, `stickyNoteId`, and `createdAt` timestamp. |
+| `ignoredDiagnostics` | array | Suppression rules for diagnostics. Each has `category`, `message`, and optional `filePath` / `blockId` / `line` to narrow the match. |
+| `sceneCompositions` | object | Map of composition ID to a serialized `SceneComposition` (background image path, sprite array, resolution). |
 | `sceneNames` | object | Map of composition ID to a human-readable display name. |
-| `imagemapCompositions` | object | Map of composition ID to `ImageMapComposition` (ground image, hover image, hotspot array). |
-| `screenLayoutCompositions` | object | Map of composition ID to `ScreenLayoutComposition` (screen name, modal, zorder, widget tree). |
+| `imagemapCompositions` | object | Map of composition ID to a serialized `ImageMapComposition` (ground/hover image paths, hotspot array). |
+| `scannedImagePaths` / `scannedAudioPaths` | array of strings | Directories scanned for image/audio assets. |
+| `storyElementsTabState` | object | Last-active tab/sub-tab in the Story Elements panel, restored on reopen. |
+| `dismissedImplicitVariableHint` | boolean | Whether the user has dismissed the implicit-variable diagnostics hint. |
+| `completedMilestones` | array of strings | IDs of onboarding/milestone prompts the user has already completed. |
 
-#### `snippets.json` Structure
+There is no persisted screen layout composition — screens are generated from and parsed directly out of `.rpy` files (`src/lib/screenParser.ts`, `screenCodeGenerator.ts`), not stored as a composition object.
 
-Each entry in the array has the following fields:
+#### `.vangard/snippets.json` Structure
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier (UUID recommended). |
-| `title` | Yes | Display name shown in the Snippets panel. |
-| `prefix` | Yes | Trigger string for Monaco autocomplete. Typing this prefix in the editor shows the snippet as a suggestion. |
-| `description` | Yes | Short description displayed alongside the suggestion. |
-| `code` | Yes | The snippet body with `$1`, `$2`, etc. for tab-stop placeholders. |
-| `monacoBody` | No | Alternative body format as a string array (one element per line). If absent, `code` is used. |
+```json
+{
+  "version": "1.0",
+  "categories": [
+    {
+      "name": "Dialogue",
+      "snippets": [
+        { "title": "Say", "description": "Basic dialogue line", "code": "..." }
+      ]
+    }
+  ]
+}
+```
+
+This is a different shape from `UserSnippet` (used for global snippets in `app-settings.json`'s `userSnippets` field — see § 10.3), which has `id`, `title`, `prefix`, `description`, `code`, and optional `monacoBody`. Project snippets have no `id` or `prefix`; they are grouped into named categories instead.
 
 ### 10.2 Temporary Files
 
@@ -96,7 +109,9 @@ my-project/
     audio/              # Audio assets (MP3, OGG, WAV)
     tl/
       <language>/       # Translation files per language
-  .renide/              # IDE metadata (created by Vangard Studio)
+    project.ide.json    # IDE project metadata (created by Vangard Studio)
+  .vangard/              # Project-specific snippets (created by Vangard Studio)
+  .renide/               # Screenshots only (created by Vangard Studio)
 ```
 
-All `.rpy` files remain standard Ren'Py files at all times. Deleting the `.renide/` folder removes only the IDE metadata. Your project works with or without Vangard Studio.
+All `.rpy` files remain standard Ren'Py files at all times. Deleting `game/project.ide.json`, `.vangard/`, and `.renide/` removes only IDE metadata. Your project works with or without Vangard Studio.
