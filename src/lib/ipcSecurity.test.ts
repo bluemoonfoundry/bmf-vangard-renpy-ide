@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
 
-// @ts-expect-error - plain JS utility module
 import { validateProjectPath, validateExternalUrl } from './ipcSecurity.js';
 
 const ROOT = path.resolve('/test-project');
@@ -51,9 +50,7 @@ describe('validateProjectPath', () => {
     });
 
     it('returns error for non-string filePath', () => {
-        // @ts-expect-error - testing runtime guard
         expect(validateProjectPath(null, ROOT)).toBeTruthy();
-        // @ts-expect-error - testing runtime guard
         expect(validateProjectPath(123, ROOT)).toBeTruthy();
     });
 });
@@ -138,9 +135,7 @@ describe('validateExternalUrl', () => {
     });
 
     it('blocks non-string input', () => {
-        // @ts-expect-error - testing runtime guard
         expect(validateExternalUrl(null)).toBeTruthy();
-        // @ts-expect-error - testing runtime guard
         expect(validateExternalUrl(undefined)).toBeTruthy();
     });
 });
