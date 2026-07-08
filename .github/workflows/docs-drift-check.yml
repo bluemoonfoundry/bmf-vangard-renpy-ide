@@ -1,0 +1,79 @@
+name: Docs Drift Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check:
+    name: Check for missing docs updates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare changed paths and comment if docs may be stale
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- docs-drift-check -->';
+
+            const codePatterns = [
+              /^src\/components\//,
+              /^src\/hooks\//,
+              /^src\/lib\//,
+              /^electron\.js$/,
+            ];
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                per_page: 100,
+              }
+            );
+
+            const paths = files.map(f => f.filename);
+            const touchedCode = paths.some(p => codePatterns.some(re => re.test(p)));
+            const touchedDocs = paths.some(p => p.startsWith('website/'));
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (touchedCode && !touchedDocs) {
+              const body = `${marker}\n📝 This PR changes \`src/components\`, \`src/hooks\`, \`src/lib\`, or \`electron.js\` but doesn't touch \`website/\`. If this changes user-facing behavior, consider updating the relevant guide or reference page in \`website/\`.\n\nThis is a non-blocking reminder — no action required if the change is internal-only.`;
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body,
+                });
+              }
+            } else if (existing) {
+              // Docs were updated (or code wasn't touched after all) since the
+              // reminder was posted -- replace it with a resolved note instead
+              // of leaving a stale nudge on the PR.
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: `${marker}\n✅ Docs reminder resolved — \`website/\` changes detected (or code changes were removed).`,
+              });
+            }
