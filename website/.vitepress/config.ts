@@ -43,6 +43,8 @@ export default defineConfig({
             { text: '9. Visual Composers', link: '/guide/visual-composers' },
             { text: '10. Diagnostics and Quality', link: '/guide/diagnostics-and-quality' },
             { text: '11. Testing Your Game', link: '/guide/testing-your-game' },
+            { text: '12. Translations', link: '/guide/translations' },
+            { text: '13. Project Tools', link: '/guide/project-tools' },
             { text: '14. Customization', link: '/guide/customization' },
           ],
         },
