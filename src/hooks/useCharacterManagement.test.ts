@@ -132,7 +132,7 @@ describe('useCharacterManagement — handleUpdateCharacter (new character)', () 
     const { result } = renderHook(() =>
       useCharacterManagement(makeProps({ blocks: [charsBlock], updateBlock, setHasUnsavedSettings }))
     );
-    const newChar: Character = { tag: 'k', name: 'Kira', definedInBlockId: '' };
+    const newChar: Character = { tag: 'k', name: 'Kira', color: '#cc6600', definedInBlockId: '' };
     await act(async () => {
       await result.current.handleUpdateCharacter(newChar);
     });
@@ -145,7 +145,7 @@ describe('useCharacterManagement — handleUpdateCharacter (new character)', () 
     const { result } = renderHook(() =>
       useCharacterManagement(makeProps({ blocks: [charsBlock], setCharacterProfiles }))
     );
-    const newChar: Character = { tag: 'k', name: 'Kira', definedInBlockId: '', profile: 'Kira profile text' };
+    const newChar: Character = { tag: 'k', name: 'Kira', color: '#cc6600', definedInBlockId: '', profile: 'Kira profile text' };
     await act(async () => {
       await result.current.handleUpdateCharacter(newChar);
     });
@@ -158,7 +158,7 @@ describe('useCharacterManagement — handleUpdateCharacter (new character)', () 
     const { result } = renderHook(() =>
       useCharacterManagement(makeProps({ blocks: [charsBlock], addToast }))
     );
-    const newChar: Character = { tag: 'k', name: 'Kira', definedInBlockId: '' };
+    const newChar: Character = { tag: 'k', name: 'Kira', color: '#cc6600', definedInBlockId: '' };
     await act(async () => {
       await result.current.handleUpdateCharacter(newChar);
     });
@@ -199,7 +199,7 @@ describe('useCharacterManagement — handleUpdateCharacter (update existing)', (
     const { result } = renderHook(() =>
       useCharacterManagement(makeProps({ analysisResult, addToast }))
     );
-    const char: Character = { tag: 'e', name: 'Eileen', definedInBlockId: 'block-1' };
+    const char: Character = { tag: 'e', name: 'Eileen', color: '#cc6600', definedInBlockId: 'block-1' };
     await act(async () => {
       await result.current.handleUpdateCharacter(char, 'e');
     });
@@ -219,7 +219,7 @@ describe('useCharacterManagement — handleUpdateCharacter (update existing)', (
         addToast,
       }))
     );
-    const char: Character = { tag: 'e', name: 'Eileen', definedInBlockId: 'missing-block' };
+    const char: Character = { tag: 'e', name: 'Eileen', color: '#cc6600', definedInBlockId: 'missing-block' };
     await act(async () => {
       await result.current.handleUpdateCharacter(char, 'e');
     });
@@ -255,7 +255,7 @@ describe('useCharacterManagement — handleUpdateCharacter (rename tag)', () => 
         pendingTagRenameRef,
       }))
     );
-    const renamedChar: Character = { tag: 'eileen', name: 'Eileen', definedInBlockId: 'block-1' };
+    const renamedChar: Character = { tag: 'eileen', name: 'Eileen', color: '#cc6600', definedInBlockId: 'block-1' };
     await act(async () => {
       await result.current.handleUpdateCharacter(renamedChar, 'e');
     });
