@@ -703,7 +703,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     const model = editor.getModel();
     if (model) {
         monacoInstance.editor.setModelLanguage(model, 'renpy');
-        model.updateOptions({ detectIndentation: true });
+        model.detectIndentation(true, 4);
     }
 
     onEditorMount(block.id, editor);

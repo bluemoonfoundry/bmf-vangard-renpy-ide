@@ -20,7 +20,7 @@ import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as St
 import type { BlockType } from './CreateBlockModal';
 import { useDualPane } from '@/contexts/DualPaneContext';
 
-interface StoryCanvasProps {
+export interface StoryCanvasProps {
   blocks: Block[];
   groups: BlockGroup[];
   stickyNotes: StickyNoteType[];

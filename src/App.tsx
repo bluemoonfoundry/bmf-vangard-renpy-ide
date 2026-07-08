@@ -2134,7 +2134,7 @@ const App: React.FC = () => {
         onSettingsChange={(key, value) => {
             if (key in appSettings) {
                 updateAppSettings(draft => {
-                    (draft as Record<string, unknown>)[key] = value;
+                    (draft as unknown as Record<string, unknown>)[key] = value;
                 });
             } else {
                 updateProjectSettings(draft => {

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import StoryCanvas from './StoryCanvas';
+import type { StoryCanvasProps } from './StoryCanvas';
 import {
   createBlock,
   createBlockGroup,
@@ -37,7 +38,7 @@ vi.mock('@/contexts/DualPaneContext', () => ({
   })),
 }));
 
-const createProps = (overrides: Record<string, unknown> = {}) => ({
+const createProps = (overrides: Partial<StoryCanvasProps> = {}): StoryCanvasProps => ({
   blocks: [] as Block[],
   groups: [] as BlockGroup[],
   stickyNotes: [] as StickyNoteType[],
