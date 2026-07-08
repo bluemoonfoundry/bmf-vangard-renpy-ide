@@ -52,7 +52,11 @@ export default defineConfig({
       '/reference/': [
         {
           text: 'Reference',
-          items: [{ text: 'Overview (in progress)', link: '/reference/' }],
+          items: [
+            { text: 'Overview (in progress)', link: '/reference/' },
+            { text: '1. Toolbar Reference', link: '/reference/toolbar-reference' },
+            { text: '2. Keyboard Shortcuts', link: '/reference/keyboard-shortcuts' },
+          ],
         },
       ],
       '/architecture/': [
