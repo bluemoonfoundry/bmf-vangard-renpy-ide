@@ -83,78 +83,90 @@ describe('App', () => {
   // ── applyTheme ─────────────────────────────────────────────────────────────
 
   describe('applyTheme', () => {
-    async function renderWithTheme(theme: string) {
+    async function renderWithTheme(theme: string, assertClasses: () => void) {
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue({ theme });
       window.electronAPI = api;
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
+        assertClasses();
       });
     }
 
     it('dark theme: adds "dark" class', async () => {
-      await renderWithTheme('dark');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
+      await renderWithTheme('dark', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+      });
     });
 
     it('light theme: adds no theme classes', async () => {
-      await renderWithTheme('light');
-      expect(document.documentElement.className).toBe('');
+      await renderWithTheme('light', () => {
+        expect(document.documentElement.className).toBe('');
+      });
     });
 
     it('solarized-light: adds theme-solarized-light only', async () => {
-      await renderWithTheme('solarized-light');
-      expect(document.documentElement.classList.contains('theme-solarized-light')).toBe(true);
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
+      await renderWithTheme('solarized-light', () => {
+        expect(document.documentElement.classList.contains('theme-solarized-light')).toBe(true);
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+      });
     });
 
     it('solarized-dark: adds dark and theme-solarized-dark', async () => {
-      await renderWithTheme('solarized-dark');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('theme-solarized-dark')).toBe(true);
+      await renderWithTheme('solarized-dark', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.classList.contains('theme-solarized-dark')).toBe(true);
+      });
     });
 
     it('colorful: adds dark and theme-colorful', async () => {
-      await renderWithTheme('colorful');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('theme-colorful')).toBe(true);
+      await renderWithTheme('colorful', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.classList.contains('theme-colorful')).toBe(true);
+      });
     });
 
     it('colorful-light: adds theme-colorful-light only', async () => {
-      await renderWithTheme('colorful-light');
-      expect(document.documentElement.classList.contains('theme-colorful-light')).toBe(true);
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
+      await renderWithTheme('colorful-light', () => {
+        expect(document.documentElement.classList.contains('theme-colorful-light')).toBe(true);
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+      });
     });
 
     it('neon-dark: adds dark and theme-neon-dark', async () => {
-      await renderWithTheme('neon-dark');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('theme-neon-dark')).toBe(true);
+      await renderWithTheme('neon-dark', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.classList.contains('theme-neon-dark')).toBe(true);
+      });
     });
 
     it('ocean-dark: adds dark and theme-ocean-dark', async () => {
-      await renderWithTheme('ocean-dark');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('theme-ocean-dark')).toBe(true);
+      await renderWithTheme('ocean-dark', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.classList.contains('theme-ocean-dark')).toBe(true);
+      });
     });
 
     it('candy-light: adds theme-candy-light only', async () => {
-      await renderWithTheme('candy-light');
-      expect(document.documentElement.classList.contains('theme-candy-light')).toBe(true);
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
+      await renderWithTheme('candy-light', () => {
+        expect(document.documentElement.classList.contains('theme-candy-light')).toBe(true);
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+      });
     });
 
     it('forest-light: adds theme-forest-light only', async () => {
-      await renderWithTheme('forest-light');
-      expect(document.documentElement.classList.contains('theme-forest-light')).toBe(true);
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
+      await renderWithTheme('forest-light', () => {
+        expect(document.documentElement.classList.contains('theme-forest-light')).toBe(true);
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+      });
     });
 
     it('synthwave: adds dark and theme-synthwave', async () => {
-      await renderWithTheme('synthwave');
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('theme-synthwave')).toBe(true);
+      await renderWithTheme('synthwave', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.classList.contains('theme-synthwave')).toBe(true);
+      });
     });
 
     it('system with prefers-dark: applies dark class', async () => {
@@ -165,8 +177,8 @@ describe('App', () => {
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
       });
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
 
     it('system with prefers-light: applies no dark class', async () => {
@@ -177,17 +189,18 @@ describe('App', () => {
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
       });
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
     });
 
     it('removes stale theme classes when theme changes', async () => {
       // Start with a dark theme class already on the element
       document.documentElement.classList.add('dark', 'theme-synthwave');
-      await renderWithTheme('candy-light');
-      expect(document.documentElement.classList.contains('dark')).toBe(false);
-      expect(document.documentElement.classList.contains('theme-synthwave')).toBe(false);
-      expect(document.documentElement.classList.contains('theme-candy-light')).toBe(true);
+      await renderWithTheme('candy-light', () => {
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+        expect(document.documentElement.classList.contains('theme-synthwave')).toBe(false);
+        expect(document.documentElement.classList.contains('theme-candy-light')).toBe(true);
+      });
     });
   });
 
@@ -201,8 +214,8 @@ describe('App', () => {
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
       });
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
 
     it('handles null from getAppSettings gracefully (uses defaults)', async () => {
