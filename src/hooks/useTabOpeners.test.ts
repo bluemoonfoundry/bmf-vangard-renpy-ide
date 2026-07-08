@@ -27,6 +27,12 @@ function makeProps(overrides: Partial<Parameters<typeof useTabOpeners>[0]> = {})
     setSecondaryActiveTabId,
     setActivePaneId,
     ...overrides,
+  } as Parameters<typeof useTabOpeners>[0] & {
+    setOpenTabs: typeof setOpenTabs;
+    setSecondaryOpenTabs: typeof setSecondaryOpenTabs;
+    setActiveTabId: typeof setActiveTabId;
+    setSecondaryActiveTabId: typeof setSecondaryActiveTabId;
+    setActivePaneId: typeof setActivePaneId;
   };
 }
 

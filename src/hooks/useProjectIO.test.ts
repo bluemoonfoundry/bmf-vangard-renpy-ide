@@ -140,16 +140,17 @@ describe('useProjectIO', () => {
   it('serializes sceneCompositions to file-path-only sprites', async () => {
     const api = createMockElectronAPI();
     installElectronAPI(api);
-    const sceneCompositions = {
+    const sceneCompositions: UseProjectIOParams['sceneCompositions'] = {
       'scene-1': {
         background: {
-          id: 's1', image: { filePath: 'game/images/bg.png', fileName: 'bg.png', dataUrl: 'data:...', fileHandle: null, isInProject: true, lastModified: 0, size: 0 },
-          x: 0, y: 0, width: 800, height: 600, zIndex: 0, opacity: 1,
+          id: 's1',
+          image: { filePath: 'game/images/bg.png', fileName: 'bg.png', dataUrl: 'data:...', fileHandle: null, isInProject: true, lastModified: 0, size: 0 },
+          x: 0.5, y: 1, zoom: 1, zIndex: 0, flipH: false, flipV: false, rotation: 0, alpha: 1, blur: 0,
         },
         sprites: [],
         resolution: { width: 1280, height: 720 },
       },
-    } as UseProjectIOParams['sceneCompositions'];
+    };
     const { result } = renderHook(() => useProjectIO(makeParams({ sceneCompositions })));
     await act(async () => { await result.current.handleSaveProjectSettings(); });
     const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);

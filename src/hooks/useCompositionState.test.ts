@@ -183,7 +183,11 @@ describe('useCompositionState — handleSceneUpdate', () => {
     act(() =>
       result.current.handleSceneUpdate('s1', {
         background: null,
-        sprites: [{ id: 'sp1', tag: 'eileen', transforms: [], position: { x: 0, y: 0 }, scale: 1, zOrder: 0 }],
+        sprites: [{
+          id: 'sp1',
+          image: { filePath: 'game/images/eileen.png', fileName: 'eileen.png', isInProject: true, fileHandle: null },
+          x: 0.5, y: 1, zoom: 1, zIndex: 0, flipH: false, flipV: false, rotation: 0, alpha: 1, blur: 0,
+        }],
       })
     );
     expect(setHasUnsavedSettings).toHaveBeenCalledWith(true);

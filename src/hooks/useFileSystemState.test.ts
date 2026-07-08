@@ -199,7 +199,7 @@ describe('useFileSystemState — clipboard', () => {
     const { result } = renderHook(() => useFileSystemState());
     act(() => result.current.copyToClipboard(['game/a.rpy', 'game/b.rpy']));
     expect(result.current.clipboard?.type).toBe('copy');
-    expect((result.current.clipboard as { type: string; paths: string[] })?.paths).toEqual(['game/a.rpy', 'game/b.rpy']);
+    expect(result.current.clipboard?.paths).toEqual(new Set(['game/a.rpy', 'game/b.rpy']));
   });
 
   it('cutToClipboard stores paths with cut type', () => {

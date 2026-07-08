@@ -10,7 +10,7 @@ import type {
 } from '@/types';
 
 // Re-export from types so importers don't need a second import path.
-export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/types';
+export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh, ProjectSnapshot } from '@/types';
 
 type ProjectSettingsSlice = PersistedProjectSettings;
 
