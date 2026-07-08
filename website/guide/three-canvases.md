@@ -12,11 +12,13 @@ and *What does the player experience?*
 ![The Project Canvas showing .rpy files as connected blocks](/story-canvas-basic.png)
 
 The **Project Canvas** is what you see first when you open a project. Each `.rpy` file in
-your `game/` directory appears as a rectangular block on the canvas. The blocks are
-color-coded -- each block's color is deterministically derived from its title through a
-string hash, so the same file always gets the same color, and different files get visually
-distinct hues. This makes it easy to spot a particular file on a crowded canvas even
-before you read its name.
+your `game/` directory appears as a rectangular block on the canvas. Blocks default to a
+neutral gray, but you can pick a color for any block yourself: click the color swatch on
+the block header to open a picker with a fixed palette (slate, red, orange, amber, yellow,
+lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, rose)
+and choose the one that fits your organization scheme. The choice is stored on the block
+and persists between sessions -- it is not derived automatically from the title or
+contents.
 
 ### Blocks and Arrows
 
@@ -65,7 +67,7 @@ the diagnostics panel unless you want details.
 
 You can drag blocks freely to arrange them however makes sense to you -- by chapter, by
 route, by character involvement, or any scheme you like. Block positions are saved
-automatically to `.renide/project.json`, so your layout persists between sessions.
+automatically to `game/project.ide.json`, so your layout persists between sessions.
 
 When you want a quick automatic layout instead of manual positioning, click the
 **Organize Layout** button in the toolbar. Vangard Studio offers four layout algorithms:
@@ -84,7 +86,7 @@ Pick the algorithm that suits your project's shape. You can always drag blocks a
 to fine-tune the result. Experiment freely -- `Ctrl+Z` / `Cmd+Z` undoes canvas layout
 changes.
 
-### Character Filter and Role Tinting
+### Character Filter
 
 Large projects might have dozens of blocks on screen at once, and not all of them are
 relevant to what you are working on right now. The **character filter** helps you focus.
@@ -94,12 +96,6 @@ that character remain fully visible; everything else fades into the background.
 This is particularly useful when you are reviewing a specific character's arc across the
 game. Select "Elena" and immediately see which files she appears in and how they connect
 -- without the visual noise of the other 40 blocks.
-
-**Role tinting** takes this a step further by coloring blocks according to which
-characters appear in them. Instead of the default hash-derived colors, each block takes
-on a tint based on its cast. This turns the canvas into a character map: you can see at a
-glance which parts of the story feature which characters, and spot sections where a
-character drops out of the narrative unexpectedly.
 
 ### Groups
 
@@ -114,10 +110,12 @@ maintaining a neat canvas as your project grows.
 
 ### The Legend
 
-If you are ever unsure what a particular arrow color or style means, toggle the **legend
-overlay** on the canvas. It shows a visual key explaining the different arrow types (jump
-vs. call), what the glow colors mean, and any other visual conventions. Think of it as
-the key in the corner of a map.
+If you are ever unsure what a particular arrow or border style means, toggle the
+**Legend** panel in the top-right corner of the canvas. It shows a visual key covering
+**Arrows** (Jump vs. Call), **Block Roles** (Story start / Story end / Branching), and
+**Block Types** (Story / Screen / Config). The separate red/amber diagnostic glow
+described above is not part of this legend -- it is explained in the Diagnostics panel
+instead. Think of the Legend as the key in the corner of a map.
 
 ## Flow Canvas
 
@@ -140,17 +138,18 @@ The edges use visual styling to distinguish connection types:
 - **Solid lines** represent `jump` statements. Execution moves from one label to another
   and does not return. In narrative terms, the player has permanently left the source
   scene.
-- **Dashed lines** represent `call` statements. Execution moves to the target label but
-  will return to the caller when it hits a `return` statement. This is common for
-  reusable scenes like flashbacks or minigames.
-- **Dotted lines** represent fall-throughs -- cases where one label ends without a `jump`
-  or `return`, and execution simply continues to the next label defined below it in the
-  same file.
+- **Solid lines with a small circle marker** at the source end represent `call`
+  statements. The line itself is styled identically to a jump; the circle is the only
+  thing that tells you execution will return to the caller when it hits a `return`
+  statement. This is common for reusable scenes like flashbacks or minigames.
+- **Long-dashed lines** represent fall-throughs (implicit edges) -- cases where one label
+  ends without a `jump` or `return`, and execution simply continues to the next label
+  defined below it in the same file.
 
 Understanding these edge types at a glance saves you from having to read the code. When
-you see a cluster of dashed lines converging on a single node, you know that node is a
-shared subroutine called from multiple places. When you see a chain of dotted lines, you
-know those labels are sequential within the same file.
+you see a cluster of circle-marked edges converging on a single node, you know that node
+is a shared subroutine called from multiple places. When you see a chain of long-dashed
+lines, you know those labels are sequential within the same file.
 
 ### Unreachable Labels
 
@@ -166,9 +165,11 @@ of the graph is woven together.
 
 ### Menu Nodes
 
-When your code contains a `menu:` block with player choices, the Flow Canvas represents
-it as a special **menu node** distinct from ordinary label nodes. Hover over a menu node
-and the **Menu Inspector** popover appears, showing:
+When your code contains a `menu:` block with player choices, the Flow Canvas does not
+give the label a distinct node type -- it is still an ordinary label node. What marks the
+menu is a **menu pill** decoration drawn on the outgoing edges from that label. Click a
+menu pill and the **Menu Inspector** opens as a persistent panel docked to the side of the
+canvas (it does not appear on hover, and it is not a transient popover), showing:
 
 - Every choice in the menu.
 - The label each choice jumps or calls to.
@@ -189,9 +190,11 @@ label confrontation:
             jump deflection
 ```
 
-The Flow Canvas shows a menu node for `confrontation` with three outgoing edges. The
-popover reveals the choice text for each edge, and "Stay silent" is annotated with its
-`if has_secret` condition. You can see the branching logic without opening the file.
+The Flow Canvas shows the `confrontation` node with three outgoing edges carrying menu
+pills. Clicking any of those pills opens the Menu Inspector panel, which reveals the
+choice text for each edge and shows "Stay silent" annotated with its `if has_secret`
+condition. You can see the branching logic without opening the file, and the panel stays
+open while you keep working on the canvas.
 
 ### Route Highlighting
 
@@ -207,21 +210,30 @@ path through the same graph.
 
 ### Node Badges
 
-Each node on the Flow Canvas carries a small **role badge** indicating its structural
-function in the narrative:
+Each node on the Flow Canvas is styled to reflect its status and structural role. Status
+is shown first, via the node's border and background color:
 
-- **Start** -- a label that serves as an entry point (typically `label start` or a label
-  explicitly identified as a route beginning).
-- **End** -- a label that contains a `return` statement or ends the game.
-- **Choice** -- a label that contains a `menu:` block offering player decisions.
-- **Decision** -- a label that branches based on conditional logic (Python `if` blocks
-  with `jump` statements), without presenting a visible choice to the player.
-- **Story** -- a standard narrative label with no special structural role.
+- **Entry** -- a green border and background mark a label that serves as an entry point
+  into the narrative.
+- **Unreachable** -- an orange border and background mark a label that no `jump`, `call`,
+  or fall-through leads to.
+- **Dead end** -- an amber dashed border and background mark a label with no outgoing
+  jumps.
+- Nodes with none of these statuses get default gray styling.
 
-These badges let you scan the graph quickly and identify the decision points, the
-endpoints, and the spine of the narrative. When you are debugging a path that seems to
-skip an ending, look for nodes with the End badge and check whether any route actually
-reaches them.
+Separately, when a structural overlay is active (via the overlay toggle in the toolbox),
+nodes can also carry a colored count badge describing their role in the graph:
+
+- **Hub** (sky blue) -- a label with many incoming paths.
+- **Branch** (violet) -- a label with many outgoing paths.
+- **Menu-heavy** (rose) -- a label containing multiple choice menus.
+- **Call-heavy** (teal) -- a label with many incoming calls.
+
+There is no badge for a plain narrative label with no special role -- it simply renders
+with default styling. These badges let you scan the graph quickly and identify the
+decision points, the endpoints, and the spine of the narrative. When you are debugging a
+path that seems to skip an ending, look for unreachable or dead-end nodes and check
+whether any route actually reaches past them.
 
 ## Choices Canvas
 
@@ -235,11 +247,12 @@ every implementation detail -- the Choices Canvas strips away the implementation
 only what the player encounters. Menu nodes fan out into color-coded **choice pills**,
 each displaying the exact text the player will read.
 
-If a choice has an `if` condition guard, it appears as a small badge on the pill. This
-tells you at a glance which options are always available and which depend on game state.
-For example, a pill reading "Confront the villain" with a badge `if courage >= 5` makes
-it clear that this option is conditional -- the player needs enough courage points to see
-it.
+If a choice has an `if` condition guard, the pill shows a small warning icon rather than
+the condition text itself. This tells you at a glance which options are always available
+and which depend on game state. Hover over the icon (or the pill) to see the actual
+condition text in a tooltip -- for example, a pill reading "Confront the villain" might
+reveal `if courage >= 5` on hover, making it clear that this option is conditional on the
+player having enough courage points.
 
 The choice pills use a rotation of six colors to distinguish branches visually. As you
 follow the pills across the canvas, you are tracing the player's decision tree -- not the
@@ -255,7 +268,8 @@ storytellers who need to understand the experience.
 ## Shared Canvas Features
 
 All three canvases share a set of navigation, annotation, and accessibility tools. These
-work identically regardless of which canvas is active.
+work identically regardless of which canvas is active, with one exception noted below
+(the minimap toggle).
 
 ### Go-to-Label Palette
 
@@ -303,11 +317,16 @@ trackable task list that the whole team can see.
 
 ### Canvas Minimap
 
-Toggle the **minimap** to show a small overview of the entire canvas in the corner of the
-screen. The minimap displays a shaded rectangle representing your current viewport
-position, so you always know where you are relative to the full project. Click or drag on
-the minimap to jump to a different region instantly. This is especially useful on large
+Every canvas can show a **minimap** -- a small overview of the entire canvas in the
+corner of the screen, with a shaded rectangle representing your current viewport position
+so you always know where you are relative to the full project. Click or drag on the
+minimap to jump to a different region instantly. This is especially useful on large
 projects where the canvas extends far beyond a single screen.
+
+This is the one feature in this section that is not identical across canvases: only the
+**Project Canvas** has a checkbox to toggle the minimap on and off (it is on by default).
+On the **Flow Canvas** and **Choices Canvas**, the minimap always renders and there is
+currently no control to hide it.
 
 ### Keyboard Navigation and Accessibility
 

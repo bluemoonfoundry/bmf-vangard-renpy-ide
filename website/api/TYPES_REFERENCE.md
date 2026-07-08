@@ -153,9 +153,9 @@ Settings are split between application-level and project-level.
 
 **Persistence**:
 - `AppSettings` → `userData/app-settings.json` (Electron) or localStorage (web)
-- `ProjectSettings` → `.renide/project.json` in project directory
-- Block positions → `.renide/project.json` (debounced ~2s)
-- Compositions → `.renide/ide-settings.json`
+- `ProjectSettings` → `<project>/game/project.ide.json`
+- Block positions → `<project>/game/project.ide.json` (written on Save All / tab close / app exit, not on a timer)
+- Compositions → `<project>/game/project.ide.json`
 
 **Mouse Gestures**: `MouseGestureSettings` within AppSettings controls canvas pan/zoom behavior.
 
@@ -229,8 +229,8 @@ Different data persists to different locations:
 | Data | Location | Trigger |
 |------|----------|---------|
 | Block content | Individual `.rpy` files | Immediate (Ctrl+S) |
-| Block positions | `.renide/project.json` | Debounced (~2s) |
-| Compositions | `.renide/ide-settings.json` | Manual save |
+| Block positions | `<project>/game/project.ide.json` | Save All, tab close, app exit |
+| Compositions | `<project>/game/project.ide.json` | Save All, tab close, app exit |
 | App settings | `userData/app-settings.json` | On change |
 | API keys | OS keychain (via safeStorage) | On save |
 

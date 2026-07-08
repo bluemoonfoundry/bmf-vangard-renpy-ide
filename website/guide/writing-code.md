@@ -12,7 +12,7 @@ None of these features require configuration. They work from the moment you open
 
 ## Split Panes
 
-When you are cross-referencing two files -- say, writing a scene in `chapter3.rpy` while checking your character definitions in `characters.rpy` -- you can split the editor into two side-by-side panes. Drag any editor tab toward the left or right edge of the editing area and the IDE will offer a split drop target. Release the tab, and now both files are visible simultaneously.
+When you are cross-referencing two files -- say, writing a scene in `chapter3.rpy` while checking your character definitions in `characters.rpy` -- you can split the editor into two panes. Right-click any editor tab and choose **Open in Split Right** or **Open in Split Bottom** from the context menu. The active tab moves into the new secondary pane, and both files are visible simultaneously.
 
 You can drag tabs freely between panes, close either pane independently, and resize them by dragging the divider. This is especially useful when a scene references images or labels defined elsewhere -- you can keep the definition visible in one pane while writing the scene in the other.
 
@@ -38,28 +38,28 @@ The practical result: when you type `jump cafe_scene` and `cafe_scene` does not 
 
 As you type, Vangard Studio offers context-aware autocomplete suggestions -- what Monaco calls **IntelliSense**. The completions are not generic; they are drawn from your project's live analysis results.
 
-The completion provider detects what you are writing and adjusts its suggestions accordingly:
+The completion provider looks at a handful of specific prefixes on the current line and narrows its suggestions only in those cases:
 
-- After `jump` or `call`, it suggests all known label names in your project
-- After `show`, `scene`, or `hide`, it suggests defined image names
-- After `call screen` or `show screen`, it suggests screen names along with their parameters
-- At the start of a dialogue line, it suggests character tags
-- Inside `$` expressions or Python blocks, it suggests `define`/`default` variable names
-- For general editing, it suggests Ren'Py keywords and your custom snippets
+- After `jump` or `call` (but not `call screen`), it suggests only known label names in your project
+- After `call screen`, it suggests only screen names along with their parameters
+- After `show`, `scene`, or `hide`, it suggests only defined image names
+- Inside `$` expressions or `python` blocks, it suggests only `define`/`default` variable names
 
-Each suggestion includes a detail annotation (the label's file, the character's display name, the variable's initial value) so you can distinguish between similarly named items. Type a few characters and press `Tab` or `Enter` to accept a suggestion.
+For everything else -- which in practice covers most typing positions, including the start of a dialogue line -- Vangard Studio falls back to one unified list that mixes Ren'Py keyword snippets, character tags, label names, variables, screen names, and your custom snippets all together. It is not scoped down to "just character tags" or "just keywords"; you will see all of these candidate types at once and rely on the label text (and Monaco's fuzzy filtering as you type) to narrow the list.
+
+Each suggestion includes a short detail annotation to help you distinguish between similarly named items -- for example a label shows `Label (label)`, a character tag shows `Character: <display name>`, and a variable shows its type and initial value. Label suggestions do **not** show which file the label is defined in. Type a few characters and press `Tab` or `Enter` to accept a suggestion.
 
 ## Go to Definition
 
-Hold `Ctrl` (or `Cmd` on macOS) and click on a label name, character tag, or screen reference, and the editor will jump directly to where that symbol is defined -- even if the definition lives in a different `.rpy` file. Vangard Studio opens the target file in a new editor tab (or switches to it if already open) and scrolls to the exact line.
+Hold `Ctrl` (or `Cmd` on macOS) and click on a label target inside a `jump` or `call` statement, and the editor will jump directly to where that label is defined -- even if the definition lives in a different `.rpy` file. Vangard Studio opens the target file in a new editor tab (or switches to it if already open) and scrolls to the exact line.
 
-This works for:
+This currently works for:
 
-- **Labels**: `Ctrl+Click` on `jump cafe_scene` takes you to `label cafe_scene:`
-- **Characters**: `Ctrl+Click` on a character tag in a dialogue line takes you to the `define` statement
-- **Screens**: `Ctrl+Click` on a screen name takes you to the `screen` definition
+- **Labels**: `Ctrl+Click` on `jump cafe_scene` or `call cafe_scene` takes you to `label cafe_scene:`
 
-For large projects with dozens of files, this one feature can save you hours of manual searching.
+Character tags and screen names are not click-to-navigate targets today -- there is no Ctrl+Click handling for them. Use Project-wide Search (below) to locate a `define Character(...)` statement or a `screen` definition.
+
+For large projects with dozens of files, this feature can save you hours of manual searching.
 
 ## Dialogue Preview
 
@@ -75,31 +75,29 @@ Toggle the preview panel open or closed by clicking its header bar. It remembers
 
 ## Snippets
 
-Vangard Studio ships with **28+ built-in code snippets** covering the most common Ren'Py patterns. Snippets are reusable code templates with tab-stop placeholders -- type a trigger prefix, select the snippet from the IntelliSense menu, and then press `Tab` to jump between placeholder fields and fill in your specific values.
+Vangard Studio ships with **33 built-in code snippets** covering the most common Ren'Py patterns. Snippets are reusable code templates with tab-stop placeholders -- type a trigger prefix, select the snippet from the IntelliSense menu, and then press `Tab` to jump between placeholder fields and fill in your specific values.
 
-For example, typing `menu` in the editor triggers a snippet that expands to:
+For example, typing `menu` in the editor triggers a lightweight keyword snippet template with three tab stops:
 
-```renpy
+```
 menu:
-    "What should I do?"
-    "Go to the park.":
-        jump park_scene
-    "Stay home.":
-        jump home_scene
+    "${1:What do you do?}":
+        "${2:Choice 1}":
+            $0
 ```
 
-The cursor lands on the first placeholder (the menu prompt text). Type your prompt, press `Tab`, and the cursor jumps to the first choice text. Continue tabbing through each placeholder until the snippet is fully customized.
+Press `Tab` to move from the prompt/choice text (`What do you do?`) to the choice label (`Choice 1`), then to the cursor position inside that choice's body (`$0`), where you continue writing the rest of the menu by hand. This keyword-triggered snippet is intentionally minimal -- for a complete, ready-to-edit two-choice menu with two labelled jump targets, browse the **Choice Menu** snippet in the Snippets sidebar instead (see below), which fills in a full working example.
 
 Built-in snippets are organized into categories:
 
-- **Dialogue & Narration** -- standard dialogue, narration, NVL mode, dialogue with attributes
-- **Logic & Control Flow** -- if/else, choice menus, jumps, calls
-- **Images** -- show, scene, hide with transitions
-- **Audio** -- play music, play sound, queue audio, stop/fadeout
-- **Variables** -- define, default, Python assignments
-- **Screens** -- screen definitions, common UI patterns
+- **Dialogue & Narration** (4) -- standard dialogue, narration, NVL mode, dialogue with attributes
+- **Logic & Control Flow** (5) -- if/else, if/elif/else, choice menus, jumps, calls
+- **Images** (10) -- show, show at position, scene, hide, image definitions, solid color, placeholder, simple animation, condition switch, layered image
+- **Visuals & Effects** (3) -- scene with transition, simple transition, pause
+- **ATL & Transforms** (7) -- basic transform, linear movement, fade in/out, zoom pop, repeating bobbing, parallel animation, on show/hide events
+- **Audio** (4) -- play music, play sound effect, stop music, queue music
 
-Snippets also appear in the `Story Elements` sidebar under the `Snippets` tab (covered in [Managing Story Elements](/guide/managing-story-elements)), where you can browse the full library visually. You can define your own custom snippets too -- the brief version is that user-defined snippets use `${1:placeholder}` syntax for tab stops and are stored in `.renide/snippets.json` within your project folder. That chapter covers the details.
+Snippets also appear in the `Story Elements` sidebar under the `Snippets` tab (covered in [Managing Story Elements](/guide/managing-story-elements)), where you can browse the full library visually. You can define your own custom snippets too -- the brief version is that user-defined snippets use `${1:placeholder}` syntax for tab stops and are stored in `<project>/.vangard/snippets.json` within your project folder. That chapter covers the details.
 
 ## Project-wide Search and Replace
 

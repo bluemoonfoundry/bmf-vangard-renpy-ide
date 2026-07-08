@@ -19,7 +19,11 @@ The toolbar runs along the top of the window. It is divided into three logical s
 - `New Scene` -- creates a new `.rpy` file and block. The keyboard shortcut `N` does
   the same thing from the canvas.
 - `Add Note` -- places a sticky note on the current canvas.
-- `Organize Layout` -- opens a dropdown with four automatic layout algorithms.
+- `Organize Layout` -- runs the active canvas's auto-layout algorithm immediately (no
+  dropdown). The four underlying layout algorithms (flow left-to-right, flow top-down,
+  connected-components, and clustered-flow) exist in `storyCanvasLayout.ts` and can be
+  selected via the separate Canvas Layout Controls surface, not from this toolbar
+  button.
 - `Diagnostics` -- opens the diagnostics panel. When there are errors in your project, a
   red badge shows the count.
 - `Translations` -- opens the Translation Dashboard.
@@ -53,9 +57,10 @@ can:
 - Rename, delete, copy, cut, and paste files.
 - Drag and drop files between folders.
 - Right-click a `.rpy` file for context options like `Center on Canvas` (which pans the
-  Project Canvas to that file's block) and `Open in Editor`.
+  Project Canvas to that file's block), `New File...`, `New Folder...`, `Rename`,
+  `Delete`, `Cut`, `Copy`, and `Paste`.
 
-The explorer also has a `Refresh Project` option (in its context menu and the `File`
+The explorer also has a `Refresh` option (in its context menu and the `File`
 menu) that reconciles the file tree with what is actually on disk. This is useful when
 you have been editing or adding files outside of Vangard Studio -- for example, in a terminal or
 another editor. The refresh detects new files, removed files, and externally modified
@@ -101,29 +106,32 @@ state when you switch between them. [Chapter 6](/guide/writing-code) covers the 
 
 ## The Story Elements Sidebar
 
-The right sidebar is called **Story Elements**. It uses a two-level tab layout: four
-top-level categories, each containing related sub-tabs.
+The right sidebar is called **Story Elements**. It uses a single flat tab layout: one
+vertical icon nav lists all ten tabs side by side, with no category grouping.
 
-| Category | Sub-tabs |
-|----------|----------|
-| **Story Data** | Characters, Variables, Screens |
-| **Assets** | Images, Audio |
-| **Composers** | Scenes, ImageMaps, Screen Layouts |
-| **Tools** | Snippets, Menus, Colors |
+| Tabs |
+|------|
+| Characters, Variables, Screens |
+| Images, Audio |
+| Scene Compositions, Image Maps |
+| Code Snippets, Menu Templates, Color Palette |
 
 This is where you browse and manage everything beyond the code itself. The Characters
-sub-tab lists every `define Character(...)` in your project. The Images sub-tab shows
-thumbnails of your art assets. The Composers category opens visual editors for building
-scenes, imagemaps, and screen layouts. The Tools category gives you access to your
-snippet library, the menu constructor, and a color picker with multiple palettes.
+tab lists every `define Character(...)` in your project. The Images tab shows
+thumbnails of your art assets. The Scene Compositions and Image Maps tabs open visual
+editors for building scenes and imagemaps. The Code Snippets, Menu Templates, and
+Color Palette tabs give you access to your snippet library, the menu constructor, and a
+color picker with multiple palettes.
 
-Each sub-tab is covered in its relevant chapter later in the guide. For now, the key
+Each tab is covered in its relevant chapter later in the guide. For now, the key
 point is that the Story Elements sidebar is always one click away on the right edge of
-the window, and it organizes everything that is not source code into a logical hierarchy.
+the window, and it lists everything that is not source code as a single flat set of tabs.
 
 ## The Status Bar
 
-At the very bottom of the window, a thin status bar shows contextual information: the
-current cursor position and selection range (when an editor is focused), the project
-version, and occasional status messages like "Saving..." or "Saved." It is unobtrusive
-by design -- a quick reference line you glance at rather than interact with.
+At the very bottom of the window, a thin status bar shows contextual information: an
+activity label (`Ready`, `Saving...`, `Analyzing...`, `Scanning assets...`, or
+`Save failed...`), a screenshot counter, error/warning counts, a file/block count, and
+the app version. There is no cursor position or selection range display anywhere in the
+IDE, and the idle state reads "Ready", not "Saved..". It is unobtrusive by design -- a
+quick reference line you glance at rather than interact with.

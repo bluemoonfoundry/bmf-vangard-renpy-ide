@@ -16,6 +16,7 @@
 | Unused Variable | Info | `unused-variable` | A story variable is defined but never referenced anywhere in code. Limited to story blocks to avoid false positives on GUI/config variables. |
 | Unreachable Label | Info | `unreachable-label` | No `jump` or `call` anywhere in the project targets this label. Conventional entry points (`start`, `quit`, `splashscreen`, `main_menu`, `after_load`, `_`-prefixed) are excluded. |
 | Dead-End Label | Info | `dead-end-label` | A label has no outgoing `jump`, `call`, or `return` exit. May be an intentional ending or a missing navigation statement. |
+| Implicit Variable | Info | `implicit-variable` | A story variable is set with an implicit (bare `$ var = ...`) definition instead of an explicit `default`/`define` declaration. |
 
 ### 8.2 Example Messages
 
@@ -35,13 +36,13 @@ Each diagnostic type produces a message formatted for quick identification:
 | Unused Variable | `Variable "temp_flag" is defined but never referenced` |
 | Unreachable Label | `Label "secret_ending" is never reached by any jump or call` |
 | Dead-End Label | `Label "epilogue" has no jump, call, or return exit -- verify this is an intentional ending` |
+| Implicit Variable | `[IMPLICIT_VAR] Variable 'flag' uses implicit definition. Consider using 'default flag = ...' for better compatibility.` |
 
 ### 8.3 Panel Features
 
 - **Click to jump**: click any diagnostic to open the file at the relevant line in the editor.
 - **Severity filter**: toggle visibility of errors, warnings, and info-level diagnostics independently.
-- **Convert to task**: promote a diagnostic to a tracked task in the checklist. Tasks persist across sessions in `.renide/project.json`.
-- **Suppression**: right-click a diagnostic to add an ignore rule. Suppressed diagnostics are hidden until the rule is removed. Rules are stored in `.renide/project.json` under `ignoredDiagnostics`. Each rule can match by category, message pattern, file path, or a combination of these fields.
+- **Suppression**: click the "Ignore issue" button on a diagnostic to add an ignore rule. Suppressed diagnostics are hidden until the rule is removed. Rules are stored in `game/project.ide.json` under `ignoredDiagnostics`. A rule matches a diagnostic only when category, file path, block ID, line, and message are all exactly equal — there is no partial, pattern, or substring matching.
 
 ### 8.4 Canvas Integration
 
@@ -59,4 +60,4 @@ The diagnostics button in the toolbar shows a red badge with the total error cou
 
 ### 8.6 Task Checklist
 
-Diagnostics and sticky notes can be promoted to tracked tasks. Tasks have two states: `open` and `completed`. The task list appears in the Diagnostics panel and is persisted in `.renide/project.json` under `diagnosticsTasks`.
+Tasks are created manually via the "New task..." input, or auto-derived as previews from sticky notes on any canvas — there is no action that converts a diagnostic issue directly into a task. Tasks have two states: `open` and `completed`. The task list appears in the Diagnostics panel and is persisted in `game/project.ide.json` under `diagnosticsTasks`.

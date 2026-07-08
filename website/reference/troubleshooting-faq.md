@@ -30,9 +30,9 @@
 
 | Problem | Solution |
 |---------|----------|
-| Images do not appear in the asset manager. | Use `File` > `Refresh Project` or right-click in the Project Explorer and select `Refresh`. Verify images are inside `game/images/` or a scanned directory. |
-| Audio files will not play. | Ensure the file format is supported by the Web Audio API: MP3, OGG, WAV. Other formats may not play in the IDE's audio player. |
-| External file changes are not detected. | The file watcher uses a 400ms debounce. Wait a moment and check again. If changes still do not appear, use `File` > `Refresh Project` to manually reconcile all files with disk state. |
+| Images do not appear in the asset manager. | Use `File` > `Refresh` or right-click in the Project Explorer and select `Refresh`. Verify images are inside `game/images/` or a scanned directory. |
+| Audio files will not play. | Ensure the file format is supported by the Web Audio API: MP3, OGG, WAV, OPUS. Other formats may not play in the IDE's audio player. |
+| External file changes are not detected. | The file watcher uses a 400ms debounce. Wait a moment and check again. If changes still do not appear, use `File` > `Refresh` to manually reconcile all files with disk state. |
 
 #### Editor
 
@@ -40,13 +40,13 @@
 |---------|----------|
 | IntelliSense does not suggest completions. | Ensure the file has a `.rpy` extension and that the analysis has completed (no spinner in the toolbar). The completion provider requires a fully parsed project. |
 | Syntax highlighting looks incorrect or plain. | The TextMate grammar loads asynchronously via Oniguruma WASM on the first editor mount. Close the tab and reopen it. If the problem persists, restart the application. |
-| User snippets do not appear in autocomplete. | Verify that `.renide/snippets.json` contains valid JSON and that each snippet has a `prefix` field matching what you type. The prefix is the trigger string. |
+| User snippets do not appear in autocomplete. | Verify that your global user snippets (stored in `app-settings.json`'s `userSnippets` field) each have a `prefix` field matching what you type. The prefix is the trigger string. Project snippets in `.vangard/snippets.json` do not use a prefix -- they are grouped into categories instead. |
 
 #### Canvas
 
 | Problem | Solution |
 |---------|----------|
-| Blocks are missing or overlapping after editing files externally. | Use `Organize Layout` from the toolbar to auto-position blocks, or `File` > `Refresh Project` to reconcile block state with disk. |
+| Blocks are missing or overlapping after editing files externally. | Use `Organize Layout` from the toolbar to auto-position blocks, or `File` > `Refresh` to reconcile block state with disk. |
 | Arrows are not drawn between blocks. | Arrows represent `jump` and `call` statements in your code. Verify the statements exist, are correctly spelled, and target labels that are defined in the project. |
 | Go-to-Label (`Ctrl+G` / `Cmd+G`) cannot find a label. | The label must be defined with the `label name:` syntax in a `.rpy` file within the project. Dynamic labels (computed at runtime) are not indexed. |
 | Minimap is not visible. | The minimap is toggled from the canvas toolbar. Click the minimap icon to show or hide it. It is hidden by default. |
@@ -74,7 +74,7 @@ A: No. Vangard Studio works alongside the SDK. You still need the Ren'Py SDK ins
 A: Yes. The IDE is fully offline. No internet connection is required for any feature. The only network activity is the optional auto-update check on launch.
 
 **Q: Is my project locked into Vangard Studio?**
-A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data in a `.renide/` folder that Ren'Py ignores. Delete the `.renide/` folder and your project is exactly as Ren'Py expects it.
+A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data in `game/project.ide.json`, `.vangard/snippets.json`, and a `.renide/` screenshots folder, all of which Ren'Py ignores. Delete those files/folders and your project is exactly as Ren'Py expects it.
 
 #### Projects
 
@@ -82,10 +82,10 @@ A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data 
 A: It has been tested with projects containing 500+ files. Performance may vary with very large projects; check `Stats` > `IDE Performance` for metrics.
 
 **Q: Can multiple people work on the same project?**
-A: Yes. Project files are Git-friendly. Each team member can use Vangard Studio independently. The `.renide/` folder can be committed to version control to share canvas layouts, compositions, and task lists.
+A: Yes. Project files are Git-friendly. Each team member can use Vangard Studio independently. `game/project.ide.json` can be committed to version control to share canvas layouts, compositions, and task lists.
 
 **Q: What happens to my project if I stop using Vangard Studio?**
-A: Nothing. Delete the `.renide/` folder and your project remains a standard Ren'Py project with no traces of the IDE.
+A: Nothing. Delete `game/project.ide.json`, `.vangard/`, and `.renide/` and your project remains a standard Ren'Py project with no traces of the IDE.
 
 #### Features
 
@@ -105,10 +105,10 @@ A: Tab size and word wrap are controlled by the Monaco editor's built-in setting
 A: PNG, JPG/JPEG, and WEBP for the asset manager and visual composers. The IDE displays thumbnails for all three formats. Ren'Py itself may support additional formats depending on the SDK version.
 
 **Q: What audio formats are supported?**
-A: The IDE's built-in audio player supports MP3, OGG, and WAV via the Web Audio API. These are also the most common formats used by Ren'Py projects.
+A: The IDE's built-in audio player supports MP3, OGG, WAV, and OPUS via the Web Audio API. These are also the most common formats used by Ren'Py projects.
 
 **Q: How do I reset the canvas layout?**
 A: Click `Organize Layout` in the toolbar and choose one of the four layout algorithms. This repositions all blocks or nodes automatically. Your previous positions are stored in the undo stack if you need to revert.
 
 **Q: Can I undo changes to canvas positions?**
-A: Yes. `Ctrl+Z` / `Cmd+Z` undoes block moves, creation, and deletion on the Project Canvas. The undo stack holds up to 50 actions. Note that editor text changes, settings, and asset imports are not covered by canvas undo.
+A: Yes. `Ctrl+Z` / `Cmd+Z` undoes block moves, creation, and deletion on the Project Canvas. The undo stack has no fixed size limit. Note that editor text changes, settings, and asset imports are not covered by canvas undo.

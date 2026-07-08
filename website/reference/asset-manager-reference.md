@@ -13,8 +13,8 @@
 
 | Action | Output |
 |--------|--------|
-| Copy `scene` statement | `scene <image_tag>` (for backgrounds) |
-| Copy `show` statement | `show <image_tag>` (for sprites/overlays) |
+| Add `scene` statement | `scene <image_tag>` (for backgrounds) |
+| Add `show` statement | `show <image_tag>` (for sprites/overlays) |
 
 **Drag targets:**
 
@@ -24,7 +24,7 @@
 | Screen Layout Composer stage | Adds as an `image` widget |
 | ImageMap Composer | Sets as ground or hover image |
 
-**Tag/metadata editing:** Right-click an image to edit its display tag or add metadata notes. Tags are stored in `.renide/ide-settings.json`.
+**Tag/metadata editing:** Right-click an image to edit its display tag or add metadata notes. Tags are stored in `game/project.ide.json`.
 
 **Image viewer:** Double-clicking an image in the Assets panel opens it in a dedicated Image Editor View tab. The viewer displays the image at full resolution with zoom controls and file metadata (dimensions, file size, format) in a sidebar.
 
@@ -40,9 +40,8 @@
 
 | Action | Output |
 |--------|--------|
-| Copy `play music` | `play music "<path>"` |
-| Copy `play sound` | `play sound "<path>"` |
-| Copy `queue audio` | `queue music "<path>"` |
+| Copy `play audio` | `play audio "<path>"` |
+| Copy `queue audio` | `queue audio "<path>"` |
 
 **Audio player features:**
 
@@ -82,4 +81,4 @@ Drafting Mode generates temporary placeholders so the game can run even when ima
 | External directory linking | Add folders outside the project tree via the Scan External Directory option. Files are referenced by path, not copied. |
 | Refresh | Manual refresh via `File > Refresh Project` or Project Explorer context menu. Reconciles all assets with current disk state. |
 | File change detection | External changes to asset files are detected by the file watcher (400ms debounce). New files appear automatically; deleted files are removed from the tree. |
-| Metadata storage | Image/audio metadata (tags, notes) stored in `.renide/ide-settings.json`. Asset files themselves are never modified by the IDE. |
+| Metadata storage | Image/audio metadata (tags, notes) stored in `game/project.ide.json`. Asset files themselves are never modified by the IDE. |

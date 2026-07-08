@@ -1,6 +1,6 @@
 # Visual Composers
 
-Not everything in a visual novel is best expressed as text. Scene layouts, clickable image maps, and UI screens are inherently visual -- and editing them as raw code means constantly running the game to check whether your coordinates and layouts look right. Vangard Studio's three visual composers let you design these elements graphically and generate correct Ren'Py code automatically.
+Not everything in a visual novel is best expressed as text. Scene layouts and clickable image maps are inherently visual -- and editing them as raw code means constantly running the game to check whether your coordinates and layouts look right. Vangard Studio's two visual composers, Scene Composer and ImageMap Composer, let you design these elements graphically and generate correct Ren'Py code automatically. (An earlier third composer for building UI screens visually has been removed; screens are authored directly in `.rpy` source -- see below.)
 
 ## Scene Composer
 
@@ -109,62 +109,14 @@ screen my_map():
         hotspot (700, 400, 180, 150) action Jump("coastal_town")
 ```
 
-## Screen Layout Composer
+## Screens: View and Edit in Source
 
-Ren'Py's screen language is powerful but verbose. Building a custom UI screen -- a stats display, an inventory panel, a settings menu -- means writing deeply nested code with precise property assignments. The **Screen Layout Composer** lets you build these screens visually.
+There is no visual Screen Layout Composer in the current version of Vangard Studio. An
+earlier visual screen-building tool was deliberately removed from the codebase; screens
+are now authored and edited directly as Ren'Py `screen` blocks in your `.rpy` files.
 
-![The Screen Layout Composer showing the widget palette, stage, and widget tree](/artist-screen-layouts-composer.png)
-
-### The Widget Palette
-
-The left side of the composer presents a palette of Ren'Py screen widgets:
-
-- **Layout containers**: `vbox` (vertical stack), `hbox` (horizontal stack), `frame` (bordered container)
-- **Content widgets**: `text`, `image`
-- **Interactive widgets**: `textbutton`, `button`, `imagebutton`, `bar`, `input`
-- **Spacing**: `null` (invisible spacer)
-
-Each widget type has its own icon, color-coded for quick identification.
-
-### Building a Screen
-
-Drag widgets from the palette onto the stage. Container widgets (`vbox`, `hbox`, `frame`) accept child widgets -- drag a `text` widget into a `vbox` and it nests inside. The composer renders a live preview of the layout as you build it.
-
-Select any widget in the tree to open its **property editor**. Properties vary by widget type:
-
-- `text` -- the displayed string, font size, color, alignment
-- `textbutton` -- button text, action (jump, call, or custom code), hover styling
-- `image` -- the image path, sizing behavior
-- `bar` -- value, range, bar style
-- `frame` -- padding, background, border
-
-The widget tree on the left shows the nesting hierarchy. Rearrange widgets by dragging them within the tree. The generated code updates in real time in the code preview pane.
-
-### Working with Existing Screens
-
-If your project already has screen definitions in code, the Screen Layout Composer can display them in **read-only mode**. This gives you a visual representation of your existing screens without risking accidental edits to hand-written code.
-
-Want to use an existing screen as a starting point? Click **Duplicate** to create an editable copy in the composer. Modify the copy visually, then paste the generated code back into your project.
-
-### Generated Code
-
-The composer generates clean, indented Ren'Py screen code. For example, a simple character stats screen might produce:
-
-```renpy
-screen character_stats():
-    frame:
-        xalign 0.5
-        yalign 0.5
-        vbox:
-            spacing 10
-            text "Character Stats" size 28
-            hbox:
-                spacing 20
-                text "Strength:"
-                bar value strength range 100
-            hbox:
-                spacing 20
-                text "Intelligence:"
-                bar value intelligence range 100
-            textbutton "Close" action Return()
-```
+The **Screens** tab in the Story Elements sidebar lists every `screen` definition found
+across your project. It is read-only: there is no "+ New" or drag-and-drop widget
+builder. Click a screen entry's "Go to definition" action to jump straight to its
+`screen` block in the code editor, where you write and edit the screen language by hand
+(with the usual Monaco autocomplete and syntax highlighting to help).

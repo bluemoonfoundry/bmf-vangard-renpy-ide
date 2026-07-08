@@ -106,7 +106,7 @@ my-project/
     options.rpy         # Game configuration
     gui.rpy             # GUI configuration
     images/             # Image assets (PNG, JPG, WEBP)
-    audio/              # Audio assets (MP3, OGG, WAV)
+    audio/              # Audio assets (MP3, OGG, WAV, OPUS)
     tl/
       <language>/       # Translation files per language
     project.ide.json    # IDE project metadata (created by Vangard Studio)

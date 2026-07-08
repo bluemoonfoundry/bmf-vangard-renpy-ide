@@ -20,7 +20,7 @@ Shows one draggable block per `.rpy` file. Primary workspace for organizing file
 
 **Unique features:**
 - Block types: story, screen, and config (visually distinct borders — teal for screen, red for config)
-- Block color derived from label hash; persists in `.renide/project.json`
+- Block color is user-selected from a fixed palette via a color-picker popover (not hash-derived); persists in `<project>/game/project.ide.json`
 - `GroupContainer` — a resizable rectangle that holds multiple blocks; drag moves the group and all children
 - Character filter — dropdown filters the canvas to blocks containing dialogue from a chosen character
 - Minimap — thumbnail of the full canvas, positioned bottom-right

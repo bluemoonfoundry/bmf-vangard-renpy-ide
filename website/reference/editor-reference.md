@@ -29,13 +29,17 @@ The semantic overlay defines 9 token types. "Known" means the identifier resolve
 
 ### 4.3 IntelliSense Contexts
 
+Only a small set of line prefixes narrow the completion list. Everything else falls back to one unified "general" context.
+
 | Context | Trigger | Completions Offered |
 |---------|---------|-------------------|
-| Jump / Call targets | Typing after `jump ` or `call ` | All defined label names in the project |
-| Image names | Typing after `show `, `scene `, or `hide ` | All known image tags (from `image` statements and scanned files) |
-| Character tags | Typing at dialogue position (indented identifier before a string) | All defined `Character()` tags |
-| Screen names | Typing after `call screen `, `show screen `, or `hide screen ` | All defined `screen` names |
-| Variables | Typing in `$` expressions | All `define`/`default` variable names |
+| Jump / Call targets | Typing after `jump ` or `call ` (not `call screen `) | Only defined label names in the project |
+| Call screen | Typing after `call screen ` | Only defined `screen` names, with their parameters |
+| Image names | Typing after `show `, `scene `, or `hide ` | Only known image tags (from `image` statements and scanned files) |
+| Variables | Typing in `$` expressions or a `python` block | Only `define`/`default` variable names |
+| General (everything else) | Any other position, including the start of a dialogue line | Ren'Py keyword snippets, character tags, label names, variables, screen names, and user snippets, all returned together in a single list |
+
+There is no dedicated "character tags only" or "screen names only" context outside of `call screen `. `show screen ` and `hide screen ` are matched by the broader `show `/`hide ` prefix check before any screen-specific check runs, so typing after them offers image names, not screen names.
 
 ### 4.4 Dialogue Preview
 
@@ -48,13 +52,13 @@ The **Player View** panel appears below the editor when editing `.rpy` files. It
 
 ### 4.5 Go to Definition
 
-`Ctrl+Click` (Windows/Linux) or `Cmd+Click` (macOS) on a reference navigates to its definition.
+`Ctrl+Click` (Windows/Linux) or `Cmd+Click` (macOS) on a label target navigates to its definition.
 
 | Target | Navigates To |
 |--------|-------------|
 | Label name (in `jump`/`call` statements) | The `label` definition line |
-| Character tag (in dialogue) | The `define Character(...)` statement |
-| Screen name (in `show screen`/`call screen`) | The `screen` definition |
+
+Character tags and screen names do not support Ctrl+Click navigation -- there is no click handler for them. Use Project-wide Search (Section 4.9) to locate a `define Character(...)` statement or a `screen` definition instead.
 
 ### 4.6 Built-in Snippets
 
@@ -71,31 +75,44 @@ Vangard Studio ships with 33 built-in snippets organized into 6 categories.
 
 ### 4.7 User Snippet Format
 
-User snippets are stored as JSON files:
-- **Project-specific:** `.renide/snippets.json` in the project directory
-- **Global:** loaded from user data directory
+Vangard Studio distinguishes two different snippet shapes:
 
-Each snippet file follows this structure:
+- **Built-in / project & global snippet files** -- the bundled `snippets/default-snippets.json` library, plus any project- or user-level JSON files that follow the same `{version, categories: [{name, snippets: [{title, description, code}]}]}` shape:
+  - **Project-specific:** `<project>/.vangard/snippets.json`
+  - **Global:** `<user data directory>/snippets/custom.json`
 
-```json
-{
-  "version": "1.0",
-  "categories": [
-    {
-      "name": "Category Name",
-      "snippets": [
-        {
-          "title": "Snippet Title",
-          "description": "What this snippet does.",
-          "code": "label ${1:label_name}:\n    ${2:dialogue}\n    $0"
-        }
-      ]
-    }
-  ]
-}
-```
+  ```json
+  {
+    "version": "1.0",
+    "categories": [
+      {
+        "name": "Category Name",
+        "snippets": [
+          {
+            "title": "Snippet Title",
+            "description": "What this snippet does.",
+            "code": "label ${1:label_name}:\n    ${2:dialogue}\n    $0"
+          }
+        ]
+      }
+    ]
+  }
+  ```
 
-**Placeholder syntax:**
+  When multiple sources of this kind exist, categories with the same name are merged. Priority order: built-in (lowest) < user global < project-specific (highest).
+
+- **User-created snippets** (added via the Snippet Manager panel and offered by Monaco autocomplete in the general IntelliSense context) -- stored as `UserSnippet` objects in app settings, not as a standalone category file. Each entry has this shape:
+
+  | Field | Type | Meaning |
+  |-------|------|---------|
+  | `id` | `string` | Unique identifier |
+  | `title` | `string` | Display name shown in the Snippet Manager and completion list |
+  | `prefix` | `string` | Trigger prefix shown in the Snippet Manager UI |
+  | `description` | `string` | Shown as the completion item's documentation text |
+  | `code` | `string` | Plain-text snippet body, used if `monacoBody` is absent |
+  | `monacoBody` | `string` (optional) | Monaco snippet syntax (with `${1:...}`/`$0` tab stops); when present, this drives tab-stop insertion instead of `code` |
+
+**Placeholder syntax** (used in both `code`/`monacoBody` snippet text):
 
 | Syntax | Meaning |
 |--------|---------|
@@ -103,14 +120,12 @@ Each snippet file follows this structure:
 | `${2:text}` | Second tab stop with default text `text` |
 | `$0` | Final cursor position after all tab stops are visited |
 
-When multiple snippet sources exist, categories with the same name are merged. Priority order: built-in (lowest) < user global < project-specific (highest).
-
 ### 4.8 Editor Features
 
 | Feature | Description |
 |---------|-------------|
-| Split panes | Drag a tab to the side of the editor area to create a split view |
-| Tab dragging | Reorder tabs or drag between panes |
+| Split panes | Right-click a tab and choose "Open in Split Right" or "Open in Split Bottom" to create a split view |
+| Tab dragging | Reorder tabs, or drag a tab to move it between two already-existing panes (dragging does not create a new split) |
 | Code folding | Collapse/expand indented blocks using gutter arrows |
 | Find / Replace | In-file search with regex, match case, and whole word options |
 | Multi-cursor | `Alt+Click` / `Option+Click` to place additional cursors |

@@ -18,8 +18,8 @@ This is particularly useful during development when your artist is delivering fi
 
 Right-click any image to access its context menu:
 
-- **Copy `scene` statement** -- copies `scene bg_park` (or whatever the image's Ren'Py tag is) to your clipboard, ready to paste into your script
-- **Copy `show` statement** -- copies `show eileen happy` for character sprites
+- **Add `scene` statement** -- copies `scene bg_park` (or whatever the image's Ren'Py tag is) to your clipboard, ready to paste into your script
+- **Add `show` statement** -- copies `show eileen happy` for character sprites
 - **Drag to composer** -- drag an image directly from the sidebar into the Scene Composer or Screen Layout Composer (covered in the next chapter)
 
 Double-click an image to open its **Image Editor View**, where you can manage its Ren'Py tag (the name used in `show`/`scene` statements), assign metadata tags for organization, and see the image at full resolution.
@@ -41,9 +41,8 @@ This is not just cosmetic. Being able to audition tracks directly in the IDE, wi
 
 Right-click an audio file for quick-copy options:
 
-- **`play music`** -- copies `play music "audio/theme.ogg"` for background music
-- **`play sound`** -- copies `play sound "audio/click.ogg"` for sound effects
-- **`queue audio`** -- copies `queue music "audio/next_track.ogg"` for playlist-style sequencing
+- **`play audio`** -- copies `play audio "audio/theme.ogg"` for immediate playback
+- **`queue audio`** -- copies `queue audio "audio/next_track.ogg"` for playlist-style sequencing
 
 ## How Assets Connect to Everything Else
 

@@ -1,17 +1,17 @@
 # Managing Story Elements
 
-The **Story Elements** sidebar is your command center for everything that makes up your visual novel beyond raw code. It lives on the right side of the IDE and uses a two-level tab layout: a row of icon tabs across the top selects the category, and within each category you find the relevant tools and data.
+The **Story Elements** sidebar is your command center for everything that makes up your visual novel beyond raw code. It lives on the right side of the IDE as a single flat vertical icon nav -- there is no category grouping; all tabs sit at the same level and you switch directly between them.
 
-The categories and their sub-tabs are:
+The tabs are:
 
-| Category | Sub-tabs |
-|----------|----------|
-| Story Data | Characters, Variables, Screens |
-| Assets | Images, Audio |
-| Composers | Scenes, ImageMaps, Screen Layouts |
-| Tools | Snippets, Menus, Colors |
+| Tab |
+|-----|
+| Characters, Variables, Screens |
+| Images, Audio |
+| Scene Compositions, Image Maps |
+| Code Snippets, Menu Templates, Color Palette |
 
-We will cover Assets and Composers in later chapters. This chapter focuses on Story Data and Tools.
+We will cover Images/Audio and the Composer tabs in later chapters. This chapter focuses on Characters, Variables, Screens, Code Snippets, and Menu Templates.
 
 ## Characters
 
@@ -57,11 +57,11 @@ The **Screens** tab lists all `screen` definitions found across your project. Ea
 
 ![The Screens tab listing screen definitions across the project](/dev-screens-tab.png)
 
-The `+ New` button creates a new screen with boilerplate code -- a minimal `screen` block with a `frame` and `vbox` to get you started. This saves you from remembering the exact syntax every time.
+This tab is read-only -- there is no button to create a new screen from it. To add a screen, write the `screen` block directly in a `.rpy` file; it will then appear here.
 
 ## The Snippets Tab
 
-The **Snippets** tab in the Tools category provides a visual, grid-based browser for the full snippet library. Where the editor's IntelliSense shows snippets one at a time as you type, this tab lets you explore the entire collection.
+The **Code Snippets** tab provides a visual, grid-based browser for the full snippet library. Where the editor's IntelliSense shows snippets one at a time as you type, this tab lets you explore the entire collection.
 
 ![The Snippets tab showing built-in and user-defined snippets](/dev-snippets-tab.png)
 
@@ -71,7 +71,7 @@ Each snippet card shows its title, a brief description, and an expandable code p
 
 ### User-Defined Snippets
 
-Below the built-in library, the `My Snippets` section shows your custom snippets. Click `+ New` to create one. The creation form asks for:
+Above the built-in library, the `My Snippets` section shows your custom snippets. Click `+ New` to create one. The creation form asks for:
 
 - **Title** -- a descriptive name like "Chapter Header with BGM"
 - **Prefix** -- the trigger text for IntelliSense (e.g., `chapterbgm`)
@@ -90,11 +90,11 @@ label ${1:label_name}:
 
 `${1:label_name}` is the first tab stop with default text "label_name". `${2:bg_image}` is the second, and so on. `$0` marks where the cursor lands after all placeholders have been filled. When you trigger this snippet in the editor, you tab through each field in order.
 
-User snippets are saved to `.renide/snippets.json` within your project folder, so they travel with the project. The snippet manager also supports editing and deleting existing custom snippets.
+User snippets created here are saved to `appSettings.userSnippets` in the single global `app-settings.json` file in your Electron userData directory -- they are global to your machine, not scoped to the current project, so they do **not** travel with the project. (The Snippets tab separately merges in project-specific snippets from `<project>/.vangard/snippets.json` and user-global snippets from `~/.vangard-ide/snippets/custom.json` if those files exist -- see [Story Elements Reference §5.3](/reference/story-elements-reference).) The snippet manager also supports editing and deleting existing custom snippets.
 
 ## The Menu Designer
 
-The **Menus** tab houses the **Menu Constructor**, a visual tool for building Ren'Py `menu:` blocks without writing them by hand.
+The **Menu Templates** tab houses the **Menu Constructor**, a visual tool for building Ren'Py `menu:` blocks without writing them by hand.
 
 The constructor starts with a caption field (the prompt text shown to the player) and two default choices. For each choice, you fill in:
 
@@ -120,7 +120,7 @@ If you find yourself building similar menu structures repeatedly -- say, every c
 
 ## The Color Picker
 
-The **Colors** tab provides a **Color Picker** with five palettes for working with hex colors in your Ren'Py code:
+The **Color Palette** tab provides a **Color Picker** with five palettes (selected via a dropdown, not tabs) for working with hex colors in your Ren'Py code:
 
 ![The Colors tab showing the color picker with palette swatches](/dev-colors-tab.png)
 

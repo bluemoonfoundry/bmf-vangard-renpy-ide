@@ -4,7 +4,7 @@ Vangard Studio is designed to be comfortable for long writing sessions. A visual
 
 ## Themes
 
-Open `Settings` (`Ctrl+,` / `Cmd+,`) and look at the `Color Theme` dropdown. There are 11 themes available:
+Open `Settings` (`Ctrl+,` / `Cmd+,`) and look at the `Color Theme` dropdown. There are 12 themes available:
 
 | Theme | Description |
 |-------|-------------|
@@ -19,10 +19,11 @@ Open `Settings` (`Ctrl+,` / `Cmd+,`) and look at the `Color Theme` dropdown. The
 | `Ocean Dark` | Cool blue and teal tones on a dark background |
 | `Candy Light` | Warm pastel pinks and purples on a light background |
 | `Forest Light` | Green-tinted earth tones on a light background |
+| `Synthwave` | Neon magenta and pink accents on a midnight-purple background -- a cyber-minimalist, retro-futuristic look |
 
 The theme applies across the entire application: the toolbar, all three canvases, the code editor, the sidebar panels, every modal and dialog. The Monaco code editor automatically switches between its own dark and light internal color schemes to match the IDE theme, so syntax highlighting always looks correct against the background.
 
-Pick a theme that matches your environment. Writing late at night? `Dark`, `Neon Dark`, or `Ocean Dark` will be much kinder to your eyes than any light theme. Presenting your project to collaborators in a bright conference room? `Light`, `Candy Light`, or `Forest Light` will be more legible on a projector. The `System Default` option is a good middle ground -- it follows your OS preference, so the IDE automatically switches between light and dark when your system does.
+Pick a theme that matches your environment. Writing late at night? `Dark`, `Neon Dark`, `Ocean Dark`, or `Synthwave` will be much kinder to your eyes than any light theme. Presenting your project to collaborators in a bright conference room? `Light`, `Candy Light`, or `Forest Light` will be more legible on a projector. The `System Default` option is a good middle ground -- it follows your OS preference, so the IDE automatically switches between light and dark when your system does.
 
 Switching themes is instant -- the entire interface redraws immediately with no flickering or reload. Feel free to try every option until you find one that suits your taste. Themes are purely cosmetic; they have no effect on your project files or how your game looks when it runs.
 

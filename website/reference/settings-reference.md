@@ -30,6 +30,7 @@ Settings are opened with `Ctrl+,` / `Cmd+,` or from the toolbar gear icon.
 | `ocean-dark` | Cool blue tones on a dark background. |
 | `candy-light` | Pastel pink and purple accents on a light background. |
 | `forest-light` | Earthy green accents on a light background. |
+| `synthwave` | Neon magenta and pink accents on a midnight-purple background. |
 
 ### 9.3 Auto-Updater
 

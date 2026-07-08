@@ -141,67 +141,17 @@ Generates a Ren'Py `screen` block containing `imagebutton` or `imagemap` stateme
 
 ---
 
-## 7.3 Screen Layout Composer
+## 7.3 Screens (No Visual Composer)
 
-Open from the `Screen Layouts` sub-tab under Composers.
+There is no Screen Layout Composer in the current version of Vangard Studio. The prior
+`ScreenLayoutComposer.tsx`/`ScreenLayoutComposerV2.tsx` components and their "+ New"
+creation flow, widget palette, and per-widget property editor described in earlier
+documentation have been removed from the codebase; there is no in-app replacement UI for
+building screens by dragging widgets.
 
-### Available Widgets
+Screens are authored and edited directly as Ren'Py `screen` blocks in `.rpy` source
+files, using the Monaco code editor's Ren'Py-aware autocomplete and syntax highlighting.
 
-| Widget | Category | Key Properties | Description |
-|--------|----------|---------------|-------------|
-| `vbox` | Container | style | Vertical box -- stacks children top-to-bottom. |
-| `hbox` | Container | style | Horizontal box -- stacks children left-to-right. |
-| `frame` | Container | style | Bordered container with background. |
-| `text` | Display | text, xpos, ypos, xalign, yalign, style | Static text string. |
-| `image` | Display | imagePath, xpos, ypos, xalign, yalign, style | Displays an image file. |
-| `textbutton` | Interactive | text, action, xpos, ypos, xalign, yalign, style | Clickable text button with an action. |
-| `button` | Interactive / Container | action, xpos, ypos, xalign, yalign, style | Generic button that can contain child widgets. |
-| `imagebutton` | Interactive | imagePath (idle), action, xpos, ypos, xalign, yalign, style | Image-based button. |
-| `bar` | Interactive | xpos, ypos, xalign, yalign, style | Horizontal value bar. Defaults to `AnimatedValue(0, 100)`. |
-| `input` | Interactive | xpos, ypos, xalign, yalign, style | Text input field. Defaults to empty string. |
-| `null` | Spacer | (none) | Empty spacer element for layout purposes. |
-
-### Widget Properties
-
-All widgets except `null` support a `style` property (mapped to Ren'Py's `style "name"` clause). Non-container, non-null widgets placed at the top level support absolute positioning:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `xpos` | Integer | Horizontal position in pixels from the left edge. |
-| `ypos` | Integer | Vertical position in pixels from the top edge. |
-| `xalign` | Float (0.0 -- 1.0) | Horizontal alignment. 0.0 = left, 0.5 = center, 1.0 = right. |
-| `yalign` | Float (0.0 -- 1.0) | Vertical alignment. 0.0 = top, 0.5 = center, 1.0 = bottom. |
-
-Position properties are omitted from the generated code when a widget is inside a container, since containers manage child layout automatically.
-
-Widget-specific properties:
-
-| Widget | Property | Description |
-|--------|----------|-------------|
-| `text` | `text` | The string to display. |
-| `image` | `imagePath` | Path to the image file. |
-| `textbutton` | `text`, `action` | Button label and Ren'Py action (default: `Return()`). |
-| `button` | `action` | Ren'Py action executed on click. |
-| `imagebutton` | `imagePath` (idle), `action` | Idle-state image and click action. |
-| `bar` | (none configurable) | Generates `bar value AnimatedValue(0, 100)`. Edit the generated code for custom values. |
-| `input` | (none configurable) | Generates `input default ""`. Edit the generated code for custom defaults. |
-
-### Nesting
-
-Container widgets (`vbox`, `hbox`, `frame`, `button`) accept child widgets. Drag a widget from the palette onto a container in the tree to nest it. Children of containers are flow-positioned by the parent; top-level widgets support absolute positioning via `xpos`/`ypos`/`xalign`/`yalign`. Empty containers generate a `pass` statement in the output code.
-
-### Screen Properties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Screen Name | Text | (required) | The name used in `screen name():` declaration. Must be a valid Python identifier. |
-| Modal | Toggle | Off | When enabled, adds `modal True` to the screen definition, blocking interaction with layers below. |
-| Z-Order | Integer | 0 | Sets the `zorder` value. Higher values render above lower values. Omitted from code when 0. |
-
-### Existing Screens
-
-Screens already defined in your `.rpy` files appear in the composer list as read-only entries. To edit one visually, click `Duplicate` to create an editable copy. The original screen definition is not modified.
-
-### Output
-
-Generates a complete `screen` block with the configured name, `modal`/`zorder` properties, and the full widget tree indented with four spaces per nesting level. Use `Copy to Clipboard` or `Insert at Cursor` to place the generated code.
+The **Screens** tab (in the Story Elements sidebar) lists every `screen` definition
+found across the project and lets you jump to its definition in the editor; it does not
+support creating or editing screens visually.

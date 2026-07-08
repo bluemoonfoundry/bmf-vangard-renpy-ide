@@ -187,7 +187,7 @@ const { state: blocks, setState: setBlocks, undo, redo, canUndo, canRedo }
 **Characteristics:**
 - Full undo/redo history for block creation, deletion, and position changes
 - Only `blocks[]` participates in undo/redo — editor text changes managed by Monaco
-- Persists to `.renide/project.json` (positions) and individual `.rpy` files (content)
+- Persists to `<project>/game/project.ide.json` (positions) and individual `.rpy` files (content), written on Save All / tab close / app exit — not on a timer
 
 #### 2. Project Metadata (via `useImmer`)
 
@@ -200,7 +200,7 @@ const [characterProfiles, setCharacterProfiles] = useImmer<Character[]>([]);
 
 **Characteristics:**
 - Immutable updates via Immer drafts
-- Persists to `.renide/project.json`
+- Persists to `<project>/game/project.ide.json`
 
 #### 3. Asset State (via `useState` with Maps)
 
@@ -211,7 +211,7 @@ const [audios, setAudios] = useState<Map<string, RenpyAudio>>(new Map());
 
 **Characteristics:**
 - Maps provide O(1) lookup by file path
-- Metadata persists to `.renide/ide-settings.json`
+- Metadata persists to `<project>/game/project.ide.json`
 - Actual files remain on disk — no duplication
 
 #### 4. Composition State (via `useImmer`)
@@ -224,7 +224,7 @@ const [screenLayoutCompositions, setScreenLayoutCompositions] = useImmer<Map<str
 
 **Characteristics:**
 - One composition per saved name (like a "project" within the IDE)
-- Persists to `.renide/ide-settings.json`
+- Persists to `<project>/game/project.ide.json`
 - Sprite data serialized without circular references
 
 #### 5. Derived State (Computed)
@@ -267,17 +267,17 @@ const { settings, updateSettings } = useSettingsManagement();
 
 | Data | Storage Location | Format | When Written |
 |------|-----------------|--------|--------------|
-| Block positions/groups | `.renide/project.json` | JSON | Every ~2 seconds (debounced) |
+| Block positions/groups | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
 | Block content | Individual `.rpy` files | Plain text | On save (`Ctrl+S`) |
-| Compositions | `.renide/ide-settings.json` | JSON | Immediately after changes |
-| Asset metadata | `.renide/ide-settings.json` | JSON | Immediately after scan |
+| Compositions | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
+| Asset metadata | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
 | App settings | `userData/app-settings.json` | JSON | Immediately after changes |
 | API keys | OS keychain | Encrypted binary | Immediately after save |
-| Diagnostics tasks | `.renide/project.json` | JSON | Immediately after changes |
-| Character profiles | `.renide/project.json` | JSON | Immediately after changes |
-| Ignored diagnostics | `.renide/project.json` | JSON | Immediately after suppression |
+| Diagnostics tasks | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
+| Character profiles | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
+| Ignored diagnostics | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
 
-**Note**: The `.renide/` folder is project-specific IDE metadata. Deleting it won't affect `.rpy` files.
+**Note**: All project-specific IDE metadata lives in `game/project.ide.json`. Deleting it won't affect `.rpy` files. The `.renide/` folder (if present) holds screenshots only — it is not read for settings or state.
 
 ---
 
@@ -589,19 +589,10 @@ const handlePointerDown = (e: React.PointerEvent) => {
 - Semantic tokens recalculate when analysis result changes
 - Both layers cache tokenization until content changes
 
-### 7. Persistence Debouncing
+### 7. Persistence Triggers
 
-**Problem**: Saving `.renide/project.json` after every block drag = disk thrashing
-**Solution**: 2-second debounce on position persistence
-
-```typescript
-useEffect(() => {
-  const timer = setTimeout(() => {
-    saveProjectData({ blocks, groups, notes });
-  }, 2000);
-  return () => clearTimeout(timer);
-}, [blocks, groups, notes]);
-```
+**Problem**: Saving `game/project.ide.json` after every block drag would cause disk thrashing
+**Solution**: Project state is not written on a timer. It's flushed to disk only on explicit triggers: Ctrl+S / Save All, a dirty tab closing, and the `save-ide-state-before-quit` event just before app exit. Canvas analysis (`debouncedBlocks`) is separately debounced ~500ms, but that only affects re-analysis, not disk writes.
 
 **Trade-off**: Up to 2 seconds of work lost if app crashes (acceptable for position data)
 

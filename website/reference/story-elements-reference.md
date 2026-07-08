@@ -2,41 +2,49 @@
 
 ### 5.1 Overview
 
-The Story Elements sidebar uses a two-level tab layout. The top level has four category tabs; each category contains sub-tabs.
+The Story Elements sidebar uses a single, flat tab layout: a vertical icon nav (`role="tablist"`) lists all ten tabs directly, with no category grouping.
 
-| Category | Sub-tab | Contents | Key Actions |
-|----------|---------|----------|-------------|
-| Story Data | Characters | All `define Character(...)` definitions with name, tag, color, dialogue count | Add, Edit, Find Usages, Open Profile Editor |
-| Story Data | Variables | All `define`/`default` global variables with current values | Find Usages |
-| Story Data | Screens | All `screen` definitions | Jump to Definition, Add with Boilerplate |
-| Assets | Images | Folder tree of project images with thumbnails | Scan External Directory, Copy `scene`/`show` Statement, Drag to Composers |
-| Assets | Audio | Folder tree of project audio files | Scan External Directory, Copy `play music`/`play sound`/`queue audio`, Play Preview |
-| Composers | Scenes | Scene Composer instances | Create, Edit, Delete, Copy Ren'Py Code, Export PNG |
-| Composers | ImageMaps | ImageMap Composer instances | Create, Edit, Delete, Copy Screen Code |
-| Composers | Screen Layouts | Screen Layout Composer instances | Create, Duplicate to Edit, Delete, Copy Screen Code |
-| Tools | Snippets | Grid library of code snippets with fuzzy search | Insert at Cursor, Filter by Category |
-| Tools | Menus | Menu Constructor and saved templates | Create Menu, Save Template, Load Template, Copy Code |
-| Tools | Colors | Color picker with palette tabs | Insert at Cursor, Wrap in `{color}` Tags, Copy Hex, Drag Swatch |
+| Tab (tooltip label) | Contents | Key Actions |
+|----------|----------|-------------|
+| Characters | All `define Character(...)` definitions with name, tag, color, dialogue count | Add, Edit, Find Usages, Open Profile Editor |
+| Variables | All `define`/`default` global variables with current values | Find Usages |
+| Screens | All `screen` definitions | Jump to Definition (read-only list -- no creation UI) |
+| Images | Folder tree of project images with thumbnails | Scan External Directory, Copy `scene`/`show` Statement, Drag to Composers |
+| Audio | Folder tree of project audio files | Scan External Directory, Copy `play music`/`play sound`/`queue audio`, Play Preview |
+| Scene Compositions | Scene Composer instances | Create, Edit, Delete, Copy Ren'Py Code, Export PNG |
+| Image Maps | ImageMap Composer instances | Create, Edit, Delete, Copy Screen Code |
+| Code Snippets | Grid library of code snippets with fuzzy search | Insert at Cursor, Filter by Category |
+| Menu Templates | Menu Constructor and saved templates | Create Menu, Save Template, Load Template, Copy Code |
+| Color Palette | Color picker with a palette dropdown | Insert at Cursor, Wrap in `{color}` Tags, Copy Hex, Drag Swatch |
 
 ### 5.2 Character Profile Editor
 
-Opened by selecting a character and clicking Edit (or double-clicking). Provides a dedicated view for all `Character()` parameters.
+Opened by selecting a character and clicking Edit (or double-clicking). Provides a dedicated view for the character's editable fields.
 
-| Parameter Group | Fields |
+| Field Group | Fields |
 |----------------|--------|
-| Name styling | `name` display text, `who_color`, `who_font`, `who_size`, `who_bold`, `who_italic`, `who_outlines` |
-| Dialogue styling | `what_color`, `what_font`, `what_size`, `what_bold`, `what_italic`, `what_outlines`, `what_prefix`, `what_suffix` |
-| Text speed | `what_slow_cps` (characters per second), `what_slow_abortable` |
-| Click-to-continue (CTC) | `ctc` displayable, `ctc_pause` displayable, `ctc_position` |
-| Window properties | `window_background`, `window_style` |
-| Notes | Free-text notes field (IDE-only, not written to `.rpy`) |
+| Primary attributes | Display Name, Code Tag, Name Color, Dialogue Color (with an Override toggle -- unchecked uses the theme default), Image Tag (search box + picker), Profile / Notes (free-text, IDE-only, not written to `.rpy`) |
+| Name Label formatting (Advanced) | Name Prefix (`who_prefix`), Name Suffix (`who_suffix`) |
+| Dialogue Text formatting (Advanced) | Dialogue Prefix (`what_prefix`), Dialogue Suffix (`what_suffix`) |
+| Text Speed (Advanced) | Use Slow Text toggle (`slow`), Text Speed in chars/sec (`slow_speed`), Player can skip slow text (`slow_abortable`) |
+| Click-to-Continue (Advanced) | CTC Displayable (`ctc`), CTC Position (`ctc_position`: nestled or fixed) |
+
+There are no font, size, bold, italic, outline, or window-background/style fields -- those `Character()` parameters are not exposed by the editor and must be hand-edited in `.rpy` if needed.
 
 ### 5.3 Custom Snippets
 
+Snippets are merge-loaded from three sources, in priority order (higher overrides lower for same-named categories):
+
+| Source | File location | Priority |
+|--------|---------------|----------|
+| Built-in | `snippets/default-snippets.json` (bundled with the app) | Lowest |
+| User-global | `~/.vangard-ide/snippets/custom.json` (Electron user data dir) | Middle |
+| Project-specific | `<project>/.vangard/snippets.json` | Highest |
+
+Snippets you create from the sidebar's `+ New` button (the "My Snippets" section) are stored separately, in `appSettings.userSnippets` inside the single global `app-settings.json` file in the Electron userData directory. These are global to your machine, not project-scoped -- they do not travel with the project.
+
 | Property | Details |
 |----------|---------|
-| File location (project) | `.renide/snippets.json` |
-| File location (global) | User data directory (platform-specific) |
 | Format | JSON with `version`, `categories` array (see [Editor Reference §4.7](/reference/editor-reference)) |
 | Trigger | Select from Snippets grid and click Insert, or use category filter + fuzzy search |
 | Placeholder syntax | `${1:text}`, `${2:text}`, `$0` for tab stops and final cursor |
@@ -53,7 +61,7 @@ The Menu Constructor allows building `menu:` blocks visually and saving them as 
 | `return` | `return` -- returns from current call |
 | `code` | Custom code block -- arbitrary Ren'Py statements |
 
-Templates are saved to `.renide/ide-settings.json` and persist across sessions. Each template stores the full menu structure including choice text, conditions, and action configuration.
+Templates are saved to `appSettings.menuTemplates`, persisted in the global `app-settings.json` file in the Electron userData directory (the same global file that stores custom snippets), and persist across sessions. Each template stores the full menu structure including choice text, conditions, and action configuration.
 
 **Menu Constructor workflow:**
 1. Add choice items with player-visible text

@@ -17,8 +17,8 @@ New to Vangard Studio? Here's a 5-minute quick start to get you up and running.
 
 - Open Vangard Studio from your applications folder or start menu
 - You'll see the Welcome Screen
-- Click **"Open Existing Project"** to open a Ren'Py project folder
-- Or click **"Create New Project"** to start from scratch
+- Click **"Open Project"** to open a Ren'Py project folder
+- Or click **"New Project"** to start from scratch
 
 ### 3. Explore the Interface
 
@@ -128,11 +128,13 @@ with progress indicators while Vangard Studio parses every file, extracts labels
 identifies connections, and runs diagnostics. Once complete, the canvas is fully
 interactive.
 
-Vangard Studio creates a `.renide/` directory inside your project folder to store canvas
-positions (`project.json`), IDE settings (`ide-settings.json`), and user snippets
-(`snippets.json`). This directory is safe to commit to version control -- it contains only
-JSON files with stable, mergeable keys. Alternatively, add `.renide/` to your
-`.gitignore` if you prefer each team member to maintain their own canvas layout.
+Vangard Studio creates a `game/project.ide.json` file inside your project folder to store
+canvas positions, sticky notes, compositions, and other IDE-specific project metadata, plus
+a `.vangard/snippets.json` file for project-specific code snippets. These files are safe to
+commit to version control -- they contain only JSON with stable, mergeable keys.
+Alternatively, add them to your `.gitignore` if you prefer each team member to maintain
+their own canvas layout. (A `.renide/` directory is also created, but only holds
+diagnostics/canvas screenshots.)
 
 ## Creating a New Project
 
@@ -159,7 +161,7 @@ default GUI, and pick an accent color from the provided swatches (10 dark-theme 
 10 light-theme colors). These map to Ren'Py's built-in `gui.accent_color` and related
 GUI settings.
 
-Click `Create` and Vangard Studio invokes the Ren'Py SDK to generate a standard project
+Click `Create Project` and Vangard Studio invokes the Ren'Py SDK to generate a standard project
 structure with all the default files (`script.rpy`, `options.rpy`, `gui.rpy`, `screens.rpy`,
 etc.), then opens the project automatically. The generated project is fully
 SDK-compatible -- you can open it in the Ren'Py launcher, another text editor, or share

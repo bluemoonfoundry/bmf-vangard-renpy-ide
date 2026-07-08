@@ -15,6 +15,9 @@ The diagnostics engine continuously analyzes your project and flags issues acros
 - **Unreachable labels** -- labels that no `jump`, `call`, or fall-through path can reach from `label start`
 - **Dead-end labels** -- labels with no outgoing `jump`, `call`, or `return`, where the story flow stops
 - **Syntax errors** -- structural problems like missing colons after `if` statements or malformed triple-quoted strings
+- **Implicit variables** -- a variable set with a bare `$ var = ...` assignment instead of an explicit `default`/`define` declaration
+- **Pickle-unsafe variables** -- a `default` variable stores a lambda or class instance that may not survive Ren'Py's pickle-based save system
+- **Define mutated** -- a variable declared with `define` (constant) is reassigned at runtime via `$`, which should likely be `default`
 
 Each issue is classified by severity: **error** (will crash the game), **warning** (likely a bug), or **info** (worth reviewing but possibly intentional).
 
@@ -35,15 +38,15 @@ Click any issue to jump directly to the source -- Vangard Studio opens the file,
 
 **Filter by severity** using the filter controls at the top of the panel. When you are in bug-fixing mode, filter to errors only. When you are polishing, include warnings and info.
 
-If a diagnostic is intentional -- perhaps you have an unreachable label that serves as a developer testing area -- you can **suppress it**. Right-click the issue and choose to ignore that specific rule. Suppression rules are stored in your project settings and can be managed (re-enabled) at any time.
+If a diagnostic is intentional -- perhaps you have an unreachable label that serves as a developer testing area -- you can **suppress it**. Click the "Ignore issue" button on the issue to add an ignore rule. Suppression rules are stored in your project settings and can be managed (re-enabled) at any time.
 
 ## Tasks
 
-The **Tasks** view turns diagnostics into a checklist. Convert any diagnostic issue into a task item by promoting it, giving you a trackable to-do list for your quality assurance pass.
+The **Tasks** view is a manual checklist for your quality assurance pass. Type into the "New task..." input to add a task item -- there is no action that converts an existing diagnostic issue directly into a task.
 
-Sticky notes on any of the three canvases can also be promoted to tasks via their checkbox. This connects your visual planning (sticky notes on the canvas saying "fix this transition") with your structured quality tracking (the tasks checklist).
+Sticky notes on any of the three canvases also appear automatically as task previews in this view, connecting your visual planning (sticky notes on the canvas saying "fix this transition") with your structured quality tracking (the tasks checklist).
 
-Tasks persist in `.renide/project.json` and survive IDE restarts. Check them off as you resolve them.
+Tasks persist in `game/project.ide.json` and survive IDE restarts. Check them off as you resolve them.
 
 ## Diagnostics on the Canvas
 
@@ -56,11 +59,11 @@ This gives you an immediate visual sense of project health as you look at the ca
 
 The **toolbar badge** reinforces this: a small red circle on the Diagnostics button shows the total error count. When it reads zero, you know you are in good shape.
 
-## Project Statistics
+## Script Statistics
 
-Beyond finding problems, Vangard Studio helps you understand your project's scope and shape through the **Project Statistics** view. Open it from the toolbar.
+Beyond finding problems, Vangard Studio helps you understand your project's scope and shape through the **Script Statistics** view. Open it from the toolbar.
 
-![The Project Statistics panel showing story metrics and per-character breakdown](/project-statistics.png)
+![The Script Statistics panel showing story metrics and per-character breakdown](/project-statistics.png)
 
 The statistics dashboard presents several categories of data, each loading independently with inline spinners (so you see numbers as they become available rather than waiting for everything to compute):
 
@@ -82,7 +85,7 @@ The statistics dashboard presents several categories of data, each loading indep
 
 Each bucket is color-coded (green through red) and includes a brief description. This gives you an at-a-glance sense of your story's structural complexity.
 
-**Path statistics**: the number of story endings (dead-end labels reachable from `start`), plus the shortest and longest paths through the narrative graph. If your shortest path is 3 labels and your longest is 47, you know some players will see far more content than others.
+**Path statistics**: the number of story endings (dead-end labels -- labels with no outgoing exit, counted project-wide regardless of reachability), plus the shortest and longest paths through the narrative graph, calculated from `start`. If your shortest path is 3 labels and your longest is 47, you know some players will see far more content than others.
 
 **Asset coverage**: a filterable, sortable table showing every image and audio reference in your project, categorized as "referenced" (used and present), "missing" (referenced in code but not found), or "orphaned" (present in assets but never referenced in code). This helps you clean up unused assets and catch missing ones.
 
