@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useImmer } from 'use-immer';
-import type { AppSettings, ProjectSettings } from '@/types';
+import type { AppSettings, PersistedProjectSettings } from '@/types';
 import { getStoryLayoutVersion } from '@/lib/storyCanvasLayout';
 import { getRouteCanvasLayoutVersion } from '@/lib/routeCanvasLayout';
 
@@ -21,8 +21,8 @@ export interface UseSettingsManagementReturn {
   setAppSettingsLoaded: React.Dispatch<React.SetStateAction<boolean>>;
 
   // Project settings (per-project, persisted to .renide/project.json)
-  projectSettings: Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
-  updateProjectSettings: (updater: (draft: Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>) => void) => void;
+  projectSettings: PersistedProjectSettings;
+  updateProjectSettings: (updater: (draft: PersistedProjectSettings) => void) => void;
 
   // Character profiles (per-project)
   characterProfiles: Record<string, string>;
@@ -99,7 +99,7 @@ export function useSettingsManagement(): UseSettingsManagementReturn {
   const [appSettingsLoaded, setAppSettingsLoaded] = useState(false);
 
   // --- Project settings ---
-  const [projectSettings, updateProjectSettings] = useImmer<Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>>({
+  const [projectSettings, updateProjectSettings] = useImmer<PersistedProjectSettings>({
     draftingMode: false,
     storyCanvasLayoutMode: 'flow-lr',
     storyCanvasGroupingMode: 'none',

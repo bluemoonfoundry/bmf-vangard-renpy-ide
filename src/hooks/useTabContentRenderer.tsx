@@ -25,17 +25,14 @@ import MarkdownPreviewView from '@/components/MarkdownPreviewView';
 import type { BlockType } from '@/components/CreateBlockModal';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import type {
-  Block, BlockGroup, Position, EditorTab, AppSettings, ProjectSettings,
+  Block, BlockGroup, Position, EditorTab, AppSettings, PersistedProjectSettings,
   ProjectImage, RenpyAudio, ImageMetadata, AudioMetadata, Character,
   SceneComposition, ImageMapComposition, DiagnosticsTask, IgnoredDiagnosticRule,
   StickyNote, RenpyAnalysisResult, DiagnosticsResult, LabelNode, RouteLink,
   IdentifiedRoute, StoryCanvasGroupingMode, StoryCanvasLayoutMode, MenuTemplate,
 } from '@/types';
 
-type ProjectSettingsState = Omit<ProjectSettings,
-  'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' |
-  'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' |
-  'scannedImagePaths' | 'scannedAudioPaths'>;
+type ProjectSettingsState = PersistedProjectSettings;
 import type {
   CanvasFilters, CanvasTransform, CenterOnBlockRequest, FlashBlockRequest,
   CenterOnStartRequest, CenterOnNodeRequest,

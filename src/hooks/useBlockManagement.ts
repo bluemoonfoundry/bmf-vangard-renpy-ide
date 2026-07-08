@@ -2,17 +2,14 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { BlockType } from '@/components/CreateBlockModal';
 import type {
-  Block, BlockGroup, Position, EditorTab, FileSystemTreeNode, AppSettings, ProjectSettings,
+  Block, BlockGroup, Position, EditorTab, FileSystemTreeNode, AppSettings, PersistedProjectSettings,
 } from '@/types';
 import type { CanvasTransform, CenterOnBlockRequest, FlashBlockRequest } from '@/hooks/useCanvasInteraction';
 import { buildNewBlockContent } from '@/lib/blockContent';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { logger } from '@/lib/logger';
 
-type ProjectSettingsSlice = Omit<ProjectSettings,
-  'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' |
-  'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' |
-  'scannedImagePaths' | 'scannedAudioPaths'>;
+type ProjectSettingsSlice = PersistedProjectSettings;
 
 export interface UseBlockManagementParams {
   blocks: Block[];

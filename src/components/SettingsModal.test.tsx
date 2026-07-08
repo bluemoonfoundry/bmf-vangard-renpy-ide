@@ -21,8 +21,6 @@ const defaultSettings: IdeSettings = {
   editorFontSize: 14,
   // ProjectSettings required fields
   draftingMode: false,
-  openTabs: [],
-  activeTabId: '',
 };
 
 describe('SettingsModal', () => {

@@ -2001,7 +2001,7 @@ const App: React.FC = () => {
                 onCopyColorHex={handleCopyColorHex}
                 projectColors={projectColors}
                 // Accordion State Props
-                projectSettings={projectSettings as ProjectSettings}
+                projectSettings={projectSettings}
                 onUpdateProjectSettings={updateProjectSettings}
                 hasProject={!!projectRootPath}
                 // Implicit Variable Banner

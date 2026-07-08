@@ -4,7 +4,7 @@ import { deserializeProjectData } from '@/lib/projectSerializer';
 import { logger } from '@/lib/logger';
 import type {
   Block, Position, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
-  AppSettings, ProjectSettings, SceneComposition, ImageMapComposition,
+  AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   ProjectSnapshot,
 } from '@/types';
@@ -12,10 +12,7 @@ import type {
 // Re-export from types so importers don't need a second import path.
 export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/types';
 
-type ProjectSettingsSlice = Omit<ProjectSettings,
-  'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' |
-  'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' |
-  'scannedImagePaths' | 'scannedAudioPaths'>;
+type ProjectSettingsSlice = PersistedProjectSettings;
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 

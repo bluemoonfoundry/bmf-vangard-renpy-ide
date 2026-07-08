@@ -1097,13 +1097,20 @@ export interface ProjectSettings {
 }
 
 /**
+ * The slice of ProjectSettings actually held in the useSettingsManagement useImmer state.
+ * The excluded fields are persisted separately (their own useImmer/useState in App.tsx) or
+ * are session-only, per CLAUDE.md's state table.
+ */
+export type PersistedProjectSettings = Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
+
+/**
  * Combined settings interface for components that need both app and project settings.
  * Used primarily in the Settings Modal.
  * @interface IdeSettings
  * @extends AppSettings
- * @extends Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>
+ * @extends PersistedProjectSettings
  */
-export interface IdeSettings extends AppSettings, Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'> {}
+export interface IdeSettings extends AppSettings, PersistedProjectSettings {}
 
 /**
  * Represents the current clipboard state for cut/copy operations in the file explorer.
