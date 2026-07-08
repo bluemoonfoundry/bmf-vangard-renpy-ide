@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useState, useCallback, useContext, useMemo } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { logger } from '@/lib/logger';
 import { useImmer } from 'use-immer';
 import type { SearchResult, Block } from '@/types';
@@ -53,6 +54,8 @@ export const useSearch = () => useContext(SearchContext);
 interface SearchProviderProps {
   children: React.ReactNode;
   blocks: Block[];
+  setBlocks: (action: Block[] | ((prev: Block[]) => Block[])) => void;
+  setDirtyBlockIds: Dispatch<SetStateAction<Set<string>>>;
   projectRootPath: string | null;
   addToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
@@ -60,6 +63,8 @@ interface SearchProviderProps {
 export const SearchProvider: React.FC<SearchProviderProps> = ({
   children,
   blocks,
+  setBlocks,
+  setDirtyBlockIds,
   projectRootPath,
   addToast,
 }) => {
@@ -93,9 +98,68 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
     }
   }, [projectRootPath, searchQuery, searchOptions, addToast, setSearchResults]);
 
-  const executeReplaceAll = useCallback(() => {
-    // Placeholder for replace all implementation
+  const buildReplaceRegex = useCallback((query: string, options: SearchOptions): RegExp | null => {
+    if (!query) return null;
+    let flags = 'g';
+    if (!options.isCaseSensitive) flags += 'i';
+    let pattern = options.isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (options.isWholeWord) pattern = `\\b${pattern}\\b`;
+    try {
+      return new RegExp(pattern, flags);
+    } catch (err) {
+      logger.error('Invalid replace pattern:', err);
+      return null;
+    }
   }, []);
+
+  const executeReplaceAll = useCallback(() => {
+    if (!searchQuery || searchResults.length === 0) return;
+
+    const regex = buildReplaceRegex(searchQuery, searchOptions);
+    if (!regex) {
+      addToast('Invalid search pattern', 'error');
+      return;
+    }
+
+    const targetPaths = new Set(searchResults.map(r => r.filePath));
+    const affectedBlockIds = new Set<string>();
+    let totalReplacements = 0;
+
+    blocks.forEach(b => {
+      if (!b.filePath || !targetPaths.has(b.filePath)) return;
+      const matches = b.content.match(regex);
+      if (matches && matches.length > 0) {
+        totalReplacements += matches.length;
+        affectedBlockIds.add(b.id);
+      }
+    });
+
+    if (totalReplacements === 0 || affectedBlockIds.size === 0) {
+      addToast('No matches found to replace', 'info');
+      return;
+    }
+
+    const fileCount = affectedBlockIds.size;
+    const confirmed = window.confirm(
+      `Replace ${totalReplacements} occurrence${totalReplacements === 1 ? '' : 's'} in ${fileCount} file${fileCount === 1 ? '' : 's'}?`
+    );
+    if (!confirmed) return;
+
+    setBlocks(prev => prev.map(b => (
+      affectedBlockIds.has(b.id) ? { ...b, content: b.content.replace(regex, replaceQuery) } : b
+    )));
+    setDirtyBlockIds(prev => {
+      const next = new Set(prev);
+      affectedBlockIds.forEach(id => next.add(id));
+      return next;
+    });
+
+    addToast(
+      `Replaced ${totalReplacements} occurrence${totalReplacements === 1 ? '' : 's'} in ${fileCount} file${fileCount === 1 ? '' : 's'}. Save to persist changes.`,
+      'success',
+    );
+    setSearchResults([]);
+  }, [searchQuery, searchResults, searchOptions, replaceQuery, blocks, buildReplaceRegex, addToast, setBlocks, setDirtyBlockIds, setSearchResults]);
 
   const handleResultClick = useCallback((filePath: string, lineNumber: number) => {
     const block = blocks.find(b => b.filePath === filePath);

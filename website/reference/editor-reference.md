@@ -132,7 +132,6 @@ Opened with `Ctrl+Shift+F` / `Cmd+Shift+F`. Searches across all `.rpy` files in 
 | Whole Word | Match only complete word boundaries |
 
 **Replace actions:**
-- Replace individual occurrences one at a time with preview
-- Replace all matching occurrences in bulk (with confirmation dialog)
+- Replace All -- replaces every occurrence of the current search query across all matching files, after a confirmation dialog showing how many occurrences and files are affected. There is no per-occurrence preview mode. Replacements happen in memory and mark the affected files as unsaved; save them to write the changes to disk.
 
 Search history is preserved within the session. Results appear grouped by file with line numbers and context snippets. Clicking a result opens the file in the editor and navigates to the matching line.

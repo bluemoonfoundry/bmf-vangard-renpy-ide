@@ -115,4 +115,4 @@ The search panel offers several options:
 
 Results appear grouped by file, with matching text highlighted in context. Click any result to jump directly to that line in the editor.
 
-For replacement, type your replacement text and choose between replacing one occurrence at a time (with a preview of each change) or replacing all matches in bulk. Bulk replacement asks for confirmation before modifying files, so you will not accidentally rewrite your entire project. The search panel also remembers your recent queries, so repeating a previous search is just a click away.
+To replace matches, click the chevron next to the search box to reveal the replace row, then type your replacement text. **Replace All** replaces every occurrence of the current search query across all matching files, after asking for confirmation (showing how many occurrences and files are affected). There is no per-occurrence preview mode -- Replace All is the only replacement action. Replacements happen in memory and mark the affected files as unsaved; use Save or Save All to write the changes to disk.

@@ -1681,6 +1681,8 @@ const App: React.FC = () => {
     <DualPaneContext.Provider value={dualPaneContextValue}>
     <SearchProvider
       blocks={blocks}
+      setBlocks={setBlocks}
+      setDirtyBlockIds={setDirtyBlockIds}
       projectRootPath={projectRootPath}
       addToast={addToast}
     >
