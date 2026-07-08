@@ -137,10 +137,10 @@ describe('computeSemanticTokens', () => {
   });
 
   it('known show image produces T_IMAGE', () => {
-    const knownImages = sampleAnalysis.images ?? [];
+    const knownImages = Array.from(sampleAnalysis.definedImages);
     if (knownImages.length === 0) return;
     const img = knownImages[0];
-    const text = `show ${img.name ?? img}\n`;
+    const text = `show ${img}\n`;
     const result = computeSemanticTokens(text, sampleAnalysis);
     const tokens = extractTokens(result);
     expect(tokens.some(t => t.tokenType === T_IMAGE)).toBe(true);

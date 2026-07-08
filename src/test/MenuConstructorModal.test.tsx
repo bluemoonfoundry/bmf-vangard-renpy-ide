@@ -61,6 +61,8 @@ describe('MenuConstructorModal', () => {
           { id: 'c1', text: 'Go left', action: 'jump', target: 'scene_one' },
           { id: 'c2', text: 'Go right', action: 'jump', target: 'scene_two' },
         ],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       render(<MenuConstructorModal {...defaultProps} initialTemplate={template} mode="edit-template" />);
       expect(screen.getByDisplayValue('What do you do?')).toBeInTheDocument();

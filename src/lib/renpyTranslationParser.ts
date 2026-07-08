@@ -13,6 +13,9 @@ import type {
   TranslationAnalysisResult,
   DialogueLine,
 } from '@/types';
+import type { AnalysisBlock } from '@/hooks/useRenpyAnalysis';
+
+export type { AnalysisBlock } from '@/hooks/useRenpyAnalysis';
 
 // ---------------------------------------------------------------------------
 // Regex patterns
@@ -45,12 +48,6 @@ const LABEL_REGEX = /^\s*label\s+([a-zA-Z0-9_]+):/;
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
-
-export interface AnalysisBlock {
-  id: string;
-  content: string;
-  filePath: string;
-}
 
 /**
  * Returns true if the file path looks like a Ren'Py translation file
