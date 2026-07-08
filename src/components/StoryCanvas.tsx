@@ -33,6 +33,9 @@ interface StoryCanvasProps {
   deleteStickyNote: (id: string) => void;
   onInteractionEnd: () => void;
   deleteBlock: (id: string) => void | Promise<void>;
+  deleteBlocks?: (ids: string[]) => void | Promise<void>;
+  createGroupFromSelection?: (blockIds: string[]) => string | null;
+  deleteGroup?: (id: string) => void;
   onOpenEditor: (id: string, line?: number) => void;
   selectedBlockIds: string[];
   setSelectedBlockIds: (ids: string[] | ((prev: string[]) => string[])) => void;
@@ -235,7 +238,7 @@ type InteractionState =
 const StoryCanvas: React.FC<StoryCanvasProps> = ({ 
     blocks, groups, stickyNotes, analysisResult, 
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, updateStickyNote, deleteStickyNote,
-    onInteractionEnd, deleteBlock, onOpenEditor, 
+    onInteractionEnd, deleteBlock, deleteBlocks, createGroupFromSelection, deleteGroup, onOpenEditor,
     selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds, 
     findUsagesHighlightIds, clearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
@@ -958,6 +961,42 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
       return;
     }
 
+    const noModifiers = !e.ctrlKey && !e.metaKey && !e.altKey;
+
+    if ((e.key === 'n' || e.key === 'N') && noModifiers && onCreateBlock) {
+      e.preventDefault();
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const worldX = rect ? (rect.width / 2 - transform.x) / transform.scale : 0;
+      const worldY = rect ? (rect.height / 2 - transform.y) / transform.scale : 0;
+      onCreateBlock('story', { x: worldX, y: worldY });
+      return;
+    }
+
+    if ((e.key === 'g' || e.key === 'G') && noModifiers && selectedBlockIds.length > 0 && createGroupFromSelection) {
+      e.preventDefault();
+      const newGroupId = createGroupFromSelection(selectedBlockIds);
+      setSelectedBlockIds([]);
+      if (newGroupId) {
+        setSelectedGroupIds([newGroupId]);
+        announce('Group created');
+      }
+      return;
+    }
+
+    if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedBlockIds.length > 0 || selectedGroupIds.length > 0)) {
+      e.preventDefault();
+      if (selectedBlockIds.length > 0 && deleteBlocks) {
+        deleteBlocks(selectedBlockIds);
+      }
+      if (deleteGroup) {
+        selectedGroupIds.forEach(id => deleteGroup(id));
+      }
+      setSelectedBlockIds([]);
+      setSelectedGroupIds([]);
+      announce('Selection deleted');
+      return;
+    }
+
     if (!block) return;
 
     if (e.key === 'Enter') {
@@ -996,7 +1035,9 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
       const title = best.title ?? best.filePath?.split('/').pop()?.replace(/\.rpy$/, '') ?? 'Block';
       announce(`${title} focused`);
     }
-  }, [blocks, visibleBlocks, onOpenEditor, setSelectedBlockIds, setSelectedGroupIds, announce]);
+  }, [blocks, visibleBlocks, onOpenEditor, setSelectedBlockIds, setSelectedGroupIds, announce,
+      transform, onCreateBlock, selectedBlockIds, selectedGroupIds, createGroupFromSelection,
+      deleteBlocks, deleteGroup]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

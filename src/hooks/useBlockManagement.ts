@@ -48,6 +48,9 @@ export interface UseBlockManagementReturn {
   handleCreateBlockFromCanvas: (type: BlockType, position: Position) => void;
   deleteBlock: (id: string) => void;
   deleteBlockWithFile: (id: string) => Promise<void>;
+  deleteBlocksWithFile: (ids: string[]) => Promise<void>;
+  createGroupFromSelection: (blockIds: string[]) => string | null;
+  deleteGroup: (id: string) => void;
   getSelectedFolderForNewBlock: () => string;
 }
 
@@ -276,6 +279,66 @@ export function useBlockManagement({
     });
   }, [blocks, projectRootPath, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
 
+  const deleteBlocksWithFile = useCallback(async (ids: string[]) => {
+    const targets = ids.map(id => blocks.find(b => b.id === id)).filter((b): b is Block => !!b);
+    const canDeleteFiles = !!(projectRootPath && window.electronAPI);
+    const withFile = targets.filter((b): b is Block & { filePath: string } => !!b.filePath && canDeleteFiles);
+    const withoutFile = targets.filter(b => !(b.filePath && canDeleteFiles));
+
+    withoutFile.forEach(b => deleteBlock(b.id));
+    if (withFile.length === 0) return;
+
+    openDeleteConfirmModal(withFile.map(b => b.filePath), async () => {
+      for (const b of withFile) {
+        try {
+          const fullPath = await window.electronAPI.path.join(projectRootPath as string, b.filePath) as string;
+          await window.electronAPI.removeEntry(fullPath);
+          deleteBlock(b.id);
+        } catch (err) {
+          logger.error('Failed to delete file:', err);
+          addToast(`Failed to delete ${b.filePath}`, 'error');
+        }
+      }
+      if (projectRootPath) {
+        const projData = await window.electronAPI.loadProject(projectRootPath);
+        setFileSystemTree(projData.tree);
+      }
+      addToast(`Deleted ${withFile.length} file${withFile.length > 1 ? 's' : ''}`, 'success');
+    });
+  }, [blocks, projectRootPath, deleteBlock, addToast, openDeleteConfirmModal, setFileSystemTree]);
+
+  const createGroupFromSelection = useCallback((blockIds: string[]): string | null => {
+    const selected = blockIds.map(id => blocks.find(b => b.id === id)).filter((b): b is Block => !!b);
+    if (selected.length === 0) return null;
+
+    const PADDING = 24;
+    const HEADER = 32;
+    const minX = Math.min(...selected.map(b => b.position.x));
+    const minY = Math.min(...selected.map(b => b.position.y));
+    const maxX = Math.max(...selected.map(b => b.position.x + b.width));
+    const maxY = Math.max(...selected.map(b => b.position.y + b.height));
+
+    const id = `group-${Date.now()}`;
+    const newGroup: BlockGroup = {
+      id,
+      title: 'New Group',
+      position: { x: minX - PADDING, y: minY - PADDING - HEADER },
+      width: maxX - minX + PADDING * 2,
+      height: maxY - minY + PADDING * 2 + HEADER,
+      blockIds: selected.map(b => b.id),
+    };
+
+    setGroups(draft => { draft.push(newGroup); });
+    return id;
+  }, [blocks, setGroups]);
+
+  const deleteGroup = useCallback((id: string) => {
+    setGroups(draft => {
+      const idx = draft.findIndex(g => g.id === id);
+      if (idx !== -1) draft.splice(idx, 1);
+    });
+  }, [setGroups]);
+
   return {
     updateBlock,
     updateGroup,
@@ -286,6 +349,9 @@ export function useBlockManagement({
     handleCreateBlockFromCanvas,
     deleteBlock,
     deleteBlockWithFile,
+    deleteBlocksWithFile,
+    createGroupFromSelection,
+    deleteGroup,
     getSelectedFolderForNewBlock,
   };
 }

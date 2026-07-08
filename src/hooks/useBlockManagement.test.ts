@@ -239,4 +239,73 @@ describe('useBlockManagement', () => {
     act(() => result.current.handleCreateBlockFromCanvas('story', { x: 10, y: 20 }));
     expect(openCreateBlockModal).toHaveBeenCalledWith('story', { x: 10, y: 20 }, 'game/');
   });
+
+  // ── createGroupFromSelection ──────────────────────────────────────────────
+
+  it('createGroupFromSelection returns null when no blocks match the given ids', () => {
+    const { result } = renderHook(() => useBlockManagement(makeParams({ blocks: [] })));
+    let id: string | null = 'unset';
+    act(() => { id = result.current.createGroupFromSelection(['missing']); });
+    expect(id).toBeNull();
+  });
+
+  it('createGroupFromSelection pushes a new group bounding the selected blocks', () => {
+    const setGroups = vi.fn();
+    const block = createBlock();
+    const { result } = renderHook(() => useBlockManagement(makeParams({ blocks: [block], setGroups })));
+    act(() => { result.current.createGroupFromSelection(['block-1']); });
+    expect(setGroups).toHaveBeenCalled();
+    const updater = setGroups.mock.calls[0][0];
+    const draft: import('@/types').BlockGroup[] = [];
+    updater(draft);
+    expect(draft).toHaveLength(1);
+    expect(draft[0].blockIds).toEqual(['block-1']);
+    expect(draft[0].position.x).toBeLessThan(block.position.x);
+    expect(draft[0].position.y).toBeLessThan(block.position.y);
+    expect(draft[0].width).toBeGreaterThan(block.width);
+    expect(draft[0].height).toBeGreaterThan(block.height);
+  });
+
+  // ── deleteGroup ───────────────────────────────────────────────────────────
+
+  it('deleteGroup calls setGroups to remove the group', () => {
+    const setGroups = vi.fn();
+    const { result } = renderHook(() => useBlockManagement(makeParams({ setGroups })));
+    act(() => result.current.deleteGroup('group-1'));
+    expect(setGroups).toHaveBeenCalled();
+    const updater = setGroups.mock.calls[0][0];
+    const draft = [{ id: 'group-1', title: 'g', position: { x: 0, y: 0 }, width: 1, height: 1, blockIds: [] }];
+    updater(draft);
+    expect(draft).toHaveLength(0);
+  });
+
+  // ── deleteBlocksWithFile ──────────────────────────────────────────────────
+
+  it('deleteBlocksWithFile opens a single confirm modal listing all file paths', async () => {
+    const openDeleteConfirmModal = vi.fn();
+    const blocks = [
+      createBlock({ id: 'block-1', filePath: 'game/a.rpy' }),
+      createBlock({ id: 'block-2', filePath: 'game/b.rpy' }),
+    ];
+    const { result } = renderHook(() =>
+      useBlockManagement(makeParams({ blocks, openDeleteConfirmModal })),
+    );
+    await act(async () => result.current.deleteBlocksWithFile(['block-1', 'block-2']));
+    expect(openDeleteConfirmModal).toHaveBeenCalledWith(
+      ['game/a.rpy', 'game/b.rpy'],
+      expect.any(Function),
+    );
+  });
+
+  it('deleteBlocksWithFile deletes blocks without a filePath directly, without a confirm modal', async () => {
+    const openDeleteConfirmModal = vi.fn();
+    const setBlocks = vi.fn();
+    const blocks = [createBlock({ id: 'block-1', filePath: undefined })];
+    const { result } = renderHook(() =>
+      useBlockManagement(makeParams({ blocks, openDeleteConfirmModal, setBlocks })),
+    );
+    await act(async () => result.current.deleteBlocksWithFile(['block-1']));
+    expect(openDeleteConfirmModal).not.toHaveBeenCalled();
+    expect(setBlocks).toHaveBeenCalled();
+  });
 });

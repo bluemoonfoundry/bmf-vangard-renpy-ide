@@ -827,7 +827,8 @@ const App: React.FC = () => {
   const {
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions,
     addBlock, handleCreateBlockConfirm, handleCreateBlockFromCanvas,
-    deleteBlock, deleteBlockWithFile, getSelectedFolderForNewBlock,
+    deleteBlock, deleteBlockWithFile, deleteBlocksWithFile,
+    createGroupFromSelection, deleteGroup, getSelectedFolderForNewBlock,
   } = useBlockManagement({
     blocks, setBlocks, setGroups, setDirtyBlockIds,
     updateProjectSettings, setHasUnsavedSettings,
@@ -1571,6 +1572,7 @@ const App: React.FC = () => {
     editorInstances, blocksRef, pendingTagRenameRef,
     blocks, groups, selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds,
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile,
+    deleteBlocksWithFile, createGroupFromSelection, deleteGroup,
     analysisResult, analysisResultWithProfiles, routeAnalysisResult, diagnosticsResult,
     diagnosticsTasks, setDiagnosticsTasks, ignoredDiagnostics, setIgnoredDiagnostics,
     setHasUnsavedSettings, analysisLabelKeys,

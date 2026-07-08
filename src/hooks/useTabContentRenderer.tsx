@@ -66,6 +66,9 @@ export interface UseTabContentRendererParams {
   updateBlockPositions: (updates: { id: string, position: Position }[]) => void;
   updateGroupPositions: (updates: { id: string, position: Position }[]) => void;
   deleteBlockWithFile: (id: string) => Promise<void>;
+  deleteBlocksWithFile: (ids: string[]) => Promise<void>;
+  createGroupFromSelection: (blockIds: string[]) => string | null;
+  deleteGroup: (id: string) => void;
 
   // Analysis results
   analysisResult: RenpyAnalysisResult;
@@ -213,6 +216,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     editorInstances, blocksRef, pendingTagRenameRef,
     blocks, groups, selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds,
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile,
+    deleteBlocksWithFile, createGroupFromSelection, deleteGroup,
     analysisResult, analysisResultWithProfiles, routeAnalysisResult, diagnosticsResult,
     diagnosticsTasks, setDiagnosticsTasks, ignoredDiagnostics, setIgnoredDiagnostics,
     setHasUnsavedSettings, analysisLabelKeys,
@@ -271,7 +275,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         blocks={blocks} groups={groups} stickyNotes={stickyNotes} analysisResult={analysisResult}
         updateBlock={updateBlock} updateGroup={updateGroup} updateBlockPositions={updateBlockPositions}
         updateGroupPositions={updateGroupPositions} updateStickyNote={updateStickyNote} deleteStickyNote={deleteStickyNote}
-        onInteractionEnd={canvasInteractionEnd} deleteBlock={deleteBlockWithFile} onOpenEditor={handleOpenEditor}
+        onInteractionEnd={canvasInteractionEnd} deleteBlock={deleteBlockWithFile} deleteBlocks={deleteBlocksWithFile}
+        createGroupFromSelection={createGroupFromSelection} deleteGroup={deleteGroup} onOpenEditor={handleOpenEditor}
         selectedBlockIds={selectedBlockIds} setSelectedBlockIds={setSelectedBlockIds}
         selectedGroupIds={selectedGroupIds} setSelectedGroupIds={setSelectedGroupIds}
         findUsagesHighlightIds={findUsagesHighlightIds} clearFindUsages={handleClearFindUsages}

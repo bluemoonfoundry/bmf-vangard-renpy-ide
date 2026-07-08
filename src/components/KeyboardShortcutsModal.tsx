@@ -43,6 +43,7 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
   const canvasItems = [
     { keys: ['N'], description: 'Add New Block' },
+    { keys: ['G'], description: 'Group Selected Blocks' },
     { keys: ['Delete'], description: 'Delete Selected Blocks/Groups' },
     { keys: getPanKeys(gestures.canvasPanGesture), description: 'Pan Canvas' },
     ...(gestures.middleMouseAlwaysPans && gestures.canvasPanGesture !== 'middle-drag'
