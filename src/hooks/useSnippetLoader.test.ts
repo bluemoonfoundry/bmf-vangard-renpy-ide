@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSnippetLoader } from '@/hooks/useSnippetLoader';
 import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
