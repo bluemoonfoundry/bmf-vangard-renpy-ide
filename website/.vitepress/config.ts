@@ -39,6 +39,8 @@ export default defineConfig({
             { text: '5. Seeing Your Story — The Three Canvases', link: '/guide/three-canvases' },
             { text: '6. Writing Code', link: '/guide/writing-code' },
             { text: '7. Managing Story Elements', link: '/guide/managing-story-elements' },
+            { text: '8. Working with Assets', link: '/guide/working-with-assets' },
+            { text: '9. Visual Composers', link: '/guide/visual-composers' },
             { text: '14. Customization', link: '/guide/customization' },
           ],
         },
