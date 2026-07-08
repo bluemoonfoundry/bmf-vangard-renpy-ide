@@ -37,6 +37,8 @@ export default defineConfig({
             { text: '3. Getting Started', link: '/guide/getting-started' },
             { text: '4. The Interface at a Glance', link: '/guide/interface-at-a-glance' },
             { text: '5. Seeing Your Story — The Three Canvases', link: '/guide/three-canvases' },
+            { text: '6. Writing Code', link: '/guide/writing-code' },
+            { text: '7. Managing Story Elements', link: '/guide/managing-story-elements' },
           ],
         },
       ],
