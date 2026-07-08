@@ -688,10 +688,6 @@ async function updateApplicationMenu() {
                 accelerator: 'CmdOrCtrl+/',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-shortcuts' }); }
             },
-            {
-                label: 'Documentation',
-                click: () => shell.openExternal('https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/wiki'),
-            },
             { type: 'separator' },
             {
                 label: 'Show Logs',
