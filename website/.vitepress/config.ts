@@ -33,8 +33,10 @@ export default defineConfig({
           text: 'Guide',
           items: [
             { text: '1. Welcome to Vangard Studio', link: '/guide/welcome' },
-            { text: '2. Getting Started', link: '/guide/getting-started' },
-            { text: '3. Seeing Your Story — The Three Canvases', link: '/guide/three-canvases' },
+            { text: '2. Who This Is For', link: '/guide/who-this-is-for' },
+            { text: '3. Getting Started', link: '/guide/getting-started' },
+            { text: '4. The Interface at a Glance', link: '/guide/interface-at-a-glance' },
+            { text: '5. Seeing Your Story — The Three Canvases', link: '/guide/three-canvases' },
           ],
         },
       ],
