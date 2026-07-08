@@ -1,0 +1,79 @@
+[
+  {
+    "id": "explorer-refresh-label",
+    "claim": "File explorer context menu/File menu action is labeled 'Refresh' (not 'Refresh Project')",
+    "doc": "website/guide/interface-at-a-glance.md",
+    "pattern": "'Refresh'",
+    "files": ["src/components/contextMenus.test.tsx"]
+  },
+  {
+    "id": "project-ide-json-path",
+    "claim": "Block positions, groups, and other project state persist to game/project.ide.json (not .renide/project.json)",
+    "doc": "website/guide/three-canvases.md",
+    "pattern": "project\\.ide\\.json",
+    "files": ["src/hooks/useProjectIO.ts"]
+  },
+  {
+    "id": "ignored-diagnostics-field",
+    "claim": "Diagnostic suppression rules are stored under the ignoredDiagnostics field",
+    "doc": "website/reference/diagnostics-reference.md",
+    "pattern": "ignoredDiagnostics",
+    "files": ["src/types.ts"]
+  },
+  {
+    "id": "diagnostics-tasks-field",
+    "claim": "Task checklist entries persist under the diagnosticsTasks field",
+    "doc": "website/reference/diagnostics-reference.md",
+    "pattern": "diagnosticsTasks",
+    "files": ["src/types.ts"]
+  },
+  {
+    "id": "implicit-variable-category",
+    "claim": "Diagnostics engine has an 'implicit-variable' category",
+    "doc": "website/reference/diagnostics-reference.md",
+    "pattern": "implicit-variable",
+    "files": ["src/components/DiagnosticsPanel.tsx", "src/hooks/useDiagnostics.ts"]
+  },
+  {
+    "id": "diagnostics-ignore-issue-button",
+    "claim": "Diagnostics panel suppression is triggered by an 'Ignore issue' button (not right-click)",
+    "doc": "website/reference/diagnostics-reference.md",
+    "pattern": "Ignore issue",
+    "files": ["src/components/DiagnosticsPanel.tsx"]
+  },
+  {
+    "id": "menu-inspector-panel",
+    "claim": "Menu Inspector is a docked panel component (MenuInspectorPanel), not a hover popover",
+    "doc": "website/guide/three-canvases.md",
+    "pattern": "MenuInspectorPanel",
+    "files": ["src/components/RouteCanvas.tsx", "src/components/CanvasToolbox.tsx"]
+  },
+  {
+    "id": "legend-block-roles-types",
+    "claim": "Flow Canvas legend has 'Block Roles' and 'Block Types' sections",
+    "doc": "website/guide/three-canvases.md",
+    "pattern": "Block Roles",
+    "files": ["src/components/StoryCanvas.tsx"]
+  },
+  {
+    "id": "story-elements-scene-compositions-tab",
+    "claim": "Story Elements sidebar has a 'Scene Compositions' tab (not 'Scenes' under a 'Composers' category)",
+    "doc": "website/guide/interface-at-a-glance.md",
+    "pattern": "Scene Compositions",
+    "files": ["src/components/StoryElementsPanel.tsx"]
+  },
+  {
+    "id": "story-elements-menu-templates-tab",
+    "claim": "Story Elements sidebar has a 'Menu Templates' tab",
+    "doc": "website/guide/interface-at-a-glance.md",
+    "pattern": "Menu Templates",
+    "files": ["src/components/StoryElementsPanel.tsx"]
+  },
+  {
+    "id": "story-elements-color-palette-tab",
+    "claim": "Story Elements sidebar has a 'Color Palette' tab",
+    "doc": "website/guide/interface-at-a-glance.md",
+    "pattern": "Color Palette",
+    "files": ["src/components/StoryElementsPanel.tsx"]
+  }
+]

@@ -9,6 +9,21 @@ permissions:
   pull-requests: write
 
 jobs:
+  assertions:
+    name: Check doc assertions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run doc assertion checks
+        run: node scripts/check-doc-assertions.js
+
   check:
     name: Check for missing docs updates
     runs-on: ubuntu-latest
