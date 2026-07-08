@@ -105,6 +105,8 @@ Snippets also appear in the `Story Elements` sidebar under the `Snippets` tab (c
 
 Press `Ctrl+Shift+F` (`Cmd+Shift+F` on macOS) to open the **Project-wide Search** panel. This searches across every file in your project using a fast ripgrep-backed engine.
 
+![The Project-wide Search panel showing results grouped by file](/search-panel.png)
+
 The search panel offers several options:
 
 - **Match Case** -- distinguish between `Eileen` and `eileen`

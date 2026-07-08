@@ -41,6 +41,8 @@ export default defineConfig({
             { text: '7. Managing Story Elements', link: '/guide/managing-story-elements' },
             { text: '8. Working with Assets', link: '/guide/working-with-assets' },
             { text: '9. Visual Composers', link: '/guide/visual-composers' },
+            { text: '10. Diagnostics and Quality', link: '/guide/diagnostics-and-quality' },
+            { text: '11. Testing Your Game', link: '/guide/testing-your-game' },
             { text: '14. Customization', link: '/guide/customization' },
           ],
         },
