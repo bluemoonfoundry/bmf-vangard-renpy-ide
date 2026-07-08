@@ -55,11 +55,15 @@ You can also add new variables directly from this tab, which generates the appro
 
 The **Screens** tab lists all `screen` definitions found across your project. Each entry shows the screen name and its source file. Click any screen to jump directly to its definition in the code editor.
 
+![The Screens tab listing screen definitions across the project](/dev-screens-tab.png)
+
 The `+ New` button creates a new screen with boilerplate code -- a minimal `screen` block with a `frame` and `vbox` to get you started. This saves you from remembering the exact syntax every time.
 
 ## The Snippets Tab
 
 The **Snippets** tab in the Tools category provides a visual, grid-based browser for the full snippet library. Where the editor's IntelliSense shows snippets one at a time as you type, this tab lets you explore the entire collection.
+
+![The Snippets tab showing built-in and user-defined snippets](/dev-snippets-tab.png)
 
 At the top of the tab, **category filter chips** let you narrow the display: click `Logic & Control Flow` to see only branching and flow snippets, or `Audio` to see only music and sound patterns. A **search box** with fuzzy matching lets you find snippets by title, description, or even code content -- type "fade" and you will see every snippet that involves a fade transition.
 
@@ -117,6 +121,8 @@ If you find yourself building similar menu structures repeatedly -- say, every c
 ## The Color Picker
 
 The **Colors** tab provides a **Color Picker** with five palettes for working with hex colors in your Ren'Py code:
+
+![The Colors tab showing the color picker with palette swatches](/dev-colors-tab.png)
 
 - **Ren'Py Standard** -- the named colors that Ren'Py recognizes natively
 - **HTML Named** -- the full set of CSS/HTML named colors
