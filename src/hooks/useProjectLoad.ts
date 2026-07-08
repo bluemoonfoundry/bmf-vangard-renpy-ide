@@ -108,6 +108,7 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
     draft.routeCanvasLayoutWasUserAdjusted = cs.routeCanvasLayoutWasUserAdjusted;
     draft.routeCanvasHasAutocentered = false;
     draft.choiceCanvasHasAutocentered = false;
+    draft.completedMilestones = cs.completedMilestones;
   });
 
   setStickyNotes(snapshot.stickyNotes);

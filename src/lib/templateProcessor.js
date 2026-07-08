@@ -4,6 +4,7 @@
  */
 
 import fs from 'fs/promises';
+import { logger } from './logger.main.js';
 
 /**
  * Slugify a project name for use in save directory and build name
@@ -101,7 +102,7 @@ async function updateGuiRpy(filePath, width, height, colors) {
   }
 
   await fs.writeFile(filePath, content, 'utf-8');
-  console.log('Updated gui.rpy');
+  logger.info('Updated gui.rpy');
 }
 
 /**
@@ -134,7 +135,7 @@ async function updateOptionsRpy(filePath, projectName, saveDir) {
   );
 
   await fs.writeFile(filePath, content, 'utf-8');
-  console.log('Updated options.rpy');
+  logger.info('Updated options.rpy');
 }
 
 /**

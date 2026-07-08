@@ -294,6 +294,7 @@ export function deserializeProjectData(
       routeCanvasLayoutFingerprint: data.settings?.routeCanvasLayoutFingerprint,
       routeCanvasLayoutVersion: data.settings?.routeCanvasLayoutVersion ?? getRouteCanvasLayoutVersion(),
       routeCanvasLayoutWasUserAdjusted: data.settings?.routeCanvasLayoutWasUserAdjusted ?? false,
+      completedMilestones: data.settings?.completedMilestones ?? [],
     },
   };
 }

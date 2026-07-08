@@ -1,17 +1,19 @@
+import { logger, electronLog } from './src/lib/logger.main.js';
+
 // CRITICAL: Fix AppImage sandbox and shared memory issues
 // Must inject flags into process.argv BEFORE importing electron
 const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
 if (isAppImage) {
-    console.log('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
+    logger.info('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
     if (!process.argv.includes('--no-sandbox')) {
         process.argv.push('--no-sandbox');
     }
     if (!process.argv.includes('--disable-dev-shm-usage')) {
         process.argv.push('--disable-dev-shm-usage');
     }
-    console.log('[Vangard] process.argv:', process.argv);
+    logger.info('[Vangard] process.argv:', process.argv);
 } else {
-    console.log('[Vangard] Not running in AppImage mode');
+    logger.info('[Vangard] Not running in AppImage mode');
 }
 
 import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage, globalShortcut, Notification } from 'electron';
@@ -27,7 +29,6 @@ import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
-import { logger, electronLog } from './src/lib/logger.main.js';
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -748,7 +749,7 @@ async function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    icon: path.join(__dirname, 'vangard-512x512.png')
+    icon: path.join(__dirname, 'vangard.png')
   });
 
   mainWindowRef = mainWindow;
@@ -1421,11 +1422,12 @@ app.whenReady().then(() => {
     if (current?.legacyMigrationChecked) return { available: false };
     try {
       await fs.access(getLegacyUserDataPath());
+      // Mark checked now so the prompt never reappears even if the user closes
+      // the app before clicking Import or Skip.
+      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
       return { available: true };
     } catch {
-      // Mark as checked so we never ask again even when no legacy dir exists
-      const merged = { ...(current || {}), legacyMigrationChecked: true };
-      await saveAppSettings(merged);
+      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
       return { available: false };
     }
   });
@@ -1463,6 +1465,13 @@ app.whenReady().then(() => {
   });
   
   ipcMain.handle('app:save-settings', async (event, settings) => {
+      // Preserve legacyMigrationChecked if already set on disk — the renderer's
+      // first save races with checkLegacyMigration on fresh installs and would
+      // otherwise overwrite the flag before the renderer has loaded it.
+      if (!settings.legacyMigrationChecked) {
+          const current = await loadAppSettings();
+          if (current?.legacyMigrationChecked) settings = { ...settings, legacyMigrationChecked: true };
+      }
       const result = await saveAppSettings(settings);
       if (result.success) {
           await updateApplicationMenu();

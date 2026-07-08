@@ -1244,6 +1244,7 @@ export interface ProjectSnapshot {
     routeCanvasLayoutFingerprint: string | undefined;
     routeCanvasLayoutVersion: number;
     routeCanvasLayoutWasUserAdjusted: boolean;
+    completedMilestones: string[];
   };
 }
 

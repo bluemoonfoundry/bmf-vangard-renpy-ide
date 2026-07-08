@@ -137,7 +137,6 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
 
     self.postMessage({ id, result });
   } catch (err) {
-    console.error('[Analysis Worker]', err);
     self.postMessage({ id, error: formatErrorMessage(err) });
   }
 };

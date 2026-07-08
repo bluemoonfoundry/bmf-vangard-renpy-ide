@@ -65,10 +65,108 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Build the React application and package with Electron Builder
       - name: Build and Package
         run: npm run dist
         env:
-          # Required if you have configured GitHub releases in package.json
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ── Windows installer smoke test ────────────────────────────────────────
+      - name: Install and smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*.exe | Select-Object -First 1
+          if (-not $installer) { Write-Error "No .exe installer found in release/"; exit 1 }
+          Write-Host "Running installer: $($installer.FullName)"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+
+          # Silent NSIS installs can land per-user (%LOCALAPPDATA%\Programs) or
+          # per-machine (%ProgramFiles%) depending on the assisted-install default,
+          # so search known roots instead of assuming one.
+          $searchRoots = @(
+            "$env:LOCALAPPDATA\Programs",
+            "$env:ProgramFiles",
+            "${env:ProgramFiles(x86)}"
+          ) | Where-Object { Test-Path $_ }
+          $exe = Get-ChildItem -Path $searchRoots -Recurse -Filter "vangard-studio.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exe) {
+            Write-Error "Installed executable not found under: $($searchRoots -join ', ')"
+            exit 1
+          }
+          Write-Host "Found installed app: $exe"
+
+          # Launch and verify it stays alive for 10 seconds
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($proc.HasExited) {
+            Write-Error "App exited unexpectedly (exit code $($proc.ExitCode))"
+            exit 1
+          }
+          Write-Host "App is running (PID $($proc.Id)) — smoke test passed"
+          $proc.Kill()
+
+      # ── macOS installer smoke test ──────────────────────────────────────────
+      - name: Install and smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          DMG=$(ls release/*.dmg 2>/dev/null | head -1)
+          if [ -z "$DMG" ]; then echo "No .dmg found in release/"; exit 1; fi
+          echo "Mounting: $DMG"
+
+          # Capture the actual mount point instead of assuming it matches
+          # productName exactly — the dmgbuild-based packager can pick a
+          # different volume name than a plain hdiutil-based build would.
+          ATTACH_OUTPUT=$(hdiutil attach "$DMG" -nobrowse)
+          MOUNT_POINT=$(echo "$ATTACH_OUTPUT" | grep -Eo '/Volumes/.*$' | tail -1)
+          if [ -z "$MOUNT_POINT" ]; then
+            echo "Could not determine mount point from hdiutil output:"
+            echo "$ATTACH_OUTPUT"
+            exit 1
+          fi
+          echo "Mounted at: $MOUNT_POINT"
+
+          APP_PATH=$(find "$MOUNT_POINT" -maxdepth 1 -name "*.app" | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found in $MOUNT_POINT"
+            ls -la "$MOUNT_POINT"
+            exit 1
+          fi
+          APP_NAME=$(basename "$APP_PATH")
+          cp -r "$APP_PATH" /Applications/
+          hdiutil detach "$MOUNT_POINT" -quiet
+
+          # Remove quarantine flag so Gatekeeper does not block the unsigned CI build
+          xattr -cr "/Applications/$APP_NAME"
+
+          # Launch and verify it stays alive for 10 seconds
+          open "/Applications/$APP_NAME"
+          sleep 10
+          if ! pgrep -x "vangard-studio" > /dev/null; then
+            echo "App process not found — smoke test failed"
+            exit 1
+          fi
+          echo "App is running — smoke test passed"
+          pkill -x "vangard-studio" || true
+
+      # ── Linux installer smoke test ──────────────────────────────────────────
+      - name: Install and smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          APPIMAGE=$(ls release/*.AppImage 2>/dev/null | head -1)
+          if [ -z "$APPIMAGE" ]; then echo "No .AppImage found in release/"; exit 1; fi
+          echo "Testing: $APPIMAGE"
+          chmod +x "$APPIMAGE"
+
+          # ubuntu-latest no longer ships libfuse2, so AppImage's normal FUSE
+          # mount fails at launch. --appimage-extract-and-run sidesteps FUSE
+          # entirely by extracting to a temp dir first, which works everywhere.
+          xvfb-run --auto-servernum "$APPIMAGE" --appimage-extract-and-run --no-sandbox &
+          APP_PID=$!
+          sleep 10
+
+          if ! kill -0 "$APP_PID" 2>/dev/null; then
+            echo "App exited unexpectedly — smoke test failed"
+            exit 1
+          fi
+          echo "App is running (PID $APP_PID) — smoke test passed"
+          kill "$APP_PID" || true

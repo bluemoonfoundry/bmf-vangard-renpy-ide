@@ -473,12 +473,32 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
     labelNodes.find(n => n.label === 'start')?.id ?? null,
   [labelNodes]);
 
-  // Unreachable nodes: no incoming links and not the story entry point
+  // Unreachable nodes: not transitively reachable from the entry node via route links.
+  // Label-level uses BFS to catch transitively unreachable labels (jumped to only from
+  // other unreachable labels). File-level falls back to direct incoming-link check.
   const unreachableNodeIds = useMemo(() => {
-    const activeNodes = viewLevel === 'file' ? (fileGraph?.nodes ?? []) : labelNodes;
-    const activeLinks = viewLevel === 'file' ? (fileGraph?.links ?? []) : routeLinks;
-    const targeted = new Set(activeLinks.map(l => l.targetId));
-    return new Set(activeNodes.filter(n => !targeted.has(n.id) && n.id !== entryNodeId).map(n => n.id));
+    if (viewLevel === 'file') {
+      const activeNodes = fileGraph?.nodes ?? [];
+      const activeLinks = fileGraph?.links ?? [];
+      const targeted = new Set(activeLinks.map(l => l.targetId));
+      return new Set(activeNodes.filter(n => !targeted.has(n.id) && n.id !== entryNodeId).map(n => n.id));
+    }
+    if (!entryNodeId) return new Set<string>();
+    const outgoing = new Map<string, string[]>();
+    routeLinks.forEach(l => {
+      const targets = outgoing.get(l.sourceId) ?? [];
+      targets.push(l.targetId);
+      outgoing.set(l.sourceId, targets);
+    });
+    const reachable = new Set<string>();
+    const queue = [entryNodeId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      if (reachable.has(curr)) continue;
+      reachable.add(curr);
+      (outgoing.get(curr) ?? []).forEach(t => { if (!reachable.has(t)) queue.push(t); });
+    }
+    return new Set(labelNodes.filter(n => !reachable.has(n.id)).map(n => n.id));
   }, [viewLevel, fileGraph, routeLinks, labelNodes, entryNodeId]);
 
   // Dead-end nodes: no outgoing jumps from them

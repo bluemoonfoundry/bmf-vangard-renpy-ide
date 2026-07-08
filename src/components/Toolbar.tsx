@@ -7,7 +7,7 @@
  * and all action callbacks directly from `App.tsx` state.
  */
 import React, { useMemo } from 'react';
-import logo from '../../vangard-512x512.png';
+import logo from '../../vangard.png';
 import { useDualPane } from '@/contexts/DualPaneContext';
 type SaveStatus = 'saving' | 'saved' | 'error';
 

@@ -97,7 +97,7 @@
       "dist/**/*",
       "electron.js",
       "preload.js",
-      "vangard-512x512.png",
+      "vangard.png",
       "src/lib/**/*"
     ],
     "asarUnpack": [
@@ -108,7 +108,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "vangard-512x512.png",
+      "icon": "vangard.png",
       "artifactName": "Vangard_Studio_Windows_${version}.${ext}"
     },
     "nsis": {
@@ -120,7 +120,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "vangard-512x512.png",
+      "icon": "vangard.png",
       "artifactName": "Vangard_Studio_macOS_${version}.${ext}"
     },
     "linux": {
@@ -128,7 +128,7 @@
         "AppImage",
         "deb"
       ],
-      "icon": "vangard-512x512.png",
+      "icon": "vangard.png",
       "artifactName": "Vangard_Studio_Linux_${version}.${ext}",
       "category": "Development"
     },

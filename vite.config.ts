@@ -94,16 +94,20 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       include: ['**/*.test.{ts,tsx}'],
       exclude: ['node_modules', 'dist', 'release'],
-      alias: {
+      alias: [
         // Monaco cannot run in jsdom — redirect to a minimal stub for all tests.
-        'monaco-editor': resolve(__dirname, './src/test/mocks/monaco.ts'),
-        'monaco-editor/esm/vs/editor/editor.api': resolve(__dirname, './src/test/mocks/monaco.ts'),
-      },
+        // IMPORTANT: more-specific paths must come first so they aren't swallowed
+        // by the shorter `monaco-editor` prefix alias.
+        { find: 'monaco-editor/esm/vs/editor/editor.api', replacement: resolve(__dirname, './src/test/mocks/monaco.ts') },
+        { find: 'monaco-editor', replacement: resolve(__dirname, './src/test/mocks/monaco.ts') },
+      ],
       coverage: {
         provider: 'v8',
         include: ['src/**'],
         exclude: ['**/*.test.{ts,tsx}', 'src/test/**'],
         thresholds: {
+          // Global floor — prevents silent coverage regression across new files
+          statements: 20,
           // Per-file minimums for risky modules
           'src/lib/ipcSecurity.js': { statements: 90 },
           'src/components/MarkdownPreviewView.tsx': { statements: 70 },
