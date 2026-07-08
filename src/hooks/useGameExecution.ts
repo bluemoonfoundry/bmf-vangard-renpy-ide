@@ -5,6 +5,8 @@ type ToastType = 'success' | 'error' | 'warning' | 'info';
 interface UseGameExecutionParams {
   projectRootPath: string | null;
   renpyPath: string;
+  isRenpyPathValid: boolean;
+  onConfigureRenpy: () => void;
   addToast: (message: string, type: ToastType) => void;
   cleanupWarpTempFile: () => Promise<void>;
 }
@@ -12,6 +14,8 @@ interface UseGameExecutionParams {
 export function useGameExecution({
   projectRootPath,
   renpyPath,
+  isRenpyPathValid,
+  onConfigureRenpy,
   addToast,
   cleanupWarpTempFile,
 }: UseGameExecutionParams) {
@@ -26,8 +30,12 @@ export function useGameExecution({
 
   const handleRunGame = useCallback(() => {
     if (!window.electronAPI || !projectRootPath) return;
+    if (!isRenpyPathValid) {
+      onConfigureRenpy();
+      return;
+    }
     window.electronAPI.runGame(renpyPath, projectRootPath);
-  }, [renpyPath, projectRootPath]);
+  }, [renpyPath, projectRootPath, isRenpyPathValid, onConfigureRenpy]);
 
   const handleOpenScreenshotsFolder = useCallback(async () => {
     if (!window.electronAPI?.openScreenshotsFolder) return;

@@ -285,7 +285,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm1 2.2a6 6 0 014.8 4.8h-2.1A3.9 3.9 0 0011.1 6.3V4.2zm-2 0v2.1A3.9 3.9 0 006.3 9H4.2A6 6 0 019 4.2zM4.2 11h2.1a3.9 3.9 0 003.7 3.7v2.1a6 6 0 01-5.8-5.8zm6.1 3.7a3.9 3.9 0 003.7-3.7h2.1a6 6 0 01-5.8 5.8v-2.1zM10 8.3A1.7 1.7 0 1010 11.7 1.7 1.7 0 0010 8.3z" />
               </svg>
             </button>
-            <button onClick={onRunGame} disabled={!projectRootPath || !isRenpyPathValid} title="Run Project (F5)" aria-label="Run Project" className="flex items-center justify-center rounded-md text-sm font-medium p-2 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors">
+            <button onClick={onRunGame} disabled={!projectRootPath} title={isRenpyPathValid ? 'Run Project (F5)' : "Configure Ren'Py SDK path (F5)"} aria-label="Run Project" className="flex items-center justify-center rounded-md text-sm font-medium p-2 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
             </button>
           </div>

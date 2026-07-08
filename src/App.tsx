@@ -306,6 +306,7 @@ const App: React.FC = () => {
     openAboutModal,
     closeAboutModal,
     showConfigureRenpyModal,
+    openConfigureRenpyModal,
     closeConfigureRenpyModal,
     wizardModalOpen,
     openWizardModal,
@@ -1213,6 +1214,8 @@ const App: React.FC = () => {
   } = useGameExecution({
     projectRootPath,
     renpyPath: appSettings.renpyPath,
+    isRenpyPathValid,
+    onConfigureRenpy: openConfigureRenpyModal,
     addToast,
     cleanupWarpTempFile,
   });
@@ -1464,7 +1467,7 @@ const App: React.FC = () => {
     onOpenProject: handleOpenProjectFolder,
     onOpenRecent: handleOpenWithRenpyCheck,
     onSaveAll: handleSaveAll,
-    onRunProject: () => { if (projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath); },
+    onRunProject: handleRunGame,
     onOpenStaticTab: (type) => handleOpenStaticTab(type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview'),
     onToggleSearch: handleToggleSearch,
     onOpenSettings: openSettingsModal,
