@@ -9,6 +9,8 @@ Migrated so far:
 
 - [Toolbar Reference](/reference/toolbar-reference)
 - [Keyboard Shortcuts](/reference/keyboard-shortcuts)
+- [Canvas Reference](/reference/canvas-reference)
+- [Editor Reference](/reference/editor-reference)
 
 In the meantime, the rest of the (unmigrated) reference content lives in
 [`docs/USER_GUIDE.md`](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/docs/USER_GUIDE.md#part-two-reference)
