@@ -3,7 +3,7 @@
  * @description Tests for useCompositionState — scene/imagemap composition CRUD and open/close state transitions.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useCompositionState } from '@/hooks/useCompositionState';
 import type { UseCompositionStateIntegration } from '@/hooks/useCompositionState';

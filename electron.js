@@ -1,3 +1,5 @@
+import { logger, electronLog } from './src/lib/logger.main.js';
+
 // CRITICAL: Fix AppImage sandbox and shared memory issues
 // Must inject flags into process.argv BEFORE importing electron
 const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
@@ -27,7 +29,6 @@ import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
-import { logger, electronLog } from './src/lib/logger.main.js';
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
 
 const __filename = fileURLToPath(import.meta.url);

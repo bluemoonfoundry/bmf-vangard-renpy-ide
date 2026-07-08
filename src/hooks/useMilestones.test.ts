@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { useMilestones } from './useMilestones';
 import { createBlock, createEmptyAnalysisResult } from '@/test/mocks/sampleData';
 import type { RenpyAnalysisResult, ProjectImage } from '@/types';

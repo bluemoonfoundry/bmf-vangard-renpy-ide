@@ -261,7 +261,7 @@ describe('FileExplorerPanel', () => {
     const onToggleExpand = vi.fn();
     const tree = makeTree();
     const selectedPaths = new Set(['/project/game']);
-    const { rerender } = render(
+    render(
       <FileExplorerPanel
         {...baseProps}
         tree={tree}
