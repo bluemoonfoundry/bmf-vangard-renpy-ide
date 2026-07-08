@@ -61,6 +61,8 @@ export default defineConfig({
             { text: '5. Story Elements Reference', link: '/reference/story-elements-reference' },
             { text: '6. Asset Manager Reference', link: '/reference/asset-manager-reference' },
             { text: '7. Composer Reference', link: '/reference/composer-reference' },
+            { text: '8. Diagnostics Reference', link: '/reference/diagnostics-reference' },
+            { text: '9. Settings Reference', link: '/reference/settings-reference' },
           ],
         },
       ],

@@ -14,6 +14,8 @@ Migrated so far:
 - [Story Elements Reference](/reference/story-elements-reference)
 - [Asset Manager Reference](/reference/asset-manager-reference)
 - [Composer Reference](/reference/composer-reference)
+- [Diagnostics Reference](/reference/diagnostics-reference)
+- [Settings Reference](/reference/settings-reference)
 
 In the meantime, the rest of the (unmigrated) reference content lives in
 [`docs/USER_GUIDE.md`](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/docs/USER_GUIDE.md#part-two-reference)
