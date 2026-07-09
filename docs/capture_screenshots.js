@@ -246,6 +246,62 @@ const SCREENSHOTS = [
             await page.waitForTimeout(600);
         },
     },
+    {
+        filename: 'translation-dashboard.png',
+        description: 'Translation Dashboard',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await page.click('button[aria-label="Translation Dashboard"]');
+            await page.waitForSelector('button:has-text("Generate Translations")', { timeout: 8000 });
+            await page.waitForTimeout(600);
+        },
+    },
+    {
+        filename: 'settings-modal.png',
+        description: 'Settings modal — themes and editor preferences',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await page.click('button[aria-label="Settings"]');
+            await page.waitForSelector('[aria-labelledby="settings-modal-title"]', { timeout: 5000 });
+            await page.waitForTimeout(500);
+        },
+        teardown: async (page) => {
+            await page.keyboard.press('Escape');
+            await page.waitForSelector('[aria-labelledby="settings-modal-title"]', { state: 'detached', timeout: 5000 });
+        },
+    },
+    {
+        filename: 'drafting-mode-toolbar.png',
+        description: 'Toolbar with Drafting Mode enabled',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Project Canvas');
+            // DemoProject ships with draftingMode: true in project.ide.json, but
+            // don't assume that -- toggle on only if it isn't already, and leave
+            // state exactly as found either way (no teardown that could diverge
+            // from the committed DemoProject settings).
+            const enableButton = page.locator('button[aria-label="Enable Drafting Mode"]');
+            if (await enableButton.count() > 0) {
+                await enableButton.click();
+            }
+            await page.waitForSelector('button[aria-label="Disable Drafting Mode"]', { timeout: 5000 });
+            await page.waitForTimeout(400);
+        },
+    },
+    {
+        filename: 'markdown-preview.png',
+        description: 'Rendered Markdown preview of a project document',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            // An earlier capture step switches the left sidebar to the Search
+            // tab; the file tree (and DEMO_SUMMARY.md within it) is only
+            // rendered under the Explorer tab.
+            await page.getByRole('button', { name: 'Explorer', exact: true }).click();
+            await page.dblclick('span:text-is("DEMO_SUMMARY.md")');
+            await page.waitForSelector('.markdown-body', { timeout: 8000 });
+            await page.waitForTimeout(500);
+        },
+    },
 
     // --- Section 5: For Writers ---
     {

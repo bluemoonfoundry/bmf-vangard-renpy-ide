@@ -45,6 +45,8 @@ A common scenario: you pull from a shared Git repository and several `.rpy` file
 
 Visual novel projects often include design documents, worldbuilding notes, changelogs, or contributor guidelines written in Markdown. Double-click any `.md` file in the Project Explorer to open it in a **GitHub-style rendered preview**.
 
+![A Markdown file rendered in GitHub-style preview, with the Project Explorer file tree visible on the left](/markdown-preview.png)
+
 The preview renders headings, bold, italic, lists, code blocks, links, tables, and other standard Markdown formatting. It respects your current IDE theme, so dark mode users get a properly themed dark background rather than a jarring white panel.
 
 Need to make a quick edit? Toggle to edit mode, and the preview switches to a full Monaco editor with Markdown syntax highlighting. Make your changes, then toggle back to preview mode to verify the formatting looks right.

@@ -84,6 +84,8 @@ What if your artist has not finished the character sprites yet? Or your composer
 
 **Drafting Mode** handles this gracefully. Toggle it on with the switch in the toolbar (the pen icon on the right side). The toggle turns green when active.
 
+![The toolbar with the Drafting Mode toggle switched on, next to the Run and Warp to Label buttons](/drafting-mode-toolbar.png)
+
 With Drafting Mode enabled, the IDE tells Ren'Py to substitute placeholders for any missing assets:
 
 - **Missing images** appear as gray rectangles with the asset name displayed as text. So if your script calls `show eileen happy` but the sprite does not exist yet, the player sees a gray box labeled "eileen happy" at the correct screen position. You can see exactly where the character will eventually appear, and the scene layout still makes sense.

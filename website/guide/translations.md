@@ -10,6 +10,8 @@ Click the globe icon in the toolbar to open the **Translation Dashboard**. It fi
 
 If your project does not have any translations yet, the dashboard shows an empty state with a brief explanation of how Ren'Py's translation system works and a button to generate your first translation scaffolding.
 
+![The Translation Dashboard's empty state, showing the translatable string list and the Generate Translations button before any language has been added](/translation-dashboard.png)
+
 ## Language Overview Cards
 
 The top section displays one card per detected language in your project. Each card shows:

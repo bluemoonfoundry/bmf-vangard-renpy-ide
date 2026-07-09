@@ -18,10 +18,11 @@ captured and how. As of this writing it produces:
 `welcome-screen`, `project-opened`, `app-layout`, `story-elements-characters`,
 `story-elements-images`, `code-editor`, `story-canvas-basic`, `route-canvas-basic`,
 `choice-canvas-basic`, `diagnostics-panel-full`, `search-panel`,
-`project-statistics`, `writer-character-manager`, `writer-variables`,
-`writer-menu-builder`, `menu-editor-modal`, `artist-images-tab`, `artist-audio-tab`,
-`artist-scenes-composer`, `artist-imagemaps-composer`, `dev-snippets-tab`,
-`dev-colors-tab`, `dev-screens-tab`.
+`project-statistics`, `translation-dashboard`, `settings-modal`,
+`drafting-mode-toolbar`, `markdown-preview`, `writer-character-manager`,
+`writer-variables`, `writer-menu-builder`, `menu-editor-modal`, `artist-images-tab`,
+`artist-audio-tab`, `artist-scenes-composer`, `artist-imagemaps-composer`,
+`dev-snippets-tab`, `dev-colors-tab`, `dev-screens-tab`.
 
 The `architecture-*.png` images (`architecture-process`, `architecture-state-hub`,
 `architecture-block-lifecycle`, `architecture-analysis-pipeline`) are not part of the

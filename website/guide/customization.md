@@ -6,6 +6,8 @@ Vangard Studio is designed to be comfortable for long writing sessions. A visual
 
 Open `Settings` (`Ctrl+,` / `Cmd+,`) and look at the `Color Theme` dropdown. There are 12 themes available:
 
+![The Settings modal showing the Color Theme dropdown, Editor Appearance, and Canvas & Mouse sections](/settings-modal.png)
+
 | Theme | Description |
 |-------|-------------|
 | `System Default` | Follows your operating system's light/dark preference automatically |

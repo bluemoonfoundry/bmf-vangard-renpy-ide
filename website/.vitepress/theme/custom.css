@@ -1,0 +1,92 @@
+/**
+ * Vangard Studio docs theme overrides.
+ *
+ * 1. Widen the center content column. VitePress's default theme hardcodes
+ *    the doc content to max-width: 688px regardless of viewport, which
+ *    leaves screenshots cramped into a narrow strip on wide monitors even
+ *    though the left nav and right TOC columns are fixed-width.
+ * 2. Image lightbox (click-to-zoom) overlay styling.
+ */
+
+:root {
+  --vp-layout-max-width: 1600px;
+}
+
+@media (min-width: 1280px) {
+  .VPDoc.has-aside .content-container {
+    max-width: 1040px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .VPDoc:not(.has-sidebar) .content {
+    max-width: 1040px;
+  }
+
+  .VPDoc:not(.has-sidebar) .container {
+    max-width: 1360px;
+  }
+}
+
+/* Screenshots: signal that they're clickable */
+.vp-doc img {
+  cursor: zoom-in;
+}
+
+/* Lightbox overlay */
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vh 5vw;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-lightbox-overlay.is-open {
+  opacity: 1;
+}
+
+.image-lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  cursor: zoom-out;
+  transform: scale(0.96);
+  transition: transform 0.2s ease;
+}
+
+.image-lightbox-overlay.is-open .image-lightbox-image {
+  transform: scale(1);
+}
+
+.image-lightbox-close {
+  position: fixed;
+  top: 24px;
+  right: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.image-lightbox-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Prevent background scroll while the lightbox is open */
+html.image-lightbox-active {
+  overflow: hidden;
+}
