@@ -104,7 +104,7 @@ const projectAudios = useState(new Map<filePath, RenpyAudio>());
 
 ### 5. Visual Composer Types
 
-These types power the three visual composers.
+These types power the two visual composers (Scene and ImageMap) plus the read-only Screen Preview renderer.
 
 #### Scene Composer
 - **`SceneComposition`** - Complete scene with background + sprites
@@ -119,12 +119,12 @@ These types power the three visual composers.
 
 **Code Generation**: Composer generates Ren'Py `imagemap` screen code from the composition.
 
-#### Screen Layout Composer
-- **`ScreenLayoutComposition`** - Complete screen layout
+#### Screen Preview (read-only)
+- **`ScreenLayoutComposition`** - Parsed representation of a screen layout
 - **`ScreenWidget`** - Individual UI widget (can nest children)
 - **`ScreenWidgetType`** - Available widget types (vbox, hbox, frame, text, button, etc.)
 
-**Code Generation**: Composer generates Ren'Py `screen` code via `screenCodeGenerator.ts`.
+There is no visual screen-building composer in the current version. These types back the **Screen Preview** tab, which parses existing `screen` blocks (via `screenCodeGenerator.ts`) to render a read-only preview with named-style/`gui.*` resolution. Screens are authored directly as Ren'Py `screen` blocks in `.rpy` files.
 
 ### 6. UI State Types
 
@@ -139,7 +139,7 @@ These types manage the editor UI itself.
 - Canvas tabs: `canvas`, `route-canvas`, `choice-canvas`
 - Content tabs: `editor`, `image`, `audio`, `markdown`
 - Tool tabs: `diagnostics`, `stats`, `translations`
-- Composer tabs: `scene-composer`, `imagemap-composer`, `screen-layout-composer`
+- Composer tabs: `scene-composer`, `imagemap-composer`, `screen-preview`
 
 **Tab Lifecycle**: Tabs mount lazily on first activation, then stay mounted-but-hidden to preserve Monaco editor state.
 

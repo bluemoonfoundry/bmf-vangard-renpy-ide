@@ -48,6 +48,6 @@
 
 **Warp** -- Launching the game at a specific label using Ren'Py's `--warp` flag, skipping all preceding content. Accessed via `Ctrl+Shift+G` / `Cmd+Shift+G`, the toolbar button, editor context menu, or canvas node context menu.
 
-**Widget Tree** -- The hierarchical structure of UI widgets in a Screen Layout Composer composition. Container widgets (`vbox`, `hbox`, `frame`, `button`) hold child widgets, forming a tree that maps directly to indented Ren'Py screen code.
+**Widget Tree** -- The hierarchical structure of UI widgets parsed from a `screen` block for rendering in the Screen Preview panel. Container widgets (`vbox`, `hbox`, `frame`, `button`) hold child widgets, forming a tree that maps directly to indented Ren'Py screen code.
 
 **Z-Order** -- A numeric property on screens and visual layers that determines rendering priority. Higher z-order values are drawn on top of lower values.

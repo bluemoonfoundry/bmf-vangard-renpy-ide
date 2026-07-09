@@ -21,7 +21,6 @@
 | Target | Effect |
 |--------|--------|
 | Scene Composer stage | Adds image as a new layer |
-| Screen Layout Composer stage | Adds as an `image` widget |
 | ImageMap Composer | Sets as ground or hover image |
 
 **Tag/metadata editing:** Right-click an image to edit its display tag or add metadata notes. Tags are stored in `game/project.ide.json`.

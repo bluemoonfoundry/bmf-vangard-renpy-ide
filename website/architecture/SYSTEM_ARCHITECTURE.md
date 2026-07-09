@@ -376,7 +376,7 @@ App.tsx (State Hub)
 │   └── StoryElementsPanel (right sidebar)
 │       ├── Story Data tabs (Characters, Variables, Screens)
 │       ├── Assets tabs (Images, Audio)
-│       ├── Composers tabs (Scenes, ImageMaps, Screen Layouts)
+│       ├── Composers tabs (Scenes, ImageMaps, Screen Preview)
 │       └── Tools tabs (Snippets, Menus, Colors)
 ├── Modals & Overlays (React portals)
 │   ├── SettingsModal

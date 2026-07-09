@@ -58,8 +58,9 @@ get TextMate-grade syntax highlighting with a custom Ren'Py grammar, semantic to
 overlays that color labels and characters differently depending on whether they are
 defined or undefined, context-aware IntelliSense for `jump` targets and `show` images,
 `Ctrl+Click` go-to-definition, split panes, and 28+ built-in code snippets with tab-stop
-placeholders. The **Screen Layout Composer** lets you build Ren'Py screens by dragging
-widgets onto a stage and generates the screen code for you. The **Diagnostics** panel is
+placeholders. The **Screen Preview** panel renders your hand-written `screen` blocks back
+to you as you edit, resolving named styles and `gui.*` variables so you can see the
+layout without leaving the editor. The **Diagnostics** panel is
 your project-wide linter: it catches syntax errors, undefined references, and unused
 definitions across every file simultaneously. See [Chapter 6](/guide/writing-code), [Chapter 7](/guide/managing-story-elements), and [Chapter 10](/guide/diagnostics-and-quality) for the
 technical details.

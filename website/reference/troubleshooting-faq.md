@@ -58,7 +58,7 @@
 |---------|----------|
 | Scene Composer does not show the background image. | Verify the image file exists at the referenced path. Supported formats: PNG, JPG, WEBP. If the file was moved or renamed externally, remove and re-add the background. |
 | Generated Ren'Py code does not include visual effects. | Only non-default values are included in the generated code. If all sliders are at their default positions (saturation 1.0, brightness 0, contrast 1.0, invert 0, color mode None), no `matrixcolor` line is emitted. |
-| Screen Layout Composer shows a screen as read-only. | Screens defined in your `.rpy` files are displayed as read-only. Click `Duplicate` to create an editable copy. |
+| Screen Preview shows a "blank" or unresolved layout. | Screen Preview is read-only and renders directly from the `screen` block in your `.rpy` file, resolving named styles and `gui.*` variables. Edit the screen code itself in the Monaco editor; there is no separate editable copy. |
 
 ### 11.2 FAQ
 

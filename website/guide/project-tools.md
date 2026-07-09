@@ -59,7 +59,7 @@ The undo system covers canvas-level and project-level operations:
 
 - Moving blocks or nodes on any canvas.
 - Creating or deleting blocks.
-- Modifying composition data in the Scene Composer, ImageMap Composer, or Screen Layout Composer.
+- Modifying composition data in the Scene Composer or ImageMap Composer.
 
 The canvas/project-level history stack has no fixed size limit -- it grows for the duration of your session. (The Scene Composer's own internal undo stack, used only while editing a scene composition, is capped at 50 actions.) If you need to go further back than the undo history retains, consider using a version control system like Git -- it is the right tool for long-term history across your entire project.
 

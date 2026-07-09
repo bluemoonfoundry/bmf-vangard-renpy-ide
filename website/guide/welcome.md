@@ -38,10 +38,11 @@ Vangard Studio. The only files Vangard Studio adds to your project live in a `.r
 (canvas positions, IDE settings, snippets) that Ren'Py ignores completely.
 
 This philosophy extends to every feature. The Scene Composer generates standard Ren'Py
-`scene` and `show` statements. The Screen Layout Composer outputs valid `screen` code.
-The Menu Constructor produces ordinary `menu:` blocks. Nothing is hidden behind a
-proprietary runtime. If you decide to stop using Vangard Studio tomorrow, your project is
-exactly the same set of `.rpy` files it always was.
+`scene` and `show` statements. The Menu Constructor produces ordinary `menu:` blocks.
+Screens are written directly as `screen` code, with the Screen Preview panel rendering
+it back to you as you go. Nothing is hidden behind a proprietary runtime. If you decide
+to stop using Vangard Studio tomorrow, your project is exactly the same set of `.rpy`
+files it always was.
 
 You still need the Ren'Py SDK installed to run your game. Vangard Studio is the place where you
 write, visualize, and debug -- then you press `F5` and the SDK launches your game as

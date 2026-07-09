@@ -20,7 +20,7 @@ Right-click any image to access its context menu:
 
 - **Add `scene` statement** -- copies `scene bg_park` (or whatever the image's Ren'Py tag is) to your clipboard, ready to paste into your script
 - **Add `show` statement** -- copies `show eileen happy` for character sprites
-- **Drag to composer** -- drag an image directly from the sidebar into the Scene Composer or Screen Layout Composer (covered in the next chapter)
+- **Drag to composer** -- drag an image directly from the sidebar into the Scene Composer (covered in the next chapter)
 
 Double-click an image to open its **Image Editor View**, where you can manage its Ren'Py tag (the name used in `show`/`scene` statements), assign metadata tags for organization, and see the image at full resolution.
 
@@ -49,6 +49,5 @@ Right-click an audio file for quick-copy options:
 Assets are not isolated in their sidebar tab. They integrate with the rest of the IDE:
 
 - **Scene Composer**: drag images from the Images tab directly onto the Scene Composer stage to add them as layers
-- **Screen Layout Composer**: drag images into screen layouts for UI elements
 - **Diagnostics**: if your script references `scene bg_park` but no image with that tag exists, the diagnostics system flags it as a "missing image" warning
 - **IntelliSense**: image and audio names appear in autocomplete suggestions when you type `show`, `scene`, `play music`, or `play sound`

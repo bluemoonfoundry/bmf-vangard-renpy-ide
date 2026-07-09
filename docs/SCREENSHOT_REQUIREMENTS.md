@@ -28,15 +28,16 @@ The `architecture-*.png` images (`architecture-process`, `architecture-state-hub
 capture script — they are hand-produced diagrams embedded in
 `website/architecture/SYSTEM_ARCHITECTURE.md`.
 
-### Known gap: `artist-screen-layouts-composer.png`
+### Resolved: `artist-screen-layouts-composer.png` retired
 
-This file still exists in `docs/images/` and is still embedded in
-`website/guide/visual-composers.md`, but the capture script can no longer regenerate
-it: per the `NOTE` comment above the removed manifest entry, the "Compose > Screen
-Layouts > + New" flow it relied on no longer exists in the current UI. Resolving this
-needs a product decision (either restore an equivalent creation flow, or rewrite the
-guide section and retire the screenshot) — tracked as a follow-up for the feature
-audit rather than fixed here.
+Product decision: the Screen Layout Composer's "Compose > Screen Layouts > + New" flow
+is not being exposed in this release, and the screenshot's removed manifest entry
+(see the `NOTE` comment in `docs/capture_screenshots.js`) reflects that it can no
+longer be captured. `website/guide/visual-composers.md`,
+`website/reference/composer-reference.md`, and other guide pages were rewritten to
+describe screens as authored directly in `.rpy` source with a read-only Screen Preview
+panel, and the now-orphaned `docs/images/artist-screen-layouts-composer.png` file was
+deleted.
 
 ### Captured but not currently embedded
 
