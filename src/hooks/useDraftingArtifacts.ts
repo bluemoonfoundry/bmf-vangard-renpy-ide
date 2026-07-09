@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
-import type { Block, ProjectSettings, Variable } from '@/types';
+import type { Block, PersistedProjectSettings, Variable } from '@/types';
 import { logger } from '@/lib/logger';
 
 const SILENT_WAV_BASE64 = 'UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAAAAA==';
@@ -24,7 +24,7 @@ export interface UseDraftingArtifactsParams {
   definedVariables: Map<string, Variable>;
   existingImageTags: Set<string>;
   existingAudioPaths: Set<string>;
-  updateProjectSettings: (recipe: (draft: ProjectSettings) => void) => void;
+  updateProjectSettings: (recipe: (draft: PersistedProjectSettings) => void) => void;
   setHasUnsavedSettings: React.Dispatch<React.SetStateAction<boolean>>;
   addToast: (message: string, type?: ToastType) => void;
 }

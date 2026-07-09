@@ -11,7 +11,7 @@ import { buildSavedStoryBlockLayouts } from '@/lib/storyCanvasLayout';
 import { logger } from '@/lib/logger';
 import type {
   Block, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
-  ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition,
+  PersistedProjectSettings, ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
   Position,
@@ -20,10 +20,7 @@ import type {
 // Re-export so App.tsx import of these types from useProjectIO keeps working
 export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
 
-type ProjectSettingsState = Omit<ProjectSettings,
-  'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' |
-  'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' |
-  'scannedImagePaths' | 'scannedAudioPaths'>;
+type ProjectSettingsState = PersistedProjectSettings;
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 

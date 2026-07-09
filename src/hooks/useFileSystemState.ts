@@ -214,14 +214,14 @@ export function useFileSystemState(): UseFileSystemStateReturn {
    * Copy paths to clipboard
    */
   const copyToClipboard = useCallback((paths: string[]) => {
-    setClipboard({ type: 'copy', paths });
+    setClipboard({ type: 'copy', paths: new Set(paths) });
   }, []);
 
   /**
    * Cut paths to clipboard
    */
   const cutToClipboard = useCallback((paths: string[]) => {
-    setClipboard({ type: 'cut', paths });
+    setClipboard({ type: 'cut', paths: new Set(paths) });
   }, []);
 
   /**

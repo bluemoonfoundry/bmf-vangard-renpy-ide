@@ -18,6 +18,11 @@ Power users can customize the built-in snippets by editing the `default-snippets
 - Remove snippets you don't use
 - Share custom snippet packs with your team
 
+You don't have to edit JSON by hand to share snippets, though: the Snippet Library
+panel has **Select** (pick individual snippets) and **Export Category** actions to save
+a pack file, and an **Import Pack...** action that merges a shared pack into your
+global `custom.json`.
+
 ### File Format
 
 The JSON file follows this structure:
@@ -70,18 +75,8 @@ The JSON file follows this structure:
 }
 ```
 
-## Future Enhancements
-
-Planned features for snippet management:
-
-- User-specific snippet overrides in home directory (`~/.vangard-ide/snippets/`)
-- Per-project snippet customization (`.vangard/snippets.json`)
-- Reload button in UI to refresh snippets without restarting
-- Community snippet packs
-- Import/export snippet collections
-
 ## Notes
 
 - Changes to `default-snippets.json` require restarting the application to take effect
-- Invalid JSON will cause the app to fall back to an empty snippet list
-- User snippets (created via the "+ New Snippet" button) are stored separately in project settings and are not affected by this file
+- Every snippet file is validated against a schema (`src/lib/snippetSchema.ts`) before use. An invalid `custom.json` or project `snippets.json` is skipped (with a warning shown in the Snippet Library panel) rather than silently emptying the whole list — the other sources still load normally
+- User snippets (created via the "+ New Snippet" button) are stored separately in `AppSettings` and are not affected by this file

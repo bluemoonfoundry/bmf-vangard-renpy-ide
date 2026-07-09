@@ -677,12 +677,9 @@ async function updateApplicationMenu() {
             {
                 label: 'User Guide',
                 click: () => {
-                    const userGuidePath = app.isPackaged
-                        ? path.join(process.resourcesPath, 'docs', 'Ren-IDE_User_Guide.html')
-                        : path.join(__dirname, 'docs', 'Ren-IDE_User_Guide.html');
-                    shell.openPath(userGuidePath).catch(err => {
+                    shell.openExternal('https://bluemoonfoundry.github.io/bmf-vangard-renpy-ide/').catch(err => {
                         logger.error('Failed to open user guide:', err);
-                        dialog.showErrorBox('Error', 'Could not open the user guide. Please ensure it is installed correctly.');
+                        dialog.showErrorBox('Error', 'Could not open the user guide. Please check your internet connection.');
                     });
                 }
             },
@@ -690,10 +687,6 @@ async function updateApplicationMenu() {
                 label: 'Keyboard Shortcuts',
                 accelerator: 'CmdOrCtrl+/',
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-shortcuts' }); }
-            },
-            {
-                label: 'Documentation',
-                click: () => shell.openExternal('https://github.com/bluemoonfoundry/vangard-renpy-ide/wiki'),
             },
             { type: 'separator' },
             {
@@ -1298,6 +1291,67 @@ app.whenReady().then(() => {
 
   ipcMain.handle('app:getUserDataPath', () => {
     return app.getPath('userData');
+  });
+
+  // --- Snippet pack import/export ---
+  // These deliberately do NOT go through guardProjectPath: the user-global path is
+  // fixed and computed here (never renderer-supplied), and the export/import paths
+  // are chosen by the user via a native dialog opened by this same handler, not
+  // passed in from the renderer.
+  function getUserGlobalSnippetsPath() {
+    return path.join(app.getPath('userData'), 'snippets', 'custom.json');
+  }
+
+  ipcMain.handle('snippets:readUserGlobal', async () => {
+    try {
+      return await fs.readFile(getUserGlobalSnippetsPath(), 'utf-8');
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.handle('snippets:writeUserGlobal', async (event, content) => {
+    try {
+      const filePath = getUserGlobalSnippetsPath();
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, content, 'utf-8');
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to write user global snippets:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('snippets:exportPack', async (event, suggestedFileName, content) => {
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Export Snippet Pack',
+        defaultPath: suggestedFileName,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (canceled || !filePath) return { success: false, canceled: true };
+      await fs.writeFile(filePath, content, 'utf-8');
+      return { success: true, filePath };
+    } catch (error) {
+      logger.error('Failed to export snippet pack:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('snippets:importPack', async () => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'Import Snippet Pack',
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        properties: ['openFile'],
+      });
+      if (canceled || filePaths.length === 0) return { success: false, canceled: true };
+      const content = await fs.readFile(filePaths[0], 'utf-8');
+      return { success: true, filePath: filePaths[0], content };
+    } catch (error) {
+      logger.error('Failed to import snippet pack:', error);
+      return { success: false, error: error.message };
+    }
   });
 
   ipcMain.on('reply-unsaved-changes-before-exit', (event, hasUnsavedChanges) => {

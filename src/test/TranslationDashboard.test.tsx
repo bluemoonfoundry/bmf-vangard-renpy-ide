@@ -45,8 +45,8 @@ function makeSampleTranslationData(): TranslationAnalysisResult {
       { id: 'id2', sourceText: 'Goodbye', blockId: 'b1', filePath: 'game/script.rpy', line: 2, labelScope: 'start', characterTag: 'e', type: 'dialogue' },
     ],
     translatedStrings: new Map([
-      ['french', [{ id: 'id1', translatedText: 'Bonjour', blockId: 'tl1', filePath: 'game/tl/french/script.rpy', line: 2, language: 'french' }]],
-      ['german', [{ id: 'id1', translatedText: 'Hallo', blockId: 'tl2', filePath: 'game/tl/german/script.rpy', line: 3, language: 'german' }]],
+      ['french', [{ id: 'id1', translatedText: 'Bonjour', blockId: 'tl1', filePath: 'game/tl/french/script.rpy', line: 2, language: 'french', characterTag: 'e', sourceText: 'Hello' }]],
+      ['german', [{ id: 'id1', translatedText: 'Hallo', blockId: 'tl2', filePath: 'game/tl/german/script.rpy', line: 3, language: 'german', characterTag: 'e', sourceText: 'Hello' }]],
     ]),
     languageCoverages: [
       {

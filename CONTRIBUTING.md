@@ -1,6 +1,6 @@
-# Contributing to Ren'IDE
+# Contributing to Vangard Studio
 
-Thank you for contributing to Ren'IDE. This document covers environment setup, coding conventions, the PR process, and how to report issues.
+Thank you for contributing to Vangard Studio. This document covers environment setup, coding conventions, the PR process, and how to report issues.
 
 ---
 
@@ -153,5 +153,5 @@ Use [GitHub Issues](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/iss
 | Document | What it covers |
 |---|---|
 | [CLAUDE.md](./CLAUDE.md) | Full coding conventions, architecture overview, IPC pattern, state hub |
-| [docs/architecture/CANVAS_ARCHITECTURE.md](./docs/architecture/CANVAS_ARCHITECTURE.md) | Three-canvas system, drag model, layout algorithms, keyboard navigation |
-| [docs/architecture/SYSTEM_ARCHITECTURE.md](./docs/architecture/SYSTEM_ARCHITECTURE.md) | Electron process architecture, component hierarchy, data flow |
+| [website/architecture/CANVAS_ARCHITECTURE.md](./website/architecture/CANVAS_ARCHITECTURE.md) | Three-canvas system, drag model, layout algorithms, keyboard navigation |
+| [website/architecture/SYSTEM_ARCHITECTURE.md](./website/architecture/SYSTEM_ARCHITECTURE.md) | Electron process architecture, component hierarchy, data flow |

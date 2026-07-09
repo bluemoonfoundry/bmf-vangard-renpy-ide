@@ -118,7 +118,7 @@ describe('useCanvasLayout', () => {
   it('handleChangeStoryCanvasLayoutMode calls updateProjectSettings with new mode', () => {
     const updateProjectSettings = vi.fn();
     const { result } = renderHook(() => useCanvasLayout(makeParams({ updateProjectSettings })));
-    act(() => result.current.handleChangeStoryCanvasLayoutMode('radial'));
+    act(() => result.current.handleChangeStoryCanvasLayoutMode('connected-components'));
     expect(updateProjectSettings).toHaveBeenCalled();
   });
 
@@ -132,7 +132,7 @@ describe('useCanvasLayout', () => {
   it('handleChangeStoryCanvasLayoutMode resets groupingMode to none when switching away from clustered-flow', () => {
     const updateProjectSettings = vi.fn();
     const projectSettings = createProjectSettings({
-      storyCanvasGroupingMode: 'file',
+      storyCanvasGroupingMode: 'filename-prefix',
     } as any);
     const { result } = renderHook(() =>
       useCanvasLayout(makeParams({ updateProjectSettings, projectSettings: projectSettings as any })),
@@ -148,7 +148,7 @@ describe('useCanvasLayout', () => {
   it('handleChangeStoryCanvasLayoutMode preserves groupingMode when switching to clustered-flow', () => {
     const updateProjectSettings = vi.fn();
     const projectSettings = createProjectSettings({
-      storyCanvasGroupingMode: 'file',
+      storyCanvasGroupingMode: 'filename-prefix',
     } as any);
     const { result } = renderHook(() =>
       useCanvasLayout(makeParams({ updateProjectSettings, projectSettings: projectSettings as any })),
@@ -157,7 +157,7 @@ describe('useCanvasLayout', () => {
     const updater = updateProjectSettings.mock.calls[0][0];
     const draft: any = {};
     updater(draft);
-    expect(draft.storyCanvasGroupingMode).toBe('file');
+    expect(draft.storyCanvasGroupingMode).toBe('filename-prefix');
   });
 
   it('handleChangeStoryCanvasLayoutMode triggers layout via setTimeout when blocks exist', () => {
@@ -165,7 +165,7 @@ describe('useCanvasLayout', () => {
     const { result } = renderHook(() =>
       useCanvasLayout(makeParams({ setBlocks, blocks: [createBlock()] })),
     );
-    act(() => result.current.handleChangeStoryCanvasLayoutMode('radial'));
+    act(() => result.current.handleChangeStoryCanvasLayoutMode('connected-components'));
     expect(setBlocks).not.toHaveBeenCalled(); // not yet
     act(() => vi.runAllTimers());
     expect(setBlocks).toHaveBeenCalled();
@@ -174,7 +174,7 @@ describe('useCanvasLayout', () => {
   it('handleChangeStoryCanvasLayoutMode skips layout when blocks is empty', () => {
     const setBlocks = vi.fn();
     const { result } = renderHook(() => useCanvasLayout(makeParams({ setBlocks, blocks: [] })));
-    act(() => result.current.handleChangeStoryCanvasLayoutMode('radial'));
+    act(() => result.current.handleChangeStoryCanvasLayoutMode('connected-components'));
     act(() => vi.runAllTimers());
     expect(setBlocks).not.toHaveBeenCalled();
   });
@@ -189,7 +189,7 @@ describe('useCanvasLayout', () => {
     const { result } = renderHook(() =>
       useCanvasLayout(makeParams({ updateProjectSettings, projectSettings: projectSettings as any })),
     );
-    act(() => result.current.handleChangeStoryCanvasGroupingMode('file'));
+    act(() => result.current.handleChangeStoryCanvasGroupingMode('filename-prefix'));
     const updater = updateProjectSettings.mock.calls[0][0];
     const draft: any = {};
     updater(draft);
@@ -241,7 +241,7 @@ describe('useCanvasLayout', () => {
   it('handleChangeRouteCanvasLayoutMode calls updateProjectSettings', () => {
     const updateProjectSettings = vi.fn();
     const { result } = renderHook(() => useCanvasLayout(makeParams({ updateProjectSettings })));
-    act(() => result.current.handleChangeRouteCanvasLayoutMode('radial'));
+    act(() => result.current.handleChangeRouteCanvasLayoutMode('connected-components'));
     expect(updateProjectSettings).toHaveBeenCalled();
   });
 });

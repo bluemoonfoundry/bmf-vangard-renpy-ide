@@ -7,7 +7,7 @@
  * as props; actions (add/edit/delete/import) propagate back to `App.tsx` `useImmer` state.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Character, Variable, ProjectImage, ImageMetadata, RenpyAudio, AudioMetadata, RenpyAnalysisResult, UserSnippet, MenuTemplate, ProjectSettings } from '@/types';
+import type { Character, Variable, ProjectImage, ImageMetadata, RenpyAudio, AudioMetadata, RenpyAnalysisResult, UserSnippet, MenuTemplate, PersistedProjectSettings } from '@/types';
 import type { PaletteColor } from '@/lib/colorPalettes';
 import VariableManager from './VariableManager';
 import ImageManager from './ImageManager';
@@ -152,8 +152,8 @@ interface StoryElementsPanelProps {
     projectColors?: PaletteColor[];
 
     // Tab/Subsection State Props
-    projectSettings: ProjectSettings;
-    onUpdateProjectSettings: (updater: (draft: ProjectSettings) => void) => void;
+    projectSettings: PersistedProjectSettings;
+    onUpdateProjectSettings: (updater: (draft: PersistedProjectSettings) => void) => void;
     hasProject: boolean;
 
     // Implicit variable hint banner

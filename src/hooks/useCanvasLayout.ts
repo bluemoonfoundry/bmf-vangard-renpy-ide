@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import type React from 'react';
-import type { Block, Position, ProjectSettings, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute } from '@/types';
+import type { Block, Position, PersistedProjectSettings, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute } from '@/types';
 import type { StoryCanvasLayoutMode, StoryCanvasGroupingMode } from '@/types';
 import type { ToastMessage } from '@/types';
 import type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/hooks/useProjectIO';
@@ -9,10 +9,7 @@ import { computeStoryLayout, computeStoryLayoutFingerprint, getStoryLayoutVersio
 import { computeRouteCanvasLayout, computeRouteCanvasLayoutFingerprint, getRouteCanvasLayoutVersion } from '@/lib/routeCanvasLayout';
 import { logger } from '@/lib/logger';
 
-type ProjectSettingsSlice = Omit<ProjectSettings,
-  'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' |
-  'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' |
-  'scannedImagePaths' | 'scannedAudioPaths'>;
+type ProjectSettingsSlice = PersistedProjectSettings;
 
 interface RouteAnalysisLike {
   labelNodes: LabelNode[];

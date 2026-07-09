@@ -724,6 +724,31 @@ export interface UserSnippet {
 }
 
 /**
+ * A single built-in/shared code snippet, as loaded from default-snippets.json,
+ * a user global custom.json, a project .vangard/snippets.json, or an imported
+ * community pack. Distinct from `UserSnippet` (which additionally has an `id`
+ * and `prefix` for Monaco autocomplete and is persisted via `AppSettings`).
+ */
+export interface Snippet {
+  title: string;
+  description: string;
+  code: string;
+  /** Optional free-form tags for filtering, beyond the category name. */
+  tags?: string[];
+}
+
+export interface SnippetCategory {
+  name: string;
+  snippets: Snippet[];
+}
+
+/** On-disk shape of default-snippets.json, custom.json, .vangard/snippets.json, and exported packs. */
+export interface SnippetPackFile {
+  version: string;
+  categories: SnippetCategory[];
+}
+
+/**
  * Represents a single choice in a menu template.
  * @interface MenuChoice
  * @property {string} id - Unique identifier for the choice
@@ -1097,13 +1122,20 @@ export interface ProjectSettings {
 }
 
 /**
+ * The slice of ProjectSettings actually held in the useSettingsManagement useImmer state.
+ * The excluded fields are persisted separately (their own useImmer/useState in App.tsx) or
+ * are session-only, per CLAUDE.md's state table.
+ */
+export type PersistedProjectSettings = Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
+
+/**
  * Combined settings interface for components that need both app and project settings.
  * Used primarily in the Settings Modal.
  * @interface IdeSettings
  * @extends AppSettings
- * @extends Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>
+ * @extends PersistedProjectSettings
  */
-export interface IdeSettings extends AppSettings, Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'> {}
+export interface IdeSettings extends AppSettings, PersistedProjectSettings {}
 
 /**
  * Represents the current clipboard state for cut/copy operations in the file explorer.
@@ -1360,13 +1392,30 @@ declare global {
               buttonLabel?: string;
               filters?: { name: string; extensions: string[] }[];
           }) => Promise<string | null>;
+          /**
+           * Snippet pack import/export. Deliberately bypass the project-root guard on
+           * fs:readFile/fs:writeFile: the user-global path is fixed and computed in the
+           * main process (never renderer-supplied), and the export/import paths are
+           * chosen by the user via a native dialog opened by the main process itself,
+           * not passed in from the renderer.
+           */
+          readUserGlobalSnippets?: () => Promise<string | null>;
+          writeUserGlobalSnippets?: (content: string) => Promise<{ success: boolean; error?: string }>;
+          exportSnippetPack?: (suggestedFileName: string, content: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+          importSnippetPack?: () => Promise<{ success: boolean; filePath?: string; content?: string; canceled?: boolean; error?: string }>;
           onUpdateAvailable?: (callback: (version: string) => void) => () => void;
           onUpdateNotAvailable?: (callback: () => void) => () => void;
           onUpdateError?: (callback: () => void) => () => void;
           onUpdateDownloaded?: (callback: (version: string) => void) => () => void;
           installUpdate?: () => void;
           openExternal?: (url: string) => Promise<void>;
-          updateExplorerMenuState?: (state: { canNewFile: boolean; canNewFolder: boolean; canRename: boolean; canDelete: boolean }) => void;
+          updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean }) => void;
+          captureScreenshot?: () => Promise<{ success: boolean; filename?: string; filepath?: string; error?: string }>;
+          getScreenshotCount?: () => Promise<number>;
+          openScreenshotsFolder?: () => Promise<{ success: boolean; error?: string }>;
+          clearScreenshots?: () => Promise<{ success: boolean; count: number; error?: string }>;
+          getLatestScreenshotPath?: () => Promise<string | null>;
+          onScreenshotCaptured?: (callback: (data: { filename: string; filepath: string }) => void) => () => void;
           onFileChangedExternally?: (callback: (data: { relativePath: string; absolutePath: string }) => void) => () => void;
           log?: (level: 'error' | 'warn' | 'info' | 'debug', ...args: unknown[]) => void;
           getLogPath?: () => Promise<string | null>;

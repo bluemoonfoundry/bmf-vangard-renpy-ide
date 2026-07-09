@@ -285,6 +285,7 @@ function createMockEditorInstance(content = '') {
     getValue: vi.fn(() => content),
     setValue: vi.fn(),
     updateOptions: vi.fn(),
+    detectIndentation: vi.fn(),
     getLanguageId: vi.fn(() => 'renpy'),
   };
   const mockEd = {
@@ -298,7 +299,7 @@ function createMockEditorInstance(content = '') {
     setPosition: vi.fn(),
     revealLineInCenter: vi.fn(),
     deltaDecorations: vi.fn(() => []),
-    onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeModelContent: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
     onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
     onContextMenu: vi.fn(() => ({ dispose: vi.fn() })),

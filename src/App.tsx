@@ -306,6 +306,7 @@ const App: React.FC = () => {
     openAboutModal,
     closeAboutModal,
     showConfigureRenpyModal,
+    openConfigureRenpyModal,
     closeConfigureRenpyModal,
     wizardModalOpen,
     openWizardModal,
@@ -827,7 +828,8 @@ const App: React.FC = () => {
   const {
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions,
     addBlock, handleCreateBlockConfirm, handleCreateBlockFromCanvas,
-    deleteBlock, deleteBlockWithFile, getSelectedFolderForNewBlock,
+    deleteBlock, deleteBlockWithFile, deleteBlocksWithFile,
+    createGroupFromSelection, deleteGroup, getSelectedFolderForNewBlock,
   } = useBlockManagement({
     blocks, setBlocks, setGroups, setDirtyBlockIds,
     updateProjectSettings, setHasUnsavedSettings,
@@ -1212,6 +1214,8 @@ const App: React.FC = () => {
   } = useGameExecution({
     projectRootPath,
     renpyPath: appSettings.renpyPath,
+    isRenpyPathValid,
+    onConfigureRenpy: openConfigureRenpyModal,
     addToast,
     cleanupWarpTempFile,
   });
@@ -1463,7 +1467,7 @@ const App: React.FC = () => {
     onOpenProject: handleOpenProjectFolder,
     onOpenRecent: handleOpenWithRenpyCheck,
     onSaveAll: handleSaveAll,
-    onRunProject: () => { if (projectRootPath) window.electronAPI?.runGame(appSettings.renpyPath, projectRootPath); },
+    onRunProject: handleRunGame,
     onOpenStaticTab: (type) => handleOpenStaticTab(type as 'canvas' | 'route-canvas' | 'diagnostics' | 'translations' | 'screen-preview'),
     onToggleSearch: handleToggleSearch,
     onOpenSettings: openSettingsModal,
@@ -1571,6 +1575,7 @@ const App: React.FC = () => {
     editorInstances, blocksRef, pendingTagRenameRef,
     blocks, groups, selectedBlockIds, setSelectedBlockIds, selectedGroupIds, setSelectedGroupIds,
     updateBlock, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile,
+    deleteBlocksWithFile, createGroupFromSelection, deleteGroup,
     analysisResult, analysisResultWithProfiles, routeAnalysisResult, diagnosticsResult,
     diagnosticsTasks, setDiagnosticsTasks, ignoredDiagnostics, setIgnoredDiagnostics,
     setHasUnsavedSettings, analysisLabelKeys,
@@ -1681,6 +1686,8 @@ const App: React.FC = () => {
     <DualPaneContext.Provider value={dualPaneContextValue}>
     <SearchProvider
       blocks={blocks}
+      setBlocks={setBlocks}
+      setDirtyBlockIds={setDirtyBlockIds}
       projectRootPath={projectRootPath}
       addToast={addToast}
     >
@@ -1994,7 +2001,7 @@ const App: React.FC = () => {
                 onCopyColorHex={handleCopyColorHex}
                 projectColors={projectColors}
                 // Accordion State Props
-                projectSettings={projectSettings as ProjectSettings}
+                projectSettings={projectSettings}
                 onUpdateProjectSettings={updateProjectSettings}
                 hasProject={!!projectRootPath}
                 // Implicit Variable Banner
@@ -2127,7 +2134,7 @@ const App: React.FC = () => {
         onSettingsChange={(key, value) => {
             if (key in appSettings) {
                 updateAppSettings(draft => {
-                    (draft as Record<string, unknown>)[key] = value;
+                    (draft as unknown as Record<string, unknown>)[key] = value;
                 });
             } else {
                 updateProjectSettings(draft => {

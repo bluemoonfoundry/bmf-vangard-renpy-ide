@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import SnippetGridView from './SnippetGridView';
+import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
 
 const mockCategories = [
   {
@@ -32,6 +33,10 @@ const mockCategories = [
 ];
 
 describe('SnippetGridView', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('renders all snippet cards', () => {
     render(<SnippetGridView categories={mockCategories} />);
     expect(screen.getByText('Test Snippet 1')).toBeInTheDocument();
@@ -163,5 +168,185 @@ describe('SnippetGridView', () => {
 
     const categoryTags = screen.getAllByText(/Test Category \d/);
     expect(categoryTags.length).toBeGreaterThan(0);
+  });
+
+  it('renders a sort dropdown defaulting to Alphabetical', () => {
+    render(<SnippetGridView categories={mockCategories} />);
+    expect(screen.getByLabelText('Sort by:')).toHaveValue('alphabetical');
+  });
+
+  it('toggles a snippet favorite and reflects it in the button label', async () => {
+    const user = userEvent.setup();
+    render(<SnippetGridView categories={mockCategories} />);
+
+    const favoriteButton = screen.getByRole('button', { name: 'Favorite Test Snippet 1' });
+    await user.click(favoriteButton);
+
+    expect(screen.getByRole('button', { name: 'Unfavorite Test Snippet 1' })).toBeInTheDocument();
+  });
+
+  it('persists favorites across remounts via localStorage', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<SnippetGridView categories={mockCategories} />);
+    await user.click(screen.getByRole('button', { name: 'Favorite Test Snippet 1' }));
+    unmount();
+
+    render(<SnippetGridView categories={mockCategories} />);
+    expect(screen.getByRole('button', { name: 'Unfavorite Test Snippet 1' })).toBeInTheDocument();
+  });
+
+  it('shows a copy-count badge after copying, and sorts by Most Copied', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: { writeText: async () => {} },
+      writable: true,
+      configurable: true,
+    });
+    render(<SnippetGridView categories={mockCategories} />);
+
+    // Copy "Another Snippet" via its copy button (only one CopyButton per card, icon-only).
+    const cards = screen.getAllByText(/Test Snippet 1|Test Snippet 2|Another Snippet/);
+    const anotherCard = cards.find(el => el.textContent === 'Another Snippet')!.closest('div.p-3')!;
+    // Buttons in the card header are [favorite star, copy] in that order.
+    const copyButton = anotherCard.querySelectorAll('button')[1] as HTMLElement;
+    await user.click(copyButton);
+
+    expect(await screen.findByText('Copied 1×')).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Sort by:'), 'mostUsed');
+    const grid = screen.getByText('Copied 1×').closest('div.grid, div[class*="grid"]');
+    // "Another Snippet" (the only one with a copy count) should now render first.
+    const firstCardTitle = document.querySelector('.grid h3')?.textContent;
+    expect(firstCardTitle).toBe('Another Snippet');
+    expect(grid).toBeTruthy();
+  });
+
+  it('renders tag chips and matches tags in search', async () => {
+    const user = userEvent.setup();
+    const categories = [
+      {
+        name: 'Tagged',
+        snippets: [{ title: 'Tagged Snippet', description: 'desc', code: 'x', tags: ['menu', 'ui'] }],
+      },
+    ];
+    render(<SnippetGridView categories={categories} />);
+
+    expect(screen.getByText('#menu')).toBeInTheDocument();
+    expect(screen.getByText('#ui')).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+    await user.type(searchInput, 'menu');
+    expect(screen.getByText('Tagged Snippet')).toBeInTheDocument();
+  });
+
+  it('shows a hover preview tooltip for truncated code and hides it on mouse leave', async () => {
+    const user = userEvent.setup();
+    const longCode = 'a'.repeat(100);
+    const categories = [{ name: 'Test', snippets: [{ title: 'Long Snippet', description: 'd', code: longCode }] }];
+    render(<SnippetGridView categories={categories} />);
+
+    const codeBlock = screen.getByText(/a+\.\.\./).closest('div')!;
+    await user.hover(codeBlock);
+    expect(screen.getByText(longCode)).toBeInTheDocument();
+
+    await user.unhover(codeBlock);
+    expect(screen.queryByText(longCode)).not.toBeInTheDocument();
+  });
+
+  it('focuses the search input when "/" is pressed outside a text field', async () => {
+    const user = userEvent.setup();
+    render(<SnippetGridView categories={mockCategories} />);
+
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+    expect(searchInput).not.toHaveFocus();
+
+    await user.keyboard('/');
+    expect(searchInput).toHaveFocus();
+  });
+
+  it('clears the search query on Escape while the search input is focused', async () => {
+    const user = userEvent.setup();
+    render(<SnippetGridView categories={mockCategories} />);
+
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+    await user.click(searchInput);
+    await user.type(searchInput, 'test');
+    expect(searchInput).toHaveValue('test');
+
+    await user.keyboard('{Escape}');
+    expect(searchInput).toHaveValue('');
+  });
+
+  describe('export', () => {
+    let api: ReturnType<typeof installElectronAPI>;
+
+    beforeEach(() => {
+      api = installElectronAPI();
+    });
+
+    afterEach(() => {
+      uninstallElectronAPI();
+    });
+
+    it('shows checkboxes and an Export Selected button once snippets are selected in Select mode', async () => {
+      const user = userEvent.setup();
+      render(<SnippetGridView categories={mockCategories} />);
+
+      expect(screen.queryByLabelText('Select Test Snippet 1')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Select' }));
+
+      expect(screen.getByLabelText('Select Test Snippet 1')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Export Selected/ })).not.toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Select Test Snippet 1'));
+      expect(screen.getByRole('button', { name: 'Export Selected (1)' })).toBeInTheDocument();
+    });
+
+    it('calls exportSnippetPack with the selected snippet grouped by category', async () => {
+      const user = userEvent.setup();
+      api.exportSnippetPack.mockResolvedValue({ success: true, filePath: '/tmp/vangard-snippets.json' });
+      render(<SnippetGridView categories={mockCategories} />);
+
+      await user.click(screen.getByRole('button', { name: 'Select' }));
+      await user.click(screen.getByLabelText('Select Test Snippet 1'));
+      await user.click(screen.getByRole('button', { name: 'Export Selected (1)' }));
+
+      expect(api.exportSnippetPack).toHaveBeenCalledTimes(1);
+      const [, content] = api.exportSnippetPack.mock.calls[0];
+      const parsed = JSON.parse(content);
+      expect(parsed.categories).toEqual([
+        { name: 'Test Category 1', snippets: [{ title: 'Test Snippet 1', description: 'First test snippet', code: 'show test1' }] },
+      ]);
+      expect(await screen.findByText(/Exported 1 snippet/)).toBeInTheDocument();
+    });
+
+    it('shows an Export Category button when exactly one category filter is active, and exports it whole', async () => {
+      const user = userEvent.setup();
+      api.exportSnippetPack.mockResolvedValue({ success: true });
+      render(<SnippetGridView categories={mockCategories} />);
+
+      expect(screen.queryByText('Export Category')).not.toBeInTheDocument();
+      await user.click(screen.getAllByText('Test Category 1')[0]);
+      expect(screen.getByText('Export Category')).toBeInTheDocument();
+
+      await user.click(screen.getByText('Export Category'));
+      expect(api.exportSnippetPack).toHaveBeenCalledTimes(1);
+      const [, content] = api.exportSnippetPack.mock.calls[0];
+      const parsed = JSON.parse(content);
+      expect(parsed.categories[0].name).toBe('Test Category 1');
+      expect(parsed.categories[0].snippets).toHaveLength(2);
+    });
+
+    it('shows an error banner when export fails', async () => {
+      const user = userEvent.setup();
+      api.exportSnippetPack.mockResolvedValue({ success: false, error: 'Disk full' });
+      render(<SnippetGridView categories={mockCategories} />);
+
+      await user.click(screen.getByRole('button', { name: 'Select' }));
+      await user.click(screen.getByLabelText('Select Test Snippet 1'));
+      await user.click(screen.getByRole('button', { name: 'Export Selected (1)' }));
+
+      expect(await screen.findByText('Disk full')).toBeInTheDocument();
+    });
   });
 });

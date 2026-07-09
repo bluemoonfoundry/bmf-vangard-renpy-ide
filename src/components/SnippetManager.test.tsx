@@ -6,8 +6,10 @@ import type { UserSnippet } from '@/types';
 import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
 
 describe('SnippetManager', () => {
+  let api: ReturnType<typeof installElectronAPI>;
+
   beforeEach(() => {
-    installElectronAPI();
+    api = installElectronAPI();
   });
 
   afterEach(() => {
@@ -117,5 +119,73 @@ describe('SnippetManager', () => {
   it('shows empty state message when no user snippets exist', () => {
     render(<SnippetManager userSnippets={[]} onCreateSnippet={vi.fn()} />);
     expect(screen.getByText(/No custom snippets yet/)).toBeInTheDocument();
+  });
+
+  it('shows a warning banner when a snippet source file fails schema validation', async () => {
+    api.readUserGlobalSnippets.mockResolvedValue(JSON.stringify({ categories: [{ name: 'Broken', snippets: [{ title: '' }] }] }));
+
+    render(<SnippetManager />);
+
+    expect(await screen.findByText(/Some snippet files were skipped due to invalid content/)).toBeInTheDocument();
+  });
+
+  describe('import', () => {
+    it('does nothing when the import dialog is canceled', async () => {
+      const user = userEvent.setup();
+      api.importSnippetPack.mockResolvedValue({ success: false, canceled: true });
+      render(<SnippetManager />);
+
+      await user.click(screen.getByText('Import Pack...'));
+      expect(api.writeUserGlobalSnippets).not.toHaveBeenCalled();
+    });
+
+    it('shows an error when the imported file fails schema validation', async () => {
+      const user = userEvent.setup();
+      api.importSnippetPack.mockResolvedValue({
+        success: true,
+        filePath: '/tmp/pack.json',
+        content: JSON.stringify({ categories: [{ name: 'Broken', snippets: [{ title: '' }] }] }),
+      });
+      render(<SnippetManager />);
+
+      await user.click(screen.getByText('Import Pack...'));
+      expect(await screen.findByText(/Invalid snippet pack/)).toBeInTheDocument();
+      expect(api.writeUserGlobalSnippets).not.toHaveBeenCalled();
+    });
+
+    it('merges a valid pack into custom.json and reloads', async () => {
+      const user = userEvent.setup();
+      api.readUserGlobalSnippets.mockResolvedValue(
+        JSON.stringify({ version: '1.0', categories: [{ name: 'Existing', snippets: [{ title: 'Old', description: '', code: 'old' }] }] })
+      );
+      api.importSnippetPack.mockResolvedValue({
+        success: true,
+        filePath: '/tmp/pack.json',
+        content: JSON.stringify({
+          version: '1.0',
+          categories: [{ name: 'Shared Pack', snippets: [{ title: 'New', description: 'desc', code: 'new' }] }],
+        }),
+      });
+      api.writeUserGlobalSnippets.mockResolvedValue({ success: true });
+
+      render(<SnippetManager />);
+      await user.click(screen.getByText('Import Pack...'));
+
+      expect(await screen.findByText(/Imported 1 snippet/)).toBeInTheDocument();
+      expect(api.writeUserGlobalSnippets).toHaveBeenCalledTimes(1);
+      const written = JSON.parse(api.writeUserGlobalSnippets.mock.calls[0][0]);
+      const categoryNames = written.categories.map((c: { name: string }) => c.name);
+      expect(categoryNames).toContain('Existing');
+      expect(categoryNames).toContain('Shared Pack');
+    });
+
+    it('shows an error when the picked file is not valid JSON', async () => {
+      const user = userEvent.setup();
+      api.importSnippetPack.mockResolvedValue({ success: true, filePath: '/tmp/pack.json', content: '{ not json' });
+      render(<SnippetManager />);
+
+      await user.click(screen.getByText('Import Pack...'));
+      expect(await screen.findByText(/Invalid JSON/)).toBeInTheDocument();
+    });
   });
 });

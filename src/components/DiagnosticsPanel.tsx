@@ -72,6 +72,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   'unused-variable':       'Unused Variable',
   'pickle-unsafe-variable':'Pickle Unsafe',
   'define-mutated':        'Define Mutated',
+  'implicit-variable':     'Implicit Variable',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -87,6 +88,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   'unused-variable':        'bg-gray-100  text-gray-600   dark:bg-gray-700      dark:text-gray-300',
   'pickle-unsafe-variable': 'bg-amber-50  text-amber-700  dark:bg-amber-900/30  dark:text-amber-300',
   'define-mutated':         'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  'implicit-variable':      'bg-blue-50   text-blue-700   dark:bg-blue-900/30   dark:text-blue-300',
 };
 
 // ---------------------------------------------------------------------------

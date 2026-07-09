@@ -20,6 +20,8 @@ interface CopyButtonProps {
      */
     size?: 'xs' | 'sm' | 'md';
     className?: string;
+    /** Called after a successful copy, e.g. to track usage analytics. */
+    onCopy?: () => void;
 }
 
 /**
@@ -27,7 +29,7 @@ interface CopyButtonProps {
  * Idle: clipboard icon + label text, neutral bg.
  * Copied: checkmark icon + "Copied!", green bg. Resets after 2 s.
  */
-export default function CopyButton({ text, label = 'Copy to Clipboard', size = 'sm', className = '' }: CopyButtonProps) {
+export default function CopyButton({ text, label = 'Copy to Clipboard', size = 'sm', className = '', onCopy }: CopyButtonProps) {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = async () => {
@@ -35,6 +37,7 @@ export default function CopyButton({ text, label = 'Copy to Clipboard', size = '
         try {
             await navigator.clipboard.writeText(text);
             setCopied(true);
+            onCopy?.();
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
             logger.error('Failed to copy to clipboard:', err);

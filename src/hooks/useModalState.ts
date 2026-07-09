@@ -8,7 +8,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { BlockType, Position, MenuTemplate, UserSnippet } from '@/types';
+import type { Position, MenuTemplate, UserSnippet } from '@/types';
+import type { BlockType } from '@/components/CreateBlockModal';
 
 /** Info for unsaved changes confirmation modal */
 export interface UnsavedChangesModalInfo {

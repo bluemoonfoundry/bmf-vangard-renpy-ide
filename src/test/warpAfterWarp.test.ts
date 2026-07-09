@@ -55,8 +55,8 @@ describe('warpAfterWarp helpers', () => {
 
   it('builds a temporary after_warp script with optional fallback label', () => {
     expect(buildAfterWarpScript([
-      { name: 'score', value: '10' },
-      { name: 'player_name', value: '"Debug"' },
+      { name: 'score', value: '10', source: 'default' },
+      { name: 'player_name', value: '"Debug"', source: 'default' },
       { name: 'mc_name', value: 'default_mc_name', source: 'interpolated' },
     ], true)).toBe(
       [

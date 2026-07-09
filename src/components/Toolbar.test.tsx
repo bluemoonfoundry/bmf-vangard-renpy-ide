@@ -142,10 +142,15 @@ describe('Toolbar', () => {
     expect(runBtn).toBeDisabled();
   });
 
-  it('disables Run button when Ren\'Py path is invalid', () => {
-    render(<Toolbar {...createProps({ isRenpyPathValid: false })} />);
-    const runBtn = screen.getByTitle('Run Project (F5)');
-    expect(runBtn).toBeDisabled();
+  it('keeps Run button enabled with a prompt title when Ren\'Py path is invalid', async () => {
+    const props = createProps({ isRenpyPathValid: false });
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+    const runBtn = screen.getByTitle("Configure Ren'Py SDK path (F5)");
+    expect(runBtn).not.toBeDisabled();
+
+    await user.click(runBtn);
+    expect(props.onRunGame).toHaveBeenCalledTimes(1);
   });
 
   it('toggles drafting mode when toggle is clicked', async () => {

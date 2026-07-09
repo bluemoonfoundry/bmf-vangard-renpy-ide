@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import StoryCanvas from './StoryCanvas';
+import type { StoryCanvasProps } from './StoryCanvas';
 import {
   createBlock,
   createBlockGroup,
@@ -37,7 +38,7 @@ vi.mock('@/contexts/DualPaneContext', () => ({
   })),
 }));
 
-const createProps = (overrides: Record<string, unknown> = {}) => ({
+const createProps = (overrides: Partial<StoryCanvasProps> = {}): StoryCanvasProps => ({
   blocks: [] as Block[],
   groups: [] as BlockGroup[],
   stickyNotes: [] as StickyNoteType[],
@@ -144,5 +145,60 @@ describe('StoryCanvas', () => {
     const canvas = screen.getByRole('application', { name: 'Story canvas' });
     fireEvent.keyDown(canvas, { key: 'Escape' });
     expect(props.setSelectedBlockIds).toHaveBeenCalledWith([]);
+  });
+
+  it('calls onCreateBlock when N is pressed on the canvas', () => {
+    const props = createProps({ onCreateBlock: vi.fn() });
+    render(<StoryCanvas {...props} />);
+    const canvas = screen.getByRole('application', { name: 'Story canvas' });
+    fireEvent.keyDown(canvas, { key: 'n' });
+    expect(props.onCreateBlock).toHaveBeenCalledWith('story', expect.any(Object));
+  });
+
+  it('groups selected blocks when G is pressed on the canvas', () => {
+    const createGroupFromSelection = vi.fn(() => 'new-group-id');
+    const props = createProps({ selectedBlockIds: ['b1', 'b2'], createGroupFromSelection });
+    render(<StoryCanvas {...props} />);
+    const canvas = screen.getByRole('application', { name: 'Story canvas' });
+    fireEvent.keyDown(canvas, { key: 'g' });
+    expect(createGroupFromSelection).toHaveBeenCalledWith(['b1', 'b2']);
+    expect(props.setSelectedBlockIds).toHaveBeenCalledWith([]);
+    expect(props.setSelectedGroupIds).toHaveBeenCalledWith(['new-group-id']);
+  });
+
+  it('does not group when G is pressed with no selection', () => {
+    const createGroupFromSelection = vi.fn();
+    const props = createProps({ selectedBlockIds: [], createGroupFromSelection });
+    render(<StoryCanvas {...props} />);
+    const canvas = screen.getByRole('application', { name: 'Story canvas' });
+    fireEvent.keyDown(canvas, { key: 'g' });
+    expect(createGroupFromSelection).not.toHaveBeenCalled();
+  });
+
+  it('deletes selected blocks and groups when Delete is pressed', () => {
+    const deleteBlocks = vi.fn();
+    const deleteGroup = vi.fn();
+    const props = createProps({
+      selectedBlockIds: ['b1', 'b2'],
+      selectedGroupIds: ['g1'],
+      deleteBlocks,
+      deleteGroup,
+    });
+    render(<StoryCanvas {...props} />);
+    const canvas = screen.getByRole('application', { name: 'Story canvas' });
+    fireEvent.keyDown(canvas, { key: 'Delete' });
+    expect(deleteBlocks).toHaveBeenCalledWith(['b1', 'b2']);
+    expect(deleteGroup).toHaveBeenCalledWith('g1');
+    expect(props.setSelectedBlockIds).toHaveBeenCalledWith([]);
+    expect(props.setSelectedGroupIds).toHaveBeenCalledWith([]);
+  });
+
+  it('does nothing on Delete when nothing is selected', () => {
+    const deleteBlocks = vi.fn();
+    const props = createProps({ selectedBlockIds: [], selectedGroupIds: [], deleteBlocks });
+    render(<StoryCanvas {...props} />);
+    const canvas = screen.getByRole('application', { name: 'Story canvas' });
+    fireEvent.keyDown(canvas, { key: 'Delete' });
+    expect(deleteBlocks).not.toHaveBeenCalled();
   });
 });

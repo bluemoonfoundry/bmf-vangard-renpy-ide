@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '@/App';
 import { installElectronAPI, uninstallElectronAPI, createMockElectronAPI } from './mocks/electronAPI';
+import type { Theme } from '@/types';
 
 function stubMatchMedia(prefersDark = false) {
   Object.defineProperty(window, 'matchMedia', {
@@ -83,10 +84,10 @@ describe('App', () => {
   // ── applyTheme ─────────────────────────────────────────────────────────────
 
   describe('applyTheme', () => {
-    async function renderWithTheme(theme: string, assertClasses: () => void) {
+    async function renderWithTheme(theme: Theme, assertClasses: () => void) {
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue({ theme });
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
@@ -173,7 +174,7 @@ describe('App', () => {
       stubMatchMedia(true);
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue({ theme: 'system' });
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
@@ -185,7 +186,7 @@ describe('App', () => {
       stubMatchMedia(false);
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue({ theme: 'system' });
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
@@ -210,7 +211,7 @@ describe('App', () => {
     it('applies settings returned by getAppSettings', async () => {
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue({ theme: 'dark', editorFontSize: 18 });
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
@@ -221,7 +222,7 @@ describe('App', () => {
     it('handles null from getAppSettings gracefully (uses defaults)', async () => {
       const api = createMockElectronAPI();
       api.getAppSettings.mockResolvedValue(null);
-      window.electronAPI = api;
+      installElectronAPI(api);
       expect(() => renderApp()).not.toThrow();
       await waitFor(() => {
         expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
@@ -231,7 +232,7 @@ describe('App', () => {
     it('handles getAppSettings rejection gracefully', async () => {
       const api = createMockElectronAPI();
       api.getAppSettings.mockRejectedValue(new Error('IPC failure'));
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       // Should still mark as loaded and not crash
       await waitFor(() => {
@@ -321,7 +322,7 @@ describe('App', () => {
       api.getAppSettings.mockResolvedValue({
         recentProjects: ['/home/user/my-game'],
       });
-      window.electronAPI = api;
+      installElectronAPI(api);
       renderApp();
       await waitFor(() => {
         expect(screen.getByText(/recent projects/i)).toBeInTheDocument();

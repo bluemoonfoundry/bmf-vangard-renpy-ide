@@ -10,7 +10,7 @@ export interface UseCharacterManagementProps {
   projectRootPath: string | null;
   updateBlock: (id: string, updates: Partial<Block>) => void;
   addBlock: (filePath: string, content: string) => void;
-  setFileSystemTree: Dispatch<SetStateAction<import('@/types').FileSystemTreeNode[]>>;
+  setFileSystemTree: Dispatch<SetStateAction<import('@/types').FileSystemTreeNode | null>>;
   setCharacterProfiles: Updater<Record<string, string>>;
   setHasUnsavedSettings: Dispatch<SetStateAction<boolean>>;
   addToast: (message: string, type: string) => void;

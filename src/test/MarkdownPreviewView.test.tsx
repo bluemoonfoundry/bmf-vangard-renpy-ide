@@ -23,7 +23,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('# Test\n<script>alert("XSS")</script>');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView
@@ -46,7 +46,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('<img src="x" onerror="alert(\'XSS\')">');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView
@@ -68,7 +68,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('[Click me](javascript:alert("XSS"))');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView
@@ -96,7 +96,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue(legitimateContent);
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView
@@ -121,7 +121,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('![Alt text](https://via.placeholder.com/150)');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView
@@ -148,7 +148,7 @@ describe('MarkdownPreviewView', () => {
       // Never resolves — keeps component in loading state
       mockAPI.readFile = vi.fn().mockReturnValue(new Promise(() => {}));
       mockAPI.path.join = vi.fn().mockReturnValue(new Promise(() => {}));
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView filePath="notes.md" projectRootPath="/test" />
@@ -162,7 +162,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/notes.md');
       mockAPI.readFile = vi.fn().mockRejectedValue(new Error('File not found'));
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView filePath="notes.md" projectRootPath="/test" />
@@ -189,7 +189,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('# Hello');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { getByLabelText } = render(
         <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />
@@ -207,7 +207,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('**bold**');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { getByLabelText } = render(
         <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />
@@ -227,7 +227,7 @@ describe('MarkdownPreviewView', () => {
       mockAPI.readFile = vi.fn().mockResolvedValue('# Hello');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
       mockAPI.writeFile = vi.fn().mockResolvedValue(undefined);
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const addToast = vi.fn();
       const { getByLabelText, queryByText } = render(
@@ -253,7 +253,7 @@ describe('MarkdownPreviewView', () => {
       const mockAPI = createMockElectronAPI();
       mockAPI.readFile = vi.fn().mockResolvedValue('# Test content');
       mockAPI.path.join = vi.fn().mockResolvedValue('/test/path.md');
-      window.electronAPI = mockAPI;
+      installElectronAPI(mockAPI);
 
       const { container } = render(
         <MarkdownPreviewView filePath="test.md" projectRootPath="/test" />

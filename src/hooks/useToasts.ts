@@ -49,7 +49,7 @@ export function useToasts(): UseToastsReturn {
    * Toast will be added to the queue and can be dismissed by user
    */
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info') => {
-    const id = createId();
+    const id = createId('toast');
     const toast: ToastMessage = {
       id,
       message,

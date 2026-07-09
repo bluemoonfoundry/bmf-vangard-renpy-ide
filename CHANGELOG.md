@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Ren'IDE are documented here.
+All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 

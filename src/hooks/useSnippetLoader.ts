@@ -12,23 +12,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger';
+import { validateSnippetPack } from '@/lib/snippetSchema';
+import type { Snippet, SnippetCategory, SnippetPackFile } from '@/types';
 import defaultSnippetsData from '../../snippets/default-snippets.json';
-
-interface Snippet {
-  title: string;
-  description: string;
-  code: string;
-}
-
-interface SnippetCategory {
-  name: string;
-  snippets: Snippet[];
-}
-
-interface SnippetData {
-  version: string;
-  categories: SnippetCategory[];
-}
 
 interface UseSnippetLoaderOptions {
   projectRootPath?: string | null;
@@ -38,6 +24,8 @@ interface UseSnippetLoaderResult {
   categories: SnippetCategory[];
   isLoading: boolean;
   error: string | null;
+  /** Per-file schema validation problems, e.g. a malformed custom.json. Non-fatal — the offending file is skipped. */
+  warnings: string[];
   reload: () => Promise<void>;
 }
 
@@ -66,10 +54,37 @@ function mergeSnippetCategories(...sources: SnippetCategory[][]): SnippetCategor
 }
 
 /**
- * Loads snippet data from a JSON file path.
- * Returns null if file doesn't exist or is invalid.
+ * Parses and schema-validates raw snippet pack JSON content. Returns null
+ * (plus a pushed warning) if the content isn't valid JSON or fails schema
+ * validation -- callers fall back to the other snippet sources rather than
+ * silently losing all snippets.
  */
-async function loadSnippetsFromFile(filePath: string): Promise<SnippetCategory[] | null> {
+function parseAndValidatePack(content: string, sourceLabel: string, warnings: string[]): SnippetCategory[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (parseError) {
+    const message = parseError instanceof Error ? parseError.message : String(parseError);
+    const warning = `${sourceLabel}: invalid JSON (${message})`;
+    logger.warn(warning);
+    warnings.push(warning);
+    return null;
+  }
+
+  const result = validateSnippetPack(parsed, sourceLabel);
+  if (!result.valid) {
+    logger.warn(`Invalid snippet file format: ${sourceLabel}`, result.errors);
+    warnings.push(...result.errors);
+    return null;
+  }
+
+  return (result.data as SnippetPackFile).categories;
+}
+
+/**
+ * Loads snippet data from a JSON file path. Returns null if the file doesn't exist.
+ */
+async function loadSnippetsFromFile(filePath: string, warnings: string[]): Promise<SnippetCategory[] | null> {
   try {
     const exists = await window.electronAPI.fileExists(filePath);
     if (!exists) {
@@ -77,16 +92,12 @@ async function loadSnippetsFromFile(filePath: string): Promise<SnippetCategory[]
     }
 
     const content = await window.electronAPI.readFile(filePath);
-    const data = JSON.parse(content) as SnippetData;
-
-    if (!data.categories || !Array.isArray(data.categories)) {
-      logger.warn(`Invalid snippet file format: ${filePath}`);
-      return null;
-    }
-
-    return data.categories;
+    return parseAndValidatePack(content, filePath, warnings);
   } catch (error) {
-    logger.error(`Failed to load snippets from ${filePath}:`, error);
+    const message = error instanceof Error ? error.message : String(error);
+    const warning = `Failed to load snippets from ${filePath}: ${message}`;
+    logger.error(warning);
+    warnings.push(warning);
     return null;
   }
 }
@@ -104,21 +115,27 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
   const [categories, setCategories] = useState<SnippetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const loadSnippets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    const collectedWarnings: string[] = [];
 
     try {
       // 1. Built-in snippets (always available)
-      const builtInCategories = (defaultSnippetsData as SnippetData).categories;
+      const builtInCategories = (defaultSnippetsData as SnippetPackFile).categories;
 
-      // 2. User global snippets (~/.vangard-ide/snippets/custom.json)
+      // 2. User global snippets (~/.vangard-ide/snippets/custom.json). Read via the
+      // dedicated snippets:readUserGlobal IPC (fixed path computed in the main
+      // process) rather than the generic project-guarded fs:readFile, since this
+      // path is always outside any project root.
       let userGlobalCategories: SnippetCategory[] | null = null;
       try {
-        const userDataPath = await window.electronAPI.getUserDataPath();
-        const userGlobalPath = await window.electronAPI.path.join(userDataPath, 'snippets', 'custom.json');
-        userGlobalCategories = await loadSnippetsFromFile(userGlobalPath);
+        const content = await window.electronAPI.readUserGlobalSnippets?.();
+        if (content) {
+          userGlobalCategories = parseAndValidatePack(content, 'user global snippets (custom.json)', collectedWarnings);
+        }
       } catch (err) {
         logger.warn('Could not load user global snippets:', err);
       }
@@ -132,7 +149,7 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
             '.vangard',
             'snippets.json'
           );
-          projectCategories = await loadSnippetsFromFile(projectSnippetsPath);
+          projectCategories = await loadSnippetsFromFile(projectSnippetsPath, collectedWarnings);
         } catch (err) {
           logger.warn('Could not load project snippets:', err);
         }
@@ -147,13 +164,15 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
 
       const merged = mergeSnippetCategories(...sources);
       setCategories(merged);
+      setWarnings(collectedWarnings);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load snippets';
       setError(errorMessage);
       logger.error('Snippet loading error:', err);
 
       // Fallback to built-in snippets on error
-      setCategories((defaultSnippetsData as SnippetData).categories);
+      setCategories((defaultSnippetsData as SnippetPackFile).categories);
+      setWarnings(collectedWarnings);
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +187,7 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
     categories,
     isLoading,
     error,
+    warnings,
     reload: loadSnippets,
   };
 }

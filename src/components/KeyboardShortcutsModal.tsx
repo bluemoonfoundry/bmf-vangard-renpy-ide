@@ -6,6 +6,7 @@
  * Integration: uses `useModalAccessibility`; opened from `Toolbar` help menu.
  */
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import type { MouseGestureSettings, CanvasPanGesture } from '@/types';
 
@@ -43,7 +44,14 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
   const canvasItems = [
     { keys: ['N'], description: 'Add New Block' },
+    { keys: ['G'], description: 'Group Selected Blocks' },
     { keys: ['Delete'], description: 'Delete Selected Blocks/Groups' },
+    { keys: ['Escape'], description: 'Clear Selection' },
+    { keys: ['Enter'], description: 'Open Selected in Editor' },
+    { keys: ['↑', '↓', '←', '→'], description: 'Move Focus Between Nodes' },
+    { keys: ['F'], description: 'Fit to Screen' },
+    { keys: ['['], description: 'Navigate Back (Flow Canvas)' },
+    { keys: [']'], description: 'Navigate Forward (Flow Canvas)' },
     { keys: getPanKeys(gestures.canvasPanGesture), description: 'Pan Canvas' },
     ...(gestures.middleMouseAlwaysPans && gestures.canvasPanGesture !== 'middle-drag'
       ? [{ keys: ['Middle Mouse', 'Drag'], description: 'Pan Canvas (also)' }]
@@ -83,7 +91,7 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
     ]},
   ];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]" onClick={onClose}>
         <div ref={contentRef} {...modalProps} className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl m-4 flex flex-col border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
             <header className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -129,7 +137,8 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 </button>
             </footer>
         </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

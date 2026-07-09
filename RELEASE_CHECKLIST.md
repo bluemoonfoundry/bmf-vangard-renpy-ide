@@ -1,4 +1,4 @@
-# Ren'IDE Release Checklist
+# Vangard Studio Release Checklist
 
 Use this checklist before tagging any production release (`vX.Y.Z` without `alpha`/`beta`/`rc`).
 Copy it into a GitHub issue using the **Release Checklist** issue template so sign-offs are tracked.

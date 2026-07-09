@@ -7,6 +7,8 @@ function makeParams(overrides: Partial<Parameters<typeof useGameExecution>[0]> =
   return {
     projectRootPath: '/project',
     renpyPath: '/renpy-8',
+    isRenpyPathValid: true,
+    onConfigureRenpy: vi.fn(),
     addToast: vi.fn(),
     cleanupWarpTempFile: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -39,6 +41,14 @@ describe('useGameExecution', () => {
   it('handleRunGame does nothing when projectRootPath is null', () => {
     const { result } = renderHook(() => useGameExecution(makeParams({ projectRootPath: null })));
     act(() => result.current.handleRunGame());
+    expect(api.runGame).not.toHaveBeenCalled();
+  });
+
+  it('handleRunGame opens the SDK configure prompt instead of running when the Ren\'Py path is invalid', () => {
+    const onConfigureRenpy = vi.fn();
+    const { result } = renderHook(() => useGameExecution(makeParams({ isRenpyPathValid: false, onConfigureRenpy })));
+    act(() => result.current.handleRunGame());
+    expect(onConfigureRenpy).toHaveBeenCalledTimes(1);
     expect(api.runGame).not.toHaveBeenCalled();
   });
 

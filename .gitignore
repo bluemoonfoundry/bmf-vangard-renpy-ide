@@ -26,11 +26,10 @@ DemoProject/errors.txt
 # Screenshots and recording artifacts 
 .renide/screenshots/*
 
-# Generated documentation
-# Note: Ren-IDE_User_Guide.html is committed for distribution builds
-docs/Ren-IDE_User_Guide.pdf
-docs/Ren-IDE_User_Guide_DRAFT.pdf
-docs/test.pdf
+# Docs site build output (deployed via .github/workflows/docs.yml, not committed)
+website/node_modules
+website/.vitepress/dist
+website/.vitepress/cache
 
 # Editor directories and files
 .vscode/*
