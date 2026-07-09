@@ -17,12 +17,22 @@ captured and how. As of this writing it produces:
 
 `welcome-screen`, `project-opened`, `app-layout`, `story-elements-characters`,
 `story-elements-images`, `code-editor`, `story-canvas-basic`, `route-canvas-basic`,
-`choice-canvas-basic`, `diagnostics-panel-full`, `search-panel`,
-`project-statistics`, `translation-dashboard`, `settings-modal`,
-`drafting-mode-toolbar`, `markdown-preview`, `writer-character-manager`,
-`writer-variables`, `writer-menu-builder`, `menu-editor-modal`, `artist-images-tab`,
-`artist-audio-tab`, `artist-scenes-composer`, `artist-imagemaps-composer`,
-`dev-snippets-tab`, `dev-colors-tab`, `dev-screens-tab`.
+`choice-canvas-basic`, `diagnostics-panel-full`, `warp-to-label-modal`,
+`search-panel`, `project-statistics`, `translation-dashboard`, `settings-modal`,
+`drafting-mode-toolbar`, `markdown-preview`, `new-project-wizard`,
+`writer-character-manager`, `writer-variables`, `writer-menu-builder`,
+`menu-editor-modal`, `artist-images-tab`, `artist-audio-tab`,
+`artist-scenes-composer`, `artist-imagemaps-composer`, `dev-snippets-tab`,
+`dev-colors-tab`, `dev-screens-tab`.
+
+The `warp-to-label-modal` and `new-project-wizard` captures require a valid
+Ren'Py SDK path and a mocked native directory picker respectively -- see the
+comments above their manifest entries in `docs/capture_screenshots.js` for
+how `FAKE_RENPY_SDK` and the `dialog.showSaveDialog` stub work. The stub
+path is regenerated fresh (timestamped, under the OS temp dir) on every run;
+never hardcode a fixed path here; an earlier version of this script did, and
+a since-fixed wizard-flow bug used it to overwrite files in a real
+pre-existing directory that happened to share that name.
 
 The `architecture-*.png` images (`architecture-process`, `architecture-state-hub`,
 `architecture-block-lifecycle`, `architecture-analysis-pipeline`) are not part of the

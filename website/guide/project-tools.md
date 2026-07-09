@@ -79,6 +79,8 @@ Starting a new visual novel from scratch? The **New Project Wizard** walks you t
 
 **Step 2: Resolution.** Pick a resolution preset for your game window:
 
+![Step 2 of the New Project Wizard, showing the resolution preset choices with 1920x1080 selected](/new-project-wizard.png)
+
 - 1280 x 720 (HD) -- the most common choice for visual novels, balancing quality with performance
 - 1920 x 1080 (Full HD) -- the standard for modern displays, ideal if your art assets are high-resolution
 - 2560 x 1440 (2K) -- for high-DPI presentations or premium productions

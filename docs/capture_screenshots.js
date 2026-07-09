@@ -40,6 +40,12 @@ const getArg = (flag) => {
 const PROJECT_PATH = getArg('--project') ?? path.join(ROOT, 'DemoProject');
 const OUT_DIR      = getArg('--out')     ?? path.join(__dirname, 'images');
 
+// Stub Ren'Py SDK used by the e2e suite (e2e/electron-fixture.ts) -- points
+// Settings > Ren'Py SDK Directory at a real file so checkRenpyPath() passes
+// (it only verifies the executable exists, it never runs it). Without this,
+// the Warp to Label button stays disabled and screenshots would show it greyed out.
+const FAKE_RENPY_SDK = path.join(ROOT, 'e2e', 'fixtures', 'fake-renpy-sdk');
+
 // ---------------------------------------------------------------------------
 // Load production app settings for theme/layout consistency
 // ---------------------------------------------------------------------------
@@ -221,6 +227,24 @@ const SCREENSHOTS = [
         },
     },
     {
+        filename: 'warp-to-label-modal.png',
+        description: 'Warp to Label modal — fuzzy-search label picker',
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Project Canvas');
+            // Requires a valid Ren'Py SDK path (see FAKE_RENPY_SDK / renpyPath
+            // override above) -- the button is disabled without one.
+            await page.click('button[aria-label="Warp to Label"]');
+            await page.waitForSelector('[aria-labelledby="goto-modal-title"]', { timeout: 5000 });
+            await page.keyboard.type('stage');
+            await page.waitForTimeout(400);
+        },
+        teardown: async (page) => {
+            await page.keyboard.press('Escape');
+            await page.waitForSelector('[aria-labelledby="goto-modal-title"]', { state: 'detached', timeout: 5000 });
+        },
+    },
+    {
         filename: 'search-panel.png',
         description: 'Global search panel',
         setup: async (page) => {
@@ -300,6 +324,71 @@ const SCREENSHOTS = [
             await page.dblclick('span:text-is("DEMO_SUMMARY.md")');
             await page.waitForSelector('.markdown-body', { timeout: 8000 });
             await page.waitForTimeout(500);
+        },
+    },
+    {
+        filename: 'new-project-wizard.png',
+        description: 'New Project Wizard — Step 2 (Resolution)',
+        setup: async (page, electronApp) => {
+            await waitForProjectReady(page);
+            // Step 1's "Browse..." button opens a native OS directory picker,
+            // which Playwright cannot drive directly. Stub the main-process
+            // dialog module (same technique as e2e main-process mocks) so it
+            // resolves immediately with a path instead of showing UI.
+            //
+            // This MUST be a path that cannot already exist: an earlier
+            // version of this script used a fixed path that happened to
+            // collide with a real pre-existing project directory, and a
+            // wizard-flow bug (since fixed) advanced further than intended
+            // and overwrote files in it. Using a fresh timestamped path under
+            // the OS temp dir makes that class of collision impossible.
+            const stubProjectPath = path
+                .join(os.tmpdir(), `vangard-docs-screenshot-${Date.now()}`)
+                .replace(/\\/g, '/');
+            await electronApp.evaluate(async ({ dialog }, stubPath) => {
+                dialog.showSaveDialog = async () => ({
+                    canceled: false,
+                    filePath: stubPath,
+                });
+            }, stubProjectPath);
+            // Same IPC the File > New Project... menu item (Ctrl+N) sends --
+            // the accelerator itself isn't reliably triggerable via
+            // page.keyboard.press() (see the search-panel entry above).
+            await electronApp.evaluate(({ BrowserWindow }) => {
+                const [win] = BrowserWindow.getAllWindows();
+                win.webContents.send('menu-command', { command: 'new-project' });
+            });
+            await page.waitForTimeout(1000);
+            // An "Unsaved Changes" confirmation opens first instead of the
+            // wizard directly -- observed even on a fresh launch with no
+            // prior edits, so always check for it rather than trying to
+            // predict whether it will appear.
+            const dontSaveButton = page.locator('button:has-text("Don\'t Save & Create")');
+            if (await dontSaveButton.count() > 0) {
+                await dontSaveButton.click();
+                await page.waitForTimeout(500);
+            }
+            await page.waitForSelector('h2#wizard-title', { timeout: 8000 });
+            // Scope all lookups to the wizard dialog: earlier tabs stay
+            // mounted-but-hidden in the DOM (see CLAUDE.md's Tab Lifecycle
+            // note), so an unscoped `button:has-text("Next")` can match a
+            // stale button elsewhere on the page and hang waiting for it to
+            // become actionable.
+            const wizard = page.locator('[aria-labelledby="wizard-title"]');
+            await wizard.locator('#project-name').fill('My Visual Novel');
+            await wizard.locator('button:has-text("Browse...")').click();
+            await page.waitForFunction(
+                () => (document.querySelector('#project-dir'))?.value?.length > 0
+            );
+            await wizard.locator('button:has-text("Next")').click();
+            await page.waitForSelector('h3:has-text("Game Resolution")', { timeout: 5000 });
+            await page.waitForTimeout(400);
+        },
+        teardown: async (page) => {
+            // Close without creating anything -- no project should actually be
+            // written to disk as a side effect of a docs screenshot capture.
+            await page.click('button[aria-label="Close dialog"]');
+            await page.waitForSelector('h2#wizard-title', { state: 'detached', timeout: 5000 });
         },
     },
 
@@ -449,7 +538,7 @@ async function ensureDir(dir) {
     await fs.mkdir(dir, { recursive: true });
 }
 
-async function launchApp(productionSettings, extraArgs = []) {
+async function launchApp(productionSettings, extraArgs = [], settingsOverride = {}) {
     const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
     // Always suppress the legacy-migration modal: it fires on an async main-process
     // check whose timing isn't fixed like the tutorial modal's, so it can pop up at
@@ -459,6 +548,7 @@ async function launchApp(productionSettings, extraArgs = []) {
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
         legacyMigrationChecked: true,
+        ...settingsOverride,
     });
     const app = await electron.launch({
         args: [APP_ENTRY, ...extraArgs],
@@ -515,7 +605,7 @@ async function main() {
 
     // --- All other screenshots with a loaded project ---
     console.log('');
-    const electronApp = await launchApp(productionSettings, ['--project', PROJECT_PATH]);
+    const electronApp = await launchApp(productionSettings, ['--project', PROJECT_PATH], { renpyPath: FAKE_RENPY_SDK });
     const page = await getMainPage(electronApp);
 
     let captured = 0;
@@ -527,14 +617,20 @@ async function main() {
         const num = String(captured + failed + 1).padStart(2);
         process.stdout.write(`  [${num}] ${entry.filename.padEnd(40)} `);
         try {
-            if (entry.setup) await entry.setup(page);
+            if (entry.setup) await entry.setup(page, electronApp);
             await page.screenshot({ path: path.join(OUT_DIR, entry.filename) });
-            if (entry.teardown) await entry.teardown(page);
+            if (entry.teardown) await entry.teardown(page, electronApp);
             captured++;
             console.log('ok');
         } catch (err) {
             failed++;
             console.log(`FAILED: ${err.message.split('\n')[0]}`);
+            // A failed setup/teardown can leave a modal open (its own teardown
+            // never ran), which would otherwise cascade into every later
+            // capture failing too. Best-effort recovery: dismiss whatever's on
+            // top before moving to the next entry.
+            await page.keyboard.press('Escape').catch(() => {});
+            await page.keyboard.press('Escape').catch(() => {});
         }
     }
 

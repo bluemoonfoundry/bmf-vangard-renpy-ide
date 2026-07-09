@@ -46,6 +46,8 @@ You are working on the climactic confrontation in Chapter 5. To test it, you hav
 
 Press `Ctrl+Shift+G` (`Cmd+Shift+G` on macOS), or click the Warp button in the toolbar -- the target icon sitting next to the Run button. A label picker appears, listing every label in your project. Select one, and the IDE launches your game directly at that label. No title screen. No clicking through earlier scenes. You land exactly where you need to be.
 
+![The Warp to Label picker, fuzzy-filtered to "stage" and listing matching labels from the project](/warp-to-label-modal.png)
+
 Behind the scenes, the IDE uses Ren'Py's `--warp` command-line flag. It resolves the label to a `filename.rpy:line_number` target format and passes it directly to the engine. Ren'Py also skips the main menu and splashscreen automatically during a warp, so you land in-scene without delay.
 
 The label picker supports fuzzy search, so you do not need to remember exact label names. Start typing a few letters -- `conf` to find `chapter5_confrontation`, for instance -- and the list narrows instantly. This is the same picker used by the Go-to-Label command (`Ctrl+G`) on the canvases, so if you already know that search interface, Warp to Label will feel immediately familiar.
