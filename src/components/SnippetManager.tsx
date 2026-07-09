@@ -10,11 +10,14 @@
  * `onUpdateUserSnippets`; launches `UserSnippetModal` for add/edit/delete.
  */
 
-import React from 'react';
-import type { UserSnippet } from '@/types';
+import React, { useState } from 'react';
+import type { SnippetCategory, UserSnippet } from '@/types';
 import CopyButton from './CopyButton';
 import SnippetGridView from './SnippetGridView';
 import { useSnippetLoader } from '@/hooks/useSnippetLoader';
+import { validateSnippetPack } from '@/lib/snippetSchema';
+import { mergeImportedCategories } from '@/lib/snippetPackMerge';
+import { logger } from '@/lib/logger';
 
 interface SnippetManagerProps {
     userSnippets?: UserSnippet[];
@@ -31,7 +34,72 @@ const SnippetManager: React.FC<SnippetManagerProps> = ({
     onDeleteSnippet,
     projectRootPath
 }) => {
-    const { categories, isLoading, error, reload } = useSnippetLoader({ projectRootPath });
+    const { categories, isLoading, error, warnings, reload } = useSnippetLoader({ projectRootPath });
+    const [isImporting, setIsImporting] = useState(false);
+    const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    const handleImportPack = async () => {
+        setImportStatus(null);
+        if (!window.electronAPI?.importSnippetPack) {
+            setImportStatus({ type: 'error', message: 'Snippet pack import is not available in this build.' });
+            return;
+        }
+
+        setIsImporting(true);
+        try {
+            const picked = await window.electronAPI.importSnippetPack();
+            if (picked.canceled) return;
+            if (!picked.success || !picked.content) {
+                setImportStatus({ type: 'error', message: picked.error ?? 'Failed to read the selected file.' });
+                return;
+            }
+
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(picked.content);
+            } catch (parseError) {
+                const message = parseError instanceof Error ? parseError.message : String(parseError);
+                setImportStatus({ type: 'error', message: `Invalid JSON: ${message}` });
+                return;
+            }
+
+            const validation = validateSnippetPack(parsed, picked.filePath ?? 'imported pack');
+            if (!validation.valid) {
+                const extra = validation.errors.length > 1 ? ` (+${validation.errors.length - 1} more)` : '';
+                setImportStatus({ type: 'error', message: `Invalid snippet pack: ${validation.errors[0]}${extra}` });
+                return;
+            }
+
+            let existingCategories: SnippetCategory[] = [];
+            const existingRaw = await window.electronAPI.readUserGlobalSnippets?.();
+            if (existingRaw) {
+                try {
+                    const existingParsed = JSON.parse(existingRaw);
+                    const existingValidation = validateSnippetPack(existingParsed, 'custom.json');
+                    if (existingValidation.valid && existingValidation.data) {
+                        existingCategories = existingValidation.data.categories;
+                    }
+                } catch (err) {
+                    logger.warn('Existing custom.json could not be parsed; importing into a fresh file:', err);
+                }
+            }
+
+            const merged = mergeImportedCategories(existingCategories, validation.data!.categories);
+            const writeResult = await window.electronAPI.writeUserGlobalSnippets?.(
+                JSON.stringify({ version: '1.0', categories: merged }, null, 2)
+            );
+            if (!writeResult?.success) {
+                setImportStatus({ type: 'error', message: writeResult?.error ?? 'Failed to save imported snippets.' });
+                return;
+            }
+
+            const importedCount = validation.data!.categories.reduce((sum, c) => sum + c.snippets.length, 0);
+            setImportStatus({ type: 'success', message: `Imported ${importedCount} snippet${importedCount === 1 ? '' : 's'}.` });
+            await reload();
+        } finally {
+            setIsImporting(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -99,28 +167,59 @@ const SnippetManager: React.FC<SnippetManagerProps> = ({
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-primary">Snippet Library</h3>
-                    <button
-                        onClick={reload}
-                        disabled={isLoading}
-                        className="px-3 py-1 text-xs font-semibold text-accent hover:text-accent-hover border border-accent rounded-md hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                        title="Reload snippets from all sources"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleImportPack}
+                            disabled={isImporting}
+                            className="px-3 py-1 text-xs font-semibold text-accent hover:text-accent-hover border border-accent rounded-md hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Import a shared snippet pack JSON file into your global snippets"
                         >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        {isLoading ? 'Loading...' : 'Reload'}
-                    </button>
+                            {isImporting ? 'Importing...' : 'Import Pack...'}
+                        </button>
+                        <button
+                            onClick={reload}
+                            disabled={isLoading}
+                            className="px-3 py-1 text-xs font-semibold text-accent hover:text-accent-hover border border-accent rounded-md hover:bg-accent/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                            title="Reload snippets from all sources"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {isLoading ? 'Loading...' : 'Reload'}
+                        </button>
+                    </div>
                 </div>
+
+                {importStatus && (
+                    <div className={`mb-3 p-2 rounded text-xs ${
+                        importStatus.type === 'success'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                    }`}>
+                        {importStatus.message}
+                    </div>
+                )}
 
                 {error && (
                     <div className="mb-3 p-2 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">
                         <strong>Error loading snippets:</strong> {error}
+                    </div>
+                )}
+
+                {warnings.length > 0 && (
+                    <div className="mb-3 p-2 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs">
+                        <strong>Some snippet files were skipped due to invalid content:</strong>
+                        <ul className="list-disc list-inside mt-1 space-y-0.5">
+                            {warnings.map((warning, i) => (
+                                <li key={i}>{warning}</li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 

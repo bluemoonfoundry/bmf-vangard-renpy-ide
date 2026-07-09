@@ -110,6 +110,12 @@ export interface MockElectronAPI {
   path: {
     join: Mock<(...paths: string[]) => Promise<string>>;
   };
+
+  // Snippet pack import/export
+  readUserGlobalSnippets: Mock<() => Promise<string | null>>;
+  writeUserGlobalSnippets: Mock<(content: string) => Promise<{ success: boolean; error?: string }>>;
+  exportSnippetPack: Mock<(suggestedFileName: string, content: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>>;
+  importSnippetPack: Mock<() => Promise<{ success: boolean; filePath?: string; content?: string; canceled?: boolean; error?: string }>>;
 }
 
 /**
@@ -178,6 +184,12 @@ export function createMockElectronAPI(): MockElectronAPI {
     path: {
       join: vi.fn().mockImplementation((...paths: string[]) => Promise.resolve(paths.join('/'))),
     },
+
+    // Snippet pack import/export
+    readUserGlobalSnippets: vi.fn().mockResolvedValue(null),
+    writeUserGlobalSnippets: vi.fn().mockResolvedValue({ success: true }),
+    exportSnippetPack: vi.fn().mockResolvedValue({ success: false, canceled: true }),
+    importSnippetPack: vi.fn().mockResolvedValue({ success: false, canceled: true }),
   };
 }
 

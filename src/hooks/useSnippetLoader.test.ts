@@ -8,12 +8,12 @@ describe('useSnippetLoader', () => {
 
   beforeEach(() => {
     api = installElectronAPI();
-    api.getUserDataPath.mockResolvedValue('/mock/userdata');
     api.path.join.mockImplementation((...parts: string[]) =>
       Promise.resolve(parts.join('/'))
     );
     api.fileExists.mockResolvedValue(false);
     api.readFile.mockResolvedValue('');
+    api.readUserGlobalSnippets.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -52,10 +52,7 @@ describe('useSnippetLoader', () => {
         { name: 'Custom Category', snippets: [{ title: 'My Snippet', description: 'Desc', code: '# custom' }] },
       ],
     });
-    api.fileExists.mockImplementation((path: string) =>
-      Promise.resolve(path.includes('custom.json'))
-    );
-    api.readFile.mockResolvedValue(customJson);
+    api.readUserGlobalSnippets.mockResolvedValue(customJson);
 
     const { result } = renderHook(() => useSnippetLoader());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -85,37 +82,24 @@ describe('useSnippetLoader', () => {
     expect(categoryNames).toContain('Project Category');
   });
 
-  it('falls back to built-in snippets when getUserDataPath throws', async () => {
-    api.getUserDataPath.mockRejectedValue(new Error('IPC error'));
+  it('falls back to built-in snippets when readUserGlobalSnippets throws', async () => {
+    api.readUserGlobalSnippets.mockRejectedValue(new Error('IPC error'));
     const { result } = renderHook(() => useSnippetLoader());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     // Should still have built-in categories
     expect(result.current.categories.length).toBeGreaterThan(0);
   });
 
-  it('sets error when built-in categories is corrupted', async () => {
-    // We simulate this by having getUserDataPath throw AND readFile throw
-    // so the outer try/catch is hit. We cannot easily corrupt the JSON import
-    // so we test the outer error path by making the built-in loading fail.
-    // The safest test is: even on failure, categories fall back to built-ins.
-    api.getUserDataPath.mockRejectedValue(new Error('fatal'));
-    const { result } = renderHook(() => useSnippetLoader());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    // categories is either built-in or empty — must not throw
-    expect(Array.isArray(result.current.categories)).toBe(true);
-  });
-
   it('reload() re-triggers loading', async () => {
     const { result } = renderHook(() => useSnippetLoader());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    const callsBefore = api.getUserDataPath.mock.calls.length;
+    const callsBefore = api.readUserGlobalSnippets.mock.calls.length;
 
     await act(async () => {
       await result.current.reload();
     });
 
-    // getUserDataPath should have been called again
-    expect(api.getUserDataPath.mock.calls.length).toBeGreaterThan(callsBefore);
+    expect(api.readUserGlobalSnippets.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 
   it('merges same-named categories from multiple sources', async () => {
@@ -128,10 +112,7 @@ describe('useSnippetLoader', () => {
         },
       ],
     });
-    api.fileExists.mockImplementation((path: string) =>
-      Promise.resolve(path.includes('custom.json'))
-    );
-    api.readFile.mockResolvedValue(sharedCatJson);
+    api.readUserGlobalSnippets.mockResolvedValue(sharedCatJson);
 
     const { result } = renderHook(() => useSnippetLoader());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -143,13 +124,41 @@ describe('useSnippetLoader', () => {
     expect(titles).toContain('Extra Snippet');
   });
 
-  it('ignores invalid JSON in snippet file gracefully', async () => {
+  it('ignores invalid JSON in a project snippet file gracefully', async () => {
     api.fileExists.mockResolvedValue(true);
     api.readFile.mockResolvedValue('{ not valid json }');
 
-    const { result } = renderHook(() => useSnippetLoader());
+    const { result } = renderHook(() => useSnippetLoader({ projectRootPath: '/project/my-vn' }));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     // Should still return built-in categories
     expect(result.current.categories.length).toBeGreaterThan(0);
+  });
+
+  it('surfaces a warning (not a silent failure) when a snippet file has invalid JSON', async () => {
+    api.readUserGlobalSnippets.mockResolvedValue('{ not valid json }');
+
+    const { result } = renderHook(() => useSnippetLoader());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.warnings.length).toBeGreaterThan(0);
+    expect(result.current.warnings[0]).toContain('invalid JSON');
+  });
+
+  it('surfaces a warning with the offending field when a snippet file fails schema validation', async () => {
+    api.readUserGlobalSnippets.mockResolvedValue(
+      JSON.stringify({ categories: [{ name: 'Broken', snippets: [{ title: '' }] }] })
+    );
+
+    const { result } = renderHook(() => useSnippetLoader());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.warnings.some((w) => w.includes('snippets[0].title'))).toBe(true);
+    // The malformed file is skipped, but built-ins still load.
+    expect(result.current.categories.length).toBeGreaterThan(0);
+  });
+
+  it('has no warnings when all snippet files are valid', async () => {
+    api.fileExists.mockResolvedValue(false);
+    const { result } = renderHook(() => useSnippetLoader());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.warnings).toEqual([]);
   });
 });

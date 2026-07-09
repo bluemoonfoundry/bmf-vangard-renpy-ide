@@ -93,6 +93,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchInProject: (options) => ipcRenderer.invoke('project:search', options),
   // --- Dialogs ---
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSaveDialog', options),
+  // --- Snippet pack import/export ---
+  readUserGlobalSnippets: () => ipcRenderer.invoke('snippets:readUserGlobal'),
+  writeUserGlobalSnippets: (content) => ipcRenderer.invoke('snippets:writeUserGlobal', content),
+  exportSnippetPack: (suggestedFileName, content) => ipcRenderer.invoke('snippets:exportPack', suggestedFileName, content),
+  importSnippetPack: () => ipcRenderer.invoke('snippets:importPack'),
   // --- Secure API key access ---
   loadApiKeys: () => ipcRenderer.invoke('app:load-api-keys'),
   saveApiKey: (provider, key) => ipcRenderer.invoke('app:save-api-key', provider, key),
