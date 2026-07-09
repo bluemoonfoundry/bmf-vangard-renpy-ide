@@ -90,3 +90,16 @@
 html.image-lightbox-active {
   overflow: hidden;
 }
+
+/* Story Elements sidebar tab table: narrow, centered icon column matching
+   the actual icon-strip UI, rather than a full-width text column. */
+.story-elements-tab-table td:first-child {
+  width: 40px;
+  text-align: center;
+}
+
+.story-elements-tab-table svg {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+}
