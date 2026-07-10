@@ -62,3 +62,7 @@ docs/marketing/broll/
 # Generated VO audio from docs/marketing/generate_vo.js -- regenerable, and
 # ElevenLabs output may be subject to per-account usage terms.
 docs/marketing/vo/
+
+# Rough assembly cut from docs/marketing/assemble_reel.js -- regenerable draft,
+# not the final edited sizzle reel.
+docs/marketing/assembly/
