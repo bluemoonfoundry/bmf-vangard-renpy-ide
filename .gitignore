@@ -50,3 +50,7 @@ website/.vitepress/cache
 # Playwright
 playwright-report/
 e2e/test-results/
+
+# Raw b-roll footage from docs/capture_broll.js -- regenerable pre-edit clips,
+# not a versioned deliverable.
+docs/marketing/broll/
