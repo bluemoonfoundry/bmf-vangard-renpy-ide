@@ -72,7 +72,17 @@ if (!['position', 'content'].includes(VO_MATCH_MODE)) {
 const MUSIC_TRACK_RAW = getArg('--music') ?? process.env.MUSIC_TRACK ?? null;
 const MUSIC_TRACK = MUSIC_TRACK_RAW ? path.resolve(ROOT, MUSIC_TRACK_RAW) : null;
 const MUSIC_BASE_VOLUME = 0.35; // level under silent beats (intro lead-in, divider cards, montage, outro tail)
-const MUSIC_DUCK_MULT = 0.3; // additional multiplier under VO -- effective ~0.1
+// Ducking is done with sidechaincompress (music compressed against the VO
+// mix as the trigger) rather than manually toggling volume=enable at each
+// VO placement's start/end -- that approach stepped the volume instantly at
+// the boundary, which is audible as a click/stutter. Sidechain compression
+// has built-in attack/release ramps, so the duck fades smoothly in and out
+// and reacts to the real VO envelope (natural mid-line pauses too) instead
+// of a fixed window.
+const DUCK_THRESHOLD = 0.05; // VO level (linear) above which ducking engages
+const DUCK_RATIO = 10; // higher = more aggressive duck once past threshold
+const DUCK_ATTACK_MS = 120; // fade-down time when VO starts
+const DUCK_RELEASE_MS = 600; // fade-back-up time when VO stops
 
 const WIDTH = 1920;
 const HEIGHT = 1080;
@@ -439,19 +449,22 @@ async function main() {
         }
     }
 
-    // Continuous background bed at MUSIC_BASE_VOLUME, multiplied down to
-    // ~MUSIC_BASE_VOLUME*MUSIC_DUCK_MULT during every VO placement so it
-    // "swells" in the silent beats (intro lead-in, divider cards, montage,
-    // outro tail) without competing with narration elsewhere.
-    const duckFilters = audioPlacements
-        .map(p => `volume=enable='between(t,${p.startSeconds.toFixed(3)},${(p.startSeconds + p.duration).toFixed(3)})':volume=${MUSIC_DUCK_MULT}`)
-        .join(',');
-    const musicFilter = musicInputIndex !== null
-        ? `[${musicInputIndex}]atrim=0:${totalDuration},asetpts=PTS-STARTPTS,volume=${MUSIC_BASE_VOLUME}${duckFilters ? ',' + duckFilters : ''},afade=t=in:st=0:d=1.5,afade=t=out:st=${Math.max(totalDuration - 2, 0)}:d=2[music];`
-        : '';
+    // voMix = silence base + every VO line at its placement (no music yet).
+    const voMixLabels = ['[0]', ...audioPlacements.map((_, i) => `[a${i}]`)];
+    const voMixFilter = `${voMixLabels.join('')}amix=inputs=${voMixLabels.length}:duration=first:dropout_transition=0:normalize=0[voMix]`;
 
-    const mixLabels = ['[0]', ...audioPlacements.map((_, i) => `[a${i}]`), ...(musicInputIndex !== null ? ['[music]'] : [])];
-    const filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${musicFilter}${mixLabels.join('')}amix=inputs=${mixLabels.length}:duration=first:dropout_transition=0:normalize=0[aout]`;
+    let filterComplex;
+    if (musicInputIndex !== null) {
+        // Music at a flat base volume, faded in/out at the very ends; ducked
+        // against voMix as the sidechain trigger so it fades down smoothly
+        // whenever VO is present and back up (the "swell") when it isn't,
+        // reacting to the real VO envelope instead of fixed time windows.
+        const musicPrep = `[${musicInputIndex}]atrim=0:${totalDuration},asetpts=PTS-STARTPTS,volume=${MUSIC_BASE_VOLUME},afade=t=in:st=0:d=1.5,afade=t=out:st=${Math.max(totalDuration - 2, 0)}:d=2[musicPrep]`;
+        const duck = `[musicPrep][voMix]sidechaincompress=threshold=${DUCK_THRESHOLD}:ratio=${DUCK_RATIO}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}:makeup=1[duckedMusic]`;
+        filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${voMixFilter};${musicPrep};${duck};[voMix][duckedMusic]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
+    } else {
+        filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${voMixFilter.replace('[voMix]', '[aout]')}`;
+    }
     ffArgs.push('-filter_complex', filterComplex, '-map', '[aout]', '-t', String(totalDuration), audioTrackPath);
     await run(ffArgs);
 
