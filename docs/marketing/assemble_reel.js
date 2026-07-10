@@ -50,6 +50,16 @@ const VO_DIR = path.join(__dirname, 'vo');
 const OUT_DIR = getArg('--out') ?? path.join(__dirname, 'assembly');
 const WORK_DIR = path.join(OUT_DIR, 'segments');
 
+// position: match VO lines to timeline slots by their index in the script's
+// tables (fast, but breaks if a row is inserted/removed/reordered upstream).
+// content: match by the script's ID column instead, which survives reordering
+// -- see sizzle-reel-script.md's "ID column" note.
+const VO_MATCH_MODE = getArg('--vo-match') ?? 'position';
+if (!['position', 'content'].includes(VO_MATCH_MODE)) {
+    console.error(`--vo-match must be "position" or "content", got "${VO_MATCH_MODE}"`);
+    process.exit(1);
+}
+
 const WIDTH = 1920;
 const HEIGHT = 1080;
 const FPS = 30;
@@ -188,53 +198,53 @@ function buildTimeline(vo) {
             id: 'intro-card',
             kind: 'card',
             text: 'Vangard Studio',
-            duration: 3 + vo('01').duration + vo('02').duration,
+            duration: 3 + vo({ pos: '01', id: 'hook' }).duration + vo({ pos: '02', id: 'product-intro' }).duration,
             audio: [
-                { line: vo('01'), offset: 3 },
-                { line: vo('02'), offset: 3 + vo('01').duration },
+                { line: vo({ pos: '01', id: 'hook' }), offset: 3 },
+                { line: vo({ pos: '02', id: 'product-intro' }), offset: 3 + vo({ pos: '01', id: 'hook' }).duration },
             ],
         },
         {
             id: 'canvas-tour',
             kind: 'broll',
             clipIds: ['01-canvas-tour-project', '02-canvas-tour-flow', '03-canvas-tour-choices'],
-            duration: vo('03').duration,
-            audio: [{ line: vo('03'), offset: 0 }],
+            duration: vo({ pos: '03', id: 'canvas-tour' }).duration,
+            audio: [{ line: vo({ pos: '03', id: 'canvas-tour' }), offset: 0 }],
         },
         {
             id: 'diagnostics',
             kind: 'broll',
             clipIds: ['04-diagnostics'],
-            duration: vo('04').duration,
-            audio: [{ line: vo('04'), offset: 0 }],
+            duration: vo({ pos: '04', id: 'diagnostics' }).duration,
+            audio: [{ line: vo({ pos: '04', id: 'diagnostics' }), offset: 0 }],
         },
         {
             id: 'editor',
             kind: 'broll',
             clipIds: ['05-editor-autocomplete'],
-            duration: vo('05').duration,
-            audio: [{ line: vo('05'), offset: 0 }],
+            duration: vo({ pos: '05', id: 'editor' }).duration,
+            audio: [{ line: vo({ pos: '05', id: 'editor' }), offset: 0 }],
         },
         {
             id: 'scene-composer',
             kind: 'broll',
             clipIds: ['06-scene-composer'],
-            duration: vo('06').duration,
-            audio: [{ line: vo('06'), offset: 0 }],
+            duration: vo({ pos: '06', id: 'scene-composer' }).duration,
+            audio: [{ line: vo({ pos: '06', id: 'scene-composer' }), offset: 0 }],
         },
         {
             id: 'warp-to-label',
             kind: 'broll',
             clipIds: ['07-warp-to-label'],
-            duration: vo('07').duration,
-            audio: [{ line: vo('07'), offset: 0 }],
+            duration: vo({ pos: '07', id: 'warp-to-label' }).duration,
+            audio: [{ line: vo({ pos: '07', id: 'warp-to-label' }), offset: 0 }],
         },
         {
             id: 'still-renpy',
             kind: 'broll',
             clipIds: ['08-real-renpy-file'],
-            duration: vo('08').duration,
-            audio: [{ line: vo('08'), offset: 0 }],
+            duration: vo({ pos: '08', id: 'still-renpy' }).duration,
+            audio: [{ line: vo({ pos: '08', id: 'still-renpy' }), offset: 0 }],
         },
         {
             id: 'divider-writers',
@@ -247,8 +257,8 @@ function buildTimeline(vo) {
             id: 'writers',
             kind: 'broll',
             clipIds: ['09-writers-character-manager', '10-writers-variables'],
-            duration: vo('09').duration,
-            audio: [{ line: vo('09'), offset: 0 }],
+            duration: vo({ pos: '09', id: 'writers' }).duration,
+            audio: [{ line: vo({ pos: '09', id: 'writers' }), offset: 0 }],
         },
         {
             id: 'divider-artists',
@@ -261,8 +271,8 @@ function buildTimeline(vo) {
             id: 'artists',
             kind: 'broll',
             clipIds: ['11-artists-image-maps', '12-artists-audio-editor'],
-            duration: vo('10').duration,
-            audio: [{ line: vo('10'), offset: 0 }],
+            duration: vo({ pos: '10', id: 'artists' }).duration,
+            audio: [{ line: vo({ pos: '10', id: 'artists' }), offset: 0 }],
         },
         {
             id: 'divider-developers',
@@ -275,8 +285,8 @@ function buildTimeline(vo) {
             id: 'developers',
             kind: 'broll',
             clipIds: ['13-developers-statistics', '14-developers-search'],
-            duration: vo('11').duration,
-            audio: [{ line: vo('11'), offset: 0 }],
+            duration: vo({ pos: '11', id: 'developers' }).duration,
+            audio: [{ line: vo({ pos: '11', id: 'developers' }), offset: 0 }],
         },
         // Silent feature montage -- reserved for a music swell per the script;
         // stays silent here since no track has been licensed yet.
@@ -296,8 +306,8 @@ function buildTimeline(vo) {
             id: 'outro-card',
             kind: 'card',
             text: 'Vangard Studio — Free on Itch.io',
-            duration: vo('12').duration + 2,
-            audio: [{ line: vo('12'), offset: 0 }],
+            duration: vo({ pos: '12', id: 'outro' }).duration + 2,
+            audio: [{ line: vo({ pos: '12', id: 'outro' }), offset: 0 }],
         },
     ];
 }
@@ -310,9 +320,19 @@ async function main() {
 
     const manifest = JSON.parse(await fs.readFile(path.join(BROLL_DIR, 'manifest.json'), 'utf8'));
     const timingRaw = JSON.parse(await fs.readFile(path.join(VO_DIR, 'timing-summary.json'), 'utf8'));
-    const vo = (num) => {
-        const entry = timingRaw[Number(num) - 1];
-        if (!entry?.filename) throw new Error(`No timing entry for VO line ${num} -- rerun generate_vo.js`);
+    // ref is { pos, id } -- buildTimeline() passes both for every line, and
+    // this picks whichever one VO_MATCH_MODE says to trust.
+    const vo = (ref) => {
+        const entry = VO_MATCH_MODE === 'content'
+            ? timingRaw.find(t => t.id === ref.id)
+            : timingRaw[Number(ref.pos) - 1];
+        if (!entry?.filename) {
+            const key = VO_MATCH_MODE === 'content' ? `id "${ref.id}"` : `position ${ref.pos}`;
+            const hint = VO_MATCH_MODE === 'content'
+                ? ' -- check the script\'s ID column has this row tagged'
+                : '';
+            throw new Error(`No timing entry for VO line at ${key}${hint} -- rerun generate_vo.js`);
+        }
         return { file: path.join(VO_DIR, entry.filename), duration: entry.durationSeconds, text: entry.text };
     };
 

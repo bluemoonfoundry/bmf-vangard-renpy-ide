@@ -87,7 +87,10 @@ async function listVoices() {
 // Parse the locked script's VO tables -- extracts one entry per non-silent
 // row, across every table in the doc (v2 splits the script into several
 // "### Section" tables, one per cue group, not a single table like v1).
-// Table format (see sizzle-reel-script.md): "| Time | VO (narrator) | On-screen / visual cue |"
+// Table format (see sizzle-reel-script.md): either the current
+// "| Time | ID | VO (narrator) | On-screen / visual cue |" (4 columns -- ID
+// is "-" for silent rows), or the older 3-column format without an ID
+// column, for backward compatibility.
 // ---------------------------------------------------------------------------
 async function parseScriptLines() {
     const md = await fs.readFile(SCRIPT_MD, 'utf8');
@@ -102,11 +105,11 @@ async function parseScriptLines() {
 
         const cols = line.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
         if (cols.length < 2) continue;
-        const [time, vo] = cols;
+        const [time, id, vo] = cols.length >= 4 ? cols : [cols[0], null, cols[1]];
         if (vo.startsWith('*(silent') || vo === '') continue;
         // Strip the wrapping quotes the script uses around VO lines.
         const text = vo.replace(/^"|"$/g, '');
-        rows.push({ time, text });
+        rows.push({ time, id: id && id !== '-' ? id : null, text });
     }
     return rows;
 }
@@ -153,7 +156,7 @@ async function main() {
     if (hasFlag('--dry-run')) {
         const rows = await parseScriptLines();
         console.log(`\nParsed ${rows.length} VO line(s) from ${SCRIPT_MD}:\n`);
-        rows.forEach((r, i) => console.log(`  [${String(i + 1).padStart(2, '0')}] ${r.time.padEnd(12)} "${r.text}"`));
+        rows.forEach((r, i) => console.log(`  [${String(i + 1).padStart(2, '0')}] ${(r.id ?? '').padEnd(16)} ${r.time.padEnd(12)} "${r.text}"`));
         return;
     }
 
@@ -176,18 +179,18 @@ async function main() {
     const summary = [];
     let failed = 0;
     for (let i = 0; i < rows.length; i++) {
-        const { time, text } = rows[i];
+        const { time, id, text } = rows[i];
         const num = String(i + 1).padStart(2, '0');
         const filename = `${num}-${slugifyTime(time)}.mp3`;
-        process.stdout.write(`  [${num}] ${time.padEnd(12)} "${text.slice(0, 50)}${text.length > 50 ? '...' : ''}" `);
+        process.stdout.write(`  [${num}] ${(id ?? '').padEnd(16)} ${time.padEnd(12)} "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}" `);
         try {
             const { audioBuffer, durationSeconds } = await generateLine(VOICE_ID, text);
             await fs.writeFile(path.join(OUT_DIR, filename), audioBuffer);
-            summary.push({ time, filename, durationSeconds, text });
+            summary.push({ time, id, filename, durationSeconds, text });
             console.log(`ok (${durationSeconds?.toFixed(2) ?? '?'}s) -> ${filename}`);
         } catch (err) {
             failed++;
-            summary.push({ time, filename: null, durationSeconds: null, text, error: err.message });
+            summary.push({ time, id, filename: null, durationSeconds: null, text, error: err.message });
             console.log(`FAILED: ${err.message.split('\n')[0]}`);
         }
     }
