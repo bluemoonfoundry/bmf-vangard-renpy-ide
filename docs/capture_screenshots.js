@@ -464,10 +464,22 @@ const SCREENSHOTS = [
     },
     {
         filename: 'artist-audio-tab.png',
-        description: 'Audio tab',
+        description: 'Audio Editor View with equalizer visualization playing',
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Audio');
+            await page.waitForTimeout(600);
+            // Double-click opens the Audio Editor View (equalizer, seek bar,
+            // play/pause) -- a single click only toggles multi-select, which
+            // is why this screenshot previously showed an empty player.
+            await page.dblclick('div[title*="sample-12s.mp3"]');
+            await page.waitForSelector('h2:has-text("sample-12s.mp3")', { timeout: 8000 });
+            await page.click('button[aria-label="Play"]');
+            // Let the equalizer animate for a bit so the canvas isn't just flat bars.
+            await page.waitForTimeout(1000);
+        },
+        teardown: async (page) => {
+            await page.click('button[aria-label="Pause"]').catch(() => {});
         },
     },
     {
