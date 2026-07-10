@@ -14,6 +14,7 @@
     "build:debug": "vite build --mode development",
     "capture-screenshots": "node docs/capture_screenshots.js",
     "capture-broll": "node docs/capture_broll.js",
+    "generate-vo": "node docs/marketing/generate_vo.js",
     "docs:dev": "npm --prefix website run dev",
     "docs:build": "npm --prefix website run build",
     "preview": "vite preview",

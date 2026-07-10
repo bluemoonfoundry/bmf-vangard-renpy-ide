@@ -15,6 +15,10 @@ coverage
 *.local
 .claude/
 
+# Local secrets (e.g. ELEVENLABS_API_KEY for docs/marketing/generate_vo.js)
+.env
+docs/marketing/.env
+
 # Demo project runtime artifacts
 DemoProject/game/cache/
 DemoProject/game/saves/
@@ -54,3 +58,7 @@ e2e/test-results/
 # Raw b-roll footage from docs/capture_broll.js -- regenerable pre-edit clips,
 # not a versioned deliverable.
 docs/marketing/broll/
+
+# Generated VO audio from docs/marketing/generate_vo.js -- regenerable, and
+# ElevenLabs output may be subject to per-account usage terms.
+docs/marketing/vo/
