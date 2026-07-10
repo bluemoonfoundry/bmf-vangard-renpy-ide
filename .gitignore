@@ -66,3 +66,7 @@ docs/marketing/vo/
 # Rough assembly cut from docs/marketing/assemble_reel.js -- regenerable draft,
 # not the final edited sizzle reel.
 docs/marketing/assembly/
+
+# Background music for the sizzle reel -- local-only, not redistributed via
+# the repo (licensing not confirmed for redistribution).
+docs/marketing/music/

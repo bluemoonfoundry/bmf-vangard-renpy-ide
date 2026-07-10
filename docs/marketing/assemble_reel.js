@@ -6,12 +6,18 @@
  * capture_broll.js) and docs/marketing/vo/*.mp3 into a rough assembly cut of
  * the sizzle reel, using vo/timing-summary.json for per-line VO duration and
  * broll/manifest.json for where each feature's footage sits in the take.
- * This is a DRAFT cut for reviewing pacing, not a final edit -- it has no
- * music (the script's silent beats stay silent), and the intro/divider/outro
- * cards are plain black-background placeholders, not final branding.
+ * This is a DRAFT cut for reviewing pacing, not a final edit -- the
+ * intro/divider/outro cards are plain black-background placeholders, not
+ * final branding.
  *
  * Usage:
- *   node docs/marketing/assemble_reel.js [--out docs/marketing/assembly]
+ *   node docs/marketing/assemble_reel.js [--out docs/marketing/assembly] [--music /path/to/track.mp3]
+ *
+ * Background music (optional): pass --music, or set MUSIC_TRACK (env or
+ * docs/marketing/.env). Plays continuously, ducked under every VO line and
+ * back up to full "swell" volume in the silent beats (intro lead-in, divider
+ * cards, montage, outro tail). Loops if shorter than the draft, trimmed if
+ * longer. Skipped entirely if not configured.
  *
  * Requirements:
  *   ffmpeg on PATH, or set FFMPEG_PATH (env or docs/marketing/.env, same
@@ -59,6 +65,14 @@ if (!['position', 'content'].includes(VO_MATCH_MODE)) {
     console.error(`--vo-match must be "position" or "content", got "${VO_MATCH_MODE}"`);
     process.exit(1);
 }
+
+// Background music is optional and local-only (docs/marketing/music/ is
+// gitignored -- licensing for redistribution isn't confirmed). Skipped
+// entirely if not configured.
+const MUSIC_TRACK_RAW = getArg('--music') ?? process.env.MUSIC_TRACK ?? null;
+const MUSIC_TRACK = MUSIC_TRACK_RAW ? path.resolve(ROOT, MUSIC_TRACK_RAW) : null;
+const MUSIC_BASE_VOLUME = 0.35; // level under silent beats (intro lead-in, divider cards, montage, outro tail)
+const MUSIC_DUCK_MULT = 0.3; // additional multiplier under VO -- effective ~0.1
 
 const WIDTH = 1920;
 const HEIGHT = 1080;
@@ -402,10 +416,11 @@ async function main() {
     console.log(`Total draft duration: ${totalDuration.toFixed(2)}s`);
 
     // --- Build the audio track: silence base + each VO line delayed to its
-    //     segment's (overlap-adjusted) start time, mixed together. ---
+    //     segment's (overlap-adjusted) start time, mixed together, plus an
+    //     optional background music bed ducked under VO. ---
     console.log('Building audio track...');
     const audioPlacements = timeline.flatMap((segment, i) =>
-        segment.audio.map(a => ({ file: a.line.file, startSeconds: startTimes[i] + a.offset }))
+        segment.audio.map(a => ({ file: a.line.file, startSeconds: startTimes[i] + a.offset, duration: a.line.duration }))
     );
     const audioTrackPath = path.join(OUT_DIR, 'audio-track.m4a');
     const ffArgs = ['-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo:d=${totalDuration}`];
@@ -413,8 +428,30 @@ async function main() {
     const delayed = audioPlacements.map((p, i) =>
         `[${i + 1}]adelay=${Math.round(p.startSeconds * 1000)}|${Math.round(p.startSeconds * 1000)}[a${i}]`
     );
-    const mixInputs = ['[0]', ...audioPlacements.map((_, i) => `[a${i}]`)].join('');
-    const filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${mixInputs}amix=inputs=${audioPlacements.length + 1}:duration=first:dropout_transition=0[aout]`;
+
+    let musicInputIndex = null;
+    if (MUSIC_TRACK) {
+        if (!existsSync(MUSIC_TRACK)) {
+            console.warn(`  Music track not found at ${MUSIC_TRACK} -- continuing without music.`);
+        } else {
+            musicInputIndex = audioPlacements.length + 1;
+            ffArgs.push('-stream_loop', '-1', '-i', MUSIC_TRACK);
+        }
+    }
+
+    // Continuous background bed at MUSIC_BASE_VOLUME, multiplied down to
+    // ~MUSIC_BASE_VOLUME*MUSIC_DUCK_MULT during every VO placement so it
+    // "swells" in the silent beats (intro lead-in, divider cards, montage,
+    // outro tail) without competing with narration elsewhere.
+    const duckFilters = audioPlacements
+        .map(p => `volume=enable='between(t,${p.startSeconds.toFixed(3)},${(p.startSeconds + p.duration).toFixed(3)})':volume=${MUSIC_DUCK_MULT}`)
+        .join(',');
+    const musicFilter = musicInputIndex !== null
+        ? `[${musicInputIndex}]atrim=0:${totalDuration},asetpts=PTS-STARTPTS,volume=${MUSIC_BASE_VOLUME}${duckFilters ? ',' + duckFilters : ''},afade=t=in:st=0:d=1.5,afade=t=out:st=${Math.max(totalDuration - 2, 0)}:d=2[music];`
+        : '';
+
+    const mixLabels = ['[0]', ...audioPlacements.map((_, i) => `[a${i}]`), ...(musicInputIndex !== null ? ['[music]'] : [])];
+    const filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${musicFilter}${mixLabels.join('')}amix=inputs=${mixLabels.length}:duration=first:dropout_transition=0:normalize=0[aout]`;
     ffArgs.push('-filter_complex', filterComplex, '-map', '[aout]', '-t', String(totalDuration), audioTrackPath);
     await run(ffArgs);
 
@@ -424,7 +461,9 @@ async function main() {
     await run(['-i', videoTrackPath, '-i', audioTrackPath, '-c:v', 'copy', '-c:a', 'aac', '-shortest', finalPath]);
 
     console.log(`\nDraft cut written to: ${finalPath}`);
-    console.log('Reminder: silent beats have no music yet, and the intro/divider/outro cards are placeholders -- both need the video editor pass noted in the sizzle reel issue.');
+    console.log(musicInputIndex !== null
+        ? 'Reminder: the intro/divider/outro cards are still placeholders -- needs the video editor pass noted in the sizzle reel issue.'
+        : 'Reminder: no music track configured (--music or MUSIC_TRACK), and the intro/divider/outro cards are placeholders -- both need the video editor pass noted in the sizzle reel issue.');
 }
 
 main().catch(err => {
