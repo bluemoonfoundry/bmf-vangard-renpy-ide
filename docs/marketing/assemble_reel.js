@@ -96,7 +96,7 @@ async function renderClip(ss, available, duration, outPath) {
         '-t', String(Math.max(duration, 0.1)),
         '-vf', vf,
         '-an',
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '20',
         outPath,
     ]);
 }
@@ -115,7 +115,7 @@ async function renderCard(text, duration, outPath, fontSize = 64) {
         // collides with a Windows drive letter (C:/...) -- escape it.
         '-vf', `drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${text}':fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=(h-text_h)/2`,
         '-an',
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '20',
         outPath,
     ]);
 }
@@ -168,7 +168,7 @@ async function concatWithCrossfade(segmentPaths, durations, transitionDuration, 
         ...inputs,
         '-filter_complex', filterParts.join(';'),
         '-map', '[vout]',
-        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '20',
         outPath,
     ]);
     return { totalDuration, startTimes };
