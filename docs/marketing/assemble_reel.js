@@ -2,13 +2,13 @@
 /**
  * assemble_reel.js
  *
- * Stitches docs/marketing/broll/*.webm and docs/marketing/vo/*.mp3 into a
- * rough assembly cut of the sizzle reel, using vo/timing-summary.json for
- * per-line VO duration. This is a DRAFT cut for reviewing pacing, not a
- * final edit -- it has no music (the script's two silent beats stay silent),
- * no transitions, and the closing "Vangard Studio / Free on Itch.io" card
- * (1:10-1:18, never captured as app footage -- see sizzle-reel-script.md) is
- * a plain placeholder title card, not final branding.
+ * Stitches docs/marketing/broll/broll-master.webm (one continuous take, see
+ * capture_broll.js) and docs/marketing/vo/*.mp3 into a rough assembly cut of
+ * the sizzle reel, using vo/timing-summary.json for per-line VO duration and
+ * broll/manifest.json for where each feature's footage sits in the take.
+ * This is a DRAFT cut for reviewing pacing, not a final edit -- it has no
+ * music (the script's silent beats stay silent), and the intro/divider/outro
+ * cards are plain black-background placeholders, not final branding.
  *
  * Usage:
  *   node docs/marketing/assemble_reel.js [--out docs/marketing/assembly]
@@ -45,6 +45,7 @@ const getArg = (flag) => {
 };
 
 const BROLL_DIR = path.join(__dirname, 'broll');
+const MASTER_VIDEO = path.join(BROLL_DIR, 'broll-master.webm');
 const VO_DIR = path.join(__dirname, 'vo');
 const OUT_DIR = getArg('--out') ?? path.join(__dirname, 'assembly');
 const WORK_DIR = path.join(OUT_DIR, 'segments');
@@ -52,115 +53,18 @@ const WORK_DIR = path.join(OUT_DIR, 'segments');
 const WIDTH = 1920;
 const HEIGHT = 1080;
 const FPS = 30;
+const TRANSITION_DURATION = 0.5; // crossfade length between every top-level segment
 
 // ---------------------------------------------------------------------------
-// Timeline manifest -- maps each script cue to its captured b-roll clip(s)
-// and (if any) VO line. Order matters: this is playback order.
-// ---------------------------------------------------------------------------
-function buildTimeline(timingByFile) {
-    const vo = (filename) => {
-        const entry = timingByFile[filename];
-        if (!entry) throw new Error(`No timing entry for VO file ${filename} -- rerun generate_vo.js`);
-        return { file: path.join(VO_DIR, filename), duration: entry.durationSeconds, text: entry.text };
-    };
-
-    return [
-        // 0:00-0:03: silent lead-in, first 3s of the same clip vo-01 continues from.
-        {
-            id: '00-intro-silent',
-            sources: [{ file: path.join(BROLL_DIR, '01-code-chaos.webm'), ss: 0 }],
-            targetDuration: 3,
-            audio: null,
-        },
-        {
-            id: '01-vo',
-            sources: [{ file: path.join(BROLL_DIR, '01-code-chaos.webm'), ss: 3 }],
-            targetDuration: vo('01-0-03-0-11.mp3').duration,
-            audio: vo('01-0-03-0-11.mp3'),
-        },
-        {
-            id: '02-vo',
-            sources: [{ file: path.join(BROLL_DIR, '02-project-canvas-reveal.webm'), ss: 0 }],
-            targetDuration: vo('02-0-11-0-16.mp3').duration,
-            audio: vo('02-0-11-0-16.mp3'),
-        },
-        {
-            id: '03-vo',
-            sources: [
-                { file: path.join(BROLL_DIR, '03-canvas-tour-project.webm'), ss: 0 },
-                { file: path.join(BROLL_DIR, '03-canvas-tour-flow.webm'), ss: 0 },
-                { file: path.join(BROLL_DIR, '03-canvas-tour-choices.webm'), ss: 0 },
-            ],
-            targetDuration: vo('03-0-16-0-25.mp3').duration,
-            audio: vo('03-0-16-0-25.mp3'),
-        },
-        {
-            id: '04-vo',
-            sources: [{ file: path.join(BROLL_DIR, '04-diagnostics.webm'), ss: 0 }],
-            targetDuration: vo('04-0-25-0-32.mp3').duration,
-            audio: vo('04-0-25-0-32.mp3'),
-        },
-        {
-            id: '05-vo',
-            sources: [{ file: path.join(BROLL_DIR, '05-editor-autocomplete.webm'), ss: 0 }],
-            targetDuration: vo('05-0-32-0-39.mp3').duration,
-            audio: vo('05-0-32-0-39.mp3'),
-        },
-        {
-            id: '06-vo',
-            sources: [{ file: path.join(BROLL_DIR, '06-scene-composer.webm'), ss: 0 }],
-            targetDuration: vo('06-0-39-0-47.mp3').duration,
-            audio: vo('06-0-39-0-47.mp3'),
-        },
-        {
-            id: '07-vo',
-            sources: [{ file: path.join(BROLL_DIR, '07-warp-to-label.webm'), ss: 0 }],
-            targetDuration: vo('07-0-47-0-53.mp3').duration,
-            audio: vo('07-0-47-0-53.mp3'),
-        },
-        {
-            id: '08-vo',
-            sources: [{ file: path.join(BROLL_DIR, '08-real-renpy-file.webm'), ss: 0 }],
-            targetDuration: vo('08-0-53-1-00.mp3').duration,
-            audio: vo('08-0-53-1-00.mp3'),
-        },
-        // 1:00-1:10: silent feature montage -- reserved for a music swell per
-        // the script; stays silent here since no track has been licensed yet.
-        {
-            id: '09-montage-silent',
-            sources: [
-                { file: path.join(BROLL_DIR, '09-feature-montage-translation.webm'), ss: 0 },
-                { file: path.join(BROLL_DIR, '09-feature-montage-snippets.webm'), ss: 0 },
-                { file: path.join(BROLL_DIR, '09-feature-montage-menu-constructor.webm'), ss: 0 },
-                { file: path.join(BROLL_DIR, '09-feature-montage-drafting-mode.webm'), ss: 0 },
-            ],
-            targetDuration: 10,
-            audio: null,
-        },
-        // 1:10-1:18: closing card -- no app footage exists for this cue (see
-        // header comment), so it's a plain placeholder, not final branding.
-        {
-            id: '10-titlecard',
-            sources: null,
-            titlecard: true,
-            targetDuration: vo('09-1-10-1-18.mp3').duration,
-            audio: vo('09-1-10-1-18.mp3'),
-        },
-    ];
-}
-
-// ---------------------------------------------------------------------------
-// ffmpeg/ffprobe helpers
+// ffmpeg helpers
 // ---------------------------------------------------------------------------
 /** Playwright's Electron recordVideo output has no duration in its webm
- *  header (ffprobe's format=duration reports "N/A" for every clip this
- *  pipeline produces -- confirmed empirically, not just on short ones), so
- *  probing the container is unreliable. Decode the file instead and read the
- *  last "time=" ffmpeg prints -- that's the actual playable length. */
+ *  header (ffprobe's format=duration reports "N/A"), so probing the
+ *  container is unreliable. Decode the file instead and read the last
+ *  "time=" ffmpeg prints -- that's the actual playable length. */
 async function realDuration(file) {
     // ffmpeg exits 0 here even when it logs "File ended prematurely" -- the
-    // decode still completes over whatever frames exist, it just can't
-    // corroborate them against a (missing) container-level duration.
+    // decode still completes over whatever frames exist.
     const { stderr } = await execFileAsync(FFMPEG, ['-i', file, '-f', 'null', '-']).catch(e => e);
     const matches = [...(stderr || '').matchAll(/time=(\d+):(\d+):(\d+\.\d+)/g)];
     if (matches.length === 0) throw new Error(`Could not determine duration of ${file}`);
@@ -178,19 +82,18 @@ async function run(cmdArgs) {
 
 const SCALE_PAD = `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps=${FPS}`;
 
-/** Renders one source clip, trimmed/padded to exactly `duration` seconds,
- *  normalized to WIDTHxHEIGHT@FPS, video-only. Pads with a frozen last frame
- *  (tpad) if the source runs out before `duration` is reached. */
-async function renderClip(source, duration, outPath) {
-    const available = (await realDuration(source.file)) - source.ss;
+/** Renders a slice of the master b-roll take, trimmed/padded to exactly
+ *  `duration` seconds, normalized to WIDTHxHEIGHT@FPS, video-only. Pads with
+ *  a frozen last frame (tpad) if the slice runs out before `duration`. */
+async function renderClip(ss, available, duration, outPath) {
     const shortfall = duration - available;
     const vf = shortfall > 0.05
         ? `${SCALE_PAD},tpad=stop_mode=clone:stop_duration=${shortfall.toFixed(3)}`
         : SCALE_PAD;
     await run([
-        '-ss', String(source.ss),
-        '-i', source.file,
-        '-t', String(duration),
+        '-ss', String(Math.max(ss, 0)),
+        '-i', MASTER_VIDEO,
+        '-t', String(Math.max(duration, 0.1)),
         '-vf', vf,
         '-an',
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
@@ -200,25 +103,32 @@ async function renderClip(source, duration, outPath) {
 
 // drawtext needs an explicit fontfile on this ffmpeg build -- it has no
 // fontconfig.conf, so the default fontconfig-based lookup errors out.
-const TITLE_CARD_FONT = process.env.TITLE_CARD_FONT || 'C:/Windows/Fonts/segoeui.ttf';
+const CARD_FONT = process.env.TITLE_CARD_FONT || 'C:/Windows/Fonts/segoeui.ttf';
 
-/** Renders a solid-color placeholder card with centered text. */
-async function renderTitleCard(duration, outPath) {
-    const text = 'Vangard Studio — Free on Itch.io';
+/** Renders a solid-color card with centered text -- used for the intro,
+ *  "For Writers/Artists/Developers" dividers, and the outro. */
+async function renderCard(text, duration, outPath, fontSize = 64) {
     await run([
         '-f', 'lavfi',
         '-i', `color=c=0x111318:s=${WIDTH}x${HEIGHT}:d=${duration}:r=${FPS}`,
         // ffmpeg's filter-option parser treats ':' as a delimiter, which
         // collides with a Windows drive letter (C:/...) -- escape it.
-        '-vf', `drawtext=fontfile='${TITLE_CARD_FONT.replace(/:/g, '\\:')}':text='${text}':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2`,
+        '-vf', `drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${text}':fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=(h-text_h)/2`,
         '-an',
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
         outPath,
     ]);
 }
 
-/** Concatenates already-rendered same-format clips via the concat demuxer. */
+/** Concatenates already-rendered same-format clips via the concat demuxer --
+ *  used for hard cuts between sub-clips *within* one top-level segment (e.g.
+ *  the three canvas-tour clips). Top-level segments are crossfaded instead;
+ *  see concatWithCrossfade. */
 async function concat(files, outPath) {
+    if (files.length === 1) {
+        await fs.copyFile(files[0], outPath);
+        return;
+    }
     const listPath = `${outPath}.txt`;
     const listContent = files.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join('\n');
     await fs.writeFile(listPath, listContent);
@@ -226,63 +136,252 @@ async function concat(files, outPath) {
     await fs.rm(listPath).catch(() => {});
 }
 
+/** Chains top-level segments together with a short crossfade dissolve at
+ *  each cut (xfade) instead of a hard cut, per the "transitions between
+ *  features" requirement. Returns the merged output's total duration and the
+ *  (overlap-adjusted) start time of each input segment on the merged
+ *  timeline, so the audio track can be placed to match. */
+async function concatWithCrossfade(segmentPaths, durations, transitionDuration, outPath) {
+    const startTimes = [0];
+    for (let i = 1; i < durations.length; i++) {
+        startTimes.push(startTimes[i - 1] + durations[i - 1] - transitionDuration);
+    }
+    const totalDuration = startTimes[startTimes.length - 1] + durations[durations.length - 1];
+
+    if (segmentPaths.length === 1) {
+        await fs.copyFile(segmentPaths[0], outPath);
+        return { totalDuration, startTimes };
+    }
+
+    const inputs = segmentPaths.flatMap(p => ['-i', p]);
+    const filterParts = [];
+    let prevLabel = '0:v';
+    let cumulative = durations[0];
+    for (let i = 1; i < segmentPaths.length; i++) {
+        const offset = cumulative - transitionDuration;
+        const outLabel = i === segmentPaths.length - 1 ? 'vout' : `v${i}`;
+        filterParts.push(`[${prevLabel}][${i}:v]xfade=transition=fade:duration=${transitionDuration}:offset=${offset.toFixed(3)}[${outLabel}]`);
+        prevLabel = outLabel;
+        cumulative += durations[i] - transitionDuration;
+    }
+    await run([
+        ...inputs,
+        '-filter_complex', filterParts.join(';'),
+        '-map', '[vout]',
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+        outPath,
+    ]);
+    return { totalDuration, startTimes };
+}
+
+// ---------------------------------------------------------------------------
+// Timeline -- one entry per top-level segment in playback order. `broll`
+// segments pull from MASTER_VIDEO via the (scale-corrected) manifest offsets
+// for their clipIds; `card` segments are rendered text-on-black. Each
+// segment can carry zero or more VO placements, positioned at an offset
+// *within* the segment (most have one at offset 0; the intro card holds two
+// lines back to back).
+// ---------------------------------------------------------------------------
+function buildTimeline(vo) {
+    return [
+        {
+            id: 'intro-card',
+            kind: 'card',
+            text: 'Vangard Studio',
+            duration: 3 + vo('01').duration + vo('02').duration,
+            audio: [
+                { line: vo('01'), offset: 3 },
+                { line: vo('02'), offset: 3 + vo('01').duration },
+            ],
+        },
+        {
+            id: 'canvas-tour',
+            kind: 'broll',
+            clipIds: ['01-canvas-tour-project', '02-canvas-tour-flow', '03-canvas-tour-choices'],
+            duration: vo('03').duration,
+            audio: [{ line: vo('03'), offset: 0 }],
+        },
+        {
+            id: 'diagnostics',
+            kind: 'broll',
+            clipIds: ['04-diagnostics'],
+            duration: vo('04').duration,
+            audio: [{ line: vo('04'), offset: 0 }],
+        },
+        {
+            id: 'editor',
+            kind: 'broll',
+            clipIds: ['05-editor-autocomplete'],
+            duration: vo('05').duration,
+            audio: [{ line: vo('05'), offset: 0 }],
+        },
+        {
+            id: 'scene-composer',
+            kind: 'broll',
+            clipIds: ['06-scene-composer'],
+            duration: vo('06').duration,
+            audio: [{ line: vo('06'), offset: 0 }],
+        },
+        {
+            id: 'warp-to-label',
+            kind: 'broll',
+            clipIds: ['07-warp-to-label'],
+            duration: vo('07').duration,
+            audio: [{ line: vo('07'), offset: 0 }],
+        },
+        {
+            id: 'still-renpy',
+            kind: 'broll',
+            clipIds: ['08-real-renpy-file'],
+            duration: vo('08').duration,
+            audio: [{ line: vo('08'), offset: 0 }],
+        },
+        {
+            id: 'divider-writers',
+            kind: 'card',
+            text: 'For Writers',
+            duration: 2.5,
+            audio: [],
+        },
+        {
+            id: 'writers',
+            kind: 'broll',
+            clipIds: ['09-writers-character-manager', '10-writers-variables'],
+            duration: vo('09').duration,
+            audio: [{ line: vo('09'), offset: 0 }],
+        },
+        {
+            id: 'divider-artists',
+            kind: 'card',
+            text: 'For Artists',
+            duration: 2.5,
+            audio: [],
+        },
+        {
+            id: 'artists',
+            kind: 'broll',
+            clipIds: ['11-artists-image-maps', '12-artists-audio-editor'],
+            duration: vo('10').duration,
+            audio: [{ line: vo('10'), offset: 0 }],
+        },
+        {
+            id: 'divider-developers',
+            kind: 'card',
+            text: 'For Developers',
+            duration: 2.5,
+            audio: [],
+        },
+        {
+            id: 'developers',
+            kind: 'broll',
+            clipIds: ['13-developers-statistics', '14-developers-search'],
+            duration: vo('11').duration,
+            audio: [{ line: vo('11'), offset: 0 }],
+        },
+        // Silent feature montage -- reserved for a music swell per the script;
+        // stays silent here since no track has been licensed yet.
+        {
+            id: 'montage-silent',
+            kind: 'broll',
+            clipIds: [
+                '15-feature-montage-translation',
+                '16-feature-montage-snippets',
+                '17-feature-montage-menu-constructor',
+                '18-feature-montage-drafting-mode',
+            ],
+            duration: 10,
+            audio: [],
+        },
+        {
+            id: 'outro-card',
+            kind: 'card',
+            text: 'Vangard Studio — Free on Itch.io',
+            duration: vo('12').duration + 2,
+            audio: [{ line: vo('12'), offset: 0 }],
+        },
+    ];
+}
+
 async function main() {
-    if (!existsSync(BROLL_DIR) || !existsSync(VO_DIR)) {
-        console.error('Missing docs/marketing/broll/ or docs/marketing/vo/ -- run capture-broll and generate-vo first.');
+    if (!existsSync(MASTER_VIDEO) || !existsSync(VO_DIR)) {
+        console.error('Missing docs/marketing/broll/broll-master.webm or docs/marketing/vo/ -- run capture-broll and generate-vo first.');
         process.exit(1);
     }
 
+    const manifest = JSON.parse(await fs.readFile(path.join(BROLL_DIR, 'manifest.json'), 'utf8'));
     const timingRaw = JSON.parse(await fs.readFile(path.join(VO_DIR, 'timing-summary.json'), 'utf8'));
-    const timingByFile = Object.fromEntries(timingRaw.filter(t => t.filename).map(t => [t.filename, t]));
+    const vo = (num) => {
+        const entry = timingRaw[Number(num) - 1];
+        if (!entry?.filename) throw new Error(`No timing entry for VO line ${num} -- rerun generate_vo.js`);
+        return { file: path.join(VO_DIR, entry.filename), duration: entry.durationSeconds, text: entry.text };
+    };
+
+    // capture_broll.js records each clip's start/end as wall-clock seconds
+    // since the recording began. Playwright's video encoder falls behind
+    // wall-clock time under load (confirmed empirically: a single clip's
+    // real decoded video came out ~40% shorter than the wall-clock time it
+    // was open for), so those raw offsets don't line up with real positions
+    // in broll-master.webm. The drift measured consistently proportional
+    // across clips in testing (not compounding per-clip), so correct for it
+    // with a single global scale factor: real total duration of the master
+    // recording, divided by the latest wall-clock offset in the manifest.
+    console.log('Measuring broll-master.webm real duration for offset correction...');
+    const masterRealDuration = await realDuration(MASTER_VIDEO);
+    const wallClockTotal = Math.max(...Object.values(manifest).map(m => m.end));
+    const scaleFactor = masterRealDuration / wallClockTotal;
+    console.log(`  Real duration: ${masterRealDuration.toFixed(2)}s, wall-clock total: ${wallClockTotal.toFixed(2)}s, scale factor: ${scaleFactor.toFixed(3)}\n`);
+
+    const clipWindow = (clipId) => {
+        const entry = manifest[clipId];
+        if (!entry) throw new Error(`No manifest entry for clip "${clipId}" -- rerun capture_broll.js`);
+        return { start: entry.start * scaleFactor, end: entry.end * scaleFactor };
+    };
 
     await fs.mkdir(WORK_DIR, { recursive: true });
-    const timeline = buildTimeline(timingByFile);
+    const timeline = buildTimeline(vo);
 
-    console.log(`\nRendering ${timeline.length} segment(s) to ${WORK_DIR}\n`);
+    console.log(`Rendering ${timeline.length} top-level segment(s) to ${WORK_DIR}\n`);
 
-    const renderedVideoSegments = [];
-    let cursor = 0;
-    const audioPlacements = [];
+    const segmentPaths = [];
+    const segmentDurations = [];
 
     for (const segment of timeline) {
-        process.stdout.write(`  [${segment.id}] target ${segment.targetDuration.toFixed(2)}s `);
-
+        process.stdout.write(`  [${segment.id.padEnd(20)}] target ${segment.duration.toFixed(2)}s `);
         const segmentVideoPath = path.join(WORK_DIR, `${segment.id}.mp4`);
-        if (segment.titlecard) {
-            await renderTitleCard(segment.targetDuration, segmentVideoPath);
-        } else if (segment.sources.length === 1) {
-            await renderClip(segment.sources[0], segment.targetDuration, segmentVideoPath);
+
+        if (segment.kind === 'card') {
+            await renderCard(segment.text, segment.duration, segmentVideoPath);
         } else {
-            const share = segment.targetDuration / segment.sources.length;
+            const share = segment.duration / segment.clipIds.length;
             const subPaths = [];
-            for (let i = 0; i < segment.sources.length; i++) {
+            for (let i = 0; i < segment.clipIds.length; i++) {
+                const { start, end } = clipWindow(segment.clipIds[i]);
+                const available = Math.max(end - start, 0);
                 const subPath = path.join(WORK_DIR, `${segment.id}-${i}.mp4`);
-                await renderClip(segment.sources[i], share, subPath);
+                await renderClip(start, available, share, subPath);
                 subPaths.push(subPath);
             }
             await concat(subPaths, segmentVideoPath);
         }
-        renderedVideoSegments.push(segmentVideoPath);
 
-        if (segment.audio) {
-            audioPlacements.push({ file: segment.audio.file, startSeconds: cursor });
-        }
-        cursor += segment.targetDuration;
+        segmentPaths.push(segmentVideoPath);
+        segmentDurations.push(segment.duration);
         console.log('ok');
     }
 
-    const totalDuration = cursor;
-    console.log(`\nTotal draft duration: ${totalDuration.toFixed(2)}s\n`);
-
-    // --- Concatenate the picture-locked video track ---
+    // --- Crossfade the picture-locked video track ---
+    console.log('\nCrossfading video track...');
     const videoTrackPath = path.join(OUT_DIR, 'video-track.mp4');
-    console.log('Concatenating video track...');
-    await concat(renderedVideoSegments, videoTrackPath);
+    const { totalDuration, startTimes } = await concatWithCrossfade(segmentPaths, segmentDurations, TRANSITION_DURATION, videoTrackPath);
+    console.log(`Total draft duration: ${totalDuration.toFixed(2)}s`);
 
     // --- Build the audio track: silence base + each VO line delayed to its
-    //     segment's start time, mixed together. Silent beats stay silent. ---
-    const audioTrackPath = path.join(OUT_DIR, 'audio-track.m4a');
+    //     segment's (overlap-adjusted) start time, mixed together. ---
     console.log('Building audio track...');
+    const audioPlacements = timeline.flatMap((segment, i) =>
+        segment.audio.map(a => ({ file: a.line.file, startSeconds: startTimes[i] + a.offset }))
+    );
+    const audioTrackPath = path.join(OUT_DIR, 'audio-track.m4a');
     const ffArgs = ['-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo:d=${totalDuration}`];
     for (const p of audioPlacements) ffArgs.push('-i', p.file);
     const delayed = audioPlacements.map((p, i) =>
@@ -294,12 +393,12 @@ async function main() {
     await run(ffArgs);
 
     // --- Mux ---
-    const finalPath = path.join(OUT_DIR, 'sizzle-reel-draft.mp4');
     console.log('Muxing final draft...');
+    const finalPath = path.join(OUT_DIR, 'sizzle-reel-draft.mp4');
     await run(['-i', videoTrackPath, '-i', audioTrackPath, '-c:v', 'copy', '-c:a', 'aac', '-shortest', finalPath]);
 
     console.log(`\nDraft cut written to: ${finalPath}`);
-    console.log('Reminder: silent beats have no music yet, and the closing card is a placeholder -- both need the video editor pass noted in the sizzle reel issue.');
+    console.log('Reminder: silent beats have no music yet, and the intro/divider/outro cards are placeholders -- both need the video editor pass noted in the sizzle reel issue.');
 }
 
 main().catch(err => {

@@ -84,7 +84,9 @@ async function listVoices() {
 }
 
 // ---------------------------------------------------------------------------
-// Parse the locked script's VO table -- extracts one entry per non-silent row.
+// Parse the locked script's VO tables -- extracts one entry per non-silent
+// row, across every table in the doc (v2 splits the script into several
+// "### Section" tables, one per cue group, not a single table like v1).
 // Table format (see sizzle-reel-script.md): "| Time | VO (narrator) | On-screen / visual cue |"
 // ---------------------------------------------------------------------------
 async function parseScriptLines() {
@@ -93,9 +95,9 @@ async function parseScriptLines() {
     const rows = [];
     let inTable = false;
     for (const line of lines) {
-        if (line.startsWith('| Time |')) { inTable = true; continue; }
+        if (line.startsWith('| Time')) { inTable = true; continue; }
         if (inTable && line.startsWith('|---')) continue;
-        if (inTable && !line.startsWith('|')) break; // table ended
+        if (inTable && !line.startsWith('|')) { inTable = false; continue; } // this table ended, more may follow
         if (!inTable) continue;
 
         const cols = line.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
@@ -145,6 +147,13 @@ async function generateLine(voiceId, text) {
 async function main() {
     if (LIST_VOICES) {
         await listVoices();
+        return;
+    }
+
+    if (hasFlag('--dry-run')) {
+        const rows = await parseScriptLines();
+        console.log(`\nParsed ${rows.length} VO line(s) from ${SCRIPT_MD}:\n`);
+        rows.forEach((r, i) => console.log(`  [${String(i + 1).padStart(2, '0')}] ${r.time.padEnd(12)} "${r.text}"`));
         return;
     }
 
