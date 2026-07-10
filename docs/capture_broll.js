@@ -403,15 +403,21 @@ const CLIPS = [
         },
     },
     {
-        id: '15-feature-montage-translation',
-        time: '2:09-2:24 (part 1/4)',
-        description: 'Translation Dashboard',
-        durationMs: 2500,
+        id: '15-localization',
+        time: '2:09-2:19',
+        description: 'Translation Dashboard: language coverage cards, then click Generate Translations',
+        durationMs: 8000,
+        // DemoProject/game/tl/{spanish,french}/common.rpy seed real (partial)
+        // coverage data so this shows actual language cards + a file-breakdown
+        // row instead of the empty "no translations yet" state -- see those
+        // files' header comments for what's (and isn't) translated.
         setup: async (page) => {
             await waitForProjectReady(page);
             await page.click('button[aria-label="Translation Dashboard"]');
-            await page.waitForSelector('button:has-text("Generate Translations")', { timeout: 8000 });
-            await page.waitForTimeout(400);
+            await page.waitForSelector('button:has-text("spanish")', { timeout: 8000 });
+            await page.waitForTimeout(600);
+            await page.click('button:has-text("french")');
+            await page.waitForTimeout(1000);
         },
         teardown: async (page) => {
             await page.keyboard.press('Escape').catch(() => {});
@@ -419,7 +425,7 @@ const CLIPS = [
     },
     {
         id: '16-feature-montage-snippets',
-        time: '2:09-2:24 (part 2/4)',
+        time: '2:19-2:34 (part 1/3)',
         description: 'Code Snippets grid',
         durationMs: 2500,
         setup: async (page) => {
@@ -429,7 +435,7 @@ const CLIPS = [
     },
     {
         id: '17-feature-montage-menu-constructor',
-        time: '2:09-2:24 (part 3/4)',
+        time: '2:19-2:34 (part 2/3)',
         description: 'Menu Constructor',
         durationMs: 2500,
         setup: async (page) => {
@@ -445,7 +451,7 @@ const CLIPS = [
     },
     {
         id: '18-feature-montage-drafting-mode',
-        time: '2:09-2:24 (part 4/4)',
+        time: '2:19-2:34 (part 3/3)',
         description: 'Drafting Mode toggle',
         durationMs: 2500,
         setup: async (page) => {
@@ -458,7 +464,7 @@ const CLIPS = [
             await page.waitForSelector('button[aria-label="Disable Drafting Mode"]', { timeout: 5000 });
         },
     },
-    // NOTE: cold open (0:00-0:18) and the outro (2:24-2:32) are black title
+    // NOTE: cold open (0:00-0:18) and the outro (2:34-2:42) are black title
     // cards, not app footage -- built directly by assemble_reel.js, no clip here.
 ];
 

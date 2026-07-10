@@ -288,13 +288,19 @@ function buildTimeline(vo) {
             duration: vo({ pos: '11', id: 'developers' }).duration,
             audio: [{ line: vo({ pos: '11', id: 'developers' }), offset: 0 }],
         },
+        {
+            id: 'localization',
+            kind: 'broll',
+            clipIds: ['15-localization'],
+            duration: vo({ pos: '12', id: 'localization' }).duration,
+            audio: [{ line: vo({ pos: '12', id: 'localization' }), offset: 0 }],
+        },
         // Silent feature montage -- reserved for a music swell per the script;
         // stays silent here since no track has been licensed yet.
         {
             id: 'montage-silent',
             kind: 'broll',
             clipIds: [
-                '15-feature-montage-translation',
                 '16-feature-montage-snippets',
                 '17-feature-montage-menu-constructor',
                 '18-feature-montage-drafting-mode',
@@ -306,8 +312,8 @@ function buildTimeline(vo) {
             id: 'outro-card',
             kind: 'card',
             text: 'Vangard Studio — Free on Itch.io',
-            duration: vo({ pos: '12', id: 'outro' }).duration + 2,
-            audio: [{ line: vo({ pos: '12', id: 'outro' }), offset: 0 }],
+            duration: vo({ pos: '13', id: 'outro' }).duration + 2,
+            audio: [{ line: vo({ pos: '13', id: 'outro' }), offset: 0 }],
         },
     ];
 }

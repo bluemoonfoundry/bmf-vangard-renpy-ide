@@ -75,13 +75,14 @@ steps").
 |---|---|---|---|
 | 1:51–1:54 | - | *(silent)* | "For Developers" divider card, black background |
 | 1:54–2:09 | developers | "Get a full breakdown of your script — word counts, branch counts, playtime estimates — and find anything in the whole project in seconds." | Script Statistics panel → cut to global Search panel, a query typed in |
+| 2:09–2:19 | localization | "And when it's time to localize, Vangard tracks translation coverage for every language, and scaffolds new ones with a single click." | Translation Dashboard: language coverage cards → click Generate Translations |
 
 ### Feature montage + close
 
 | Time (rough) | ID | VO (narrator) | On-screen / visual cue |
 |---|---|---|---|
-| 2:09–2:24 | - | *(silent — music swell / feature montage)* | Quick cuts: Translation Dashboard, Snippets grid, Menu Constructor, Drafting Mode toggle |
-| 2:24–2:32 | outro | "Vangard Studio. Come build your story — and watch it come to life." | Outro card, black background: logo + "Free on Itch.io" + GitHub link, lingers to end |
+| 2:19–2:34 | - | *(silent — music swell / feature montage)* | Quick cuts: Snippets grid, Menu Constructor, Drafting Mode toggle |
+| 2:34–2:42 | outro | "Vangard Studio. Come build your story — and watch it come to life." | Outro card, black background: logo + "Free on Itch.io" + GitHub link, lingers to end |
 
 ## Notes for the VO service
 
