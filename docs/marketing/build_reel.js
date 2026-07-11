@@ -3,18 +3,24 @@
  * build_reel.js
  *
  * Orchestrates the sizzle reel pipeline end to end:
- *   1. generate_vo.js   -- VO audio from sizzle-reel-script.md
- *   2. capture_broll.js -- one continuous b-roll take against DemoProject
- *   3. assemble_reel.js -- slices + crossfades + cards -> draft cut
+ *   1. generate_vo.js       -- VO audio from sizzle-reel-script.md
+ *   2. capture_broll.js x2  -- broll-main.webm (--group main) and
+ *                               broll-montage.webm (--group montage),
+ *                               captured as two separate short takes rather
+ *                               than one long one -- see capture_broll.js's
+ *                               header comment for why (offset-correction
+ *                               drift on a long single take).
+ *   3. assemble_reel.js     -- slices + crossfades + cards -> draft cut
  *
  * Usage:
  *   node docs/marketing/build_reel.js --voice <voice_id> [options]
  *
  * Options (space-separated value, not --flag=value, matching the other
  * scripts in this pipeline):
- *   --steps vo,broll,assemble   Which steps to run, comma-separated, in this
+ *   --steps vo,broll-main,broll-montage,assemble
+ *                                Which steps to run, comma-separated, in this
  *                                order regardless of how you list them.
- *                                Default: all three.
+ *                                Default: all four.
  *   --voice <voice_id>          Required if the vo step runs. See
  *                                generate_vo.js --list-voices.
  *   --vo-match position|content Passed through to assemble_reel.js. Default
@@ -22,7 +28,7 @@
  *                                column" note for when to use content).
  *   --skip-if-exists            Skip a step if its main output already
  *                                exists (vo/timing-summary.json,
- *                                broll/broll-master.webm,
+ *                                broll/broll-{main,montage}.webm,
  *                                assembly/sizzle-reel-draft.mp4). Useful when
  *                                you've only changed a downstream step's
  *                                inputs and don't want to redo an expensive
@@ -34,9 +40,8 @@
  *   --continue-on-error         Run remaining steps even if one fails.
  *                                Default: stop at the first failure.
  *   --project /path             Passed through to capture_broll.js.
- *   --out /path                 Passed through to capture_broll.js and
- *                                assemble_reel.js (each still defaults to its
- *                                own docs/marketing/{broll,assembly} dir).
+ *   --out /path                 Passed through to assemble_reel.js (still
+ *                                defaults to its own docs/marketing/assembly).
  */
 
 import path from 'path';
@@ -55,7 +60,7 @@ const getArg = (flag) => {
 const hasFlag = (flag) => args.includes(flag);
 
 const DRY_RUN = hasFlag('--dry-run');
-const STEP_ORDER = ['vo', 'broll', 'assemble'];
+const STEP_ORDER = ['vo', 'broll-main', 'broll-montage', 'assemble'];
 const requestedSteps = DRY_RUN
     ? ['vo']
     : (getArg('--steps') ?? STEP_ORDER.join(',')).split(',').map(s => s.trim());
@@ -82,7 +87,8 @@ const CONTINUE_ON_ERROR = hasFlag('--continue-on-error');
 // Each step's primary output, checked for --skip-if-exists.
 const STEP_OUTPUT = {
     vo: path.join(DOCS_DIR, 'marketing', 'vo', 'timing-summary.json'),
-    broll: path.join(DOCS_DIR, 'marketing', 'broll', 'broll-master.webm'),
+    'broll-main': path.join(DOCS_DIR, 'marketing', 'broll', 'broll-main.webm'),
+    'broll-montage': path.join(DOCS_DIR, 'marketing', 'broll', 'broll-montage.webm'),
     assemble: path.join(DOCS_DIR, 'marketing', 'assembly', 'sizzle-reel-draft.mp4'),
 };
 
@@ -94,8 +100,9 @@ function buildStepArgs(step) {
             a.push('--voice', VOICE);
             return a;
         }
-        case 'broll': {
-            const a = [path.join(DOCS_DIR, 'capture_broll.js')];
+        case 'broll-main':
+        case 'broll-montage': {
+            const a = [path.join(DOCS_DIR, 'capture_broll.js'), '--group', step === 'broll-main' ? 'main' : 'montage'];
             if (PROJECT) a.push('--project', PROJECT);
             return a;
         }

@@ -10,11 +10,17 @@
  *
  * Usage:
  *   node docs/capture_broll.js [--project /path] [--out docs/marketing/broll]
+ *   node docs/capture_broll.js --group main      # everything except the
+ *                                                 # feature montage -> broll-main.webm
+ *   node docs/capture_broll.js --group montage   # just the montage clips,
+ *                                                 # as their own short take
+ *                                                 # (see MONTAGE_IDS below
+ *                                                 # for why) -> broll-montage.webm
  *   node docs/capture_broll.js --clip <id>   # record just one clip, for
  *                                             # testing its setup/selectors --
  *                                             # writes broll-test-<id>.webm
  *                                             # instead of touching the real
- *                                             # broll-master.webm/manifest.json
+ *                                             # manifest/output files
  *
  * Requirements:
  *   npm install --save-dev playwright
@@ -34,8 +40,21 @@
  * Each clip's setup/navigation is still real footage in the recording (a
  * settle time, not literally instant), so this script records where each
  * clip's "settled" state begins and ends on the shared timeline
- * (docs/marketing/broll/manifest.json) -- assemble_reel.js slices segments
- * out of the one recording by those offsets instead of using whole files.
+ * (docs/marketing/broll/manifest.json, one entry per clip, each recording
+ * which output file it belongs to) -- assemble_reel.js slices segments out
+ * of the relevant recording by those offsets instead of using whole files.
+ *
+ * Run as two separate --group takes (main, then montage) rather than one
+ * ungrouped run covering every clip: assemble_reel.js corrects each
+ * recording's offsets with a single global scale factor (Playwright's video
+ * encoder drifts from wall-clock time under load), and that correction
+ * degrades on a long recording where drift isn't perfectly uniform
+ * throughout -- confirmed empirically on a ~3min single take, where the
+ * error for clips deep into the recording exceeded ten seconds, enough to
+ * land on entirely the wrong clip's footage. Splitting into two shorter
+ * takes keeps each one's cumulative drift small. An ungrouped run (no
+ * --group) still works and produces one broll-master.webm, but only use it
+ * for a short CLIPS list where that drift risk doesn't apply.
  */
 
 import { _electron as electron } from 'playwright';
@@ -62,14 +81,44 @@ const getArg = (flag) => {
 
 const PROJECT_PATH = getArg('--project') ?? path.join(ROOT, 'DemoProject');
 const OUT_DIR       = getArg('--out')     ?? path.join(__dirname, 'marketing', 'broll');
-const ONLY_CLIP     = getArg('--clip'); // comma-separated ids also accepted
+const ONLY_CLIP     = getArg('--clip'); // comma-separated ids also accepted -- ad-hoc test run, doesn't touch the real manifest
+const GROUP         = getArg('--group'); // 'main' | 'montage' -- a real, permanent, named capture (see MONTAGE_IDS below)
+
+// The feature montage's clips (see sizzle-reel-script.md's silent montage
+// beat) are captured as their own short take instead of being folded into
+// the single long main take: a single global scale factor for offset
+// correction (see clipWindow in assemble_reel.js) works well for a ~2min
+// take, but broke down for a ~3min one -- drift isn't perfectly uniform
+// across a long recording, and by the time the montage clips (deep into a
+// long take) were reached, the correction was off by over ten seconds,
+// enough to land on the wrong clip's footage entirely. A short, separate
+// take for the montage keeps its own cumulative drift small.
+const MONTAGE_IDS = new Set([
+    '16-montage-screens',
+    '17-montage-images',
+    '18-montage-scene-compositions',
+    '19-montage-snippets',
+    '20-montage-menu-templates',
+    '21-montage-color-palette',
+    '22-montage-drafting-mode',
+]);
+if (GROUP && !['main', 'montage'].includes(GROUP)) {
+    console.error(`--group must be "main" or "montage", got "${GROUP}"`);
+    process.exit(1);
+}
 
 const VIDEO_SIZE = { width: 1920, height: 1080 };
 
 // Floor on how long each clip's settled feature state holds on screen before
 // moving to the next one, so quick actions (e.g. panCanvas) don't read as a
-// flash-cut in the final video.
+// flash-cut in the final video. Montage clips only need ~2.7s in the final
+// cut (19s split across 7 clips) and each already adds ~1.8s of flashMarker
+// overhead on top, so they get a shorter floor -- the video encoder was
+// observed to degrade badly (frames stop being captured at all, not just
+// falling behind) once a montage take ran past ~40-50s, and every second of
+// hold time here is a second closer to that cliff.
 const MIN_HOLD_MS = 4000;
+const MIN_HOLD_MS_MONTAGE = 1800;
 
 // Same stub SDK path as capture_screenshots.js -- points Settings > Ren'Py SDK
 // Directory at a real file so checkRenpyPath() passes (it only checks the file
@@ -130,6 +179,42 @@ async function clickCanvasTab(page, ariaLabel) {
 async function clickSidebarTab(page, tooltip) {
     await page.click(`[role="tablist"][aria-label="Story Elements"] button[aria-label="${tooltip}"]`);
     await page.waitForTimeout(400);
+}
+
+/** Flashes a solid, distinctive full-viewport color over the app for a beat,
+ *  then removes it -- burns an unmistakable marker into the recording at
+ *  this exact moment. Used between montage clips (see MONTAGE_IDS) instead
+ *  of relying on wall-clock-derived offsets to find clip boundaries: a
+ *  single global scale factor for wall-clock-to-real-video drift correction
+ *  (see assemble_reel.js) turned out to not be precise enough for clips this
+ *  short and tightly packed -- confirmed empirically, misaligned by more
+ *  than a full clip's width by the 4th of 7 montage clips. Detecting this
+ *  marker's real timestamp directly in the decoded video sidesteps that
+ *  drift-estimation problem entirely for the segments where it matters most
+ *  (the panel-focus vignette + burned-in label make any misalignment here
+ *  immediately obvious, unlike a plain b-roll cut). */
+async function flashMarker(page) {
+    // Force a couple of real paints before waiting -- appendChild alone
+    // doesn't guarantee the browser has actually composited a frame with the
+    // marker visible before the timer below starts, and if the video
+    // encoder's next capture lands before that first paint, the marker can
+    // go completely missing (confirmed: it happened to 2 of 6 markers in a
+    // 900ms-flash test with no rAF wait, with zero partial/dim frames of it
+    // anywhere in the recording -- not a threshold problem, the frame never
+    // existed).
+    await page.evaluate(() => {
+        const div = document.createElement('div');
+        div.id = '__broll_marker__';
+        div.style.cssText = 'position:fixed;inset:0;background:#ff00ff;z-index:2147483647;';
+        document.body.appendChild(div);
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    // 1.5s, not a quick flash -- same video-encoder frame-drop concern as
+    // above; longer markers are more expensive (each adds real recording
+    // time) but far more certain to survive.
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => document.getElementById('__broll_marker__')?.remove());
+    await page.waitForTimeout(300);
 }
 
 /** Slow, cinematic mouse drag across the canvas -- used to fake a "pan" since
@@ -424,36 +509,76 @@ const CLIPS = [
         },
     },
     {
-        id: '16-feature-montage-snippets',
-        time: '2:19-2:34 (part 1/3)',
+        // First montage clip after 15-localization, which leaves the
+        // Translation Dashboard open as the main content tab -- reset back
+        // to Project Canvas here so the montage doesn't open on that stale,
+        // unrelated screen (subsequent montage clips inherit this since the
+        // whole take is one continuous session; only sidebar tabs change).
+        id: '16-montage-screens',
+        time: '2:19-2:34 (part 1/7)',
+        description: 'Screens tab (reset to Project Canvas first)',
+        durationMs: 2600,
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickCanvasTab(page, 'Project Canvas');
+            await clickSidebarTab(page, 'Screens');
+        },
+    },
+    {
+        id: '17-montage-images',
+        time: '2:19-2:34 (part 2/7)',
+        description: 'Images tab',
+        durationMs: 2600,
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Images');
+        },
+    },
+    {
+        id: '18-montage-scene-compositions',
+        time: '2:19-2:34 (part 3/7)',
+        description: 'Scene Compositions tab',
+        durationMs: 2600,
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Scene Compositions');
+        },
+    },
+    {
+        id: '19-montage-snippets',
+        time: '2:19-2:34 (part 4/7)',
         description: 'Code Snippets grid',
-        durationMs: 2500,
+        durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Code Snippets');
         },
     },
     {
-        id: '17-feature-montage-menu-constructor',
-        time: '2:19-2:34 (part 2/3)',
-        description: 'Menu Constructor',
-        durationMs: 2500,
+        id: '20-montage-menu-templates',
+        time: '2:19-2:34 (part 5/7)',
+        description: 'Menu Templates tab',
+        durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Menu Templates');
-            await page.click('h2:has-text("Menu Templates") ~ button:has-text("+ New")');
-            await page.waitForSelector('[role="dialog"][aria-labelledby="menu-constructor-title"]', { timeout: 8000 });
-            await page.waitForTimeout(400);
-        },
-        teardown: async (page) => {
-            await page.click('[role="dialog"][aria-labelledby="menu-constructor-title"] button:has-text("Cancel")').catch(() => {});
         },
     },
     {
-        id: '18-feature-montage-drafting-mode',
-        time: '2:19-2:34 (part 3/3)',
+        id: '21-montage-color-palette',
+        time: '2:19-2:34 (part 6/7)',
+        description: 'Color Palette tab',
+        durationMs: 2600,
+        setup: async (page) => {
+            await waitForProjectReady(page);
+            await clickSidebarTab(page, 'Color Palette');
+        },
+    },
+    {
+        id: '22-montage-drafting-mode',
+        time: '2:19-2:34 (part 7/7)',
         description: 'Drafting Mode toggle',
-        durationMs: 2500,
+        durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickCanvasTab(page, 'Project Canvas');
@@ -532,18 +657,25 @@ async function main() {
 
     const productionSettings = loadProductionSettings();
     const onlyIds = ONLY_CLIP ? ONLY_CLIP.split(',').map(s => s.trim()) : null;
-    const clips = onlyIds ? CLIPS.filter(c => onlyIds.includes(c.id)) : CLIPS;
-    if (onlyIds && clips.length === 0) {
-        console.error(`No clip matches --clip "${ONLY_CLIP}"`);
+    let clips = CLIPS;
+    let outputFilename = 'broll-master.webm';
+    if (onlyIds) {
+        clips = CLIPS.filter(c => onlyIds.includes(c.id));
+        // A --clip run records only those clips, in their own file
+        // (broll-test-<ids>.webm) -- it can't "patch" a clip into an existing
+        // recording without re-recording everything after it, so it's for
+        // testing a clip's setup/selectors in isolation, not fixing one clip
+        // in place.
+        outputFilename = `broll-test-${onlyIds.join('_')}.webm`;
+    } else if (GROUP) {
+        clips = CLIPS.filter(c => MONTAGE_IDS.has(c.id) === (GROUP === 'montage'));
+        outputFilename = `broll-${GROUP}.webm`;
+    }
+    if (clips.length === 0) {
+        console.error(`No clips matched (--clip "${ONLY_CLIP}" / --group "${GROUP}")`);
         process.exit(1);
     }
 
-    // A --clip run records only those clips, in their own file
-    // (broll-test-<ids>.webm) -- it can't "patch" a clip into the full
-    // broll-master.webm recording without re-recording everything after it,
-    // so it's for testing a clip's setup/selectors in isolation, not for
-    // fixing one clip in place.
-    const outputFilename = onlyIds ? `broll-test-${onlyIds.join('_')}.webm` : 'broll-master.webm';
     console.log(`\nRecording ${clips.length} segment(s) in one continuous take -> ${outputFilename}\n`);
 
     const tempVideoDir = path.join(os.tmpdir(), `vangard-broll-${Date.now()}`);
@@ -559,7 +691,12 @@ async function main() {
         page = await getMainPage(electronApp);
         await waitForProjectReady(page);
 
-        for (const clip of clips) {
+        for (let i = 0; i < clips.length; i++) {
+            const clip = clips[i];
+            // See flashMarker's doc comment -- assemble_reel.js locates these
+            // in the decoded video to find real clip boundaries for the
+            // montage instead of trusting wall-clock-derived offsets.
+            if (GROUP === 'montage' && i > 0) await flashMarker(page);
             const num = String(captured + failed + 1).padStart(2);
             process.stdout.write(`  [${num}] ${clip.id.padEnd(34)} (${clip.time}) `);
             try {
@@ -574,13 +711,15 @@ async function main() {
                 if (clip.action) await clip.action(page, electronApp);
                 const elapsed = Date.now() - holdStart;
                 const remaining = Math.max(clip.durationMs - elapsed, 0);
-                await page.waitForTimeout(Math.max(remaining, MIN_HOLD_MS));
+                const minHold = GROUP === 'montage' ? MIN_HOLD_MS_MONTAGE : MIN_HOLD_MS;
+                await page.waitForTimeout(Math.max(remaining, minHold));
                 if (clip.teardown) await clip.teardown(page, electronApp);
                 const segmentEnd = (Date.now() - recordStart) / 1000;
 
                 manifest[clip.id] = {
                     start: Number(settledStart.toFixed(3)),
                     end: Number(segmentEnd.toFixed(3)),
+                    file: outputFilename,
                 };
                 captured++;
                 console.log(`ok (${settledStart.toFixed(2)}s-${segmentEnd.toFixed(2)}s)`);
@@ -610,12 +749,19 @@ async function main() {
 
     if (savedPath) {
         console.log(`\nRecording saved to ${savedPath}`);
-        // A --clip test run's manifest would only have that one clip's offsets
-        // in it -- writing it out would wipe the real manifest for every other
-        // clip, so only the full run updates manifest.json.
+        // A --clip test run writes its own broll-test-*.webm and is for
+        // trying out a clip's setup/selectors in isolation -- it shouldn't
+        // touch the real manifest at all. A --group (or full, ungrouped) run
+        // is a real capture: merge its entries into the existing manifest
+        // (each entry records which file it belongs to) rather than
+        // overwriting entries from a different group's run.
         if (!onlyIds) {
             const manifestPath = path.join(OUT_DIR, 'manifest.json');
-            await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+            const existing = existsSync(manifestPath)
+                ? JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+                : {};
+            const merged = { ...existing, ...manifest };
+            await fs.writeFile(manifestPath, JSON.stringify(merged, null, 2));
             console.log(`Manifest written to ${manifestPath}`);
         }
     } else {
