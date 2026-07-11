@@ -118,6 +118,14 @@ function slugifyTime(time) {
     return time.replace(/[^0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+// Filenames are keyed by the script's ID column (e.g. "hook", "diagnostics")
+// rather than the timestamp, so they're readable when manually aligning
+// clips in a video editor. Falls back to the timestamp slug for rows with no
+// ID (only possible with the older 3-column script table format).
+function slugifyId(id, time) {
+    return id ? id.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() : slugifyTime(time);
+}
+
 // ---------------------------------------------------------------------------
 // Generate one line's audio + alignment via the with-timestamps endpoint,
 // which returns character-level timing -- gives us the actual clip duration
@@ -181,7 +189,7 @@ async function main() {
     for (let i = 0; i < rows.length; i++) {
         const { time, id, text } = rows[i];
         const num = String(i + 1).padStart(2, '0');
-        const filename = `${num}-${slugifyTime(time)}.mp3`;
+        const filename = `${num}-${slugifyId(id, time)}.mp3`;
         process.stdout.write(`  [${num}] ${(id ?? '').padEnd(16)} ${time.padEnd(12)} "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}" `);
         try {
             const { audioBuffer, durationSeconds } = await generateLine(VOICE_ID, text);
@@ -197,7 +205,27 @@ async function main() {
 
     const summaryPath = path.join(OUT_DIR, 'timing-summary.json');
     await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
+
+    // Plain-text cue sheet for glancing at line order/duration/text while
+    // aligning clips by hand in a video editor -- timing-summary.json has
+    // the same data but isn't pleasant to read mid-edit.
+    const cueSheetPath = path.join(OUT_DIR, 'cue-sheet.csv');
+    const csvEscape = (s) => `"${String(s).replace(/"/g, '""')}"`;
+    const csvRows = [
+        ['#', 'id', 'script time', 'duration (s)', 'filename', 'text'].map(csvEscape).join(','),
+        ...summary.map((s, i) => [
+            String(i + 1).padStart(2, '0'),
+            s.id ?? '',
+            s.time,
+            s.durationSeconds?.toFixed(2) ?? '',
+            s.filename ?? '(failed)',
+            s.text,
+        ].map(csvEscape).join(',')),
+    ];
+    await fs.writeFile(cueSheetPath, csvRows.join('\n'));
+
     console.log(`\nTiming summary written to ${summaryPath}`);
+    console.log(`Cue sheet written to ${cueSheetPath}`);
     console.log(`Done: ${rows.length - failed} captured, ${failed} failed.`);
     if (failed > 0) process.exit(1);
 }

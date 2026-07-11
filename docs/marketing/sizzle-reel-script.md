@@ -93,14 +93,26 @@ steps").
 
 ## Next steps
 
-- [x] Regenerate VO via `generate_vo.js`
-- [x] Capture b-roll (`capture_broll.js`, one continuous take) and assemble a draft cut (`assemble_reel.js`)
-- [x] Orchestrate the three steps with `build_reel.js`
-- [ ] Editing this file alone is not enough to change the video: wording
-      tweaks to an existing line flow straight through, but adding/removing a
-      feature also means adding a matching clip to `capture_broll.js`'s
-      CLIPS array and wiring it into `assemble_reel.js`'s `buildTimeline()`
-      (with a matching ID here if using `--vo-match=content`)
-- [ ] Source/license background music for the silent beats
+**Workflow change:** the automated pipeline (`capture_broll.js` scripted
+Playwright capture + `assemble_reel.js` ffmpeg crossfade/duck assembly +
+`build_reel.js` orchestration) is retired in favor of manual editing --- VO
+sync drift and jarring auto-crossfades weren't worth debugging further.
+`generate_vo.js` is still used (it renders each VO line as an isolated clip,
+never live-captured alongside footage, which is the whole point), but app
+footage is now a manual screen recording, and final assembly happens by hand
+in real video editing software.
+
+- [x] Generate VO via `generate_vo.js` --- one `.mp3` per line in
+      `docs/marketing/vo/`, named by script ID (e.g. `04-diagnostics.mp3`),
+      with `cue-sheet.csv` (order/ID/duration/text) and
+      `timing-summary.json` (same data) alongside for reference while
+      aligning clips in the editor.
+- [ ] Screen-record the app footage yourself, section by section, following
+      this script's visual cues -- no need for one continuous take per
+      `capture_broll.js`'s old "main"/"montage" split; record however's
+      easiest to redo/reshoot a section.
+- [ ] Source/license background music for the silent beats (candidate:
+      `docs/marketing/music/ambient-technology-corporate.mp3`)
 - [ ] Replace the placeholder intro/divider/outro cards with real branding
-- [ ] Final edit pass in real video software
+- [ ] Align VO clips to footage, cut, duck music under VO, and do the final
+      edit pass in real video editing software
