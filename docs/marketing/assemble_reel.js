@@ -455,13 +455,19 @@ async function main() {
 
     let filterComplex;
     if (musicInputIndex !== null) {
+        // voMix feeds two independent downstream consumers (the sidechain
+        // trigger and the final mix) -- ffmpeg doesn't fan out a labeled
+        // stream to multiple filters implicitly, it needs an explicit split,
+        // otherwise only one consumer actually receives it (silently; no
+        // ffmpeg error) and the other effectively gets nothing.
+        const split = `[voMix]asplit=2[voMixOut][voMixTrigger]`;
         // Music at a flat base volume, faded in/out at the very ends; ducked
-        // against voMix as the sidechain trigger so it fades down smoothly
-        // whenever VO is present and back up (the "swell") when it isn't,
-        // reacting to the real VO envelope instead of fixed time windows.
+        // against voMixTrigger as the sidechain signal so it fades down
+        // smoothly whenever VO is present and back up (the "swell") when it
+        // isn't, reacting to the real VO envelope instead of fixed windows.
         const musicPrep = `[${musicInputIndex}]atrim=0:${totalDuration},asetpts=PTS-STARTPTS,volume=${MUSIC_BASE_VOLUME},afade=t=in:st=0:d=1.5,afade=t=out:st=${Math.max(totalDuration - 2, 0)}:d=2[musicPrep]`;
-        const duck = `[musicPrep][voMix]sidechaincompress=threshold=${DUCK_THRESHOLD}:ratio=${DUCK_RATIO}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}:makeup=1[duckedMusic]`;
-        filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${voMixFilter};${musicPrep};${duck};[voMix][duckedMusic]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
+        const duck = `[musicPrep][voMixTrigger]sidechaincompress=threshold=${DUCK_THRESHOLD}:ratio=${DUCK_RATIO}:attack=${DUCK_ATTACK_MS}:release=${DUCK_RELEASE_MS}:makeup=1[duckedMusic]`;
+        filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${voMixFilter};${split};${musicPrep};${duck};[voMixOut][duckedMusic]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
     } else {
         filterComplex = `${delayed.join(';')}${delayed.length ? ';' : ''}${voMixFilter.replace('[voMix]', '[aout]')}`;
     }
