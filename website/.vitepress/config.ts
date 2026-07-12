@@ -12,6 +12,8 @@ export default defineConfig({
   srcDir: '.',
   ignoreDeadLinks: false,
 
+  head: [['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }]],
+
   vite: {
     // Serves docs/images/*.png (the existing Playwright screenshot output
     // directory) at the site root, e.g. /welcome-screen.png, without moving
@@ -20,6 +22,9 @@ export default defineConfig({
   },
 
   themeConfig: {
+    logo: '/vangard-logo-nav.png',
+    siteTitle: false,
+
     nav: [
       { text: 'Guide', link: '/guide/welcome' },
       { text: 'Reference', link: '/reference/' },

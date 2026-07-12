@@ -1,30 +1,63 @@
 /**
  * Vangard Studio docs theme overrides.
  *
- * 1. Widen the center content column. VitePress's default theme hardcodes
- *    the doc content to max-width: 688px regardless of viewport, which
- *    leaves screenshots cramped into a narrow strip on wide monitors even
- *    though the left nav and right TOC columns are fixed-width.
+ * 1. Give the three-column doc layout (left nav / center content / right
+ *    TOC) a proportional 10% / 80% / 10% split instead of VitePress's
+ *    default fixed-pixel sidebar+aside with a narrow, capped center column.
+ *    --vp-layout-max-width is uncapped (100vw) so the split holds on any
+ *    monitor size rather than leaving dead margins past a fixed cap.
+ *    --vp-sidebar-width drives both the left nav's width AND every other
+ *    component's padding-left offset (VPNavBar/VPContent/VPLocalNav all key
+ *    off it), so overriding that one variable is enough for the left column.
+ *    The right TOC ("aside") has no equivalent variable -- its width is
+ *    hardcoded in VPDoc.vue's scoped styles -- so those selectors need
+ *    !important to win over the higher-specificity scoped rules (Vue scopes
+ *    a component's own <style> block by appending a data-v-* attribute
+ *    selector, which out-specifies an equal plain class selector here).
  * 2. Image lightbox (click-to-zoom) overlay styling.
  */
 
 :root {
-  --vp-layout-max-width: 1600px;
+  --vp-layout-max-width: 100vw;
+}
+
+@media (min-width: 960px) {
+  :root {
+    --vp-sidebar-width: 10vw;
+  }
 }
 
 @media (min-width: 1280px) {
+  .VPDoc .aside {
+    max-width: 10vw !important;
+  }
+
+  .VPDoc .aside-container,
+  .VPDoc .aside-curtain {
+    width: 10vw !important;
+  }
+
   .VPDoc.has-aside .content-container {
-    max-width: 1040px;
+    max-width: 80vw !important;
   }
 }
 
-@media (min-width: 1440px) {
-  .VPDoc:not(.has-sidebar) .content {
-    max-width: 1040px;
+/* Homepage hero logo: the default theme caps the hero image at 320px
+   display size, too small to read the "VANGARD Studio" text on the
+   character's t-shirt. Same specificity issue as the doc-layout overrides
+   above (VPHero.vue's scoped rules out-specify a plain selector here),
+   hence !important. Source image (website public dir: docs/images/vangard.png)
+   is generated at 768px for headroom at this larger display size. */
+@media (min-width: 960px) {
+  .VPHero .image-container,
+  .VPHero .image-bg {
+    width: 480px !important;
+    height: 480px !important;
   }
 
-  .VPDoc:not(.has-sidebar) .container {
-    max-width: 1360px;
+  .VPHero .image-src {
+    max-width: 480px !important;
+    max-height: 480px !important;
   }
 }
 
@@ -89,6 +122,87 @@
 /* Prevent background scroll while the lightbox is open */
 html.image-lightbox-active {
   overflow: hidden;
+}
+
+/* Welcome page TL;DR card grid: a visual alternative to a bulleted callout,
+   one card per point (why it exists / new vs. experienced users / no lock-in). */
+.tldr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin: 24px 0 32px;
+}
+
+@media (max-width: 640px) {
+  .tldr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tldr-card {
+  padding: 20px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  transition: border-color 0.2s ease;
+}
+
+.tldr-card:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.tldr-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.tldr-card h3 {
+  margin: 0 0 8px;
+  padding: 0;
+  border: none;
+  font-size: 16px;
+}
+
+.tldr-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+
+/* Welcome page "free and open source forever" banner: a full-width strip
+   below the TL;DR grid, visually distinct (brand-tinted) so it reads as a
+   standalone commitment rather than one card among equals. */
+.tldr-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 0 0 32px;
+  padding: 20px 24px;
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 12px;
+  background: var(--vp-c-brand-soft);
+}
+
+.tldr-banner .tldr-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin: 0;
+}
+
+.tldr-banner h3 {
+  margin: 0 0 4px;
+  padding: 0;
+  border: none;
+  font-size: 16px;
+}
+
+.tldr-banner p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-1);
 }
 
 /* Story Elements sidebar tab table: narrow, centered icon column matching

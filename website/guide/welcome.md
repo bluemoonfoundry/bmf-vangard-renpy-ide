@@ -2,6 +2,37 @@
 
 ![Vangard Studio welcome screen](/welcome-screen.png)
 
+<div class="tldr-grid">
+  <div class="tldr-card">
+    <div class="tldr-icon">🧭</div>
+    <h3>Why it exists</h3>
+    <p>Broken jumps and orphaned labels hide silently in a folder of <code>.rpy</code> files until they blow up in testing. Vangard Studio puts the whole story on a canvas so you catch them first.</p>
+  </div>
+  <div class="tldr-card">
+    <div class="tldr-icon">🌱</div>
+    <h3>New to Ren'Py?</h3>
+    <p>Skip memorizing folder structure and <code>jump</code>/<code>call</code> syntax by hand. Drag blocks, build scenes visually, and let diagnostics catch typos for you.</p>
+  </div>
+  <div class="tldr-card">
+    <div class="tldr-icon">⌨️</div>
+    <h3>Already experienced?</h3>
+    <p>It's a real editor (the Monaco engine behind VS Code) with Ren'Py-aware autocomplete and project-wide diagnostics — ignore every visual feature and still come out ahead.</p>
+  </div>
+  <div class="tldr-card">
+    <div class="tldr-icon">🔓</div>
+    <h3>Not another engine</h3>
+    <p>Vangard Studio reads and writes plain <code>.rpy</code> files — no proprietary format, no export step. Stop using it tomorrow and your project is unchanged.</p>
+  </div>
+</div>
+
+<div class="tldr-banner">
+  <div class="tldr-icon">💝</div>
+  <div>
+    <h3>Free and open source. Forever.</h3>
+    <p>No paid tiers, no subscriptions, no account required. Vangard Studio is licensed <a href="https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/blob/main/LICENSE">AGPL-3.0</a> — the source stays open, and it always will.</p>
+  </div>
+</div>
+
 ## What Is Vangard Studio?
 
 Vangard Studio is a desktop application that turns your Ren'Py project into something you can *see*. Every `.rpy` file becomes a draggable block on a visual canvas; every `jump` and `call` becomes an arrow connecting those blocks. Instead of holding a sprawling narrative in your head, you hold it on screen -- the entire branching structure of your visual novel, laid out like a map. You write code in a full-featured editor (the same engine that powers Visual Studio Code), and the canvas updates in real time to reflect your changes.

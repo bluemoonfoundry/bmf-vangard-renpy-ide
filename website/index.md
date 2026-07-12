@@ -2,7 +2,9 @@
 layout: home
 
 hero:
-  name: Vangard Studio
+  image:
+    src: /vangard.png
+    alt: Vangard Studio logo
   text: The Ren'Py Visual Designer
   tagline: See your story. Catch errors early. Build visual novels with a visual IDE built for Ren'Py.
   actions:
@@ -19,7 +21,7 @@ features:
   - title: Full Code Editor
     details: A Monaco-powered editor (the same engine behind VS Code) with Ren'Py-aware autocomplete and diagnostics.
   - title: Visual Composers
-    details: Build scenes, image maps, and screen layouts visually, with standard Ren'Py code generated underneath.
+    details: Build scenes and image maps visually, with standard Ren'Py code generated underneath. Screens are hand-written with a live preview panel alongside.
 ---
 
 ## About This Guide
