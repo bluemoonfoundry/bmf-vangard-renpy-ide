@@ -37,8 +37,8 @@ New to Vangard Studio? Here's a 5-minute quick start to get you up and running.
 ### 5. Start Creating
 
 - Press **N** to create a new `.rpy` file
-- Right-click an image in the Images tab and select "Copy show statement" to insert it into your code
-- Use the Menu Builder (Menus tab) to visually design branching choices
+- Right-click an image in the Images tab and select "Add `show` statement" (or "Add `scene` statement" for backgrounds) to insert it into your code
+- Use the Menu Constructor (Menu Templates tab) to visually design branching choices
 - Check the Diagnostics panel for errors and warnings
 
 ![Vangard Studio immediately after opening a project](/project-opened.png)
@@ -114,6 +114,15 @@ Navigate the tutorial with arrow keys or `Enter`, and skip it at any time with `
 If you dismiss it and want to see it again later, go to `Help` > `Show Tutorial`. The
 tutorial state is stored in your browser's local storage, so it only appears once per
 machine unless you explicitly replay it.
+
+## Migrating from Ren'IDE
+
+If Vangard Studio detects an existing Ren'IDE installation on your computer, it shows an
+**"Import settings from Ren'IDE?"** dialog the first time it launches. Choosing
+`Import Settings` copies over your theme, SDK path, recent projects list, editor
+preferences, and stored API keys, so you don't have to re-enter them. Choosing `Skip`
+dismisses the dialog permanently -- it only ever appears once per machine, whichever
+option you pick.
 
 ## Opening an Existing Project
 

@@ -57,7 +57,7 @@ Vangard Studio's editor is powered by Monaco -- the same engine behind Visual St
 get TextMate-grade syntax highlighting with a custom Ren'Py grammar, semantic token
 overlays that color labels and characters differently depending on whether they are
 defined or undefined, context-aware IntelliSense for `jump` targets and `show` images,
-`Ctrl+Click` go-to-definition, split panes, and 28+ built-in code snippets with tab-stop
+`Ctrl+Click` go-to-definition, split panes, and 33 built-in code snippets with tab-stop
 placeholders. The **Screen Preview** panel renders your hand-written `screen` blocks back
 to you as you edit, resolving named styles and `gui.*` variables so you can see the
 layout without leaving the editor. The **Diagnostics** panel is

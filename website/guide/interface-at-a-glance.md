@@ -26,8 +26,8 @@ The toolbar runs along the top of the window. It is divided into three logical s
   button.
 - `Diagnostics` -- opens the diagnostics panel. When there are errors in your project, a
   red badge shows the count.
-- `Translations` -- opens the Translation Dashboard.
-- `Stats` -- opens the Project Statistics view.
+- `Script Statistics` -- opens the Script Statistics view.
+- `Translation Dashboard` -- opens the Translation Dashboard.
 
 **Center section** -- three canvas tabs: **Project Canvas**, **Flow Canvas**, and
 **Choices Canvas**. Click a tab to switch the main view to that canvas. The currently
