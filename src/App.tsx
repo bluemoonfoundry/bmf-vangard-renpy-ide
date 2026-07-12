@@ -20,7 +20,6 @@ import Sash from '@/components/Sash';
 import StatusBar from '@/components/StatusBar';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import AboutModal from '@/components/AboutModal';
-import LegacyMigrationModal from '@/components/LegacyMigrationModal';
 import ExternalChangesBanner from '@/components/ExternalChangesBanner';
 import UserSnippetModal from '@/components/UserSnippetModal';
 import NewProjectWizardModal from '@/components/NewProjectWizardModal';
@@ -62,7 +61,6 @@ import { useGameExecution } from '@/hooks/useGameExecution';
 import { useWarpLaunch } from '@/hooks/useWarpLaunch';
 import { useMenuCommandDispatch } from '@/hooks/useMenuCommandDispatch';
 import { useGoToLabel } from '@/hooks/useGoToLabel';
-import { useLegacyMigration } from '@/hooks/useLegacyMigration';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -787,12 +785,6 @@ const App: React.FC = () => {
       if (projectPath) loadProject(projectPath);
     }).catch(err => logger.error('Failed to read startup args:', err));
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // --- Legacy Ren'IDE migration ---
-  const { showLegacyMigrationModal, handleLegacyMigrationImport, handleLegacyMigrationSkip } = useLegacyMigration({
-    appSettingsLoaded,
-    updateAppSettings,
-  });
 
   useEffect(() => {
     if (!appSettingsLoaded) return;
@@ -2197,11 +2189,6 @@ const App: React.FC = () => {
       <AboutModal
         isOpen={aboutModalOpen}
         onClose={() => closeAboutModal()}
-      />
-      <LegacyMigrationModal
-        isOpen={showLegacyMigrationModal}
-        onImport={handleLegacyMigrationImport}
-        onSkip={handleLegacyMigrationSkip}
       />
       <GoToLabelModal
         isOpen={isGoToLabelOpen}

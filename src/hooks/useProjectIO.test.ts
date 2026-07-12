@@ -30,7 +30,6 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
       choiceNodePositions: {},
       milestones: [],
       completedMilestones: [],
-      legacyMigrationChecked: false,
     } as unknown as UseProjectIOParams['projectSettings'],
 
     blocks: [createBlock()],

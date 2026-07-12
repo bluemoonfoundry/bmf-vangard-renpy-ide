@@ -11,7 +11,6 @@ import { installElectronAPI } from '@/test/mocks/electronAPI';
 
 import AboutModal from '@/components/AboutModal';
 import GoToLabelModal from '@/components/GoToLabelModal';
-import LegacyMigrationModal from '@/components/LegacyMigrationModal';
 import ConfigureRenpyModal from '@/components/ConfigureRenpyModal';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 
@@ -121,38 +120,6 @@ describe('GoToLabelModal', () => {
     );
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalled();
-  });
-});
-
-// ─── LegacyMigrationModal ────────────────────────────────────────────────────
-
-describe('LegacyMigrationModal', () => {
-  it('renders null when closed', () => {
-    const { container } = render(
-      <LegacyMigrationModal isOpen={false} onImport={vi.fn()} onSkip={vi.fn()} />,
-    );
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders the title when open', () => {
-    render(<LegacyMigrationModal isOpen={true} onImport={vi.fn()} onSkip={vi.fn()} />);
-    expect(screen.getByText(/import settings from ren'ide/i)).toBeTruthy();
-  });
-
-  it('calls onImport when Import Settings is clicked', async () => {
-    const onImport = vi.fn();
-    const user = userEvent.setup();
-    render(<LegacyMigrationModal isOpen={true} onImport={onImport} onSkip={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: /import settings/i }));
-    expect(onImport).toHaveBeenCalled();
-  });
-
-  it('calls onSkip when Skip is clicked', async () => {
-    const onSkip = vi.fn();
-    const user = userEvent.setup();
-    render(<LegacyMigrationModal isOpen={true} onImport={vi.fn()} onSkip={onSkip} />);
-    await user.click(screen.getByRole('button', { name: /skip/i }));
-    expect(onSkip).toHaveBeenCalled();
   });
 });
 

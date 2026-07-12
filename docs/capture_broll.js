@@ -604,7 +604,6 @@ async function launchAppRecording(productionSettings, videoDir, settingsOverride
     const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
-        legacyMigrationChecked: true,
         renpyPath: FAKE_RENPY_SDK,
         ...settingsOverride,
     });
