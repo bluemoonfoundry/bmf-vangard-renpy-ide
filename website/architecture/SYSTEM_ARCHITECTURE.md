@@ -725,5 +725,5 @@ For project-specific instructions when working with Claude Code, see `CLAUDE.md`
 
 ---
 
-**Last Updated**: 2026-06-14
-**Vangard Studio Version**: 0.9.0
+**Last Updated**: 2026-07-12
+**Vangard Studio Version**: 1.0.0
