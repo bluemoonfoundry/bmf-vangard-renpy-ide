@@ -4,12 +4,10 @@
  *
  * Orchestrates the sizzle reel pipeline end to end:
  *   1. generate_vo.js       -- VO audio from sizzle-reel-script.md
- *   2. capture_broll.js x2  -- broll-main.webm (--group main) and
- *                               broll-montage.webm (--group montage),
- *                               captured as two separate short takes rather
- *                               than one long one -- see capture_broll.js's
- *                               header comment for why (offset-correction
- *                               drift on a long single take).
+ *   2. capture_broll.js     -- one Electron launch + video file per clip
+ *                               (broll-<clip-id>.webm) -- see its header
+ *                               comment for why each clip gets its own
+ *                               recording instead of one continuous take.
  *   3. assemble_reel.js     -- slices + crossfades + cards -> draft cut
  *
  * Usage:
@@ -17,10 +15,9 @@
  *
  * Options (space-separated value, not --flag=value, matching the other
  * scripts in this pipeline):
- *   --steps vo,broll-main,broll-montage,assemble
- *                                Which steps to run, comma-separated, in this
+ *   --steps vo,broll,assemble    Which steps to run, comma-separated, in this
  *                                order regardless of how you list them.
- *                                Default: all four.
+ *                                Default: all three.
  *   --voice <voice_id>          Required if the vo step runs. See
  *                                generate_vo.js --list-voices.
  *   --vo-match position|content Passed through to assemble_reel.js. Default
@@ -28,7 +25,7 @@
  *                                column" note for when to use content).
  *   --skip-if-exists            Skip a step if its main output already
  *                                exists (vo/timing-summary.json,
- *                                broll/broll-{main,montage}.webm,
+ *                                broll/manifest.json,
  *                                assembly/sizzle-reel-draft.mp4). Useful when
  *                                you've only changed a downstream step's
  *                                inputs and don't want to redo an expensive
@@ -60,7 +57,7 @@ const getArg = (flag) => {
 const hasFlag = (flag) => args.includes(flag);
 
 const DRY_RUN = hasFlag('--dry-run');
-const STEP_ORDER = ['vo', 'broll-main', 'broll-montage', 'assemble'];
+const STEP_ORDER = ['vo', 'broll', 'assemble'];
 const requestedSteps = DRY_RUN
     ? ['vo']
     : (getArg('--steps') ?? STEP_ORDER.join(',')).split(',').map(s => s.trim());
@@ -87,8 +84,7 @@ const CONTINUE_ON_ERROR = hasFlag('--continue-on-error');
 // Each step's primary output, checked for --skip-if-exists.
 const STEP_OUTPUT = {
     vo: path.join(DOCS_DIR, 'marketing', 'vo', 'timing-summary.json'),
-    'broll-main': path.join(DOCS_DIR, 'marketing', 'broll', 'broll-main.webm'),
-    'broll-montage': path.join(DOCS_DIR, 'marketing', 'broll', 'broll-montage.webm'),
+    broll: path.join(DOCS_DIR, 'marketing', 'broll', 'manifest.json'),
     assemble: path.join(DOCS_DIR, 'marketing', 'assembly', 'sizzle-reel-draft.mp4'),
 };
 
@@ -100,9 +96,8 @@ function buildStepArgs(step) {
             a.push('--voice', VOICE);
             return a;
         }
-        case 'broll-main':
-        case 'broll-montage': {
-            const a = [path.join(DOCS_DIR, 'capture_broll.js'), '--group', step === 'broll-main' ? 'main' : 'montage'];
+        case 'broll': {
+            const a = [path.join(DOCS_DIR, 'capture_broll.js')];
             if (PROJECT) a.push('--project', PROJECT);
             return a;
         }

@@ -2,59 +2,71 @@
 /**
  * capture_broll.js
  *
- * Launches the Vangard Studio Electron app with DemoProject and uses Playwright's
- * video recording to capture one continuous b-roll take covering every visual
- * cue in the sizzle reel script (docs/marketing/sizzle-reel-script.md).
- * assemble_reel.js slices it into per-cue segments and stitches them together
- * against the VO track and title cards.
+ * Launches the Vangard Studio Electron app with DemoProject, drives it with
+ * Playwright, and records each visual cue in the sizzle reel script
+ * (docs/marketing/sizzle-reel-script.md) with a real-time OS-level screen
+ * capture (ffmpeg's gdigrab) rather than Playwright's own recordVideo.
+ * assemble_reel.js stitches the resulting clips together against the VO
+ * track and title cards.
  *
  * Usage:
  *   node docs/capture_broll.js [--project /path] [--out docs/marketing/broll]
- *   node docs/capture_broll.js --group main      # everything except the
- *                                                 # feature montage -> broll-main.webm
- *   node docs/capture_broll.js --group montage   # just the montage clips,
- *                                                 # as their own short take
- *                                                 # (see MONTAGE_IDS below
- *                                                 # for why) -> broll-montage.webm
  *   node docs/capture_broll.js --clip <id>   # record just one clip, for
  *                                             # testing its setup/selectors --
- *                                             # writes broll-test-<id>.webm
+ *                                             # writes broll-test-<id>.mp4
  *                                             # instead of touching the real
  *                                             # manifest/output files
  *
  * Requirements:
  *   npm install --save-dev playwright
+ *   ffmpeg on PATH, or set FFMPEG_PATH (env or docs/marketing/.env, same
+ *   loading mechanism as assemble_reel.js/generate_vo.js). Windows only --
+ *   gdigrab is a Windows-specific ffmpeg input device.
  *
- * Records ONE continuous take: a single Electron launch runs every clip's
- * setup/action/hold back-to-back, and the app closes once at the very end.
- * An earlier version launched a fresh Electron instance per clip; that made
- * every cut in the final video look like the app was reopening, and -- worse
- * -- repeated rapid launches put the machine under enough load that
- * Playwright's video encoder sometimes fell behind wall-clock time badly
- * enough that a clip's recorded setup duration exceeded the real length of
- * its own video. A single continuous recording sidesteps both: cuts are cuts
- * within one take instead of relaunches, and the only heavy load moment
- * ("Preparing your project...") happens once, at the very start, not 18
- * times.
+ * Why not Playwright's recordVideo (two designs tried and abandoned):
  *
- * Each clip's setup/navigation is still real footage in the recording (a
- * settle time, not literally instant), so this script records where each
- * clip's "settled" state begins and ends on the shared timeline
- * (docs/marketing/broll/manifest.json, one entry per clip, each recording
- * which output file it belongs to) -- assemble_reel.js slices segments out
- * of the relevant recording by those offsets instead of using whole files.
+ *   1. One continuous take covering every clip, with assemble_reel.js
+ *      recovering each clip's boundaries from wall-clock timestamps via a
+ *      per-file scale factor (real video duration / wall-clock total). This
+ *      assumed the encoder fell behind wall-clock time under CPU load, and
+ *      that a single scale factor could correct for it -- but confirmed via
+ *      direct frame inspection, the drift wasn't uniform (it got markedly
+ *      worse right after a CPU-heavy clip like the Translation Dashboard's
+ *      virtualized 900+-string table), so the correction missed the real
+ *      boundary by more than ten seconds in a ~3min take. A magenta
+ *      flashMarker() beat detected in the decoded video patched over this
+ *      for the montage specifically (see git history), but the encoder
+ *      unreliably dropped marker frames too.
  *
- * Run as two separate --group takes (main, then montage) rather than one
- * ungrouped run covering every clip: assemble_reel.js corrects each
- * recording's offsets with a single global scale factor (Playwright's video
- * encoder drifts from wall-clock time under load), and that correction
- * degrades on a long recording where drift isn't perfectly uniform
- * throughout -- confirmed empirically on a ~3min single take, where the
- * error for clips deep into the recording exceeded ten seconds, enough to
- * land on entirely the wrong clip's footage. Splitting into two shorter
- * takes keeps each one's cumulative drift small. An ungrouped run (no
- * --group) still works and produces one broll-master.webm, but only use it
- * for a short CLIPS list where that drift risk doesn't apply.
+ *   2. One Electron launch + one recordVideo file per clip (this file's
+ *      previous version) -- shrinking the recording window to ~5-12s so
+ *      there was no long take for drift to accumulate in. Direct measurement
+ *      disproved the assumption underneath this too: Playwright's
+ *      recordVideo is driven by Chromium's CDP screencast, which only emits
+ *      a new frame when the page actually repaints. A static "hold" --
+ *      exactly the shot b-roll needs, showing a settled feature state -- can
+ *      produce almost no repaints, so the video's real decoded duration came
+ *      out 2-3x shorter than the wall-clock time that actually elapsed
+ *      (measured: a 4s static hold produced a 2.44s video; a clip with
+ *      continuous mouse movement over the same wall-clock span produced a
+ *      4.60s video). This isn't a drift that scales linearly with time --
+ *      it's content-dependent frame starvation, worst on the very shots that
+ *      matter most, so no offset or scale-factor model can correct for it.
+ *
+ * gdigrab sidesteps both failure modes structurally: it's an OS-level screen
+ * grabber, not a page-repaint-driven screencast, so it captures real frames
+ * at a fixed real-time rate regardless of what's changing on screen. Each
+ * clip's ffmpeg process starts AFTER clip.setup() has already navigated to
+ * the settled state (see the main loop below), so the recorded file *is*
+ * the clip -- no post-hoc offset/trim math, no manifest start/end fields, no
+ * scale factor. assemble_reel.js just uses each file's own real duration.
+ *
+ * Each clip still gets its own Electron launch (closed before the next
+ * clip starts) rather than reusing one window for the whole run: the
+ * exported footage never includes the boot screen (capture starts after
+ * setup), so cuts read as cuts either way, and a short cooldown between
+ * launches (see LAUNCH_COOLDOWN_MS) keeps repeated relaunches from
+ * contending with each other for CPU.
  */
 
 import { _electron as electron } from 'playwright';
@@ -64,11 +76,23 @@ import fs from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { spawn, execFile } from 'child_process';
+import { promisify } from 'util';
 import { APP_ENTRY, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
 
+const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const require = createRequire(import.meta.url);
+
+for (const envPath of [path.join(__dirname, 'marketing', '.env'), path.join(ROOT, '.env')]) {
+    if (existsSync(envPath)) {
+        process.loadEnvFile(envPath);
+        break;
+    }
+}
+
+const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -81,18 +105,11 @@ const getArg = (flag) => {
 
 const PROJECT_PATH = getArg('--project') ?? path.join(ROOT, 'DemoProject');
 const OUT_DIR       = getArg('--out')     ?? path.join(__dirname, 'marketing', 'broll');
-const ONLY_CLIP     = getArg('--clip'); // comma-separated ids also accepted -- ad-hoc test run, doesn't touch the real manifest
-const GROUP         = getArg('--group'); // 'main' | 'montage' -- a real, permanent, named capture (see MONTAGE_IDS below)
+const ONLY_CLIP     = getArg('--clip'); // comma-separated ids also accepted -- ad-hoc test run(s), doesn't touch the real manifest
 
 // The feature montage's clips (see sizzle-reel-script.md's silent montage
-// beat) are captured as their own short take instead of being folded into
-// the single long main take: a single global scale factor for offset
-// correction (see clipWindow in assemble_reel.js) works well for a ~2min
-// take, but broke down for a ~3min one -- drift isn't perfectly uniform
-// across a long recording, and by the time the montage clips (deep into a
-// long take) were reached, the correction was off by over ten seconds,
-// enough to land on the wrong clip's footage entirely. A short, separate
-// take for the montage keeps its own cumulative drift small.
+// beat) only need to hold ~2.7s each in the final cut (19s split across 7
+// clips), so they get a shorter minimum hold than the narrated clips.
 const MONTAGE_IDS = new Set([
     '16-montage-screens',
     '17-montage-images',
@@ -102,23 +119,28 @@ const MONTAGE_IDS = new Set([
     '21-montage-color-palette',
     '22-montage-drafting-mode',
 ]);
-if (GROUP && !['main', 'montage'].includes(GROUP)) {
-    console.error(`--group must be "main" or "montage", got "${GROUP}"`);
-    process.exit(1);
-}
 
 const VIDEO_SIZE = { width: 1920, height: 1080 };
+const FPS = 30;
 
 // Floor on how long each clip's settled feature state holds on screen before
 // moving to the next one, so quick actions (e.g. panCanvas) don't read as a
-// flash-cut in the final video. Montage clips only need ~2.7s in the final
-// cut (19s split across 7 clips) and each already adds ~1.8s of flashMarker
-// overhead on top, so they get a shorter floor -- the video encoder was
-// observed to degrade badly (frames stop being captured at all, not just
-// falling behind) once a montage take ran past ~40-50s, and every second of
-// hold time here is a second closer to that cliff.
+// flash-cut in the final video.
 const MIN_HOLD_MS = 4000;
 const MIN_HOLD_MS_MONTAGE = 1800;
+
+// Pause after each clip's Electron process closes before the next one
+// launches, so the previous process's teardown doesn't contend with the next
+// one's boot for CPU.
+const LAUNCH_COOLDOWN_MS = 1000;
+
+// gdigrab's window-open/close handshake and ffmpeg's own startup both take a
+// beat -- pad both ends of the real capture so the very first/last requested
+// frames aren't lost to that latency (better a little extra settled footage
+// at each end than missing content; renderClip's tpad already pads the tail
+// if a source runs short).
+const CAPTURE_STARTUP_MS = 500;
+const CAPTURE_SHUTDOWN_MS = 500;
 
 // Same stub SDK path as capture_screenshots.js -- points Settings > Ren'Py SDK
 // Directory at a real file so checkRenpyPath() passes (it only checks the file
@@ -181,42 +203,6 @@ async function clickSidebarTab(page, tooltip) {
     await page.waitForTimeout(400);
 }
 
-/** Flashes a solid, distinctive full-viewport color over the app for a beat,
- *  then removes it -- burns an unmistakable marker into the recording at
- *  this exact moment. Used between montage clips (see MONTAGE_IDS) instead
- *  of relying on wall-clock-derived offsets to find clip boundaries: a
- *  single global scale factor for wall-clock-to-real-video drift correction
- *  (see assemble_reel.js) turned out to not be precise enough for clips this
- *  short and tightly packed -- confirmed empirically, misaligned by more
- *  than a full clip's width by the 4th of 7 montage clips. Detecting this
- *  marker's real timestamp directly in the decoded video sidesteps that
- *  drift-estimation problem entirely for the segments where it matters most
- *  (the panel-focus vignette + burned-in label make any misalignment here
- *  immediately obvious, unlike a plain b-roll cut). */
-async function flashMarker(page) {
-    // Force a couple of real paints before waiting -- appendChild alone
-    // doesn't guarantee the browser has actually composited a frame with the
-    // marker visible before the timer below starts, and if the video
-    // encoder's next capture lands before that first paint, the marker can
-    // go completely missing (confirmed: it happened to 2 of 6 markers in a
-    // 900ms-flash test with no rAF wait, with zero partial/dim frames of it
-    // anywhere in the recording -- not a threshold problem, the frame never
-    // existed).
-    await page.evaluate(() => {
-        const div = document.createElement('div');
-        div.id = '__broll_marker__';
-        div.style.cssText = 'position:fixed;inset:0;background:#ff00ff;z-index:2147483647;';
-        document.body.appendChild(div);
-        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    });
-    // 1.5s, not a quick flash -- same video-encoder frame-drop concern as
-    // above; longer markers are more expensive (each adds real recording
-    // time) but far more certain to survive.
-    await page.waitForTimeout(1500);
-    await page.evaluate(() => document.getElementById('__broll_marker__')?.remove());
-    await page.waitForTimeout(300);
-}
-
 /** Slow, cinematic mouse drag across the canvas -- used to fake a "pan" since
  *  Playwright has no camera; a real drag moves the canvas the same way a user's
  *  would, which reads better on video than a hard cut mid-clip. */
@@ -252,6 +238,24 @@ async function dragSpriteBy(page, selector, { dx, dy, steps = 20, holdMs = 25 })
     await page.mouse.up();
 }
 
+/** Clicks through a few Choices Canvas choice pills in sequence to show
+ *  progressively walking a route: each pill is a `[data-nav]` element
+ *  (ChoiceCanvas.tsx) that re-centers the canvas on the label it targets and
+ *  reveals that label's own next choices, so repeated clicks read as
+ *  advancing through the story rather than just "here's a canvas". Re-queries
+ *  the locator fresh each iteration instead of caching one -- the pill DOM
+ *  nodes are replaced, not moved, on every navigation, so a cached locator
+ *  would go stale after the first click. Stops early (rather than throwing)
+ *  if a route runs out of further choices before `times` clicks. */
+async function clickChoicePills(page, times = 2) {
+    for (let i = 0; i < times; i++) {
+        const pill = page.locator('[aria-label^="Choice:"]:visible').first();
+        if (await pill.count() === 0) break;
+        await pill.click();
+        await page.waitForTimeout(900);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Clip manifest -- one entry per visual cue in sizzle-reel-script.md's "Core
 // tour" / "For Writers" / "For Artists" / "For Developers" / montage sections.
@@ -266,13 +270,17 @@ const CLIPS = [
     {
         id: '01-canvas-tour-project',
         time: '0:18-0:29 (part 1/3)',
-        description: 'Pan/zoom across Project Canvas',
-        durationMs: 3500,
+        description: 'Pan across Project Canvas to reveal more of the block graph',
+        durationMs: 5000,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickCanvasTab(page, 'Project Canvas');
         },
-        action: async (page) => panCanvas(page),
+        // Bigger/slower than the other canvases' pans (see panCanvas's
+        // defaults) -- this is the very first shot of the reel's app footage,
+        // so it needs to travel far enough across the canvas to actually
+        // read as "look how much is here", not just a small nudge.
+        action: async (page) => panCanvas(page, { dx: -550, dy: -230, steps: 40, holdMs: 35 }),
     },
     {
         id: '02-canvas-tour-flow',
@@ -288,13 +296,26 @@ const CLIPS = [
     {
         id: '03-canvas-tour-choices',
         time: '0:18-0:29 (part 3/3)',
-        description: 'Choices Canvas',
-        durationMs: 2500,
+        description: 'Choices Canvas: click through choice pills to walk a route progressively',
+        durationMs: 6000,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickCanvasTab(page, 'Choices Canvas');
             await page.waitForTimeout(600);
+            // The canvas opens centered on "start", which just calls into the
+            // story and has no menu of its own (no choice pills to click) --
+            // jump to a label with a real menu first via the "Jump to Label"
+            // search box (same label used by 05-editor-autocomplete /
+            // 08-real-renpy-file, for continuity). Flow Canvas has its own
+            // identically-placeholdered search input, mounted-but-hidden
+            // behind this tab (see CLAUDE.md's Tab Lifecycle note) -- :visible
+            // scopes to the active pane's copy.
+            await page.locator('input[placeholder="Search labels…"]:visible').fill('stage1_arrival');
+            await page.waitForTimeout(300);
+            await page.click('button:has-text("stage1_arrival"):visible');
+            await page.waitForTimeout(700);
         },
+        action: async (page) => clickChoicePills(page, 2),
     },
     {
         id: '04-diagnostics',
@@ -600,7 +621,7 @@ async function ensureDir(dir) {
     await fs.mkdir(dir, { recursive: true });
 }
 
-async function launchAppRecording(productionSettings, videoDir, settingsOverride = {}) {
+async function launchAppRecording(productionSettings, settingsOverride = {}) {
     const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
@@ -611,34 +632,81 @@ async function launchAppRecording(productionSettings, videoDir, settingsOverride
         args: [APP_ENTRY, '--project', PROJECT_PATH],
         cwd: ROOT,
         env,
-        recordVideo: { dir: videoDir, size: VIDEO_SIZE },
+        // No recordVideo here -- see this file's header comment for why
+        // footage is captured with gdigrab (startScreenCapture below)
+        // instead of Playwright's repaint-driven screencast recording.
     });
     await suppressFirstRunTutorial(app);
     return app;
 }
 
+/** Returns the fullscreened window's bounds in *virtual-desktop* coordinates
+ *  (gdigrab's -offset_x/-offset_y are relative to the virtual desktop's
+ *  top-left, which is above/left of the primary monitor on a multi-monitor
+ *  setup with monitors arranged left/above it -- getBounds() already
+ *  reports in that same space, so no translation needed). */
 async function getMainPage(electronApp) {
     const page = await electronApp.firstWindow();
-    await electronApp.evaluate(({ BrowserWindow }) => {
+    const bounds = await electronApp.evaluate(({ BrowserWindow }) => {
         const [win] = BrowserWindow.getAllWindows();
-        if (win) win.setFullScreen(true);
+        if (!win) return null;
+        win.setFullScreen(true);
+        return win.getBounds();
     });
     await page.waitForTimeout(800);
-    return page;
+    // getBounds() right after setFullScreen() can still report the
+    // pre-fullscreen size on some platforms/timing -- re-read once settled.
+    const settledBounds = await electronApp.evaluate(({ BrowserWindow }) => {
+        const [win] = BrowserWindow.getAllWindows();
+        return win ? win.getBounds() : null;
+    });
+    return { page, bounds: settledBounds ?? bounds };
 }
 
-/** Renames Playwright's auto-generated video filename (a random hash) and
- *  moves it out of the temp recording directory. */
-async function finalizeVideo(page, videoDir, outDir, filename) {
-    const video = page.video();
-    if (!video) return null;
-    const tempPath = await video.path();
-    const destPath = path.join(outDir, filename);
-    // fs.rename() fails with EXDEV when the OS temp dir and output dir are on
-    // different volumes/drives (common on Windows) -- copy then remove instead.
-    await fs.copyFile(tempPath, destPath);
-    await fs.rm(videoDir, { recursive: true, force: true }).catch(() => {});
-    return destPath;
+/** Starts a real-time OS-level screen capture via ffmpeg's gdigrab (Windows
+ *  desktop capture) to `outPath`, scoped to the fullscreened app window's
+ *  bounds (see getMainPage) via gdigrab's offset/size options -- gdigrab's
+ *  bare 'desktop' input grabs the entire VIRTUAL desktop spanning every
+ *  monitor, which on a multi-monitor machine produced a single oversized
+ *  frame (confirmed: 6400x2160 on a 3-monitor dev box) with the app's window
+ *  squeezed into one corner once assemble_reel.js's SCALE_PAD fit that whole
+ *  frame into 1920x1080 -- nowhere close to the intended fullscreen shot.
+ *  Returns the ffmpeg ChildProcess; stop it with stopScreenCapture. */
+function startScreenCapture(outPath, bounds) {
+    return spawn(FFMPEG, [
+        '-y', '-hide_banner', '-loglevel', 'error',
+        '-f', 'gdigrab', '-framerate', String(FPS),
+        '-offset_x', String(bounds.x), '-offset_y', String(bounds.y),
+        '-video_size', `${bounds.width}x${bounds.height}`,
+        '-i', 'desktop',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '18',
+        outPath,
+    ], { stdio: ['pipe', 'ignore', 'pipe'] });
+}
+
+/** Stops an ffmpeg capture gracefully by writing 'q' to its stdin (the same
+ *  keystroke ffmpeg's interactive console handler listens for) so it
+ *  finalizes the output file's container/index properly instead of leaving a
+ *  truncated one -- killing the process outright risks exactly the kind of
+ *  broken/incomplete file this replaced Playwright's recordVideo to avoid. */
+async function stopScreenCapture(proc) {
+    await new Promise((resolve) => {
+        const timer = setTimeout(() => { proc.kill(); resolve(); }, 5000);
+        proc.once('exit', () => { clearTimeout(timer); resolve(); });
+        proc.stdin.write('q');
+    });
+}
+
+/** Real decoded duration of a capture, for the per-clip log line -- same
+ *  "decode and read the last time= ffmpeg prints" approach as
+ *  assemble_reel.js's realDuration, since ffprobe-style container metadata
+ *  isn't reliably present either way. */
+async function realDuration(file) {
+    const { stderr } = await execFileAsync(FFMPEG, ['-i', file, '-f', 'null', '-']).catch(e => e);
+    const matches = [...(stderr || '').matchAll(/time=(\d+):(\d+):(\d+\.\d+)/g)];
+    if (matches.length === 0) return null;
+    const [, h, m, s] = matches[matches.length - 1];
+    return Number(h) * 3600 + Number(m) * 60 + Number(s);
 }
 
 // ---------------------------------------------------------------------------
@@ -656,118 +724,104 @@ async function main() {
 
     const productionSettings = loadProductionSettings();
     const onlyIds = ONLY_CLIP ? ONLY_CLIP.split(',').map(s => s.trim()) : null;
-    let clips = CLIPS;
-    let outputFilename = 'broll-master.webm';
-    if (onlyIds) {
-        clips = CLIPS.filter(c => onlyIds.includes(c.id));
-        // A --clip run records only those clips, in their own file
-        // (broll-test-<ids>.webm) -- it can't "patch" a clip into an existing
-        // recording without re-recording everything after it, so it's for
-        // testing a clip's setup/selectors in isolation, not fixing one clip
-        // in place.
-        outputFilename = `broll-test-${onlyIds.join('_')}.webm`;
-    } else if (GROUP) {
-        clips = CLIPS.filter(c => MONTAGE_IDS.has(c.id) === (GROUP === 'montage'));
-        outputFilename = `broll-${GROUP}.webm`;
-    }
+    const clips = onlyIds ? CLIPS.filter(c => onlyIds.includes(c.id)) : CLIPS;
     if (clips.length === 0) {
-        console.error(`No clips matched (--clip "${ONLY_CLIP}" / --group "${GROUP}")`);
+        console.error(`No clips matched --clip "${ONLY_CLIP}"`);
         process.exit(1);
     }
 
-    console.log(`\nRecording ${clips.length} segment(s) in one continuous take -> ${outputFilename}\n`);
+    // A --clip run writes its own broll-test-<id>.webm and is for trying out
+    // a clip's setup/selectors in isolation -- it shouldn't touch the real
+    // manifest at all.
+    const isTest = Boolean(onlyIds);
 
-    const tempVideoDir = path.join(os.tmpdir(), `vangard-broll-${Date.now()}`);
-    const electronApp = await launchAppRecording(productionSettings, tempVideoDir);
-    const recordStart = Date.now();
+    console.log(`\nRecording ${clips.length} clip(s), one Electron launch each -> ${OUT_DIR}\n`);
 
-    const manifest = {};
     let captured = 0;
     let failed = 0;
-    let page;
 
-    try {
-        page = await getMainPage(electronApp);
-        await waitForProjectReady(page);
+    for (let i = 0; i < clips.length; i++) {
+        const clip = clips[i];
+        const num = String(i + 1).padStart(2);
+        process.stdout.write(`  [${num}] ${clip.id.padEnd(34)} (${clip.time}) `);
 
-        for (let i = 0; i < clips.length; i++) {
-            const clip = clips[i];
-            // See flashMarker's doc comment -- assemble_reel.js locates these
-            // in the decoded video to find real clip boundaries for the
-            // montage instead of trusting wall-clock-derived offsets.
-            if (GROUP === 'montage' && i > 0) await flashMarker(page);
-            const num = String(captured + failed + 1).padStart(2);
-            process.stdout.write(`  [${num}] ${clip.id.padEnd(34)} (${clip.time}) `);
-            try {
-                if (clip.setup) await clip.setup(page, electronApp);
-                // Everything before this point (window already open, tab
-                // switches, dialogs) is real footage in the one continuous
-                // recording -- this timestamp marks where the "settled"
-                // feature state begins, so assemble_reel.js can start the
-                // segment here instead of at the clip's first navigation click.
-                const settledStart = (Date.now() - recordStart) / 1000;
-                const holdStart = Date.now();
-                if (clip.action) await clip.action(page, electronApp);
-                const elapsed = Date.now() - holdStart;
-                const remaining = Math.max(clip.durationMs - elapsed, 0);
-                const minHold = GROUP === 'montage' ? MIN_HOLD_MS_MONTAGE : MIN_HOLD_MS;
-                await page.waitForTimeout(Math.max(remaining, minHold));
-                if (clip.teardown) await clip.teardown(page, electronApp);
-                const segmentEnd = (Date.now() - recordStart) / 1000;
+        const outputFilename = isTest ? `broll-test-${clip.id}.mp4` : `broll-${clip.id}.mp4`;
+        const outPath = path.join(OUT_DIR, outputFilename);
+        const electronApp = await launchAppRecording(productionSettings);
+        let page;
+        let captureProc = null;
+        let ok = false;
 
-                manifest[clip.id] = {
-                    start: Number(settledStart.toFixed(3)),
-                    end: Number(segmentEnd.toFixed(3)),
-                    file: outputFilename,
-                };
-                captured++;
-                console.log(`ok (${settledStart.toFixed(2)}s-${segmentEnd.toFixed(2)}s)`);
-            } catch (err) {
-                failed++;
-                console.log(`FAILED: ${err.message.split('\n')[0]}`);
-                // A failed setup/teardown can leave a modal open, which would
-                // otherwise cascade into every later clip failing too.
-                await page.keyboard.press('Escape').catch(() => {});
-                await page.keyboard.press('Escape').catch(() => {});
+        try {
+            const main = await getMainPage(electronApp);
+            page = main.page;
+            await waitForProjectReady(page);
+
+            // Setup/navigation runs BEFORE capture starts -- the recorded
+            // file only ever contains the settled feature state, never the
+            // boot screen or tab-switch transition, so no post-hoc trimming
+            // is needed downstream.
+            if (clip.setup) await clip.setup(page, electronApp);
+
+            captureProc = startScreenCapture(outPath, main.bounds);
+            await page.waitForTimeout(CAPTURE_STARTUP_MS);
+
+            const holdStart = Date.now();
+            if (clip.action) await clip.action(page, electronApp);
+            const elapsed = Date.now() - holdStart;
+            const remaining = Math.max(clip.durationMs - elapsed, 0);
+            const minHold = MONTAGE_IDS.has(clip.id) ? MIN_HOLD_MS_MONTAGE : MIN_HOLD_MS;
+            await page.waitForTimeout(Math.max(remaining, minHold));
+
+            await page.waitForTimeout(CAPTURE_SHUTDOWN_MS);
+            await stopScreenCapture(captureProc);
+            captureProc = null;
+
+            // Teardown (e.g. closing a modal) doesn't need to be filmed --
+            // it runs after capture has already stopped.
+            if (clip.teardown) await clip.teardown(page, electronApp);
+            ok = true;
+        } catch (err) {
+            failed++;
+            console.log(`FAILED: ${err.message.split('\n')[0]}`);
+        } finally {
+            if (captureProc) await stopScreenCapture(captureProc).catch(() => {});
+            // electron.js's window 'close' handler always intercepts close to
+            // ask about unsaved changes, which nothing here answers, so
+            // electronApp.close() alone hangs -- forceQuit() bypasses it.
+            if (page) {
+                await page.evaluate(() => window.electronAPI.forceQuit()).catch(() => {});
+                await page.waitForEvent('close', { timeout: 15000 }).catch(() => {});
             }
         }
-    } finally {
-        // See the note on window.electronAPI.forceQuit() below: electron.js's
-        // window 'close' handler always intercepts close to ask about unsaved
-        // changes, which nothing here answers, so electronApp.close() alone
-        // hangs. This is the only close for the whole recording -- it happens
-        // once, at the very end, not per clip.
-        if (page) {
-            await page.evaluate(() => window.electronAPI.forceQuit()).catch(() => {});
-            await page.waitForEvent('close', { timeout: 15000 }).catch(() => {});
+        await electronApp.close().catch(() => {});
+
+        const savedOk = ok && existsSync(outPath) && (await fs.stat(outPath)).size > 0;
+        if (savedOk) {
+            captured++;
+            const duration = await realDuration(outPath);
+            console.log(`ok (${outputFilename}${duration != null ? `, ${duration.toFixed(2)}s` : ''})`);
+            if (!isTest) {
+                const manifestPath = path.join(OUT_DIR, 'manifest.json');
+                const existing = existsSync(manifestPath)
+                    ? JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+                    : {};
+                existing[clip.id] = { file: outputFilename };
+                await fs.writeFile(manifestPath, JSON.stringify(existing, null, 2));
+            }
+        } else if (ok) {
+            failed++;
+            console.log('FAILED: no video was recorded');
         }
+
+        // See LAUNCH_COOLDOWN_MS's doc comment -- let this process fully exit
+        // before the next one launches, except after the very last clip.
+        if (i < clips.length - 1) await new Promise(r => setTimeout(r, LAUNCH_COOLDOWN_MS));
     }
 
-    const savedPath = page ? await finalizeVideo(page, tempVideoDir, OUT_DIR, outputFilename) : null;
-    await electronApp.close().catch(() => {});
-
-    if (savedPath) {
-        console.log(`\nRecording saved to ${savedPath}`);
-        // A --clip test run writes its own broll-test-*.webm and is for
-        // trying out a clip's setup/selectors in isolation -- it shouldn't
-        // touch the real manifest at all. A --group (or full, ungrouped) run
-        // is a real capture: merge its entries into the existing manifest
-        // (each entry records which file it belongs to) rather than
-        // overwriting entries from a different group's run.
-        if (!onlyIds) {
-            const manifestPath = path.join(OUT_DIR, 'manifest.json');
-            const existing = existsSync(manifestPath)
-                ? JSON.parse(await fs.readFile(manifestPath, 'utf8'))
-                : {};
-            const merged = { ...existing, ...manifest };
-            await fs.writeFile(manifestPath, JSON.stringify(merged, null, 2));
-            console.log(`Manifest written to ${manifestPath}`);
-        }
-    } else {
-        console.error('\nNo video was recorded.');
-    }
+    console.log(isTest ? '' : `\nManifest updated at ${path.join(OUT_DIR, 'manifest.json')}`);
     console.log(`Done: ${captured} captured, ${failed} failed.`);
-    if (failed > 0 || !savedPath) process.exit(1);
+    if (failed > 0) process.exit(1);
 }
 
 main().catch(err => {
