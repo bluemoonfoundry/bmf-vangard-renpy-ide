@@ -7,8 +7,6 @@
 | Save All | `Ctrl+S` | `Cmd+S` |
 | Close Active Tab | `Ctrl+W` | `Cmd+W` |
 | Quit | `Ctrl+Q` | `Cmd+Q` |
-| Undo | `Ctrl+Z` | `Cmd+Z` |
-| Redo | `Ctrl+Y` | `Cmd+Y` |
 | Run Project | `F5` | `F5` |
 | Stop Project | `Shift+F5` | `Shift+F5` |
 | Warp to Label | `Ctrl+Shift+G` | `Cmd+Shift+G` |
@@ -27,10 +25,12 @@
 | Zoom In / Out | `Mouse Scroll` | `Mouse Scroll` |
 | Select Multiple | `Ctrl+Click` or rubber-band | `Cmd+Click` or rubber-band |
 | Delete Selected | `Delete` | `Delete` |
-| Cycle Focus Forward | `Tab` | `Tab` |
-| Cycle Focus Backward | `Shift+Tab` | `Shift+Tab` |
+| Fit to Screen | `F` | `F` |
+| Navigate Back (Flow Canvas) | `[` | `[` |
+| Navigate Forward (Flow Canvas) | `]` | `]` |
 | Spatial Navigation | `Arrow Keys` | `Arrow Keys` |
 | Open Focused Block | `Enter` | `Enter` |
+| Open Block in Editor | `Double Click` | `Double Click` |
 | Deselect All | `Escape` | `Escape` |
 
 ## Editor
@@ -49,7 +49,7 @@
 
 ## Undo/Redo Scope
 
-Undo and Redo (`Ctrl+Z` / `Ctrl+Y`) apply to canvas-level actions only. The following table clarifies what is and is not covered.
+Canvas-level Undo and Redo are triggered from the **Undo**/**Redo** buttons in the toolbar -- there is no keyboard shortcut wired to them; `Ctrl+Z`/`Ctrl+Y` only perform standard text-field undo/redo when focus is inside an editor or input, they do not affect canvas state. The following table clarifies what canvas undo/redo covers.
 
 | Covered by Undo/Redo | Not Covered |
 |-----------------------|-------------|
@@ -59,4 +59,4 @@ Undo and Redo (`Ctrl+Z` / `Ctrl+Y`) apply to canvas-level actions only. The foll
 | | Asset imports and scans |
 | | Canvas zoom and pan transforms |
 
-The undo stack holds up to 50 actions. Undo is unavailable at the initial project state.
+The undo stack has no fixed size limit. Undo is unavailable at the initial project state.

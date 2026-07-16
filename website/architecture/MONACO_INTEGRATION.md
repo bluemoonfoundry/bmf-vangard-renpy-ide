@@ -173,7 +173,7 @@ User snippets (from `.vangard/snippets.json` and the built-in library) are mixed
 
 Monaco has its own theme system separate from the app's Tailwind-based theming. Two custom Monaco themes are defined — `renpy-dark` and `renpy-light` — each embedding the semantic token color rules.
 
-The app's 11 themes (`system`, `light`, `dark`, `solarized-light`, `solarized-dark`, `colorful`, `colorful-light`, `neon-dark`, `ocean-dark`, `candy-light`, `forest-light`) collapse to one of two Monaco themes based on whether the resolved theme is light or dark:
+The app's 12 themes (`system`, `light`, `dark`, `solarized-light`, `solarized-dark`, `colorful`, `colorful-light`, `neon-dark`, `ocean-dark`, `candy-light`, `forest-light`, `synthwave`) collapse to one of two Monaco themes based on whether the resolved theme is light or dark:
 
 ```typescript
 // EditorView.tsx

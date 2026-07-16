@@ -111,4 +111,4 @@ A: The IDE's built-in audio player supports MP3, OGG, WAV, and OPUS via the Web 
 A: Click `Organize Layout` in the toolbar and choose one of the four layout algorithms. This repositions all blocks or nodes automatically. Your previous positions are stored in the undo stack if you need to revert.
 
 **Q: Can I undo changes to canvas positions?**
-A: Yes. `Ctrl+Z` / `Cmd+Z` undoes block moves, creation, and deletion on the Project Canvas. The undo stack has no fixed size limit. Note that editor text changes, settings, and asset imports are not covered by canvas undo.
+A: Yes, via the toolbar's Undo/Redo buttons -- they undo block moves, creation, and deletion. There is no keyboard shortcut for canvas undo; `Ctrl+Z`/`Cmd+Z` only affects text-field editing. The undo stack has no fixed size limit. Note that editor text changes, settings, and asset imports are not covered by canvas undo.

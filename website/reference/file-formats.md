@@ -85,7 +85,7 @@ The `userData` directory location varies by platform:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `theme` | string | `system` | One of the 11 theme identifiers. |
+| `theme` | string | `system` | One of the 12 theme identifiers (see [Customization](/guide/customization) for the full list). |
 | `editorFontFamily` | string | `'Consolas', 'Courier New', monospace` | CSS font-family string for the Monaco editor. |
 | `editorFontSize` | number | 14 | Font size in pixels (range 8--72). |
 | `renpyPath` | string | `""` | Absolute path to the Ren'Py SDK root directory. |

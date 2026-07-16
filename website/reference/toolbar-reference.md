@@ -4,13 +4,13 @@ Buttons are listed in order from left to right. The center group contains the ca
 
 | Position | Icon | Button | Function | Shortcut |
 |----------|------|--------|----------|----------|
-| Left 1 | Curved arrow left | **Undo** | Undo last canvas action (block move, create, delete) | `Ctrl+Z` / `Cmd+Z` |
-| Left 2 | Curved arrow right | **Redo** | Redo last undone canvas action | `Ctrl+Y` / `Cmd+Y` |
+| Left 1 | Curved arrow left | **Undo** | Undo last canvas action (block move, create, delete) | -- (no keyboard shortcut; button only) |
+| Left 2 | Curved arrow right | **Redo** | Redo last undone canvas action | -- (no keyboard shortcut; button only) |
 | Left 3 | Plus with "N" | **New Scene** | Open the Create Block modal to add a new `.rpy` file | `N` (canvas focused) |
 | Left 4 | Sticky note | **Add Note** | Place a sticky note on the active canvas | -- |
 | Left 5 | Grid / tree | **Organize Layout** | Runs the active canvas's auto-layout algorithm immediately on click -- there is no dropdown on this button | -- |
 | Left 6 | Warning triangle | **Diagnostics** | Open the Diagnostics tab. Red badge shows active error count | -- |
-| Left 7 | Bar chart | **Stats** | Open the Project Statistics tab | -- |
+| Left 7 | Bar chart | **Stats** | Open the Script Statistics tab | -- |
 | Left 8 | Globe | **Translations** | Open the Translation Dashboard | -- |
 | Center 1 | Canvas icon | **Project Canvas** | Switch to the file-level Project Canvas | -- |
 | Center 2 | Flow icon | **Flow Canvas** | Switch to the label-level Flow Canvas | -- |

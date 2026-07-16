@@ -35,12 +35,12 @@ In the same Settings modal, you will find options to adjust the code editor:
 
 - **Font**: choose the font family for the Monaco editor. Monospace fonts like Fira Code, JetBrains Mono, or Consolas work best for Ren'Py code, but you have the freedom to use whatever font you prefer.
 - **Font size**: increase or decrease the text size. Larger sizes are easier to read during long writing sessions; smaller sizes let you see more code at once when working on complex logic.
-- **Tab size**: set the number of spaces per indentation level. Ren'Py conventionally uses 4-space indentation, but you can adjust this to 2 or 8 if your team has a different preference.
-- **Word wrap**: toggle whether long lines wrap to the next visual line or scroll horizontally. Wrapping is convenient for dialogue-heavy files where lines of text can be quite long.
+
+Tab size and word wrap are not exposed in the Settings dialog -- they're controlled by the Monaco editor's own built-in settings, accessible via the editor's command palette (`F1` while focused in an editor tab).
 
 All of these settings apply to every open editor tab and take effect immediately -- no restart required. Experiment until you find the combination that feels right.
 
-Your settings persist across sessions. Close the IDE, reopen it days later, and everything is exactly as you left it -- theme, font, tab size, and all. App-level settings are stored separately from project data, so your personal preferences follow you regardless of which project you open.
+Your settings persist across sessions. Close the IDE, reopen it days later, and everything is exactly as you left it -- theme, font, and all. App-level settings are stored separately from project data, so your personal preferences follow you regardless of which project you open.
 
 ## Mouse Preferences
 
