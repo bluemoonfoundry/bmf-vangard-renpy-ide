@@ -83,9 +83,8 @@ When you want a quick automatic layout instead of manual positioning, click the
   left-to-right ordering and visual grouping. The best default for complex projects.
 
 Pick the algorithm that suits your project's shape. You can always drag blocks afterward
-to fine-tune the result. Experiment freely -- the toolbar's **Undo**/**Redo** buttons undo
-canvas layout changes (there is no keyboard shortcut for canvas undo; `Ctrl+Z`/`Cmd+Z`
-only affects text-field editing, not the canvas).
+to fine-tune the result. Experiment freely -- `Ctrl+Z` / `Cmd+Z` (or the toolbar's
+**Undo**/**Redo** buttons) undoes canvas layout changes.
 
 ### Character Filter
 

@@ -816,7 +816,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     const showResolutionInputs = showCustomInputs || isCustomResolution;
 
     return (
-        <div ref={containerRef} className="flex h-full bg-gray-100 dark:bg-gray-900 overflow-hidden flex-col outline-none">
+        <div ref={containerRef} data-scene-composer-root="true" className="flex h-full bg-gray-100 dark:bg-gray-900 overflow-hidden flex-col outline-none">
             {/* Toolbar */}
             <div className="h-12 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 justify-between flex-shrink-0">
                 <div className="flex items-center space-x-4">

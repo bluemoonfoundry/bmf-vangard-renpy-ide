@@ -7,6 +7,8 @@
 | Save All | `Ctrl+S` | `Cmd+S` |
 | Close Active Tab | `Ctrl+W` | `Cmd+W` |
 | Quit | `Ctrl+Q` | `Cmd+Q` |
+| Undo | `Ctrl+Z` | `Cmd+Z` |
+| Redo | `Ctrl+Y` | `Cmd+Y` |
 | Run Project | `F5` | `F5` |
 | Stop Project | `Shift+F5` | `Shift+F5` |
 | Warp to Label | `Ctrl+Shift+G` | `Cmd+Shift+G` |
@@ -49,7 +51,7 @@
 
 ## Undo/Redo Scope
 
-Canvas-level Undo and Redo are triggered from the **Undo**/**Redo** buttons in the toolbar -- there is no keyboard shortcut wired to them; `Ctrl+Z`/`Ctrl+Y` only perform standard text-field undo/redo when focus is inside an editor or input, they do not affect canvas state. The following table clarifies what canvas undo/redo covers.
+Undo and Redo (`Ctrl+Z` / `Ctrl+Y`, or the toolbar buttons) apply to canvas-level actions only. When focus is inside a text input, a Monaco editor, or the Scene Composer, `Ctrl+Z`/`Ctrl+Y` instead perform that field's own local undo/redo -- they never affect canvas history in that case. The following table clarifies what canvas undo/redo covers.
 
 | Covered by Undo/Redo | Not Covered |
 |-----------------------|-------------|

@@ -1244,6 +1244,23 @@ const App: React.FC = () => {
           handleCloseTab(currentTabId, currentPaneId);
         }
       }
+      // Canvas-level Undo/Redo. Skip when focus is in an editable field (text input,
+      // Monaco editor) or inside Scene Composer, which each maintain their own undo stack.
+      const key = e.key.toLowerCase();
+      if (isMetaShortcut && (key === 'z' || key === 'y')) {
+        const target = e.target as HTMLElement;
+        const isEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+          || target.isContentEditable || !!target.closest?.('.monaco-editor')
+          || !!target.closest?.('[data-scene-composer-root]');
+        if (!isEditable) {
+          e.preventDefault();
+          if (key === 'z') {
+            if (e.shiftKey) { if (canRedo) redo(); } else if (canUndo) undo();
+          } else if (canRedo) {
+            redo();
+          }
+        }
+      }
       if (e.key === 'Escape') {
         closeGoToLabelModal();
         closeWarpToLabelModal();
@@ -1252,7 +1269,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal]);
+  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal, canUndo, canRedo, undo, redo]);
 
 
   const handleFindUsages = useCallback((id: string, type: 'character' | 'variable') => {
