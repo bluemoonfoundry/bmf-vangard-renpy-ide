@@ -70,3 +70,8 @@ docs/marketing/assembly/
 # Background music for the sizzle reel -- local-only, not redistributed via
 # the repo (licensing not confirmed for redistribution).
 docs/marketing/music/
+
+# Local Python venv for generate_vo_local.js's Chatterbox TTS -- large
+# (torch/CUDA wheels), machine-specific, and installed via that file's setup
+# instructions, not committed.
+docs/marketing/.venv-chatterbox/

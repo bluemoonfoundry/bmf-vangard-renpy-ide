@@ -3,7 +3,9 @@
  * build_reel.js
  *
  * Orchestrates the sizzle reel pipeline end to end:
- *   1. generate_vo.js       -- VO audio from sizzle-reel-script.md
+ *   1. generate_vo.js / generate_vo_local.js -- VO audio from
+ *                               sizzle-reel-script.md, via --vo-engine
+ *                               (default: local -- see that flag below).
  *   2. capture_broll.js     -- one Electron launch + video file per clip
  *                               (broll-<clip-id>.webm) -- see its header
  *                               comment for why each clip gets its own
@@ -11,15 +13,30 @@
  *   3. assemble_reel.js     -- slices + crossfades + cards -> draft cut
  *
  * Usage:
- *   node docs/marketing/build_reel.js --voice <voice_id> [options]
+ *   node docs/marketing/build_reel.js [options]
  *
  * Options (space-separated value, not --flag=value, matching the other
  * scripts in this pipeline):
  *   --steps vo,broll,assemble    Which steps to run, comma-separated, in this
  *                                order regardless of how you list them.
  *                                Default: all three.
- *   --voice <voice_id>          Required if the vo step runs. See
+ *   --vo-engine local|elevenlabs Which VO generator the vo step runs.
+ *                                Default: local (generate_vo_local.js,
+ *                                Chatterbox TTS on this machine's GPU -- see
+ *                                that file's header comment for why: the
+ *                                project's ElevenLabs quota ran out
+ *                                mid-project). Pass elevenlabs to use the
+ *                                original API-based generate_vo.js instead
+ *                                (once quota is available again).
+ *   --voice <voice_id>          Required if the vo step runs with
+ *                                --vo-engine elevenlabs. See
  *                                generate_vo.js --list-voices.
+ *   --voice-sample /path        Passed through to generate_vo_local.js
+ *                                (--vo-engine local only) -- optional
+ *                                reference audio for voice cloning; omit to
+ *                                use Chatterbox's built-in voice.
+ *   --exaggeration N            Passed through to generate_vo_local.js.
+ *   --cfg-weight N               "
  *   --vo-match position|content Passed through to assemble_reel.js. Default
  *                                position (see sizzle-reel-script.md's "ID
  *                                column" note for when to use content).
@@ -31,9 +48,10 @@
  *                                inputs and don't want to redo an expensive
  *                                upstream one (capture-broll takes minutes).
  *   --dry-run                   Preview parsed VO lines without generating
- *                                audio or spending API credits; implies
- *                                --steps=vo and skips broll/assemble (there's
- *                                nothing to build without real VO output).
+ *                                audio (or spending API credits, on the
+ *                                elevenlabs engine); implies --steps=vo and
+ *                                skips broll/assemble (there's nothing to
+ *                                build without real VO output).
  *   --continue-on-error         Run remaining steps even if one fails.
  *                                Default: stop at the first failure.
  *   --project /path             Passed through to capture_broll.js.
@@ -69,11 +87,21 @@ if (unknown.length > 0) {
     process.exit(1);
 }
 
-const VOICE = getArg('--voice');
-if (steps.includes('vo') && !VOICE && !DRY_RUN) {
-    console.error('Missing --voice <voice_id> (required for the vo step). Run generate_vo.js --list-voices to see options.');
+const VO_ENGINE = getArg('--vo-engine') ?? 'local';
+if (!['local', 'elevenlabs'].includes(VO_ENGINE)) {
+    console.error(`--vo-engine must be "local" or "elevenlabs", got "${VO_ENGINE}"`);
     process.exit(1);
 }
+
+const VOICE = getArg('--voice');
+if (steps.includes('vo') && VO_ENGINE === 'elevenlabs' && !VOICE && !DRY_RUN) {
+    console.error('Missing --voice <voice_id> (required for the vo step with --vo-engine elevenlabs). Run generate_vo.js --list-voices to see options.');
+    process.exit(1);
+}
+
+const VOICE_SAMPLE = getArg('--voice-sample');
+const EXAGGERATION = getArg('--exaggeration');
+const CFG_WEIGHT = getArg('--cfg-weight');
 
 const VO_MATCH = getArg('--vo-match') ?? 'position';
 const PROJECT = getArg('--project');
@@ -91,6 +119,14 @@ const STEP_OUTPUT = {
 function buildStepArgs(step) {
     switch (step) {
         case 'vo': {
+            if (VO_ENGINE === 'local') {
+                const a = [path.join(DOCS_DIR, 'marketing', 'generate_vo_local.js')];
+                if (DRY_RUN) { a.push('--dry-run'); return a; }
+                if (VOICE_SAMPLE) a.push('--voice-sample', VOICE_SAMPLE);
+                if (EXAGGERATION) a.push('--exaggeration', EXAGGERATION);
+                if (CFG_WEIGHT) a.push('--cfg-weight', CFG_WEIGHT);
+                return a;
+            }
             const a = [path.join(DOCS_DIR, 'marketing', 'generate_vo.js')];
             if (DRY_RUN) { a.push('--dry-run'); return a; }
             a.push('--voice', VOICE);
