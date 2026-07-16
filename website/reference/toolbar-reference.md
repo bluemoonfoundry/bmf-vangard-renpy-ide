@@ -26,6 +26,6 @@ Buttons are listed in order from left to right. The center group contains the ca
 **Notes:**
 - The Diagnostics badge only appears when one or more errors exist. The count reflects errors only, not warnings or info items.
 - The Run button changes to a Stop button while a game is running.
-- Drafting Mode is a session-only toggle -- it does not persist between application restarts.
+- Drafting Mode's on/off state is saved with the project (`game/project.ide.json`) and persists across application restarts -- it is not a session-only toggle.
 - The canvas switcher in the center highlights the currently active canvas. Only one canvas is visible at a time.
 - The four underlying auto-layout algorithms (flow left-to-right, flow top-down, connected-components, clustered-flow) are not chosen from this toolbar button; they are selected via the Canvas Layout Controls widget in the canvas's own top-left toolbox.
