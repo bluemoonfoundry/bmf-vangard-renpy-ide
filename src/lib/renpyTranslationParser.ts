@@ -45,6 +45,14 @@ const MENU_CHOICE_REGEX = /^\s*"((?:\\.|[^"\\])*)"(?:\s+if\s+.+)?\s*:/;
 /** Label definition */
 const LABEL_REGEX = /^\s*label\s+([a-zA-Z0-9_]+):/;
 
+/**
+ * Matches the header of a `style:` or `transform:` block. These blocks only ever
+ * contain property values (image paths, colors, sizes, easing functions, etc.),
+ * never human-readable text, so lines inside them must not be scanned for
+ * dialogue/narration/menu-choice strings.
+ */
+const NON_TRANSLATABLE_BLOCK_REGEX = /^(\s*)(?:style|transform)\s+[a-zA-Z0-9_.]+\s*:/;
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -89,15 +97,41 @@ export function extractTranslatableStrings(
 
     const lines = block.content.split('\n');
     let currentLabel: string | null = null;
+    // Indentation levels of enclosing style:/transform: blocks we're currently inside.
+    const nonTranslatableBlockIndents: number[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineNum = i + 1;
 
+      // Pop out of any style:/transform: blocks we've dedented past
+      if (line.trim() !== '') {
+        const indent = line.match(/^\s*/)![0].length;
+        while (
+          nonTranslatableBlockIndents.length > 0 &&
+          indent <= nonTranslatableBlockIndents[nonTranslatableBlockIndents.length - 1]
+        ) {
+          nonTranslatableBlockIndents.pop();
+        }
+      }
+
       // Track label scope
       const labelMatch = line.match(LABEL_REGEX);
       if (labelMatch) {
         currentLabel = labelMatch[1];
+        continue;
+      }
+
+      // Entering a style:/transform: block — its contents are property values
+      // (image paths, colors, sizes, easing curves), never translatable text.
+      const blockHeaderMatch = line.match(NON_TRANSLATABLE_BLOCK_REGEX);
+      if (blockHeaderMatch) {
+        nonTranslatableBlockIndents.push(blockHeaderMatch[1].length);
+        continue;
+      }
+
+      // Skip extraction entirely while inside a style:/transform: block
+      if (nonTranslatableBlockIndents.length > 0) {
         continue;
       }
 

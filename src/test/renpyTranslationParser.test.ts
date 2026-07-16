@@ -146,6 +146,40 @@ describe('extractTranslatableStrings', () => {
     expect(result).toHaveLength(0);
   });
 
+  it('skips property lines inside style: blocks', () => {
+    const block = makeBlock({
+      filePath: 'game/screens.rpy',
+      content:
+        'style slider:\n    ysize gui.slider_size\n    thumb "gui/slider/horizontal_[prefix_]thumb.png"\n\nlabel start:\n    e "Real dialogue"\n',
+    });
+    const result = extractTranslatableStrings([block], new Map(), {
+      start: { blockId: 'block-1' },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].sourceText).toBe('Real dialogue');
+  });
+
+  it('skips property lines inside transform: blocks', () => {
+    const block = makeBlock({
+      filePath: 'game/transforms.rpy',
+      content: 'transform fade_in:\n    alpha 0.0\n    "text" 1.0\n',
+    });
+    const result = extractTranslatableStrings([block], new Map(), {});
+    expect(result).toHaveLength(0);
+  });
+
+  it('resumes extraction after dedenting out of a style: block', () => {
+    const block = makeBlock({
+      content:
+        'style slider:\n    thumb "gui/slider/horizontal_[prefix_]thumb.png"\nlabel start:\n    e "After style block"\n',
+    });
+    const result = extractTranslatableStrings([block], new Map(), {
+      start: { blockId: 'block-1' },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].sourceText).toBe('After style block');
+  });
+
   it('handles multiple labels in one block', () => {
     const block = makeBlock({
       content: 'label part1:\n    e "Line A"\nlabel part2:\n    e "Line B"\n',
