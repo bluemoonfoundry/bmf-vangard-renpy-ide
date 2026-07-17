@@ -3,18 +3,19 @@
  * capture_broll.js
  *
  * Launches the Vangard Studio Electron app with DemoProject, drives it with
- * Playwright, and records each visual cue in the sizzle reel script
- * (docs/marketing/sizzle-reel-script.md) with a real-time OS-level screen
- * capture (ffmpeg's gdigrab) rather than Playwright's own recordVideo.
- * assemble_reel.js stitches the resulting clips together against the VO
- * track and title cards.
+ * Playwright, and records the whole tour -- every visual cue in the sizzle
+ * reel script (docs/marketing/sizzle-reel-script.md), back to back -- as ONE
+ * continuous real-time OS-level screen capture (ffmpeg's gdigrab) rather than
+ * Playwright's own recordVideo. assemble_reel.js slices the resulting take
+ * into per-cue segments against the VO track and title cards.
  *
  * Usage:
  *   node docs/capture_broll.js [--project /path] [--out docs/marketing/broll]
- *   node docs/capture_broll.js --clip <id>   # record just one clip, for
- *                                             # testing its setup/selectors --
- *                                             # writes broll-test-<id>.mp4
- *                                             # instead of touching the real
+ *   node docs/capture_broll.js --clip <id>[,<id>...]  # record just one or a
+ *                                             # few clips, for testing
+ *                                             # setup/selectors -- writes
+ *                                             # broll-test-<ids>.mp4 instead
+ *                                             # of touching the real
  *                                             # manifest/output files
  *
  * Requirements:
@@ -23,50 +24,54 @@
  *   loading mechanism as assemble_reel.js/generate_vo.js). Windows only --
  *   gdigrab is a Windows-specific ffmpeg input device.
  *
- * Why not Playwright's recordVideo (two designs tried and abandoned):
+ * Why not Playwright's recordVideo, and why one continuous take (three
+ * designs tried, in order):
  *
- *   1. One continuous take covering every clip, with assemble_reel.js
- *      recovering each clip's boundaries from wall-clock timestamps via a
- *      per-file scale factor (real video duration / wall-clock total). This
- *      assumed the encoder fell behind wall-clock time under CPU load, and
- *      that a single scale factor could correct for it -- but confirmed via
- *      direct frame inspection, the drift wasn't uniform (it got markedly
- *      worse right after a CPU-heavy clip like the Translation Dashboard's
- *      virtualized 900+-string table), so the correction missed the real
- *      boundary by more than ten seconds in a ~3min take. A magenta
- *      flashMarker() beat detected in the decoded video patched over this
- *      for the montage specifically (see git history), but the encoder
- *      unreliably dropped marker frames too.
+ *   1. One continuous Playwright recordVideo take covering every clip, with
+ *      assemble_reel.js recovering each clip's boundaries from wall-clock
+ *      timestamps via a per-file scale factor (real video duration /
+ *      wall-clock total). This assumed the encoder fell behind wall-clock
+ *      time under CPU load, and that a single scale factor could correct for
+ *      it -- but confirmed via direct frame inspection, the drift wasn't
+ *      uniform (it got markedly worse right after a CPU-heavy clip like the
+ *      Translation Dashboard's virtualized 900+-string table), so the
+ *      correction missed the real boundary by more than ten seconds in a
+ *      ~3min take.
  *
- *   2. One Electron launch + one recordVideo file per clip (this file's
- *      previous version) -- shrinking the recording window to ~5-12s so
- *      there was no long take for drift to accumulate in. Direct measurement
- *      disproved the assumption underneath this too: Playwright's
- *      recordVideo is driven by Chromium's CDP screencast, which only emits
- *      a new frame when the page actually repaints. A static "hold" --
- *      exactly the shot b-roll needs, showing a settled feature state -- can
- *      produce almost no repaints, so the video's real decoded duration came
- *      out 2-3x shorter than the wall-clock time that actually elapsed
- *      (measured: a 4s static hold produced a 2.44s video; a clip with
- *      continuous mouse movement over the same wall-clock span produced a
- *      4.60s video). This isn't a drift that scales linearly with time --
- *      it's content-dependent frame starvation, worst on the very shots that
- *      matter most, so no offset or scale-factor model can correct for it.
+ *   2. One Electron launch + one Playwright recordVideo file per clip --
+ *      shrinking the recording window to ~5-12s so there was no long take
+ *      for drift to accumulate in. Direct measurement disproved the
+ *      assumption underneath this too: Playwright's recordVideo is driven by
+ *      Chromium's CDP screencast, which only emits a new frame when the page
+ *      actually repaints. A static "hold" -- exactly the shot b-roll needs,
+ *      showing a settled feature state -- can produce almost no repaints, so
+ *      the video's real decoded duration came out 2-3x shorter than the
+ *      wall-clock time that actually elapsed. This isn't drift that scales
+ *      linearly with time -- it's content-dependent frame starvation, worst
+ *      on the very shots that matter most, so no offset/scale-factor model
+ *      can correct for it. Switching to gdigrab (below) fixed this, since
+ *      it's a real OS-level capture, not a repaint-driven screencast.
  *
- * gdigrab sidesteps both failure modes structurally: it's an OS-level screen
- * grabber, not a page-repaint-driven screencast, so it captures real frames
- * at a fixed real-time rate regardless of what's changing on screen. Each
- * clip's ffmpeg process starts AFTER clip.setup() has already navigated to
- * the settled state (see the main loop below), so the recorded file *is*
- * the clip -- no post-hoc offset/trim math, no manifest start/end fields, no
- * scale factor. assemble_reel.js just uses each file's own real duration.
- *
- * Each clip still gets its own Electron launch (closed before the next
- * clip starts) rather than reusing one window for the whole run: the
- * exported footage never includes the boot screen (capture starts after
- * setup), so cuts read as cuts either way, and a short cooldown between
- * launches (see LAUNCH_COOLDOWN_MS) keeps repeated relaunches from
- * contending with each other for CPU.
+ *   3. One gdigrab-recorded file per clip (this file's previous version),
+ *      keeping design #2's per-clip-launch structure now that gdigrab had
+ *      fixed the underlying recording problem. This worked, but relaunching
+ *      Electron between every clip made consecutive clips look like the app
+ *      was reopening in the final cut, even though the boot screen itself
+ *      was cropped out -- window state, scroll position, and general
+ *      continuity all reset every ~10s. Confirmed empirically (see this
+ *      file's git history) that gdigrab does NOT share Playwright
+ *      recordVideo's drift problem even over a multi-minute continuous take
+ *      (measured: 25.004s wall-clock vs 25.30s decoded over a 25s capture --
+ *      no accumulating error), which is what made design #1 fail. That
+ *      finding removes the entire reason per-clip isolation existed, so this
+ *      version returns to ONE continuous session and ONE continuous
+ *      recording covering every clip -- cuts are cuts within a real
+ *      continuous take again (no relaunch artifacts), and boundary recovery
+ *      via wall-clock timestamps (see the main loop's settledStart/
+ *      segmentEnd) is trustworthy because gdigrab's timestamps are.
+ *      assemble_reel.js still applies a small per-file scale-factor safety
+ *      net (real duration / latest wall-clock timestamp) for the residual
+ *      sub-second capture-startup latency -- see its header comment.
  */
 
 import { _electron as electron } from 'playwright';
@@ -129,16 +134,10 @@ const FPS = 30;
 const MIN_HOLD_MS = 4000;
 const MIN_HOLD_MS_MONTAGE = 1800;
 
-// Pause after each clip's Electron process closes before the next one
-// launches, so the previous process's teardown doesn't contend with the next
-// one's boot for CPU.
-const LAUNCH_COOLDOWN_MS = 1000;
-
-// gdigrab's window-open/close handshake and ffmpeg's own startup both take a
-// beat -- pad both ends of the real capture so the very first/last requested
-// frames aren't lost to that latency (better a little extra settled footage
-// at each end than missing content; renderClip's tpad already pads the tail
-// if a source runs short).
+// ffmpeg's own gdigrab startup takes a beat before frames actually start
+// landing in the file -- pad both ends of the one continuous recording so
+// the very first clip's settledStart and the very last clip's segmentEnd
+// aren't measured against a still-warming-up (or already-stopping) capture.
 const CAPTURE_STARTUP_MS = 500;
 const CAPTURE_SHUTDOWN_MS = 500;
 
@@ -146,6 +145,26 @@ const CAPTURE_SHUTDOWN_MS = 500;
 // Directory at a real file so checkRenpyPath() passes (it only checks the file
 // exists, never runs it). Without this, Warp to Label stays disabled.
 const FAKE_RENPY_SDK = path.join(ROOT, 'e2e', 'fixtures', 'fake-renpy-sdk');
+
+// menuTemplates lives in app-level settings (userData/app-settings.json per
+// CLAUDE.md), not the project file -- DemoProject has none on disk, so the
+// montage's Menu Templates clip would otherwise capture an empty panel with
+// nothing to click. Seeded here via RENIDE_SETTINGS_OVERRIDE (see
+// launchAppRecording) so the clip has real, deterministic content regardless
+// of whatever templates exist (or don't) in this machine's actual settings.
+const DEMO_MENU_TEMPLATE = {
+    id: 'demo-chapter-select',
+    name: 'Chapter Select',
+    description: 'Jump straight to any chapter from the main menu.',
+    menuStatement: 'Which chapter would you like to replay?',
+    choices: [
+        { id: 'c1', text: 'Chapter 1: Arrival', action: 'jump', target: 'stage1_arrival' },
+        { id: 'c2', text: 'Chapter 2: The Garden', action: 'jump', target: 'stage2_converge' },
+        { id: 'c3', text: 'Never mind', action: 'return' },
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+};
 
 // ---------------------------------------------------------------------------
 // Load production app settings for theme/layout consistency (same as
@@ -338,7 +357,7 @@ const CLIPS = [
             const openButton = page.locator('button[aria-label^="Open "]:visible').first();
             if (await openButton.count() > 0) {
                 await openButton.click();
-                await page.waitForSelector('.monaco-editor', { timeout: 8000 });
+                await page.waitForSelector('.monaco-editor:visible', { timeout: 8000 });
             }
         },
     },
@@ -355,9 +374,17 @@ const CLIPS = [
             await page.keyboard.type('stage1_arrival');
             await page.waitForTimeout(400);
             await page.keyboard.press('Enter');
-            await page.waitForTimeout(600);
+            // A fixed wait here (previously 600ms) raced the canvas's
+            // pan-to-center animation under real capture load -- confirmed
+            // flaky in a full 22-clip run (page.dblclick timed out after
+            // 30s, implying the block was still moving/unstable, not
+            // missing). Wait for the block to actually be visible first;
+            // Playwright's own actionability check inside dblclick still
+            // covers final settle.
+            await page.waitForSelector('[data-block-id]:has-text("stage1_arrival.rpy")', { state: 'visible', timeout: 8000 });
+            await page.waitForTimeout(300);
             await page.dblclick('[data-block-id]:has-text("stage1_arrival.rpy")');
-            await page.waitForSelector('.monaco-editor', { timeout: 8000 });
+            await page.waitForSelector('.monaco-editor:visible', { timeout: 8000 });
             await page.click('.monaco-editor');
             await page.keyboard.press('Control+End');
             await page.keyboard.type('\n    show ');
@@ -416,9 +443,17 @@ const CLIPS = [
             await page.keyboard.type('stage1_arrival');
             await page.waitForTimeout(400);
             await page.keyboard.press('Enter');
-            await page.waitForTimeout(600);
+            // A fixed wait here (previously 600ms) raced the canvas's
+            // pan-to-center animation under real capture load -- confirmed
+            // flaky in a full 22-clip run (page.dblclick timed out after
+            // 30s, implying the block was still moving/unstable, not
+            // missing). Wait for the block to actually be visible first;
+            // Playwright's own actionability check inside dblclick still
+            // covers final settle.
+            await page.waitForSelector('[data-block-id]:has-text("stage1_arrival.rpy")', { state: 'visible', timeout: 8000 });
+            await page.waitForTimeout(300);
             await page.dblclick('[data-block-id]:has-text("stage1_arrival.rpy")');
-            await page.waitForSelector('.monaco-editor', { timeout: 8000 });
+            await page.waitForSelector('.monaco-editor:visible', { timeout: 8000 });
         },
     },
     {
@@ -537,22 +572,50 @@ const CLIPS = [
         // whole take is one continuous session; only sidebar tabs change).
         id: '16-montage-screens',
         time: '2:19-2:34 (part 1/7)',
-        description: 'Screens tab (reset to Project Canvas first)',
+        description: 'Screens tab (reset to Project Canvas first): jump to a screen\'s definition in the editor',
         durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickCanvasTab(page, 'Project Canvas');
             await clickSidebarTab(page, 'Screens');
+            // Screens is read-only (no preview pane of its own) -- the real
+            // interaction is "Go to definition", which opens the screen's
+            // block in the Monaco editor. `about` is one of Ren'Py's
+            // default GUI screens, always present in screens.rpy.
+            //
+            // By this point in the sequence, clips 05/08 have already
+            // opened Monaco editors of their own, which stay mounted but
+            // hidden behind whichever tab is active (see CLAUDE.md's Tab
+            // Lifecycle note, and clip 04's identical pitfall with
+            // "Open "-prefixed buttons) -- confirmed via direct DOM
+            // inspection: 2 `.monaco-editor` elements exist here, one
+            // hidden. A plain `.monaco-editor` selector matches whichever is
+            // FIRST in DOM order, which by this point is the stale hidden
+            // one, not the new visible one -- so it waits forever for an
+            // element that's never going to become visible. This produced a
+            // reproducible timeout ~150s into a real 22-clip run (never in
+            // isolation, where there's no earlier hidden editor to collide
+            // with) that looked exactly like a load-related flake but
+            // wasn't -- confirmed by reproducing it with Playwright driving
+            // directly, no video capture running at all. :visible scopes to
+            // the actually-visible one, same fix already used elsewhere in
+            // this file for the same mounted-but-hidden pattern.
+            const gotoDefButton = page.locator('button[aria-label="Go to definition of about"]');
+            await gotoDefButton.waitFor({ state: 'visible', timeout: 8000 });
+            await gotoDefButton.click();
+            await page.waitForSelector('.monaco-editor:visible', { timeout: 8000 });
         },
     },
     {
         id: '17-montage-images',
         time: '2:19-2:34 (part 2/7)',
-        description: 'Images tab',
+        description: 'Images tab: double-click an image to open its editor tab',
         durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Images');
+            await page.dblclick('div[title="game/images/bg/garden.png"]');
+            await page.waitForSelector('h2:has-text("Image Properties")', { timeout: 8000 });
         },
     },
     {
@@ -568,31 +631,55 @@ const CLIPS = [
     {
         id: '19-montage-snippets',
         time: '2:19-2:34 (part 4/7)',
-        description: 'Code Snippets grid',
+        description: 'Code Snippets grid: expand a snippet to preview its code',
         durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Code Snippets');
+            // Snippets expand inline (no separate tab/pane) -- "Standard
+            // Dialogue" is a built-in default snippet, always present, but
+            // sorts well down the alphabetical grid -- scroll it into view
+            // explicitly rather than relying on click()'s implicit scroll,
+            // which left the panel showing the untouched top of the list in
+            // testing (grid layout reflow from an unrelated toast
+            // notification likely raced it). `div:has(h3:has-text(...))`
+            // alone matches every ancestor of that h3 (confirmed: resolved
+            // to 33 elements, one per snippet's own preview div) -- the
+            // xpath step narrows to just that one card.
+            const card = page.locator('h3:has-text("Standard Dialogue")').locator('xpath=ancestor::div[contains(@class,"rounded-md")][1]');
+            const snippetPreview = card.locator('[title="Click to expand"]');
+            await snippetPreview.scrollIntoViewIfNeeded();
+            await page.waitForTimeout(300);
+            await snippetPreview.click();
+            await page.waitForTimeout(800);
         },
     },
     {
         id: '20-montage-menu-templates',
         time: '2:19-2:34 (part 5/7)',
-        description: 'Menu Templates tab',
+        description: 'Menu Templates tab: expand a template to preview its generated code',
         durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Menu Templates');
+            // Templates expand inline too (see DEMO_MENU_TEMPLATE, seeded
+            // via RENIDE_SETTINGS_OVERRIDE since DemoProject has none of its
+            // own -- menuTemplates lives in app-level settings, not the
+            // project file).
+            await page.click('li:has-text("Chapter Select") p.font-semibold');
+            await page.waitForTimeout(500);
         },
     },
     {
         id: '21-montage-color-palette',
         time: '2:19-2:34 (part 6/7)',
-        description: 'Color Palette tab',
+        description: 'Color Palette tab: select a swatch',
         durationMs: 2600,
         setup: async (page) => {
             await waitForProjectReady(page);
             await clickSidebarTab(page, 'Color Palette');
+            await page.locator('div[role="listbox"] button[role="option"]').first().click();
+            await page.waitForTimeout(300);
         },
     },
     {
@@ -640,27 +727,38 @@ async function launchAppRecording(productionSettings, settingsOverride = {}) {
     return app;
 }
 
-/** Returns the fullscreened window's bounds in *virtual-desktop* coordinates
- *  (gdigrab's -offset_x/-offset_y are relative to the virtual desktop's
- *  top-left, which is above/left of the primary monitor on a multi-monitor
- *  setup with monitors arranged left/above it -- getBounds() already
- *  reports in that same space, so no translation needed). */
+/** Returns the fullscreened window's bounds in *physical* virtual-desktop
+ *  pixels, which is what gdigrab's -offset_x/-offset_y/-video_size expect.
+ *  BrowserWindow.getBounds() reports in logical/DIP pixels -- on any
+ *  DPI-scaled display (confirmed: this dev box's monitors are 4K at 125%,
+ *  DPR 1.25) that under-reports the window's real on-screen footprint, so
+ *  passing it straight to gdigrab captured only the top-left region sized to
+ *  the logical dimensions -- the right/bottom edge of the window (status
+ *  bar, Story Elements pane) was simply outside the captured area, not
+ *  hidden by anything downstream. Multiply by the matching display's
+ *  scaleFactor to convert to physical pixels before returning. */
 async function getMainPage(electronApp) {
     const page = await electronApp.firstWindow();
-    const bounds = await electronApp.evaluate(({ BrowserWindow }) => {
+    await electronApp.evaluate(({ BrowserWindow }) => {
         const [win] = BrowserWindow.getAllWindows();
-        if (!win) return null;
-        win.setFullScreen(true);
-        return win.getBounds();
+        if (win) win.setFullScreen(true);
     });
-    await page.waitForTimeout(800);
     // getBounds() right after setFullScreen() can still report the
-    // pre-fullscreen size on some platforms/timing -- re-read once settled.
-    const settledBounds = await electronApp.evaluate(({ BrowserWindow }) => {
+    // pre-fullscreen size on some platforms/timing -- wait for it to settle
+    // before reading.
+    await page.waitForTimeout(800);
+    const { bounds, scaleFactor } = await electronApp.evaluate(({ BrowserWindow, screen }) => {
         const [win] = BrowserWindow.getAllWindows();
-        return win ? win.getBounds() : null;
+        const bounds = win.getBounds();
+        return { bounds, scaleFactor: screen.getDisplayMatching(bounds).scaleFactor };
     });
-    return { page, bounds: settledBounds ?? bounds };
+    const physicalBounds = {
+        x: Math.round(bounds.x * scaleFactor),
+        y: Math.round(bounds.y * scaleFactor),
+        width: Math.round(bounds.width * scaleFactor),
+        height: Math.round(bounds.height * scaleFactor),
+    };
+    return { page, bounds: physicalBounds };
 }
 
 /** Starts a real-time OS-level screen capture via ffmpeg's gdigrab (Windows
@@ -730,98 +828,102 @@ async function main() {
         process.exit(1);
     }
 
-    // A --clip run writes its own broll-test-<id>.webm and is for trying out
+    // A --clip run writes its own broll-test-<ids>.mp4 and is for trying out
     // a clip's setup/selectors in isolation -- it shouldn't touch the real
     // manifest at all.
     const isTest = Boolean(onlyIds);
+    const outputFilename = isTest ? `broll-test-${onlyIds.join('_')}.mp4` : 'broll-main.mp4';
+    const outPath = path.join(OUT_DIR, outputFilename);
 
-    console.log(`\nRecording ${clips.length} clip(s), one Electron launch each -> ${OUT_DIR}\n`);
+    console.log(`\nRecording ${clips.length} clip(s) in one continuous take -> ${outputFilename}\n`);
 
+    const electronApp = await launchAppRecording(productionSettings, { menuTemplates: [DEMO_MENU_TEMPLATE] });
+    const manifest = {};
     let captured = 0;
     let failed = 0;
+    let page;
+    let captureProc = null;
 
-    for (let i = 0; i < clips.length; i++) {
-        const clip = clips[i];
-        const num = String(i + 1).padStart(2);
-        process.stdout.write(`  [${num}] ${clip.id.padEnd(34)} (${clip.time}) `);
+    try {
+        const main = await getMainPage(electronApp);
+        page = main.page;
+        await waitForProjectReady(page);
 
-        const outputFilename = isTest ? `broll-test-${clip.id}.mp4` : `broll-${clip.id}.mp4`;
-        const outPath = path.join(OUT_DIR, outputFilename);
-        const electronApp = await launchAppRecording(productionSettings);
-        let page;
-        let captureProc = null;
-        let ok = false;
+        captureProc = startScreenCapture(outPath, main.bounds);
+        await page.waitForTimeout(CAPTURE_STARTUP_MS);
+        const recordStart = Date.now();
 
-        try {
-            const main = await getMainPage(electronApp);
-            page = main.page;
-            await waitForProjectReady(page);
+        for (let i = 0; i < clips.length; i++) {
+            const clip = clips[i];
+            const num = String(i + 1).padStart(2);
+            process.stdout.write(`  [${num}] ${clip.id.padEnd(34)} (${clip.time}) `);
 
-            // Setup/navigation runs BEFORE capture starts -- the recorded
-            // file only ever contains the settled feature state, never the
-            // boot screen or tab-switch transition, so no post-hoc trimming
-            // is needed downstream.
-            if (clip.setup) await clip.setup(page, electronApp);
+            try {
+                if (clip.setup) await clip.setup(page, electronApp);
+                // Everything before this point (tab switches, dialogs) is
+                // real footage in the shared recording -- this timestamp
+                // marks where the "settled" feature state begins, so
+                // assemble_reel.js can start the segment here instead of at
+                // the clip's first navigation click.
+                const settledStart = (Date.now() - recordStart) / 1000;
+                const holdStart = Date.now();
+                if (clip.action) await clip.action(page, electronApp);
+                const elapsed = Date.now() - holdStart;
+                const remaining = Math.max(clip.durationMs - elapsed, 0);
+                const minHold = MONTAGE_IDS.has(clip.id) ? MIN_HOLD_MS_MONTAGE : MIN_HOLD_MS;
+                await page.waitForTimeout(Math.max(remaining, minHold));
+                if (clip.teardown) await clip.teardown(page, electronApp);
+                const segmentEnd = (Date.now() - recordStart) / 1000;
 
-            captureProc = startScreenCapture(outPath, main.bounds);
-            await page.waitForTimeout(CAPTURE_STARTUP_MS);
-
-            const holdStart = Date.now();
-            if (clip.action) await clip.action(page, electronApp);
-            const elapsed = Date.now() - holdStart;
-            const remaining = Math.max(clip.durationMs - elapsed, 0);
-            const minHold = MONTAGE_IDS.has(clip.id) ? MIN_HOLD_MS_MONTAGE : MIN_HOLD_MS;
-            await page.waitForTimeout(Math.max(remaining, minHold));
-
-            await page.waitForTimeout(CAPTURE_SHUTDOWN_MS);
-            await stopScreenCapture(captureProc);
-            captureProc = null;
-
-            // Teardown (e.g. closing a modal) doesn't need to be filmed --
-            // it runs after capture has already stopped.
-            if (clip.teardown) await clip.teardown(page, electronApp);
-            ok = true;
-        } catch (err) {
-            failed++;
-            console.log(`FAILED: ${err.message.split('\n')[0]}`);
-        } finally {
-            if (captureProc) await stopScreenCapture(captureProc).catch(() => {});
-            // electron.js's window 'close' handler always intercepts close to
-            // ask about unsaved changes, which nothing here answers, so
-            // electronApp.close() alone hangs -- forceQuit() bypasses it.
-            if (page) {
-                await page.evaluate(() => window.electronAPI.forceQuit()).catch(() => {});
-                await page.waitForEvent('close', { timeout: 15000 }).catch(() => {});
+                manifest[clip.id] = {
+                    start: Number(settledStart.toFixed(3)),
+                    end: Number(segmentEnd.toFixed(3)),
+                    file: outputFilename,
+                };
+                captured++;
+                console.log(`ok (${settledStart.toFixed(2)}s-${segmentEnd.toFixed(2)}s)`);
+            } catch (err) {
+                failed++;
+                console.log(`FAILED: ${err.message.split('\n')[0]}`);
+                // A failed setup/teardown can leave a modal open, which would
+                // otherwise cascade into every later clip failing too --
+                // relevant again now that all clips share one session.
+                await page.keyboard.press('Escape').catch(() => {});
+                await page.keyboard.press('Escape').catch(() => {});
             }
         }
-        await electronApp.close().catch(() => {});
 
-        const savedOk = ok && existsSync(outPath) && (await fs.stat(outPath)).size > 0;
-        if (savedOk) {
-            captured++;
-            const duration = await realDuration(outPath);
-            console.log(`ok (${outputFilename}${duration != null ? `, ${duration.toFixed(2)}s` : ''})`);
-            if (!isTest) {
-                const manifestPath = path.join(OUT_DIR, 'manifest.json');
-                const existing = existsSync(manifestPath)
-                    ? JSON.parse(await fs.readFile(manifestPath, 'utf8'))
-                    : {};
-                existing[clip.id] = { file: outputFilename };
-                await fs.writeFile(manifestPath, JSON.stringify(existing, null, 2));
-            }
-        } else if (ok) {
-            failed++;
-            console.log('FAILED: no video was recorded');
+        await page.waitForTimeout(CAPTURE_SHUTDOWN_MS);
+    } finally {
+        if (captureProc) await stopScreenCapture(captureProc).catch(() => {});
+        // electron.js's window 'close' handler always intercepts close to
+        // ask about unsaved changes, which nothing here answers, so
+        // electronApp.close() alone hangs -- forceQuit() bypasses it.
+        if (page) {
+            await page.evaluate(() => window.electronAPI.forceQuit()).catch(() => {});
+            await page.waitForEvent('close', { timeout: 15000 }).catch(() => {});
         }
-
-        // See LAUNCH_COOLDOWN_MS's doc comment -- let this process fully exit
-        // before the next one launches, except after the very last clip.
-        if (i < clips.length - 1) await new Promise(r => setTimeout(r, LAUNCH_COOLDOWN_MS));
     }
+    await electronApp.close().catch(() => {});
 
-    console.log(isTest ? '' : `\nManifest updated at ${path.join(OUT_DIR, 'manifest.json')}`);
+    const savedOk = existsSync(outPath) && (await fs.stat(outPath)).size > 0;
+    if (savedOk) {
+        const duration = await realDuration(outPath);
+        console.log(`\nRecording saved to ${outPath}${duration != null ? ` (${duration.toFixed(2)}s)` : ''}`);
+        if (!isTest && captured > 0) {
+            const manifestPath = path.join(OUT_DIR, 'manifest.json');
+            const existing = existsSync(manifestPath)
+                ? JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+                : {};
+            const merged = { ...existing, ...manifest };
+            await fs.writeFile(manifestPath, JSON.stringify(merged, null, 2));
+            console.log(`Manifest written to ${manifestPath}`);
+        }
+    } else {
+        console.error('\nNo video was recorded.');
+    }
     console.log(`Done: ${captured} captured, ${failed} failed.`);
-    if (failed > 0) process.exit(1);
+    if (failed > 0 || !savedOk) process.exit(1);
 }
 
 main().catch(err => {

@@ -2,17 +2,15 @@
 /**
  * assemble_reel.js
  *
- * Stitches the b-roll clips in docs/marketing/broll/ (see capture_broll.js --
- * one broll-<clip-id>.mp4 file per clip, an OS-level real-time screen capture
- * of exactly that clip's settled state, nothing more) and
- * docs/marketing/vo/*.mp3 into a rough assembly cut of the sizzle reel, using
- * vo/timing-summary.json for per-line VO duration and broll/manifest.json for
- * which file each feature's footage is in. Each source file is used in full
- * -- capture_broll.js only starts recording once the feature is already on
- * screen, so there's no boot/setup footage to trim off, and no offset math:
- * a clip's window is simply [0, that file's real duration]. This is a DRAFT
- * cut for reviewing pacing, not a final edit -- the intro/divider/outro
- * cards are plain black-background placeholders, not final branding.
+ * Stitches the b-roll take in docs/marketing/broll/broll-main.mp4 (see
+ * capture_broll.js -- one continuous OS-level real-time screen capture
+ * covering every clip back to back) and docs/marketing/vo/*.mp3 into a rough
+ * assembly cut of the sizzle reel, using vo/timing-summary.json for per-line
+ * VO duration and broll/manifest.json for each clip's [start, end] window
+ * within that take (plus which file, since a --clip test run's manifest
+ * entries point at their own broll-test-*.mp4 instead). This is a DRAFT cut
+ * for reviewing pacing, not a final edit -- the intro/divider/outro cards are
+ * plain black-background placeholders, not final branding.
  *
  * Usage:
  *   node docs/marketing/assemble_reel.js [--out docs/marketing/assembly] [--music /path/to/track.mp3]
@@ -150,23 +148,27 @@ const CARD_FONT = process.env.TITLE_CARD_FONT || 'C:/Windows/Fonts/segoeui.ttf';
 // small margin. Re-measure if the app's layout changes.
 const PANEL_FOCUS = { x: 1620, y: 35, w: 300, h: 1045 };
 
-/** Renders a slice of the master b-roll take like renderClip, but dims/
- *  desaturates everything outside the Story Elements panel and burns in a
- *  bottom-left label -- used for the feature-montage tour of sidebar tabs so
- *  it's unambiguous what's being highlighted (split+crop+overlay is used
- *  instead of a plain vignette filter since the "spotlight" here is a hard
- *  rectangle matching the panel, not a soft radial fade). */
+// Accent color for the panel-focus outline -- matches the app's own indigo
+// accent (e.g. ChoiceCanvas's "text-indigo-800 dark:text-indigo-200"),
+// so the highlight reads as part of the UI rather than an edit overlay.
+const PANEL_FOCUS_COLOR = '0x6366F1';
+
+/** Renders a slice of the master b-roll take like renderClip, but draws an
+ *  outline around the Story Elements panel and burns in a bottom-left label
+ *  -- used for the feature-montage tour of sidebar tabs so it's unambiguous
+ *  what's being highlighted. An earlier version dimmed/desaturated
+ *  everything outside the panel to spotlight it, but that hid the canvas and
+ *  code panels the montage is also meant to show reacting to each tab's
+ *  interaction (see capture_broll.js's montage clip setups) -- an outline
+ *  points at the same panel without hiding anything else in the frame. */
 async function renderClipWithFocus(sourceFile, ss, available, duration, outPath, label) {
     const shortfall = duration - available;
     const padFilter = shortfall > 0.05 ? `,tpad=stop_mode=clone:stop_duration=${shortfall.toFixed(3)}` : '';
     const { x, y, w, h } = PANEL_FOCUS;
     const filterComplex =
         `[0:v]${SCALE_PAD}${padFilter}[scaled];` +
-        `[scaled]split=2[bg][fg];` +
-        `[bg]eq=brightness=-0.45:saturation=0.25[bgdim];` +
-        `[fg]crop=${w}:${h}:${x}:${y}[fgcrop];` +
-        `[bgdim][fgcrop]overlay=${x}:${y}[vig];` +
-        `[vig]drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${label}':fontcolor=white:fontsize=42:x=40:y=h-text_h-40:box=1:boxcolor=black@0.5:boxborderw=12[out]`;
+        `[scaled]drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=${PANEL_FOCUS_COLOR}:t=5[boxed];` +
+        `[boxed]drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${label}':fontcolor=white:fontsize=42:x=40:y=h-text_h-40:box=1:boxcolor=black@0.5:boxborderw=12[out]`;
     await run([
         '-ss', String(Math.max(ss, 0)),
         '-i', sourceFile,
@@ -426,19 +428,38 @@ async function main() {
         return { file: path.join(VO_DIR, entry.filename), duration: entry.durationSeconds, text: entry.text };
     };
 
-    console.log(`Measuring real duration of ${Object.keys(manifest).length} source clip(s)...`);
-    const durations = {};
-    for (const [clipId, entry] of Object.entries(manifest)) {
-        const filePath = path.join(BROLL_DIR, entry.file);
-        if (!existsSync(filePath)) throw new Error(`Manifest references ${entry.file}, but it doesn't exist in ${BROLL_DIR} -- rerun capture_broll.js`);
-        durations[clipId] = await realDuration(filePath);
+    // capture_broll.js records each clip's start/end as wall-clock seconds
+    // since the shared take's capture began. gdigrab is a real-time OS-level
+    // capture (unlike Playwright's recordVideo -- see capture_broll.js's
+    // header comment), so these timestamps are trustworthy without the
+    // multi-second correction the old Playwright-based design needed. What's
+    // left to correct is much smaller: gdigrab's own startup latency before
+    // frames actually start landing in the file, which offsets every
+    // timestamp by a roughly constant sub-second amount. Correct per source
+    // file with a scale factor (real decoded duration / latest wall-clock
+    // timestamp among manifest entries pointing at it) rather than a fixed
+    // subtraction, since that also self-corrects for the file's own
+    // finalization padding.
+    const filesUsed = [...new Set(Object.values(manifest).map(m => m.file))];
+    console.log(`Measuring real duration of ${filesUsed.length} source file(s) for offset correction...`);
+    const scaleFactors = {};
+    for (const file of filesUsed) {
+        const filePath = path.join(BROLL_DIR, file);
+        if (!existsSync(filePath)) throw new Error(`Manifest references ${file}, but it doesn't exist in ${BROLL_DIR} -- rerun capture_broll.js`);
+        const real = await realDuration(filePath);
+        const wallClockTotal = Math.max(
+            ...Object.values(manifest).filter(m => m.file === file).map(m => m.end)
+        );
+        scaleFactors[file] = real / wallClockTotal;
+        console.log(`  ${file}: real ${real.toFixed(2)}s, wall-clock total ${wallClockTotal.toFixed(2)}s, scale factor ${scaleFactors[file].toFixed(3)}`);
     }
     console.log('');
 
     const clipWindow = (clipId) => {
         const entry = manifest[clipId];
         if (!entry) throw new Error(`No manifest entry for clip "${clipId}" -- rerun capture_broll.js`);
-        return { file: path.join(BROLL_DIR, entry.file), start: 0, end: durations[clipId] };
+        const scaleFactor = scaleFactors[entry.file];
+        return { file: path.join(BROLL_DIR, entry.file), start: entry.start * scaleFactor, end: entry.end * scaleFactor };
     };
 
     await fs.mkdir(WORK_DIR, { recursive: true });

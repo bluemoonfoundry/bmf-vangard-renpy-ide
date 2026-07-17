@@ -6,10 +6,12 @@
  *   1. generate_vo.js / generate_vo_local.js -- VO audio from
  *                               sizzle-reel-script.md, via --vo-engine
  *                               (default: local -- see that flag below).
- *   2. capture_broll.js     -- one Electron launch + video file per clip
- *                               (broll-<clip-id>.webm) -- see its header
- *                               comment for why each clip gets its own
- *                               recording instead of one continuous take.
+ *   2. capture_broll.js     -- one continuous Electron session + one gdigrab
+ *                               recording (broll-main.mp4) covering every
+ *                               clip back to back -- see its header comment
+ *                               for why (gdigrab's real-time timestamps make
+ *                               a shared take trustworthy, unlike the
+ *                               Playwright-recordVideo designs this replaced).
  *   3. assemble_reel.js     -- slices + crossfades + cards -> draft cut
  *
  * Usage:
