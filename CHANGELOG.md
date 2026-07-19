@@ -25,6 +25,7 @@ All notable changes to Vangard Studio are documented here.
 
 ### Removed
 - Removed the first-launch "Import settings from Ren'IDE?" migration prompt added during the rebrand — 1.0.0 starts fresh rather than importing settings from the pre-1.0 beta
+- Removed the Screen Layout Composer's UI entry points (introduced in 0.7.0) — the underlying types and a read-only screen preview remain in the codebase but are not reachable from the app in this release; the Screens tab now shows a plain read-only list of `screen` definitions with jump-to-source only
 
 ### Testing
 - E2E smoke suite expanded from 5 to 97 tests covering all major features; installer smoke tests now run on Windows, macOS, and Linux in CI

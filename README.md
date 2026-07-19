@@ -10,7 +10,7 @@
 
 > _Formerly known as Ren'IDE._
 
-Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and a color picker are all built in.
+Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, two visual composers, asset managers, diagnostics, and a color picker are all built in.
 
 It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. No lock-in.
 
@@ -23,8 +23,6 @@ It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. N
 ---
 
 <img width="1582" height="1030" alt="story_graph" src="https://github.com/user-attachments/assets/8150b09c-1c04-4d3f-9a1e-0845a5834567" />
-
-<img width="1582" height="1030" alt="screen_composer" src="https://github.com/user-attachments/assets/a961ee8c-6f67-4f39-897f-b37df4d7f683" />
 
 <img width="1582" height="1030" alt="stats_pane" src="https://github.com/user-attachments/assets/29f9a3a4-ea28-457f-a817-50e8e9d5081c" />
 
@@ -44,7 +42,7 @@ Vangard gives you that picture — and keeps it in sync as you write.
 - **See your story's structure** at a glance, without opening a single file
 - **Navigate instantly** from a canvas node to the code behind it
 - **Catch problems early** — broken jumps, missing assets, and unreachable labels flagged automatically
-- **Compose visually** — build scenes, imagemaps, and screens with drag-and-drop, then copy the generated code
+- **Compose visually** — build scenes and imagemaps with drag-and-drop, then copy the generated code
 
 ---
 
@@ -90,7 +88,7 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 |----------|----------|---------------|
 | **Story Data** | Characters | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
 | | Variables | All `define`/`default` globals. Find usages. |
-| | Screens | All `screen` definitions. Jump to definition. Add with boilerplate. |
+| | Screens | All `screen` definitions. Jump to definition. Read-only — no visual builder. |
 | **Assets** | Images | Image asset manager with thumbnails and folder tree. |
 | | Audio | Audio asset manager with built-in player. |
 | **Composers** | Scenes | Scene Composer — layer backgrounds and sprites, export PNG. |
@@ -103,7 +101,7 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 
 #### Image Assets
 
-Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage or Screen Layout Composer. Double-click to manage Ren'Py tags and metadata.
+Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage. Double-click to manage Ren'Py tags and metadata.
 
 #### Audio Assets
 

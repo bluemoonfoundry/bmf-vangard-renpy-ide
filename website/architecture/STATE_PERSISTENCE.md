@@ -27,7 +27,7 @@ A single JSON file in the project's `game/` directory holds all IDE-specific pro
 |---|---|
 | Canvas layout | Block positions, sizes, colors; layout mode and fingerprint; group containers |
 | Sticky notes | Content, position, color for all three canvases |
-| Compositions | Scene, imagemap, and screen layout composer data |
+| Compositions | Scene and imagemap composer data (a screen-layout-compositions slot exists in the schema but is unused — no in-app composer writes to it) |
 | Character profiles | Tag → display name mappings |
 | Diagnostics tasks | Task list (migrated from legacy `punchlistMetadata`) |
 | Ignored diagnostics | Suppression rules |

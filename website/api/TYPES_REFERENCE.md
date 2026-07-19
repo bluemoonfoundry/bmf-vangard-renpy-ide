@@ -124,7 +124,7 @@ These types power the two visual composers (Scene and ImageMap) plus the read-on
 - **`ScreenWidget`** - Individual UI widget (can nest children)
 - **`ScreenWidgetType`** - Available widget types (vbox, hbox, frame, text, button, etc.)
 
-There is no visual screen-building composer in the current version. These types back the **Screen Preview** tab, which parses existing `screen` blocks (via `screenCodeGenerator.ts`) to render a read-only preview with named-style/`gui.*` resolution. Screens are authored directly as Ren'Py `screen` blocks in `.rpy` files.
+There is no visual screen-building composer in the current version. These types back a read-only, named-style/`gui.*`-resolving screen preview (`ScreenPreview`/`ScreenPreviewTab`, parsing existing `screen` blocks via `screenCodeGenerator.ts`), but as of v1.0.0 no UI path opens it — it is unreachable, unwired code. The reachable "Screens" tab in Story Elements is a separate, simpler component (`ScreenManager`) that just lists parsed `screen` definitions with a jump-to-source action. Screens are authored directly as Ren'Py `screen` blocks in `.rpy` files.
 
 ### 6. UI State Types
 

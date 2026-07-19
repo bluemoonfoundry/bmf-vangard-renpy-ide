@@ -37,7 +37,7 @@
 
 Vangard Studio is a desktop application that turns your Ren'Py project into something you can *see*. Every `.rpy` file becomes a draggable block on a visual canvas; every `jump` and `call` becomes an arrow connecting those blocks. Instead of holding a sprawling narrative in your head, you hold it on screen -- the entire branching structure of your visual novel, laid out like a map. You write code in a full-featured editor (the same engine that powers Visual Studio Code), and the canvas updates in real time to reflect your changes.
 
-But Vangard Studio is more than a pretty diagram. It is an integrated development environment built specifically for visual novels: a code editor with Ren'Py-aware autocomplete and diagnostics, visual composers for scenes and screen layouts, asset management for images and audio, and three distinct canvases that show your project from the file level, the label level, and the player's perspective. It runs on Windows, macOS, and Linux.
+But Vangard Studio is more than a pretty diagram. It is an integrated development environment built specifically for visual novels: a code editor with Ren'Py-aware autocomplete and diagnostics, visual composers for scenes and image maps, asset management for images and audio, and three distinct canvases that show your project from the file level, the label level, and the player's perspective. It runs on Windows, macOS, and Linux.
 
 ## The Problem
 

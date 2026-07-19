@@ -273,9 +273,8 @@ Shortest path to completion:
 
 If you want to expand for video purposes:
 - Add audio files and show audio asset manager
-- Create a custom screen and show Screen Layout Composer
 - Add an image map (clickable) to demonstrate ImageMap Composer
 - Create a scene composition to demonstrate Scene Composer
-- Add more complex screens with nested layouts
+- Add more custom screens and show the read-only Screens tab (list + jump-to-source only — there is no Screen Layout Composer exposed in this release)
 
 This demo is now production-ready for showcasing all major IDE features!
