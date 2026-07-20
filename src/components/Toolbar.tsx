@@ -264,7 +264,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             title={draftingMode ? 'Drafting Mode: ON — click to disable' : 'Drafting Mode: OFF — click to enable'}
             aria-label={draftingMode ? 'Disable Drafting Mode' : 'Enable Drafting Mode'}
           >
-            <span className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${draftingMode ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${draftingMode ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
 
