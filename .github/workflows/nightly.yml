@@ -65,7 +65,11 @@ jobs:
         run: npm ci
 
       - name: Build and package
-        run: npm run dist
+        # --publish=never: see release.yml's identical flag -- electron-builder
+        # otherwise tries to auto-publish itself (package.json's build.publish
+        # config) independent of this workflow's own "Publish Nightly Release"
+        # step, creating a stray draft release per run.
+        run: npm run dist -- --publish=never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

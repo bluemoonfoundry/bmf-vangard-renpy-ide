@@ -98,7 +98,15 @@ jobs:
         run: npm ci
 
       - name: Build and package
-        run: npm run dist
+        # --publish=never: package.json's build.publish (provider: github) makes
+        # electron-builder try to auto-publish itself whenever a GITHUB_TOKEN is
+        # present, independent of and in addition to this workflow's own
+        # softprops/action-gh-release publish step below. Left enabled, every
+        # platform in this matrix created/appended to its own stray draft
+        # release named after package.json's version (not this run's git tag),
+        # using electron-updater metadata (latest.yml etc.) our workflow
+        # doesn't use -- confirmed happening on the v1.0.0-rc1 run.
+        run: npm run dist -- --publish=never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
