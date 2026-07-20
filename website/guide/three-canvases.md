@@ -83,8 +83,8 @@ When you want a quick automatic layout instead of manual positioning, click the
   left-to-right ordering and visual grouping. The best default for complex projects.
 
 Pick the algorithm that suits your project's shape. You can always drag blocks afterward
-to fine-tune the result. Experiment freely -- `Ctrl+Z` / `Cmd+Z` undoes canvas layout
-changes.
+to fine-tune the result. Experiment freely -- `Ctrl+Z` / `Cmd+Z` (or the toolbar's
+**Undo**/**Redo** buttons) undoes canvas layout changes.
 
 ### Character Filter
 
@@ -297,8 +297,8 @@ between labels in quick succession.
 
 ### Sticky Notes
 
-Click the `Add Note` button in the toolbar (or right-click the canvas background and
-choose `Add Note`) to place a **sticky note** on the canvas. Notes come in six colors --
+Click the sticky-note icon button in the toolbar (or right-click the canvas background and
+choose `Sticky Note`) to place a **sticky note** on the canvas. Notes come in six colors --
 yellow, blue, green, pink, purple, and red -- and support Markdown formatting in their
 content. Use them however you like:
 

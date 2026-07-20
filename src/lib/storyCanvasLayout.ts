@@ -281,7 +281,7 @@ export function computeStoryLayoutFingerprint(
  *
  * Extracts position, dimensions, and color from each block and indexes by file path.
  * Blocks without a file path are skipped (should never happen for story blocks).
- * This data is saved to `.renide/project.json` and restored on project load.
+ * This data is saved to `game/project.ide.json` and restored on project load.
  *
  * @param blocks - Array of blocks to persist
  * @returns Record mapping file paths to layout data

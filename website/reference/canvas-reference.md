@@ -108,12 +108,12 @@ These features are available on all three canvases, with one exception noted bel
 |---------|--------------------|-------------|
 | Go-to-Label | `Ctrl+G` / `Cmd+G` | Fuzzy-search command palette. Selecting a label pans and zooms the canvas to that node at 100% zoom. |
 | Toolbox Search | Search field in Toolbox panel | Filter visible nodes by name |
-| Fit-to-Screen | Toolbar or context menu | Adjusts zoom and pan to fit all nodes in the viewport |
-| Go-to-Start | Toolbar or context menu | Pans to the `label start` node |
+| Fit-to-Screen | Floating button (bottom-right of canvas) or `F` | Adjusts zoom and pan to fit all nodes in the viewport |
+| Go-to-Start | Floating button (bottom-right of canvas) | Pans to the `label start` node |
 | Auto-Center | Automatic on navigate | Canvas centers on the target node when navigating from other panels |
 | Minimap | Toggle in canvas toolbar (**Project Canvas only**) | Small overlay showing the full canvas with a viewport indicator rectangle. On **Project Canvas** it is on by default and can be toggled via a checkbox. On **Flow Canvas** and **Choices Canvas** it always renders with no toggle to hide it. |
-| Sticky Notes | Add Note button or context menu | Colored notes (6 colors) with Markdown rendering. Can be promoted to Diagnostics Tasks via checkbox. Each canvas has its own set of notes. |
-| Keyboard Navigation | `Tab`, `Arrow Keys`, `Enter`, `Escape` | Full keyboard traversal of canvas nodes (see Canvas shortcuts in [Keyboard Shortcuts](/reference/keyboard-shortcuts)) |
+| Sticky Notes | Sticky-note toolbar button or context menu | Colored notes (6 colors) with Markdown rendering. Can be promoted to Diagnostics Tasks via checkbox. Each canvas has its own set of notes. |
+| Keyboard Navigation | `Arrow Keys`, `Enter`, `Escape` | Full keyboard traversal of canvas nodes (see Canvas shortcuts in [Keyboard Shortcuts](/reference/keyboard-shortcuts)) |
 | ARIA Accessibility | Automatic | All blocks and nodes carry descriptive ARIA labels for screen readers (NVDA, VoiceOver, JAWS) |
 
 **Sticky note details:**
@@ -130,8 +130,11 @@ These features are available on all three canvases, with one exception noted bel
 
 | Action | Description |
 |--------|-------------|
-| Add Note | Place a new sticky note at the click location |
-| Fit to Screen | Zoom and pan to show all nodes |
-| Go to Start | Navigate to `label start` |
-| Organize Layout | Run the selected auto-layout algorithm |
+| Story Block / Screen Block / Config Block | Create a new block of that type at the click location (Project Canvas only) |
+| Sticky Note | Place a new sticky note at the click location |
+
+Fit to Screen and Go to Start are not context-menu items -- they are standalone floating icon buttons docked in the bottom-right corner of the canvas. Organize Layout (running an auto-layout algorithm) is triggered from the Canvas Layout Controls widget in the canvas's own top-left toolbox, not the right-click menu.
+
+| Action | Description |
+|--------|-------------|
 | Center on Canvas | (Right-click a block in Project Explorer) Navigate to that block on the canvas |

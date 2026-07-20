@@ -62,9 +62,9 @@ Drafting Mode generates temporary placeholders so the game can run even when ima
 | Toggle location | Toolbar (Drafting Mode button) |
 | Image placeholders | Gray rectangles with the image tag name displayed as text |
 | Audio placeholders | Silent audio tracks (no audible output) |
-| Persistence | Session only -- no files are written to disk, placeholders exist only in memory |
-| Effect on game | Missing `show`/`scene` images render as labeled gray boxes; missing `play music`/`play sound` statements execute without error |
-| Disable | Toggle off in toolbar or close the application |
+| Persistence | Writes real files to the project: `game/debug_placeholders.rpy` (regenerated whenever blocks change while Drafting Mode is on) and a silent `game/renide_assets/placeholder_audio.wav`. These are ordinary project files, not in-memory-only state -- they will show up in `git status` if the project is under version control. |
+| Effect on game | Missing `show`/`scene` images get an `image <tag> = Placeholder("text", ...)` definition; missing `play`/`queue` audio is redirected to the silent placeholder file via a generated `config.audio_filename_callback` |
+| Disable | Toggle off in toolbar or close the application -- removes `debug_placeholders.rpy`/`.rpyc`. The `game/renide_assets/placeholder_audio.wav` file is intentionally left behind (it may be reused by a future session) and must be deleted manually if you don't want it in the project |
 
 **When to use Drafting Mode:**
 - Early development when art and sound assets have not been created yet

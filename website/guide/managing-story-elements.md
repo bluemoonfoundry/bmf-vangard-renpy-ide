@@ -98,7 +98,7 @@ label ${1:label_name}:
 
 `${1:label_name}` is the first tab stop with default text "label_name". `${2:bg_image}` is the second, and so on. `$0` marks where the cursor lands after all placeholders have been filled. When you trigger this snippet in the editor, you tab through each field in order.
 
-User snippets created here are saved to `appSettings.userSnippets` in the single global `app-settings.json` file in your Electron userData directory -- they are global to your machine, not scoped to the current project, so they do **not** travel with the project. (The Snippets tab separately merges in project-specific snippets from `<project>/.vangard/snippets.json` and user-global snippets from `~/.vangard-ide/snippets/custom.json` if those files exist -- see [Story Elements Reference §5.3](/reference/story-elements-reference).) The snippet manager also supports editing and deleting existing custom snippets.
+User snippets created here are saved to `appSettings.userSnippets` in the single global `app-settings.json` file in your Electron userData directory -- they are global to your machine, not scoped to the current project, so they do **not** travel with the project. (The Snippets tab separately merges in project-specific snippets from `<project>/.vangard/snippets.json` and user-global snippets from your Electron userData directory's `snippets/custom.json` (e.g. `%APPDATA%\vangard-studio\snippets\custom.json` on Windows) if those files exist -- see [Story Elements Reference §5.3](/reference/story-elements-reference).) The snippet manager also supports editing and deleting existing custom snippets.
 
 ## The Menu Designer
 

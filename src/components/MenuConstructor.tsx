@@ -88,13 +88,18 @@ const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult, activ
                 const isCharacter = analysisResult.characters.has(word);
                 const isScreen = analysisResult.screens.has(word);
 
-                // If it's unknown, flag it. 
+                // If it's unknown, flag it.
                 // Note: This is a strict check. It might flag local variables defined in python blocks.
                 // However, for standard Ren'Py menu logic (jumps, var assignment), this is helpful.
                 if (!isVariable && !isLabel && !isCharacter && !isScreen) {
                     // We only add this if it looks like it's being used as a variable/value
                     // heuristic: avoid flagging words that might be part of an image tag if we aren't sure
                     // But for safety in a logic block, flagging unknown identifiers is usually good.
+                    // TODO(#96): this message doesn't distinguish "known Ren'Py-side identifier
+                    // we don't track" from "actually undefined" -- the known false-positive case
+                    // above (locals defined inside python blocks) gets the same scary wording as a
+                    // real typo. validateCondition() below has the same message with no line number
+                    // at all. Improve wording/specificity for both before relying on this in v1.0.0.
                     issues.add(`Line ${index + 1}: Unknown variable or identifier '${word}'`);
                 }
             });
@@ -206,6 +211,9 @@ const MenuConstructor: React.FC<MenuConstructorProps> = ({ analysisResult, activ
             setParseError(null);
         } catch (err) {
             logger.debug('Menu code parse failed, disabling visual editing', err);
+            // TODO(#96): generic message regardless of what actually failed to parse
+            // (err is logged for debugging but never surfaced to the user) -- give the
+            // user an actual clue instead of just "invalid code."
             setParseError("Cannot parse complex or invalid code. Visual editing disabled.");
         }
     };

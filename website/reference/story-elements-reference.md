@@ -38,7 +38,7 @@ Snippets are merge-loaded from three sources, in priority order (higher override
 | Source | File location | Priority |
 |--------|---------------|----------|
 | Built-in | `snippets/default-snippets.json` (bundled with the app) | Lowest |
-| User-global | `~/.vangard-ide/snippets/custom.json` (Electron user data dir) | Middle |
+| User-global | `snippets/custom.json` inside the Electron userData directory (e.g. `%APPDATA%\vangard-studio\snippets\custom.json` on Windows) | Middle |
 | Project-specific | `<project>/.vangard/snippets.json` | Highest |
 
 Snippets you create from the sidebar's `+ New` button (the "My Snippets" section) are stored separately, in `appSettings.userSnippets` inside the single global `app-settings.json` file in the Electron userData directory. These are global to your machine, not project-scoped -- they do not travel with the project.

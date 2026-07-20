@@ -15,12 +15,8 @@ type ElectronFixtures = {
   window: Page;
 };
 
-// Suppress the legacy-migration modal in all test runs — the flag is normally
-// persisted to disk after first dismiss, but e2e tests use a fresh userData
-// directory on each run so the modal would appear every time.
-// Also pin sidebar state so tests don't depend on the developer's saved preferences.
+// Pin sidebar state so tests don't depend on the developer's saved preferences.
 const BASE_SETTINGS_OVERRIDE = JSON.stringify({
-  legacyMigrationChecked: true,
   isLeftSidebarOpen: true,
   isRightSidebarOpen: true,
 });
@@ -55,7 +51,6 @@ export const testWithProject = base.extend<ElectronFixtures>({
         ...process.env,
         RENIDE_SETTINGS_OVERRIDE: JSON.stringify({
           renpyPath: FAKE_RENPY_SDK,
-          legacyMigrationChecked: true,
           isLeftSidebarOpen: true,
           isRightSidebarOpen: true,
         }),
@@ -83,7 +78,6 @@ export const testWithDemoProject = base.extend<ElectronFixtures>({
         ...process.env,
         RENIDE_SETTINGS_OVERRIDE: JSON.stringify({
           renpyPath: FAKE_RENPY_SDK,
-          legacyMigrationChecked: true,
           isLeftSidebarOpen: true,
           isRightSidebarOpen: true,
         }),

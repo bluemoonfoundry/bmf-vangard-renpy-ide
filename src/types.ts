@@ -268,6 +268,14 @@ export interface RenpyScreen {
   line: number;
 }
 
+// REVIEW: ScreenComponent and ScreenModel below are entirely unused -- no
+// file in src/ references either type outside this declaration. They appear
+// to predate or anticipate a visual Screen Editor, which per the v1.0.0
+// Screen Composer removal decision (see CHANGELOG.md's 1.0.0 "Removed"
+// entry) is explicitly not shipping in this release. Either delete these as
+// dead code, or if a post-1.0 Screen Editor is genuinely planned, note that
+// plan here instead of leaving it implicit. The `any` below was only ever
+// exercised by that unbuilt feature.
 /**
  * A component within a visual screen editor layout.
  * Used by the Screen Editor (post-1.0 feature).
@@ -707,7 +715,6 @@ export interface AppSettings {
   userSnippets?: UserSnippet[];
   menuTemplates?: MenuTemplate[];
   lastProjectDir?: string;
-  legacyMigrationChecked?: boolean;
 }
 
 /**
@@ -1363,9 +1370,6 @@ declare global {
           getAppSettings: () => Promise<Partial<AppSettings> | null>;
           saveAppSettings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
           getUserDataPath: () => Promise<string>;
-          checkLegacyMigration: () => Promise<{ available: boolean }>;
-          performLegacyMigration: () => Promise<{ success: boolean; settings: Partial<AppSettings> }>;
-          dismissLegacyMigration: () => Promise<{ success: boolean }>;
           selectRenpy: () => Promise<string | null>;
           runGame: (renpyPath: string, projectPath: string, warpTarget?: string) => void;
           stopGame: () => void;

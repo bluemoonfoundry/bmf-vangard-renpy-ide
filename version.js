@@ -58,6 +58,12 @@ function updateFile(filePath) {
     }
 
     json.version = newVersion;
+    // package-lock.json (lockfileVersion 3) duplicates the version onto the
+    // root package entry at packages[""] -- keep it in sync too, or npm
+    // flags the lockfile as stale on the next install.
+    if (json.packages?.['']?.version !== undefined) {
+      json.packages[''].version = newVersion;
+    }
     // Write back with 2-space indentation and a newline at the end
     fs.writeFileSync(filePath, JSON.stringify(json, null, 2) + '\n');
     

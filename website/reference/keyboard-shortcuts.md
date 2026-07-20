@@ -27,10 +27,12 @@
 | Zoom In / Out | `Mouse Scroll` | `Mouse Scroll` |
 | Select Multiple | `Ctrl+Click` or rubber-band | `Cmd+Click` or rubber-band |
 | Delete Selected | `Delete` | `Delete` |
-| Cycle Focus Forward | `Tab` | `Tab` |
-| Cycle Focus Backward | `Shift+Tab` | `Shift+Tab` |
+| Fit to Screen | `F` | `F` |
+| Navigate Back (Flow Canvas) | `[` | `[` |
+| Navigate Forward (Flow Canvas) | `]` | `]` |
 | Spatial Navigation | `Arrow Keys` | `Arrow Keys` |
 | Open Focused Block | `Enter` | `Enter` |
+| Open Block in Editor | `Double Click` | `Double Click` |
 | Deselect All | `Escape` | `Escape` |
 
 ## Editor
@@ -49,7 +51,7 @@
 
 ## Undo/Redo Scope
 
-Undo and Redo (`Ctrl+Z` / `Ctrl+Y`) apply to canvas-level actions only. The following table clarifies what is and is not covered.
+Undo and Redo (`Ctrl+Z` / `Ctrl+Y`, or the toolbar buttons) apply to canvas-level actions only. When focus is inside a text input, a Monaco editor, or the Scene Composer, `Ctrl+Z`/`Ctrl+Y` instead perform that field's own local undo/redo -- they never affect canvas history in that case. The following table clarifies what canvas undo/redo covers.
 
 | Covered by Undo/Redo | Not Covered |
 |-----------------------|-------------|
@@ -59,4 +61,4 @@ Undo and Redo (`Ctrl+Z` / `Ctrl+Y`) apply to canvas-level actions only. The foll
 | | Asset imports and scans |
 | | Canvas zoom and pan transforms |
 
-The undo stack holds up to 50 actions. Undo is unavailable at the initial project state.
+The undo stack has no fixed size limit. Undo is unavailable at the initial project state.

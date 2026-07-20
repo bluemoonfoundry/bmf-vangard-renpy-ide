@@ -552,14 +552,8 @@ async function ensureDir(dir) {
 
 async function launchApp(productionSettings, extraArgs = [], settingsOverride = {}) {
     const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
-    // Always suppress the legacy-migration modal: it fires on an async main-process
-    // check whose timing isn't fixed like the tutorial modal's, so it can pop up at
-    // an unpredictable point in a long capture run rather than always up front —
-    // and without a saved production app-settings.json (e.g. in CI), nothing else
-    // would set this flag.
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
-        legacyMigrationChecked: true,
         ...settingsOverride,
     });
     const app = await electron.launch({

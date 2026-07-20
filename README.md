@@ -1,7 +1,7 @@
 
 [![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
-![Version](https://img.shields.io/badge/version-0.9.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
 # Vangard Studio : The Ren'Py Visual Designer
@@ -10,23 +10,19 @@
 
 > _Formerly known as Ren'IDE._
 
-Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, three visual composers, asset managers, diagnostics, and a color picker are all built in.
+Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, two visual composers, asset managers, diagnostics, and a color picker are all built in.
 
 It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. No lock-in.
 
 **[Watch the Full Beta 4 Walkthrough Video @ YouTube →](https://youtu.be/PNgV-JjFNag)**
 
-**[Download the latest stable release (v0.8.0)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v0.8.0)**
-
-**[Download the latest preview release (v0.9.0)](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/tag/v0.9.0)**
+**[Download the latest stable release (v1.0.0)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v1.0.0)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
 
 ---
 
 <img width="1582" height="1030" alt="story_graph" src="https://github.com/user-attachments/assets/8150b09c-1c04-4d3f-9a1e-0845a5834567" />
-
-<img width="1582" height="1030" alt="screen_composer" src="https://github.com/user-attachments/assets/a961ee8c-6f67-4f39-897f-b37df4d7f683" />
 
 <img width="1582" height="1030" alt="stats_pane" src="https://github.com/user-attachments/assets/29f9a3a4-ea28-457f-a817-50e8e9d5081c" />
 
@@ -46,7 +42,7 @@ Vangard gives you that picture — and keeps it in sync as you write.
 - **See your story's structure** at a glance, without opening a single file
 - **Navigate instantly** from a canvas node to the code behind it
 - **Catch problems early** — broken jumps, missing assets, and unreachable labels flagged automatically
-- **Compose visually** — build scenes, imagemaps, and screens with drag-and-drop, then copy the generated code
+- **Compose visually** — build scenes and imagemaps with drag-and-drop, then copy the generated code
 
 ---
 
@@ -92,7 +88,7 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 |----------|----------|---------------|
 | **Story Data** | Characters | All `define Character(...)` definitions — name, tag, color, dialogue count. Add, edit, find usages. |
 | | Variables | All `define`/`default` globals. Find usages. |
-| | Screens | All `screen` definitions. Jump to definition. Add with boilerplate. |
+| | Screens | All `screen` definitions. Jump to definition. Read-only — no visual builder. |
 | **Assets** | Images | Image asset manager with thumbnails and folder tree. |
 | | Audio | Audio asset manager with built-in player. |
 | **Composers** | Scenes | Scene Composer — layer backgrounds and sprites, export PNG. |
@@ -105,7 +101,7 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 
 #### Image Assets
 
-Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage or Screen Layout Composer. Double-click to manage Ren'Py tags and metadata.
+Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage. Double-click to manage Ren'Py tags and metadata.
 
 #### Audio Assets
 
@@ -247,16 +243,24 @@ The app is safe - Windows blocks it only because it doesn't have a commercial co
 2. Drag **Vangard Studio.app** to your **Applications** folder
 3. Launch from Applications
 
-**⚠️ Security Warning:** macOS Gatekeeper will block unsigned applications on first launch.
+**⚠️ Security Warning:** macOS Gatekeeper will block unsigned applications on first launch. Vangard Studio releases are not code-signed or notarized (no Apple Developer Program membership) — this is a known, tracked limitation ([#61](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/issues/61)), not a bug in the app itself.
 
-**To run Vangard Studio:**
+**On macOS 15.1 and later, use the Terminal method below — it's the only one confirmed to work.** Apple tightened Gatekeeper's handling of unsigned apps in 15.1+; the right-click/System Settings bypasses that worked on older macOS versions may not reliably appear anymore.
 
-**Method 1 (Recommended):**
+**Method 1 (Terminal — required on macOS 15.1+):**
+1. Drag **Vangard Studio.app** to Applications first
+2. Open Terminal and run:
+   ```
+   xattr -r -d com.apple.quarantine "/Applications/Vangard Studio.app"
+   ```
+3. Launch Vangard Studio normally from Applications
+
+**Method 2 (pre-15.1 only — try this first if you're on an older macOS version):**
 1. Right-click (or Control+click) **Vangard Studio.app** in Applications
 2. Select **"Open"** from the context menu
 3. Click **"Open"** in the security dialog that appears
 
-**Method 2 (System Settings):**
+**Method 3 (System Settings, pre-15.1 only):**
 1. Try to launch Vangard Studio normally (it will be blocked)
 2. Go to **System Settings → Privacy & Security**
 3. Scroll down to the **Security** section
@@ -417,4 +421,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Vangard Studio — v0.9.0*
+*Vangard Studio — v1.0.0*

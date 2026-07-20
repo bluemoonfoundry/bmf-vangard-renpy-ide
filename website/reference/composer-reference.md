@@ -137,7 +137,7 @@ Hotspots are drawn directly on the ground image preview. Click and drag to creat
 
 ### Output
 
-Generates a Ren'Py `screen` block containing `imagebutton` or `imagemap` statements with ground/hover images and hotspot coordinates. Use `Copy to Clipboard` or `Insert at Cursor` to place the code in your project.
+Generates a Ren'Py `screen` block containing `imagebutton` or `imagemap` statements with ground/hover images and hotspot coordinates. Use `Copy to Clipboard` to place the code in your project.
 
 ---
 

@@ -25,13 +25,25 @@ Each platform must be verified by a human on real hardware or a VM.
 
 | Platform | Artifact | Checklist |
 |---|---|---|
-| **Windows** | `renide-Setup-X.Y.Z.exe` | [ ] Installs silently, [ ] App launches, [ ] Opens test project, [ ] Auto-update check fires without crash |
-| **macOS ARM** | `renide-X.Y.Z-arm64.dmg` | [ ] DMG mounts, [ ] App launches (Gatekeeper / notarization OK), [ ] Opens test project |
-| **macOS Intel** | `renide-X.Y.Z-x64.dmg` | [ ] DMG mounts, [ ] App launches, [ ] Opens test project |
-| **Linux AppImage** | `renide-X.Y.Z.AppImage` | [ ] `chmod +x` + run works, [ ] App launches, [ ] Opens test project |
-| **Linux deb** | `renide_X.Y.Z_amd64.deb` | [ ] `dpkg -i` installs, [ ] App launches, [ ] Opens test project |
+| **Windows** | `Vangard_Studio_Windows_X.Y.Z.exe` | [ ] Installs silently, [ ] App launches, [ ] Opens test project, [ ] Auto-update check fires without crash |
+| **macOS ARM** | `Vangard_Studio_macOS_X.Y.Z-macos-arm64.dmg` | [ ] DMG mounts, [ ] `xattr -r -d com.apple.quarantine` then app launches (see note below — do NOT sign off on a bare double-click launch), [ ] Opens test project |
+| **macOS Intel** | `Vangard_Studio_macOS_X.Y.Z-macos-intel.dmg` | [ ] DMG mounts, [ ] `xattr -r -d com.apple.quarantine` then app launches, [ ] Opens test project |
+| **Linux AppImage** | `Vangard_Studio_Linux_X.Y.Z.AppImage` | [ ] `chmod +x` + run works, [ ] App launches, [ ] Opens test project |
+| **Linux deb** | `Vangard_Studio_Linux_X.Y.Z.deb` | [ ] `dpkg -i` installs, [ ] App launches, [ ] Opens test project |
 
 > **Test project**: use `e2e/fixtures/test-project/` — it has two labels and exercises canvas rendering.
+
+> **Decision (2026-07-19, [#61](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/issues/61))**:
+> v1.0.0 ships macOS builds unsigned and unnotarized — no Apple Developer
+> Program membership. This is a confirmed, accepted limitation for this
+> release, not an open question. `package.json`'s `"mac"` build config has
+> no `hardenedRuntime`, `entitlements`, or `notarize` settings by design for
+> now. On macOS 15.1+, a plain double-click launch is expected to fail —
+> sign-off must go through the `xattr -r -d com.apple.quarantine
+> "/Applications/Vangard Studio.app"` workaround (documented in README.md
+> and SUPPORT.md) rather than treating that failure as a release blocker.
+> Revisit signing/notarization as a post-1.0 item if an Apple Developer
+> account is obtained.
 
 ## 4. First-Run Validation
 

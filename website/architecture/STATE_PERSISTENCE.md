@@ -13,7 +13,7 @@ Vangard Studio splits persisted state across four locations, each with a differe
 | `userData/app-settings.json` | Global (all projects) | Main process | Settings change |
 | `userData/api-keys.enc` | Global | Main process (encrypted) | API key save |
 
-`userData` is the Electron user data directory (`app.getPath('userData')`): `%APPDATA%\ren-ide` on Windows, `~/Library/Application Support/ren-ide` on macOS, `~/.config/ren-ide` on Linux.
+`userData` is the Electron user data directory (`app.getPath('userData')`): `%APPDATA%\vangard-studio` on Windows, `~/Library/Application Support/vangard-studio` on macOS, `~/.config/vangard-studio` on Linux. (The folder is the kebab-case `package.json` `name`, not the "Vangard Studio" display name — confirmed against the packaged app's `app.asar`.)
 
 ---
 
@@ -27,7 +27,7 @@ A single JSON file in the project's `game/` directory holds all IDE-specific pro
 |---|---|
 | Canvas layout | Block positions, sizes, colors; layout mode and fingerprint; group containers |
 | Sticky notes | Content, position, color for all three canvases |
-| Compositions | Scene, imagemap, and screen layout composer data |
+| Compositions | Scene and imagemap composer data (a screen-layout-compositions slot exists in the schema but is unused — no in-app composer writes to it) |
 | Character profiles | Tag → display name mappings |
 | Diagnostics tasks | Task list (migrated from legacy `punchlistMetadata`) |
 | Ignored diagnostics | Suppression rules |

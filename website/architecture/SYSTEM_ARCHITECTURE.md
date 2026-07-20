@@ -17,7 +17,7 @@ This document provides a high-level overview of Vangard Studio's system design a
 
 ## System Overview
 
-Vangard Studio is an Electron-based desktop application built with React and TypeScript for visual novel development using the Ren'Py framework. The application provides a visual canvas-based interface for organizing and navigating `.rpy` script files, integrated Monaco code editors, and specialized composers for scene, imagemap, and screen layout design.
+Vangard Studio is an Electron-based desktop application built with React and TypeScript for visual novel development using the Ren'Py framework. The application provides a visual canvas-based interface for organizing and navigating `.rpy` script files, integrated Monaco code editors, and specialized composers for scene and imagemap design.
 
 **Key Technologies:**
 - **Electron** (v34.2.0) - Cross-platform desktop framework
@@ -725,5 +725,5 @@ For project-specific instructions when working with Claude Code, see `CLAUDE.md`
 
 ---
 
-**Last Updated**: 2026-06-14
-**Vangard Studio Version**: 0.9.0
+**Last Updated**: 2026-07-12
+**Vangard Studio Version**: 1.0.0

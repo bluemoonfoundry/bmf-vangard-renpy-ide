@@ -5,6 +5,14 @@
  * editor / composer view corresponds to the active `EditorTab`.
  */
 
+// TODO(bmf-vangard-renpy-ide-51mb): every tab renderer below (canvases,
+// diagnostics, stats, translation dashboard, both composers) is a static
+// import, so all of them land in one ~2.4MB (646KB gzip) `index-*.js` chunk
+// regardless of which tabs a given session ever opens -- `npm run build`
+// warns on this. Since each is only rendered when its tab is actually
+// active, these are strong React.lazy()/Suspense candidates: a user who
+// never opens the Scene Composer or Translation Dashboard currently pays
+// for their code anyway.
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Updater } from 'use-immer';

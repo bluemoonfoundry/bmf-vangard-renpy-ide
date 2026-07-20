@@ -2,14 +2,15 @@
 /**
  * assemble_reel.js
  *
- * Stitches the b-roll take(s) in docs/marketing/broll/ (see capture_broll.js
- * -- typically broll-main.webm + broll-montage.webm, captured separately via
- * --group) and docs/marketing/vo/*.mp3 into a rough assembly cut of the
- * sizzle reel, using vo/timing-summary.json for per-line VO duration and
- * broll/manifest.json for where each feature's footage sits (and which file
- * it's in). This is a DRAFT cut for reviewing pacing, not a final edit -- the
- * intro/divider/outro cards are plain black-background placeholders, not
- * final branding.
+ * Stitches the b-roll take in docs/marketing/broll/broll-main.mp4 (see
+ * capture_broll.js -- one continuous OS-level real-time screen capture
+ * covering every clip back to back) and docs/marketing/vo/*.mp3 into a rough
+ * assembly cut of the sizzle reel, using vo/timing-summary.json for per-line
+ * VO duration and broll/manifest.json for each clip's [start, end] window
+ * within that take (plus which file, since a --clip test run's manifest
+ * entries point at their own broll-test-*.mp4 instead). This is a DRAFT cut
+ * for reviewing pacing, not a final edit -- the intro/divider/outro cards are
+ * plain black-background placeholders, not final branding.
  *
  * Usage:
  *   node docs/marketing/assemble_reel.js [--out docs/marketing/assembly] [--music /path/to/track.mp3]
@@ -92,10 +93,9 @@ const TRANSITION_DURATION = 0.5; // crossfade length between every top-level seg
 // ---------------------------------------------------------------------------
 // ffmpeg helpers
 // ---------------------------------------------------------------------------
-/** Playwright's Electron recordVideo output has no duration in its webm
- *  header (ffprobe's format=duration reports "N/A"), so probing the
- *  container is unreliable. Decode the file instead and read the last
- *  "time=" ffmpeg prints -- that's the actual playable length. */
+/** Decodes the file and reads the last "time=" ffmpeg prints -- the actual
+ *  playable length, rather than trusting container metadata (unreliable for
+ *  some ffmpeg-written files, "N/A" for others). */
 async function realDuration(file) {
     // ffmpeg exits 0 here even when it logs "File ended prematurely" -- the
     // decode still completes over whatever frames exist.
@@ -112,37 +112,6 @@ async function run(cmdArgs) {
     } catch (err) {
         throw new Error(`ffmpeg failed: ${err.stderr || err.message}`);
     }
-}
-
-/** Finds the real timestamps of capture_broll.js's magenta flashMarker()
- *  beats in a decoded video -- see that function's doc comment for why the
- *  montage uses this instead of wall-clock-derived offsets. Downscales every
- *  frame to a single pixel (an area-average of the whole frame) and streams
- *  it as raw RGB, which is cheap and turns "is this frame a magenta flash"
- *  into a 3-byte check; a run of consecutive magenta frames counts as one
- *  marker, timestamped at its first frame. Frame-to-time uses this video's
- *  own average frame rate (real duration / frame count) rather than an
- *  assumed constant FPS, since Playwright's recordVideo output can have
- *  irregular frame spacing. */
-async function detectMarkerTimestamps(file) {
-    const { stdout } = await execFileAsync(FFMPEG, [
-        '-i', file, '-vf', 'scale=1:1', '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-',
-    ], { encoding: 'buffer', maxBuffer: 1024 * 1024 * 100 });
-
-    const frameCount = Math.floor(stdout.length / 3);
-    const isMagenta = (r, g, b) => r > 180 && b > 180 && g < 100;
-    const markerFrames = [];
-    let inMarker = false;
-    for (let i = 0; i < frameCount; i++) {
-        const [r, g, b] = [stdout[i * 3], stdout[i * 3 + 1], stdout[i * 3 + 2]];
-        const magenta = isMagenta(r, g, b);
-        if (magenta && !inMarker) markerFrames.push(i);
-        inMarker = magenta;
-    }
-
-    const totalDuration = await realDuration(file);
-    const avgFrameDuration = totalDuration / frameCount;
-    return { markers: markerFrames.map(i => i * avgFrameDuration), totalDuration };
 }
 
 const SCALE_PAD = `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps=${FPS}`;
@@ -173,29 +142,33 @@ const CARD_FONT = process.env.TITLE_CARD_FONT || 'C:/Windows/Fonts/segoeui.ttf';
 // Bounding box of the right-hand Story Elements panel (icon rail + content)
 // in the final WIDTHxHEIGHT (1920x1080) frame -- measured from a real
 // capture: the app's actual viewport is 3072x1728 CSS px (DPR 1.25 on a 4K
-// display), Playwright's recordVideo downscales that to 1920x1080 (a 0.625
-// ratio), and the panel's boundingBox() in that CSS space was
-// {x:2607.8, y:64, w:464.2, h:1664} -> scaled: {x:1630, y:40, w:290, h:1040}.
-// Rounded here with a small margin. Re-measure if the app's layout changes.
+// display), SCALE_PAD downscales that to 1920x1080 (a 0.625 ratio), and the
+// panel's boundingBox() in that CSS space was {x:2607.8, y:64, w:464.2,
+// h:1664} -> scaled: {x:1630, y:40, w:290, h:1040}. Rounded here with a
+// small margin. Re-measure if the app's layout changes.
 const PANEL_FOCUS = { x: 1620, y: 35, w: 300, h: 1045 };
 
-/** Renders a slice of the master b-roll take like renderClip, but dims/
- *  desaturates everything outside the Story Elements panel and burns in a
- *  bottom-left label -- used for the feature-montage tour of sidebar tabs so
- *  it's unambiguous what's being highlighted (split+crop+overlay is used
- *  instead of a plain vignette filter since the "spotlight" here is a hard
- *  rectangle matching the panel, not a soft radial fade). */
+// Accent color for the panel-focus outline -- matches the app's own indigo
+// accent (e.g. ChoiceCanvas's "text-indigo-800 dark:text-indigo-200"),
+// so the highlight reads as part of the UI rather than an edit overlay.
+const PANEL_FOCUS_COLOR = '0x6366F1';
+
+/** Renders a slice of the master b-roll take like renderClip, but draws an
+ *  outline around the Story Elements panel and burns in a bottom-left label
+ *  -- used for the feature-montage tour of sidebar tabs so it's unambiguous
+ *  what's being highlighted. An earlier version dimmed/desaturated
+ *  everything outside the panel to spotlight it, but that hid the canvas and
+ *  code panels the montage is also meant to show reacting to each tab's
+ *  interaction (see capture_broll.js's montage clip setups) -- an outline
+ *  points at the same panel without hiding anything else in the frame. */
 async function renderClipWithFocus(sourceFile, ss, available, duration, outPath, label) {
     const shortfall = duration - available;
     const padFilter = shortfall > 0.05 ? `,tpad=stop_mode=clone:stop_duration=${shortfall.toFixed(3)}` : '';
     const { x, y, w, h } = PANEL_FOCUS;
     const filterComplex =
         `[0:v]${SCALE_PAD}${padFilter}[scaled];` +
-        `[scaled]split=2[bg][fg];` +
-        `[bg]eq=brightness=-0.45:saturation=0.25[bgdim];` +
-        `[fg]crop=${w}:${h}:${x}:${y}[fgcrop];` +
-        `[bgdim][fgcrop]overlay=${x}:${y}[vig];` +
-        `[vig]drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${label}':fontcolor=white:fontsize=42:x=40:y=h-text_h-40:box=1:boxcolor=black@0.5:boxborderw=12[out]`;
+        `[scaled]drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=${PANEL_FOCUS_COLOR}:t=5[boxed];` +
+        `[boxed]drawtext=fontfile='${CARD_FONT.replace(/:/g, '\\:')}':text='${label}':fontcolor=white:fontsize=42:x=40:y=h-text_h-40:box=1:boxcolor=black@0.5:boxborderw=12[out]`;
     await run([
         '-ss', String(Math.max(ss, 0)),
         '-i', sourceFile,
@@ -456,18 +429,18 @@ async function main() {
     };
 
     // capture_broll.js records each clip's start/end as wall-clock seconds
-    // since its recording began. Playwright's video encoder falls behind
-    // wall-clock time under load (confirmed empirically), so those raw
-    // offsets don't line up with real positions in the source file. The
-    // drift isn't perfectly uniform across a long recording (confirmed on a
-    // ~3min single take, where a single global correction was off by over
-    // ten seconds for clips deep into it), so correct it per source file
-    // instead of once globally: each file gets its own scale factor, that
-    // file's real decoded duration divided by the latest wall-clock offset
-    // among manifest entries pointing at it. capture_broll.js's --group
-    // (main/montage) keeps each file's own recording short specifically to
-    // keep this correction accurate; see its header comment for why.
-    const filesUsed = [...new Set(Object.values(manifest).map(m => m.file ?? 'broll-master.webm'))];
+    // since the shared take's capture began. gdigrab is a real-time OS-level
+    // capture (unlike Playwright's recordVideo -- see capture_broll.js's
+    // header comment), so these timestamps are trustworthy without the
+    // multi-second correction the old Playwright-based design needed. What's
+    // left to correct is much smaller: gdigrab's own startup latency before
+    // frames actually start landing in the file, which offsets every
+    // timestamp by a roughly constant sub-second amount. Correct per source
+    // file with a scale factor (real decoded duration / latest wall-clock
+    // timestamp among manifest entries pointing at it) rather than a fixed
+    // subtraction, since that also self-corrects for the file's own
+    // finalization padding.
+    const filesUsed = [...new Set(Object.values(manifest).map(m => m.file))];
     console.log(`Measuring real duration of ${filesUsed.length} source file(s) for offset correction...`);
     const scaleFactors = {};
     for (const file of filesUsed) {
@@ -475,7 +448,7 @@ async function main() {
         if (!existsSync(filePath)) throw new Error(`Manifest references ${file}, but it doesn't exist in ${BROLL_DIR} -- rerun capture_broll.js`);
         const real = await realDuration(filePath);
         const wallClockTotal = Math.max(
-            ...Object.values(manifest).filter(m => (m.file ?? 'broll-master.webm') === file).map(m => m.end)
+            ...Object.values(manifest).filter(m => m.file === file).map(m => m.end)
         );
         scaleFactors[file] = real / wallClockTotal;
         console.log(`  ${file}: real ${real.toFixed(2)}s, wall-clock total ${wallClockTotal.toFixed(2)}s, scale factor ${scaleFactors[file].toFixed(3)}`);
@@ -485,110 +458,12 @@ async function main() {
     const clipWindow = (clipId) => {
         const entry = manifest[clipId];
         if (!entry) throw new Error(`No manifest entry for clip "${clipId}" -- rerun capture_broll.js`);
-        const file = entry.file ?? 'broll-master.webm';
-        const scaleFactor = scaleFactors[file];
-        return { file: path.join(BROLL_DIR, file), start: entry.start * scaleFactor, end: entry.end * scaleFactor };
+        const scaleFactor = scaleFactors[entry.file];
+        return { file: path.join(BROLL_DIR, entry.file), start: entry.start * scaleFactor, end: entry.end * scaleFactor };
     };
 
     await fs.mkdir(WORK_DIR, { recursive: true });
     const timeline = buildTimeline(vo);
-
-    // The montage is captured with flashMarker() beats between clips (see
-    // capture_broll.js) specifically because the wall-clock-derived offsets
-    // clipWindow() uses turned out too imprecise for clips this short and
-    // tightly packed together. Detect those markers up front and use them as
-    // ground-truth boundaries. Marker detection isn't perfectly reliable
-    // either though (the same video-encoder frame drops that motivated this
-    // approach can occasionally eat a marker's frames entirely, confirmed in
-    // testing), so this is a hybrid: each expected boundary gets a
-    // wall-clock-scaled fallback estimate (the old clipWindow() approach),
-    // and a detected marker only overrides it if one lands within a
-    // plausible window of that estimate -- an all-or-nothing "use markers
-    // only if every single one was found" requirement made one dropped
-    // marker in a 6-marker recording throw away useful data for the other 5.
-    const montageSegment = timeline.find(s => s.id === 'montage-silent');
-    let montageWindows = null;
-    if (montageSegment) {
-        const montageClipIds = montageSegment.clipIds;
-        const montageFile = clipWindow(montageClipIds[0]).file;
-        console.log(`Detecting clip-boundary markers in ${path.basename(montageFile)}...`);
-        const { markers, totalDuration: montageRealDuration } = await detectMarkerTimestamps(montageFile);
-
-        // Expected position of the boundary before clip i (i>=1): the
-        // midpoint between the previous clip's scaled wall-clock end and
-        // this clip's scaled wall-clock start. Only used as a fallback for
-        // boundaries beyond however many markers were actually found.
-        //
-        // Markers are matched to boundaries by position in sequence, not by
-        // nearest distance to a wall-clock estimate: that estimate is built
-        // from the same scale-factor approach this whole marker system
-        // exists to route around, and distance-matching against it produced
-        // wrong-slot assignments in testing whenever the estimate drifted
-        // enough (confirmed by manually inspecting frames).
-        //
-        // Markers are emitted in strict chronological order by construction
-        // (frame scan is sequential), and so are clips -- but when fewer
-        // markers than expected are found, WHICH boundary is missing isn't
-        // arbitrary: reproduced twice in testing, the *last* marker reliably
-        // lines up with the *last* boundary (the recording runs to real
-        // completion, so the final transition is captured), and the gap
-        // consistently falls at the second-to-last boundary instead (the
-        // video encoder was observed to degrade sharply in the final
-        // seconds of a montage take, and that's the transition it lands on).
-        // This is admittedly a narrow, empirically-fit heuristic rather than
-        // a general solution -- it only handles being short by exactly one.
-        const expected = [];
-        for (let i = 1; i < montageClipIds.length; i++) {
-            const prevEnd = clipWindow(montageClipIds[i - 1]).end;
-            const curStart = clipWindow(montageClipIds[i]).start;
-            expected.push((prevEnd + curStart) / 2);
-        }
-
-        // Each detected timestamp is where a marker *starts*. The marker
-        // fires before the next clip's setup (a sidebar tab click) runs, and
-        // that setup -- plus whatever render lag DemoProject's size adds --
-        // took up to ~4s to settle in testing, well past the marker's own
-        // ~1.8s on-screen+pause time. Skip past both with margin.
-        const MARKER_SKIP = 4.2;
-        const missingIdx = markers.length === expected.length - 1 ? expected.length - 2 : -1;
-        const boundaries = [];
-        let markerIdx = 0;
-        for (let i = 0; i < expected.length; i++) {
-            if (i === missingIdx || markerIdx >= markers.length) {
-                boundaries.push(expected[i]);
-            } else {
-                boundaries.push(markers[markerIdx] + MARKER_SKIP);
-                markerIdx++;
-            }
-        }
-        console.log(`  Matched ${markers.length}/${expected.length} boundaries to a detected marker (rest use the wall-clock estimate).\n`);
-
-        // A marker right at the very end of the recording (typically the one
-        // before the last clip) plus its post-marker skip can overshoot the
-        // file's real duration -- observed: left the final clip's window
-        // with a negative/zero length, so it rendered as an ~0-byte file.
-        // Clamp to a monotonically increasing sequence that always leaves at
-        // least MIN_SLICE for every remaining clip after it.
-        const MIN_SLICE = 0.5;
-        for (let i = boundaries.length - 1; i >= 0; i--) {
-            const maxAllowed = montageRealDuration - MIN_SLICE * (boundaries.length - i);
-            if (boundaries[i] > maxAllowed) boundaries[i] = maxAllowed;
-        }
-        for (let i = 1; i < boundaries.length; i++) {
-            if (boundaries[i] <= boundaries[i - 1]) boundaries[i] = boundaries[i - 1] + MIN_SLICE;
-        }
-
-        // The first clip has no preceding marker (flashMarker only runs
-        // *between* clips), so its window can't start at the recording's
-        // literal beginning -- that would include its own setup time (still
-        // showing the "Preparing your project..." load and the default
-        // sidebar tab, confirmed in testing). Use its own scaled wall-clock
-        // settled-start estimate instead, the same approach used as the
-        // fallback everywhere else.
-        const firstClipStart = clipWindow(montageClipIds[0]).start;
-        const bounds = [firstClipStart, ...boundaries, montageRealDuration];
-        montageWindows = montageClipIds.map((_, i) => ({ file: montageFile, start: bounds[i], end: bounds[i + 1] }));
-    }
 
     console.log(`Rendering ${timeline.length} top-level segment(s) to ${WORK_DIR}\n`);
 
@@ -605,7 +480,7 @@ async function main() {
             const share = segment.duration / segment.clipIds.length;
             const subPaths = [];
             for (let i = 0; i < segment.clipIds.length; i++) {
-                const { file, start, end } = (segment === montageSegment && montageWindows) ? montageWindows[i] : clipWindow(segment.clipIds[i]);
+                const { file, start, end } = clipWindow(segment.clipIds[i]);
                 const available = Math.max(end - start, 0);
                 const subPath = path.join(WORK_DIR, `${segment.id}-${i}.mp4`);
                 const label = segment.labels?.[i];

@@ -1891,6 +1891,10 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
           transformOrigin: '0 0',
         }}
       >
+        {/* TODO(#141, #97): blockGroups/renderedLinks/fileGraph.nodes/labelNodes below all
+            render unconditionally with no viewport-bounds culling -- this is the largest
+            canvas (most nodes/links per frame) and the primary target for virtualization
+            work. Same gap as StoryCanvas.tsx's visibleBlocks. */}
         {/* Layer 0: Block Group Containers */}
         {blockGroups.map(group => (
             <BlockContainer 

@@ -4,6 +4,37 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Added
+- **NEW:** Vangard Studio is now fully rebranded from Ren'IDE — UI, installer, project templates, LICENSE, and documentation all reflect the new name and branding
+- **NEW:** Full documentation website ([VitePress](https://vitepress.dev/), published to GitHub Pages) replacing the old PDF-based user guide — a complete Guide, Reference, and Architecture section, plus a redesigned Welcome page
+- **NEW:** Script Statistics: unreachable-label detection via canvas BFS, surfaced directly in the Stats panel
+- **NEW:** Code Snippets: JSON schema validation, snippet pack import/export, and grid UX improvements
+- **NEW:** Keyboard Shortcuts help panel is now fully implemented and discoverable from the toolbar
+
+### Fixed
+- **FIXED:** `N`, `G`, and `Delete` canvas keyboard shortcuts now actually work (were documented but not implemented)
+- **FIXED:** Search panel's "Replace All" now performs the replacement (was previously a no-op)
+- **FIXED:** Running the game with no Ren'Py SDK path configured now opens the Configure Ren'Py modal instead of failing silently
+- **FIXED:** Completed milestones are now correctly restored when reopening a project
+
+### Accessibility
+- **FIXED:** `aria-label`s added to all remaining icon-only toolbar and color-picker buttons
+- **FIXED:** Modal focus/ARIA wiring corrected and choice-pill colors adjusted to meet WCAG AA contrast
+
+### Removed
+- Removed the first-launch "Import settings from Ren'IDE?" migration prompt added during the rebrand — 1.0.0 starts fresh rather than importing settings from the pre-1.0 beta
+- Removed the Screen Layout Composer's UI entry points (introduced in 0.7.0) — the underlying types and a read-only screen preview remain in the codebase but are not reachable from the app in this release; the Screens tab now shows a plain read-only list of `screen` definitions with jump-to-source only
+
+### Testing
+- E2E smoke suite expanded from 5 to 97 tests covering all major features; installer smoke tests now run on Windows, macOS, and Linux in CI
+- Thousands of new unit tests added across components, hooks, and libraries, closing prior coverage gaps
+
+### Internal
+- `App.tsx` (previously ~5,300 lines) modularized into focused hooks and a dual-pane context — project I/O, canvas layout, tab lifecycle, asset management, drafting artifacts, and more, each independently testable
+- All TypeScript strict-mode errors (144) and lint warnings (12) resolved
+
 ## [0.9.0]
 
 ### Added

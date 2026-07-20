@@ -1,4 +1,23 @@
-﻿import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+﻿// REVIEW: App.tsx is the app's central state hub (see CLAUDE.md's State Hub
+// table) and was as large as ~5,300 lines pre-1.0; a tracked refactor
+// (beads bmf-vangard-renpy-ide-cfo, closed) brought it to 2,464 lines by
+// extracting focused hooks (useProjectIO, useAssetManagement,
+// useCanvasLayout, useBlockManagement, DualPaneContext, etc.) -- it's since
+// dropped further to ~2,250. That issue's closing notes identified two more
+// possible extraction streams (a render-tree extraction for
+// StoryElementsPanel/asset-tab callback memoization, and a
+// CanvasLayoutContext for block-position/layout-trigger state) that were
+// never turned into separate tracked work -- worth a decision on whether
+// they're still worth pursuing given the size target was already met, or
+// whether this is diminishing returns.
+//
+// TODO(bmf-vangard-renpy-ide-51mb): SettingsModal, MenuConstructorModal,
+// NewProjectWizardModal, KeyboardShortcutsModal, AboutModal, and the other
+// modals below are all static imports even though each only ever renders
+// while its own "is open" flag is true -- same static-import-vs-bundle-size
+// issue as src/hooks/useTabContentRenderer.tsx's tab components. Candidates
+// for React.lazy()+Suspense.
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useImmer } from 'use-immer';
 import Toolbar from '@/components/Toolbar';
@@ -20,7 +39,6 @@ import Sash from '@/components/Sash';
 import StatusBar from '@/components/StatusBar';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import AboutModal from '@/components/AboutModal';
-import LegacyMigrationModal from '@/components/LegacyMigrationModal';
 import ExternalChangesBanner from '@/components/ExternalChangesBanner';
 import UserSnippetModal from '@/components/UserSnippetModal';
 import NewProjectWizardModal from '@/components/NewProjectWizardModal';
@@ -62,7 +80,6 @@ import { useGameExecution } from '@/hooks/useGameExecution';
 import { useWarpLaunch } from '@/hooks/useWarpLaunch';
 import { useMenuCommandDispatch } from '@/hooks/useMenuCommandDispatch';
 import { useGoToLabel } from '@/hooks/useGoToLabel';
-import { useLegacyMigration } from '@/hooks/useLegacyMigration';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
@@ -788,12 +805,6 @@ const App: React.FC = () => {
     }).catch(err => logger.error('Failed to read startup args:', err));
   }, [appSettingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Legacy Ren'IDE migration ---
-  const { showLegacyMigrationModal, handleLegacyMigrationImport, handleLegacyMigrationSkip } = useLegacyMigration({
-    appSettingsLoaded,
-    updateAppSettings,
-  });
-
   useEffect(() => {
     if (!appSettingsLoaded) return;
 
@@ -1252,6 +1263,23 @@ const App: React.FC = () => {
           handleCloseTab(currentTabId, currentPaneId);
         }
       }
+      // Canvas-level Undo/Redo. Skip when focus is in an editable field (text input,
+      // Monaco editor) or inside Scene Composer, which each maintain their own undo stack.
+      const key = e.key.toLowerCase();
+      if (isMetaShortcut && (key === 'z' || key === 'y')) {
+        const target = e.target as HTMLElement;
+        const isEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+          || target.isContentEditable || !!target.closest?.('.monaco-editor')
+          || !!target.closest?.('[data-scene-composer-root]');
+        if (!isEditable) {
+          e.preventDefault();
+          if (key === 'z') {
+            if (e.shiftKey) { if (canRedo) redo(); } else if (canUndo) undo();
+          } else if (canRedo) {
+            redo();
+          }
+        }
+      }
       if (e.key === 'Escape') {
         closeGoToLabelModal();
         closeWarpToLabelModal();
@@ -1260,7 +1288,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal]);
+  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal, canUndo, canRedo, undo, redo]);
 
 
   const handleFindUsages = useCallback((id: string, type: 'character' | 'variable') => {
@@ -2197,11 +2225,6 @@ const App: React.FC = () => {
       <AboutModal
         isOpen={aboutModalOpen}
         onClose={() => closeAboutModal()}
-      />
-      <LegacyMigrationModal
-        isOpen={showLegacyMigrationModal}
-        onImport={handleLegacyMigrationImport}
-        onSkip={handleLegacyMigrationSkip}
       />
       <GoToLabelModal
         isOpen={isGoToLabelOpen}

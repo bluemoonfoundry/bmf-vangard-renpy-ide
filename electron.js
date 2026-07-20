@@ -411,6 +411,12 @@ function readProjectFiles(rootPath, { readContent = true } = {}, onProgress = nu
     });
 }
 
+// TODO(#99): the thumbnail-rendering side of this issue is already handled --
+// ImageManager.tsx virtualizes its grid and ImageThumbnail.tsx lazy-loads --
+// but this directory walk itself is unbounded recursion with no batching/
+// streaming/progress reporting back to the renderer. On a very large asset
+// tree this still blocks the initial scan before any thumbnail can render.
+// Worth revisiting if #99 isn't actually closed by the ImageManager work.
 async function scanDirectoryForAssets(dirPath) {
     const results = {
         images: [],
@@ -475,6 +481,15 @@ function getMimeType(filePath) {
 
 let forceQuit = false;
 
+// NOTE(#61): macOS 15.1+ installed builds fail to launch by default --
+// confirmed root cause is that v1.0.0 ships unsigned/unnotarized (no Apple
+// Developer Program membership), a deliberate, accepted decision for this
+// release (see RELEASE_CHECKLIST.md). Workaround is documented in README.md/
+// SUPPORT.md (`xattr -r -d com.apple.quarantine`). Separately, still worth
+// noting: this function's darwin-only submenu branch (below) and the other
+// process.platform === 'darwin' branches in this file are unguarded --  if
+// menu construction ever throws here, it would surface only as "app never
+// opens" with no diagnosable error, which is independent of the signing gap.
 async function updateApplicationMenu() {
   const settings = await loadAppSettings();
   const recentProjects = settings?.recentProjects || [];
@@ -1464,68 +1479,11 @@ app.whenReady().then(() => {
     }
   });
 
-  // --- Legacy Ren'IDE migration ---
-  // The app was previously distributed as "renide"; Electron stored userData under that name.
-  // On first launch of the renamed app, offer to import settings from the old directory.
-  function getLegacyUserDataPath() {
-    return path.join(app.getPath('appData'), 'renide');
-  }
-
-  ipcMain.handle('app:check-legacy-migration', async () => {
-    const current = await loadAppSettings();
-    if (current?.legacyMigrationChecked) return { available: false };
-    try {
-      await fs.access(getLegacyUserDataPath());
-      // Mark checked now so the prompt never reappears even if the user closes
-      // the app before clicking Import or Skip.
-      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
-      return { available: true };
-    } catch {
-      await saveAppSettings({ ...(current || {}), legacyMigrationChecked: true });
-      return { available: false };
-    }
-  });
-
-  ipcMain.handle('app:perform-legacy-migration', async () => {
-    const legacyDir = getLegacyUserDataPath();
-    const currentDir = app.getPath('userData');
-    const errors = [];
-
-    for (const file of ['app-settings.json', 'api-keys.enc']) {
-      try {
-        await fs.copyFile(path.join(legacyDir, file), path.join(currentDir, file));
-      } catch {
-        // api-keys.enc is optional; app-settings.json absence is also non-fatal
-        errors.push(file);
-      }
-    }
-
-    // Mark checked and return newly-imported settings
-    const imported = await loadAppSettings() || {};
-    imported.legacyMigrationChecked = true;
-    await saveAppSettings(imported);
-    await updateApplicationMenu();
-    return { success: true, settings: imported };
-  });
-
-  ipcMain.handle('app:dismiss-legacy-migration', async () => {
-    const current = await loadAppSettings() || {};
-    await saveAppSettings({ ...current, legacyMigrationChecked: true });
-    return { success: true };
-  });
-
   ipcMain.handle('app:get-settings', async () => {
     return await loadAppSettings();
   });
-  
+
   ipcMain.handle('app:save-settings', async (event, settings) => {
-      // Preserve legacyMigrationChecked if already set on disk — the renderer's
-      // first save races with checkLegacyMigration on fresh installs and would
-      // otherwise overwrite the flag before the renderer has loaded it.
-      if (!settings.legacyMigrationChecked) {
-          const current = await loadAppSettings();
-          if (current?.legacyMigrationChecked) settings = { ...settings, legacyMigrationChecked: true };
-      }
       const result = await saveAppSettings(settings);
       if (result.success) {
           await updateApplicationMenu();

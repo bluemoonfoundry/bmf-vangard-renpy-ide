@@ -11,9 +11,9 @@ Vangard Studio uses [electron-log](https://github.com/megahertz/electron-log). L
 
 | Platform | Log directory |
 |---|---|
-| **Windows** | `%APPDATA%\renide\logs\` |
-| **macOS** | `~/Library/Logs/renide/` |
-| **Linux** | `~/.config/renide/logs/` |
+| **Windows** | `%APPDATA%\vangard-studio\logs\` |
+| **macOS** | `~/Library/Logs/vangard-studio/` |
+| **Linux** | `~/.config/vangard-studio/logs/` |
 
 The file is named `main.log`. Users can also open it from the app via **Help → Show Logs**.
 
@@ -21,9 +21,9 @@ The `userData` directory (settings, window state, API keys) is one level up from
 
 | Platform | userData path |
 |---|---|
-| **Windows** | `%APPDATA%\renide\` |
-| **macOS** | `~/Library/Application Support/renide/` |
-| **Linux** | `~/.config/renide/` |
+| **Windows** | `%APPDATA%\vangard-studio\` |
+| **macOS** | `~/Library/Application Support/vangard-studio/` |
+| **Linux** | `~/.config/vangard-studio/` |
 
 ---
 
@@ -51,8 +51,8 @@ For crashes, also ask for the `traceback.txt` from their Ren'Py project folder i
 **Fix:** User must select their Ren'Py SDK root directory in the modal (the folder containing `renpy.exe` or `renpy.sh`). This is a one-time setup stored in `app-settings.json`.
 
 ### macOS "app is damaged" / Gatekeeper block
-**Symptom:** macOS refuses to open the app after install.  
-**Fix:** Run `xattr -cr /Applications/Ren\'IDE.app` in Terminal, then reopen. This is a notarization/quarantine issue; permanent fix is to ensure releases are notarized via Apple Developer account.
+**Symptom:** macOS refuses to open the app after install. On macOS 15.1+, the usual right-click → Open / System Settings → Open Anyway bypasses may not reliably appear (see [#61](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/issues/61)).
+**Fix:** Run `xattr -r -d com.apple.quarantine "/Applications/Vangard Studio.app"` in Terminal, then reopen. This is a notarization/quarantine issue — v1.0.0 ships unsigned/unnotarized (no Apple Developer Program membership); this is a known, accepted limitation for this release, not a bug to chase further right now.
 
 ### Linux AppImage won't launch (FUSE error)
 **Symptom:** `AppImages require FUSE to run` error on modern Ubuntu/Debian.  
@@ -60,7 +60,7 @@ For crashes, also ask for the `traceback.txt` from their Ren'Py project folder i
 
 ### Blank white window on first launch (Linux)
 **Symptom:** App window opens but renderer is blank.  
-**Fix:** Usually a GPU sandbox issue. Try launching with `--no-sandbox` flag: `./renide-*.AppImage --no-sandbox`. If that resolves it, document the environment (distro, GPU driver) in the issue.
+**Fix:** Usually a GPU sandbox issue. Try launching with `--no-sandbox` flag: `./Vangard_Studio_Linux_*.AppImage --no-sandbox`. If that resolves it, document the environment (distro, GPU driver) in the issue.
 
 ### Auto-updater silently fails
 **Symptom:** No update notification on a version that should prompt one.  
@@ -72,7 +72,7 @@ For crashes, also ask for the `traceback.txt` from their Ren'Py project folder i
 
 There is no automatic rollback. To downgrade:
 
-1. Uninstall the current version (Windows: Add/Remove Programs; macOS: drag to Trash; Linux: `dpkg -r renide` or delete the AppImage).
+1. Uninstall the current version (Windows: Add/Remove Programs; macOS: drag to Trash; Linux: `dpkg -r vangard-studio` or delete the AppImage).
 2. Download the previous version's installer from the [GitHub Releases](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases) page.
 3. Install normally.
 

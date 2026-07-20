@@ -115,15 +115,6 @@ If you dismiss it and want to see it again later, go to `Help` > `Show Tutorial`
 tutorial state is stored in your browser's local storage, so it only appears once per
 machine unless you explicitly replay it.
 
-## Migrating from Ren'IDE
-
-If Vangard Studio detects an existing Ren'IDE installation on your computer, it shows an
-**"Import settings from Ren'IDE?"** dialog the first time it launches. Choosing
-`Import Settings` copies over your theme, SDK path, recent projects list, editor
-preferences, and stored API keys, so you don't have to re-enter them. Choosing `Skip`
-dismisses the dialog permanently -- it only ever appears once per machine, whichever
-option you pick.
-
 ## Opening an Existing Project
 
 If you already have a Ren'Py project, open it from the welcome screen or via `File` >
