@@ -77,9 +77,9 @@ This is a different shape from `UserSnippet` (used for global snippets in `app-s
 | `app-settings.json` | Electron `userData` directory | Theme, editor font, sidebar dimensions, Ren'Py SDK path, recent project list, mouse gesture preferences, global user snippets, menu templates. |
 
 The `userData` directory location varies by platform:
-- **Windows**: `%APPDATA%/ren-ide/`
-- **macOS**: `~/Library/Application Support/ren-ide/`
-- **Linux**: `~/.config/ren-ide/`
+- **Windows**: `%APPDATA%/vangard-studio/`
+- **macOS**: `~/Library/Application Support/vangard-studio/`
+- **Linux**: `~/.config/vangard-studio/`
 
 #### `app-settings.json` Key Fields
 

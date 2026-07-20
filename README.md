@@ -243,16 +243,24 @@ The app is safe - Windows blocks it only because it doesn't have a commercial co
 2. Drag **Vangard Studio.app** to your **Applications** folder
 3. Launch from Applications
 
-**⚠️ Security Warning:** macOS Gatekeeper will block unsigned applications on first launch.
+**⚠️ Security Warning:** macOS Gatekeeper will block unsigned applications on first launch. Vangard Studio releases are not code-signed or notarized (no Apple Developer Program membership) — this is a known, tracked limitation ([#61](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/issues/61)), not a bug in the app itself.
 
-**To run Vangard Studio:**
+**On macOS 15.1 and later, use the Terminal method below — it's the only one confirmed to work.** Apple tightened Gatekeeper's handling of unsigned apps in 15.1+; the right-click/System Settings bypasses that worked on older macOS versions may not reliably appear anymore.
 
-**Method 1 (Recommended):**
+**Method 1 (Terminal — required on macOS 15.1+):**
+1. Drag **Vangard Studio.app** to Applications first
+2. Open Terminal and run:
+   ```
+   xattr -r -d com.apple.quarantine "/Applications/Vangard Studio.app"
+   ```
+3. Launch Vangard Studio normally from Applications
+
+**Method 2 (pre-15.1 only — try this first if you're on an older macOS version):**
 1. Right-click (or Control+click) **Vangard Studio.app** in Applications
 2. Select **"Open"** from the context menu
 3. Click **"Open"** in the security dialog that appears
 
-**Method 2 (System Settings):**
+**Method 3 (System Settings, pre-15.1 only):**
 1. Try to launch Vangard Studio normally (it will be blocked)
 2. Go to **System Settings → Privacy & Security**
 3. Scroll down to the **Security** section

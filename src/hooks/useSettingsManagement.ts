@@ -20,7 +20,7 @@ export interface UseSettingsManagementReturn {
   appSettingsLoaded: boolean;
   setAppSettingsLoaded: React.Dispatch<React.SetStateAction<boolean>>;
 
-  // Project settings (per-project, persisted to .renide/project.json)
+  // Project settings (per-project, persisted to game/project.ide.json)
   projectSettings: PersistedProjectSettings;
   updateProjectSettings: (updater: (draft: PersistedProjectSettings) => void) => void;
 

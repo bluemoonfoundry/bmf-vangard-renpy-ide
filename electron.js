@@ -481,15 +481,15 @@ function getMimeType(filePath) {
 
 let forceQuit = false;
 
-// TODO(#61): macOS 15.1+ installed builds reportedly fail to start. This
-// function's darwin-only submenu branch (below) and the other
-// process.platform === 'darwin' branches in this file are unguarded and
-// untried/uncaught -- if menu construction throws here on a real user's
-// machine it would surface only as "app never opens," not a diagnosable
-// error. Also see package.json's "mac" build config: no hardenedRuntime,
-// entitlements, or notarize settings are configured, which is the more
-// likely root cause on modern macOS Gatekeeper. Needs investigation before
-// this can be closed.
+// NOTE(#61): macOS 15.1+ installed builds fail to launch by default --
+// confirmed root cause is that v1.0.0 ships unsigned/unnotarized (no Apple
+// Developer Program membership), a deliberate, accepted decision for this
+// release (see RELEASE_CHECKLIST.md). Workaround is documented in README.md/
+// SUPPORT.md (`xattr -r -d com.apple.quarantine`). Separately, still worth
+// noting: this function's darwin-only submenu branch (below) and the other
+// process.platform === 'darwin' branches in this file are unguarded --  if
+// menu construction ever throws here, it would surface only as "app never
+// opens" with no diagnosable error, which is independent of the signing gap.
 async function updateApplicationMenu() {
   const settings = await loadAppSettings();
   const recentProjects = settings?.recentProjects || [];

@@ -4,7 +4,8 @@
  *
  * Load order (higher priority overrides lower):
  * 1. Built-in snippets: snippets/default-snippets.json (bundled)
- * 2. User global snippets: ~/.vangard-ide/snippets/custom.json
+ * 2. User global snippets: Electron userData/snippets/custom.json (e.g.
+ *    %APPDATA%\vangard-studio\snippets\custom.json on Windows)
  * 3. Project-specific snippets: <project>/.vangard/snippets.json
  *
  * Categories with the same name are merged, with higher priority snippets appearing first.
@@ -126,8 +127,8 @@ export function useSnippetLoader(options: UseSnippetLoaderOptions = {}): UseSnip
       // 1. Built-in snippets (always available)
       const builtInCategories = (defaultSnippetsData as SnippetPackFile).categories;
 
-      // 2. User global snippets (~/.vangard-ide/snippets/custom.json). Read via the
-      // dedicated snippets:readUserGlobal IPC (fixed path computed in the main
+      // 2. User global snippets (Electron userData/snippets/custom.json). Read via
+      // the dedicated snippets:readUserGlobal IPC (fixed path computed in the main
       // process) rather than the generic project-guarded fs:readFile, since this
       // path is always outside any project root.
       let userGlobalCategories: SnippetCategory[] | null = null;
