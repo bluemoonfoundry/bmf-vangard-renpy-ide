@@ -411,6 +411,12 @@ function readProjectFiles(rootPath, { readContent = true } = {}, onProgress = nu
     });
 }
 
+// TODO(#99): the thumbnail-rendering side of this issue is already handled --
+// ImageManager.tsx virtualizes its grid and ImageThumbnail.tsx lazy-loads --
+// but this directory walk itself is unbounded recursion with no batching/
+// streaming/progress reporting back to the renderer. On a very large asset
+// tree this still blocks the initial scan before any thumbnail can render.
+// Worth revisiting if #99 isn't actually closed by the ImageManager work.
 async function scanDirectoryForAssets(dirPath) {
     const results = {
         images: [],
@@ -475,6 +481,15 @@ function getMimeType(filePath) {
 
 let forceQuit = false;
 
+// TODO(#61): macOS 15.1+ installed builds reportedly fail to start. This
+// function's darwin-only submenu branch (below) and the other
+// process.platform === 'darwin' branches in this file are unguarded and
+// untried/uncaught -- if menu construction throws here on a real user's
+// machine it would surface only as "app never opens," not a diagnosable
+// error. Also see package.json's "mac" build config: no hardenedRuntime,
+// entitlements, or notarize settings are configured, which is the more
+// likely root cause on modern macOS Gatekeeper. Needs investigation before
+// this can be closed.
 async function updateApplicationMenu() {
   const settings = await loadAppSettings();
   const recentProjects = settings?.recentProjects || [];

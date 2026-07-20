@@ -48,6 +48,13 @@ const GroupContainer = forwardRef<HTMLDivElement, GroupContainerProps>(({ group,
     else if (e.key === 'Escape') setIsEditingTitle(false);
   };
   
+  // TODO(#140): this whole component has zero aria-label/role/tabIndex --
+  // the drag-handle, resize-handle, and title-rename span below are all
+  // plain pointer-only <div>/<span> elements with no accessible name and no
+  // keyboard equivalent (rename is only reachable via onDoubleClick). Unlike
+  // CodeBlock/LabelBlock, this one has no keyboard-accessible fallback at
+  // all. Needs an aria-label identifying the group by title at minimum, and
+  // ideally a keyboard path to rename/resize.
   return (
     <div
       ref={ref}

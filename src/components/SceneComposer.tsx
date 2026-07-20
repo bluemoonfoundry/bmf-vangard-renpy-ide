@@ -65,6 +65,11 @@ function spriteVisualFilter(sprite: SceneSprite): string {
 }
 
 // Builds the matrixcolor + shader lines for the Ren'Py ATL code generator
+// TODO(#38): this is a one-way generator only (fixed set of color/shader
+// properties -> ATL lines) -- there is no ATL parsing, timeline, or preview/
+// round-trip editing anywhere in the app. If #38 wants general ATL
+// integration (arbitrary transforms, animation blocks), this function is not
+// a starting point for that; it would need a real ATL grammar.
 function spriteEffectCode(sprite: SceneSprite, indent = '    '): string {
     let code = '';
     const colorMode = sprite.colorMode ?? 'none';

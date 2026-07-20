@@ -68,6 +68,11 @@ const SCREEN_BLOCK_RE = /^\s*screen\s+\w+(?:\s*\([^)]*\))?\s*:/;
 // ATL image block start — `image name:`
 // Inside ATL image blocks, quoted lines like `"path.webp" with dissolve`
 // are animation statements, not menu choices.
+// TODO(#38): this and IMAGE_BLOCK_RE only exist to suppress false-positive
+// diagnostics inside ATL blocks -- the validator doesn't understand ATL
+// grammar itself (no validation of transform/animation statement syntax).
+// If #38 wants proper ATL integration, this suppression-only special case
+// isn't a foundation to build on.
 const IMAGE_BLOCK_RE = /^\s*image\s+.+:\s*$/;
 const MENU_BLOCK_RE = /^\s*menu(?:\s+\w+)?\s*:/;
 

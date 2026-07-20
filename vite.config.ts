@@ -69,6 +69,15 @@ export default defineConfig(({ mode }) => {
       } as Record<string, unknown>,
     }),
     // Build optimization settings
+    // TODO(bmf-vangard-renpy-ide-51mb): no manualChunks / code-splitting
+    // strategy is configured here, and chunkSizeWarningLimit is left at
+    // Vite's default (500kB) -- the build warns because the app's own
+    // index-*.js is ~2.4MB (all tab/modal components are static imports,
+    // see App.tsx and useTabContentRenderer.tsx). The other >500kB chunk,
+    // editor.api-*.js, is Monaco's own core bundle and isn't something this
+    // config can shrink. Once the app-side splitting lands, revisit whether
+    // chunkSizeWarningLimit should be set explicitly (e.g. to just above
+    // Monaco's chunk size) so the warning stays meaningful.
     build: {
       // Always generate sourcemaps for debugging (even in production)
       sourcemap: true,

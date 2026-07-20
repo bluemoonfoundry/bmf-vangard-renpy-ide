@@ -827,6 +827,11 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     backgroundPosition: `${transform.x}px ${transform.y}px`,
   };
   
+  // TODO(#141, #97): despite the name, this filters by category (story/screen/config),
+  // not by viewport — every block that passes the category filter still renders
+  // unconditionally below (see the block-render map further down), with no
+  // pan/zoom-based culling. Large projects (100+ blocks) render everything every
+  // frame. Needs viewport-bounds windowing, same gap in RouteCanvas.tsx.
   const visibleBlocks = useMemo(() => {
     return blocks.filter(block => {
         const isStory = analysisResult.storyBlockIds.has(block.id);
