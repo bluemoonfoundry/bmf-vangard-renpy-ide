@@ -132,14 +132,27 @@ const Toolbar: React.FC<ToolbarProps> = ({
     }`;
 
   return (
-    <header className="flex-shrink-0 h-16 bg-header border-b border-primary relative flex items-center px-6 z-30">
+    <header className="flex-shrink-0 h-16 bg-header border-b border-primary grid grid-cols-[auto_1fr_auto] items-center px-6 gap-3 z-30">
 
       {/* ── Far left: logo ── */}
-      <img src={logo} alt="Vangard Studio Logo" className="h-12 w-auto shrink-0" />
-      <div className="h-6 w-px bg-primary shrink-0 ml-3" />
+      <div className="flex items-center shrink-0">
+        <img src={logo} alt="Vangard Studio Logo" className="h-12 w-auto shrink-0" />
+        <div className="h-6 w-px bg-primary shrink-0 ml-3" />
+      </div>
 
-      {/* ── Absolutely centered: editing tools + canvas switcher ── */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+      {/* ── Center column: editing tools + canvas switcher ──
+          Was `absolute left-1/2 -translate-x-1/2`, centered on the full header
+          width with no awareness of the left/right columns' widths -- as more
+          buttons were added here over time, it grew wide enough to overlap
+          the right section at the default 1280px window width (confirmed:
+          Flow Canvas button and the Drafting Mode toggle overlapped by 36px,
+          silently swallowing clicks meant for the canvas switcher). A grid
+          track can never overlap a sibling track the way absolute
+          positioning can -- `1fr` here always yields whatever space is left
+          after the two `auto` columns, so overflow-x-auto is a fallback for
+          extremely narrow windows, not something expected to engage at the
+          default size. */}
+      <div className="flex items-center justify-center gap-3 min-w-0 overflow-x-auto">
         {!hideUndoRedo && (<>
           <ToolbarButton onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
@@ -250,8 +263,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </div>
       </div>
 
-      {/* ── Right section: mode toggles + run + save ── */}
-      <div className="ml-auto flex items-center space-x-3">
+      {/* ── Right column: mode toggles + run + save ── */}
+      <div className="flex items-center justify-end space-x-3 shrink-0">
         {/* Drafting Mode Toggle */}
         <div className="flex items-center space-x-1.5 mr-2">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-8 w-8 shrink-0 ${draftingMode ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
