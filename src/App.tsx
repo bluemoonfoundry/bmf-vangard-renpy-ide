@@ -173,9 +173,9 @@ const App: React.FC = () => {
   // Update window title based on project path
   useEffect(() => {
     if (projectRootPath) {
-      document.title = `Vangard Studio (${projectRootPath})`;
+      document.title = `Vangard Studio ${process.env.APP_VERSION} (${projectRootPath})`;
     } else {
-      document.title = "Vangard Studio";
+      document.title = `Vangard Studio ${process.env.APP_VERSION}`;
     }
   }, [projectRootPath]);
 

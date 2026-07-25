@@ -72,11 +72,11 @@ describe('App', () => {
   // ── Window title ───────────────────────────────────────────────────────────
 
   describe('window title', () => {
-    it('is "Vangard Studio" when no project is open', async () => {
+    it('includes the app version when no project is open', async () => {
       renderApp();
       // title effect fires after render
       await waitFor(() => {
-        expect(document.title).toBe('Vangard Studio');
+        expect(document.title).toBe(`Vangard Studio ${process.env.APP_VERSION}`);
       });
     });
   });
