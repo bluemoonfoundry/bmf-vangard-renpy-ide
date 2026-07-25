@@ -65,6 +65,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Disable Spotlight indexing (macOS)
+        # electron-builder's dmgbuild step intermittently fails to eject the
+        # freshly-built DMG with "Resource busy" -- caused by mds/mdworker
+        # racing to index the just-mounted volume before it detaches. Turning
+        # indexing off removes that race instead of retrying around it.
+        if: runner.os == 'macOS'
+        run: sudo mdutil -a -i off
+
       - name: Build and Package
         # --publish=never: this workflow only has `contents: read`, which
         # already blocks electron-builder's own auto-publish attempt (see
@@ -80,10 +88,21 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Defender's real-time scan of a freshly-built, unsigned installer has been
+          # observed to stall the silent install for 6+ minutes with nothing ever
+          # landing on disk (vs. ~15s normally) -- disabling it here removes that
+          # variable instead of chasing an intermittent multi-minute hang.
+          Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
+
           $installer = Get-ChildItem release/*.exe | Select-Object -First 1
           if (-not $installer) { Write-Error "No .exe installer found in release/"; exit 1 }
           Write-Host "Running installer: $($installer.FullName)"
-          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+          $installProc = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru
+          if (-not $installProc.WaitForExit(120000)) {
+            Write-Error "Installer did not finish within 120s -- killing it"
+            $installProc.Kill()
+            exit 1
+          }
 
           # Silent NSIS installs can land per-user (%LOCALAPPDATA%\Programs) or
           # per-machine (%ProgramFiles%) depending on the assisted-install default,
