@@ -44,9 +44,17 @@ const UserSnippetModal: React.FC<UserSnippetModalProps> = ({ isOpen, onClose, on
         setUsePlaceholders(false);
       }
       setError('');
-      setTimeout(() => titleInputRef.current?.focus(), 50);
+      // Guard against stealing focus back from a field the user has already
+      // started typing into -- without this, a user (or fast automated
+      // input) interacting with the modal within the first 50ms loses
+      // keystrokes to the title field when this fires.
+      setTimeout(() => {
+        if (!contentRef.current?.contains(document.activeElement)) {
+          titleInputRef.current?.focus();
+        }
+      }, 50);
     }
-  }, [isOpen, existingSnippet]);
+  }, [isOpen, existingSnippet, contentRef]);
 
   const handleSave = () => {
     const trimmedTitle = title.trim();
