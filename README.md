@@ -12,7 +12,7 @@
 
 Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, two visual composers, asset managers, diagnostics, and a color picker are all built in.
 
-It works **alongside** the Ren'Py SDK. Your `.rpy` files stay as `.rpy` files. No lock-in.
+## Getting Started 
 
 **[Watch the Full Beta 4 Walkthrough Video @ YouTube →](https://youtu.be/PNgV-JjFNag)**
 
@@ -43,6 +43,22 @@ Vangard gives you that picture — and keeps it in sync as you write.
 - **Navigate instantly** from a canvas node to the code behind it
 - **Catch problems early** — broken jumps, missing assets, and unreachable labels flagged automatically
 - **Compose visually** — build scenes and imagemaps with drag-and-drop, then copy the generated code
+
+## Our Philosophy
+
+Vangard Studio is built on the belief that developer tools should be transparent, stable, and empowering. We reject the "black box" approach to IDE design. Our project is governed by four core principles:
+
+### 1. Code-First Sovereignty
+Vangard Studio is a **code-first** environment. The code is the source of truth, you are simply editing your existing Ren'Py script in a (hopefully) more intuitive way. We do not maintain a hidden internal state or proprietary project format. If you make a change in the GUI, it updates your `.rpy` files directly; if you make a change in your text editor, Vangard Studio reflects it instantly. The code always dictates the visual, ensuring you are never fighting against your own project files.
+
+### 2. No Vendor Lock-in
+Your game is your property. Vangard Studio reads and writes standard Ren'Py script files. We do not use proprietary project containers or hidden metadata. You can open your project in Vangard Studio, switch to VS Code or any other text editor, and move back again at any time. You are never "trapped"; our IDE is just a tool that sits on top of your work, not a container for it.
+
+### 3. Human-Crafted Code
+We believe that for a developer to truly master Ren'Py, they need to own their logic. Vangard Studio is a tool for developers, not a code generator. The focus is on providing reliable editing features—like robust linting, intelligent autocompletion, and visual tooling—that help *you* write better Ren'Py. We believe the best games are built by developers who understand their own scripts.
+
+### 4. Truly Open Source (AGPL)
+Vangard Studio is a open-source, community-driven project licensed under the **AGPL**. This means there are no paid tiers, no "Pro" versions, and no subscription models. We have no investors or profit targets that would force us to compromise your workflow. We are building this tool for the community, by a member of the community.
 
 ---
 
