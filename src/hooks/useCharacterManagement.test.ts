@@ -107,6 +107,32 @@ describe('useCharacterManagement — handleOpenCharacterEditor', () => {
     expect(setSecondaryOpenTabs).toHaveBeenCalled();
     expect(setSecondaryActiveTabId).toHaveBeenCalledWith('char-e');
   });
+
+  it('opens a new tab with no prefill fields when called without a prefill argument', () => {
+    const setOpenTabs = vi.fn();
+    const { result } = renderHook(() => useCharacterManagement(makeProps({ setOpenTabs })));
+    act(() => { result.current.handleOpenCharacterEditor('new_character'); });
+    const updater = setOpenTabs.mock.calls[0][0] as (prev: unknown[]) => unknown[];
+    const tabs = updater([]);
+    expect(tabs[0]).toEqual({ id: 'char-new_character', type: 'character', characterTag: 'new_character' });
+  });
+
+  it('opens a new tab with initialCharacterTag/initialCharacterName when a prefill is given', () => {
+    const setOpenTabs = vi.fn();
+    const { result } = renderHook(() => useCharacterManagement(makeProps({ setOpenTabs })));
+    act(() => {
+      result.current.handleOpenCharacterEditor('captain_rex', { initialTag: 'captain_rex', initialName: 'Captain Rex' });
+    });
+    const updater = setOpenTabs.mock.calls[0][0] as (prev: unknown[]) => unknown[];
+    const tabs = updater([]);
+    expect(tabs[0]).toEqual({
+      id: 'char-captain_rex',
+      type: 'character',
+      characterTag: 'captain_rex',
+      initialCharacterTag: 'captain_rex',
+      initialCharacterName: 'Captain Rex',
+    });
+  });
 });
 
 // ============================================================================

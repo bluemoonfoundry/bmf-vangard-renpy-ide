@@ -15,18 +15,20 @@ interface CharacterEditorViewProps {
   existingTags: string[];
   projectImages: ProjectImage[];
   imageMetadata: Map<string, ImageMetadata>;
+  initialTag?: string;
+  initialName?: string;
 }
 
 const HelpText: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{children}</p>
 );
 
-const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, onSave, existingTags, projectImages, imageMetadata }) => {
+const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, onSave, existingTags, projectImages, imageMetadata, initialTag, initialName }) => {
     const isNew = !character;
 
     // Core
-    const [tag, setTag] = useState(character?.tag || '');
-    const [name, setName] = useState(character?.name || '');
+    const [tag, setTag] = useState(character?.tag || initialTag || '');
+    const [name, setName] = useState(character?.name || initialName || '');
     const [color, setColor] = useState(character?.color || '#E57373');
     const [image, setImage] = useState(character?.image || '');
     const [imageSearch, setImageSearch] = useState('');
@@ -74,8 +76,8 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
             setCtc(character.ctc || '');
             setCtcPosition(character.ctc_position || 'nestled');
         } else {
-            setTag('');
-            setName('');
+            setTag(initialTag || '');
+            setName(initialName || '');
             setColor('#E57373');
             setImage('');
             setProfile('');
@@ -91,7 +93,7 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
             setCtc('');
             setCtcPosition('nestled');
         }
-    }, [character]);
+    }, [character, initialTag, initialName]);
 
     // Only compute + render options matching the search term (capped at 100) to avoid
     // creating thousands of <option> DOM nodes for large image libraries.
@@ -170,14 +172,15 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
                     <h3 className="text-lg font-semibold border-b pb-2 border-gray-300 dark:border-gray-700">Primary Attributes</h3>
 
                     <div>
-                        <label className="text-sm font-medium">Display Name</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Eileen"
+                        <label htmlFor="character-editor-name" className="text-sm font-medium">Display Name</label>
+                        <input id="character-editor-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Eileen"
                             className="w-full mt-1 p-2 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500" />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium">Code Tag</label>
+                        <label htmlFor="character-editor-tag" className="text-sm font-medium">Code Tag</label>
                         <input
+                            id="character-editor-tag"
                             type="text"
                             value={tag}
                             onChange={e => setTag(e.target.value)}

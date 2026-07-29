@@ -434,6 +434,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
       return <CharacterEditorView character={char} onSave={handleUpdateCharacter}
         existingTags={characterTagsArray}
         projectImages={imagesArray} imageMetadata={imageMetadata}
+        initialTag={char ? undefined : tab.initialCharacterTag}
+        initialName={char ? undefined : tab.initialCharacterName}
       />;
     }
     if (tab.type === 'scene-composer' && tab.sceneId) {

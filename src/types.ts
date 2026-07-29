@@ -635,6 +635,8 @@ export interface RenpyAnalysisResult {
  * @property {string} [blockId] - Block ID if editing code (for editor type)
  * @property {string} [filePath] - File path for image/audio tabs
  * @property {string} [characterTag] - Character tag for character editor tabs
+ * @property {string} [initialCharacterTag] - Pre-filled tag for a new character tab opened from an editor selection
+ * @property {string} [initialCharacterName] - Pre-filled display name for a new character tab opened from an editor selection
  * @property {string} [sceneId] - Scene ID for scene composer tabs
  * @property {Object} [scrollRequest] - Request to scroll editor to specific line
  * @property {number} scrollRequest.line - Target line number
@@ -646,6 +648,8 @@ export interface EditorTab {
   blockId?: string;
   filePath?: string;
   characterTag?: string;
+  initialCharacterTag?: string;
+  initialCharacterName?: string;
   sceneId?: string;
   imagemapId?: string;
   scrollRequest?: { line: number; key: number };

@@ -1666,6 +1666,13 @@ const App: React.FC = () => {
     setPendingVariablePrefill({ name: sanitized, initialValue: '0' });
   }, [addToast, analysisResult.variables, handleAddVariable, updateAppSettings]);
 
+  const handleCreateCharacterFromSelection = useCallback((selectedText: string) => {
+    const rawName = selectedText.trim();
+    if (!rawName) return;
+    const sanitizedTag = sanitizeIdentifier(rawName);
+    handleOpenCharacterEditor(sanitizedTag, { initialTag: sanitizedTag, initialName: rawName });
+  }, [handleOpenCharacterEditor]);
+
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
     editorInstances, blocksRef, pendingTagRenameRef,
@@ -1704,6 +1711,7 @@ const App: React.FC = () => {
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
     onCreateFileFromSelection: handleCreateFileFromSelection,
     onCreateVariableFromSelection: handleCreateVariableFromSelection,
+    onCreateCharacterFromSelection: handleCreateCharacterFromSelection,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
