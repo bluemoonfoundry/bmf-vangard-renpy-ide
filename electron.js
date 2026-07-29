@@ -316,14 +316,19 @@ async function run() {
             } else if (entry.isFile()) {
                 if (/\.(rpy)$/i.test(entry.name)) {
                     rpyPaths.push({ fullPath, relativePath });
-                } else if (/\.(png|jpe?g|webp)$/i.test(entry.name)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.images.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
-                } else if (/\.(mp3|ogg|wav|opus)$/i.test(entry.name)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.audios.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                } else if (relativePath.startsWith('game/')) {
+                    // Project assets (images/audio) are only recognized inside game/ --
+                    // media files elsewhere in the project root (docs, marketing assets,
+                    // etc.) are not part of the Ren'Py project and must not be scanned in.
+                    if (/\.(png|jpe?g|webp)$/i.test(entry.name)) {
+                        const stats = await fs.stat(fullPath);
+                        const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
+                        results.images.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                    } else if (/\.(mp3|ogg|wav|opus)$/i.test(entry.name)) {
+                        const stats = await fs.stat(fullPath);
+                        const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
+                        results.audios.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                    }
                 }
             }
             children.push(childNode);
