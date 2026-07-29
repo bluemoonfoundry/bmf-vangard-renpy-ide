@@ -252,6 +252,33 @@ describe('useFileSystemManager — handleCreateNode', () => {
     });
     expect(api.writeFile).not.toHaveBeenCalled();
   });
+
+  it('returns the new block id and relative path when creating an .rpy file', async () => {
+    const addBlock = vi.fn(() => 'new-block-id');
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addBlock }))
+    );
+
+    let created;
+    await act(async () => {
+      created = await result.current.handleCreateNode('game', 'chapter_two.rpy', 'file');
+    });
+
+    expect(created).toEqual({ blockId: 'new-block-id', relativePath: 'game/chapter_two.rpy' });
+  });
+
+  it('returns a null blockId when creating a non-.rpy file', async () => {
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams())
+    );
+
+    let created;
+    await act(async () => {
+      created = await result.current.handleCreateNode('game', 'notes.txt', 'file');
+    });
+
+    expect(created).toEqual({ blockId: null, relativePath: 'game/notes.txt' });
+  });
 });
 
 describe('useFileSystemManager — handleRenameNode', () => {

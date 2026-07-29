@@ -58,7 +58,7 @@ export interface UseFileSystemManagerParams {
   projectRootPath: string | null;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   blocks: Block[];
-  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => void;
+  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => string;
   deleteBlock: (id: string) => void;
   clipboard: ClipboardState;
   setClipboard: React.Dispatch<React.SetStateAction<ClipboardState>>;
@@ -67,7 +67,7 @@ export interface UseFileSystemManagerParams {
 }
 
 export interface UseFileSystemManagerReturn {
-  handleCreateNode: (parentPath: string, name: string, type: 'file' | 'folder') => Promise<void>;
+  handleCreateNode: (parentPath: string, name: string, type: 'file' | 'folder') => Promise<{ blockId: string | null; relativePath: string } | null>;
   handleRenameNode: (oldPath: string, newName: string) => Promise<void>;
   handleDeleteNode: (paths: string[]) => void;
   handleMoveNode: (sourcePaths: string[], targetPath: string) => Promise<void>;
@@ -85,9 +85,11 @@ export function useFileSystemManager({
   clipboard, setClipboard, openDeleteConfirmModal, addToast,
 }: UseFileSystemManagerParams): UseFileSystemManagerReturn {
   const handleCreateNode = useCallback(async (parentPath: string, name: string, type: 'file' | 'folder') => {
-    if (!window.electronAPI || !projectRootPath) return;
+    if (!window.electronAPI || !projectRootPath) return null;
     try {
         const fullPath = await window.electronAPI.path.join(projectRootPath, parentPath, name);
+        const relativePath = parentPath ? `${parentPath}/${name}` : name;
+        let blockId: string | null = null;
         if (type === 'folder') {
             await window.electronAPI.createDirectory(fullPath);
         } else {
@@ -95,17 +97,18 @@ export function useFileSystemManager({
 
             // If it's an .rpy file, create a corresponding block
             if (name.toLowerCase().endsWith('.rpy')) {
-                const relativePath = parentPath ? `${parentPath}/${name}` : name;
                 const content = ''; // Empty content for newly created files
-                addBlock(relativePath, content, undefined, { markDirty: false });
+                blockId = addBlock(relativePath, content, undefined, { markDirty: false });
                 addToast(`Created block for ${name}`, 'success');
             }
         }
         const projData = await window.electronAPI.loadProject(projectRootPath);
         setFileSystemTree(projData.tree);
+        return { blockId, relativePath };
     } catch (err) {
         logger.error('Failed to create file/folder:', err);
         addToast(`Failed to create ${type}: ${name}`, 'error');
+        return null;
     }
   }, [projectRootPath, addBlock, addToast, setFileSystemTree]);
 

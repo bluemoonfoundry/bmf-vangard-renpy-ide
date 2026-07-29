@@ -191,6 +191,9 @@ export interface UseTabContentRendererParams {
   setEditorCursorBlockId: React.Dispatch<React.SetStateAction<string | null>>;
   addToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
   handleSaveMenuTemplate: (template: MenuTemplate) => void;
+  onCreateFileFromSelection: (blockId: string, selectedText: string) => void;
+  onCreateVariableFromSelection: (selectedText: string) => void;
+  onCreateCharacterFromSelection: (selectedText: string) => void;
 
   // Characters
   characterTagsArray: string[];
@@ -252,6 +255,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     editorCursorBlockId, editorCursorPosition,
     setBlocks, handleSaveBlock, syncEditorToStateAndMarkDirty,
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
+    onCreateFileFromSelection, onCreateVariableFromSelection, onCreateCharacterFromSelection,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
@@ -391,6 +395,9 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         onEditorUnmount={(id) => { const editor = editorInstances.current.get(id); if (editor) { const block = blocksRef.current.find(b => b.id === id); if (block && editor.getValue() !== block.content) { syncEditorToStateAndMarkDirty(id, editor.getValue()); } } editorInstances.current.delete(id); }}
         onCursorPositionChange={(pos) => { setEditorCursorPosition(pos); if (tab.blockId) setEditorCursorBlockId(tab.blockId); }}
         onWarpToLabel={handleWarpToLabel}
+        onCreateFileFromSelection={onCreateFileFromSelection}
+        onCreateVariableFromSelection={onCreateVariableFromSelection}
+        onCreateCharacterFromSelection={onCreateCharacterFromSelection}
         draftingMode={projectSettings.draftingMode} existingImageTags={existingImageTags} existingAudioPaths={existingAudioPaths}
         userSnippets={appSettings.userSnippets}
         menuTemplates={appSettings.menuTemplates}

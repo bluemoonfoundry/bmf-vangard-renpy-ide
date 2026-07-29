@@ -27,6 +27,7 @@ import StoryElementsPanel from '@/components/StoryElementsPanel';
 import SettingsModal from '@/components/SettingsModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import CreateBlockModal from '@/components/CreateBlockModal';
+import QuickCreateFileModal from '@/components/QuickCreateFileModal';
 import ConfigureRenpyModal from '@/components/ConfigureRenpyModal';
 import Toast from '@/components/Toast';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -84,6 +85,7 @@ import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
+import { sanitizeFileName } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
 import {
   buildAfterWarpScript,
@@ -1353,6 +1355,12 @@ const App: React.FC = () => {
     }
   }, [appSettings.isLeftSidebarOpen, updateAppSettings]);
 
+  const [quickCreateFileModal, setQuickCreateFileModal] = useState<{
+    directoryPath: string;
+    extension: string;
+    initialFileName: string;
+  } | null>(null);
+
   const {
       handleCreateNode, handleRenameNode, handleDeleteNode, handleMoveNode,
       handleCut, handleCopy, handlePaste,
@@ -1360,6 +1368,46 @@ const App: React.FC = () => {
       projectRootPath, setFileSystemTree, blocks, addBlock, deleteBlock,
       clipboard, setClipboard, openDeleteConfirmModal, addToast,
   });
+
+  const handleConfirmQuickCreateFile = useCallback(async (fileName: string) => {
+    if (!quickCreateFileModal) return;
+    const result = await handleCreateNode(quickCreateFileModal.directoryPath, fileName, 'file');
+    if (result?.blockId) {
+      handleOpenEditor(result.blockId);
+    }
+    setQuickCreateFileModal(null);
+  }, [quickCreateFileModal, handleCreateNode, handleOpenEditor]);
+
+  const handleCreateFileFromSelection = useCallback(async (blockId: string, selectedText: string) => {
+    const sourceBlock = blocksRef.current.find(b => b.id === blockId);
+    if (!sourceBlock?.filePath) return;
+
+    const lastSlash = sourceBlock.filePath.lastIndexOf('/');
+    const directoryPath = lastSlash === -1 ? '' : sourceBlock.filePath.slice(0, lastSlash);
+    const extensionMatch = sourceBlock.filePath.match(/\.[^./]+$/);
+    const extension = extensionMatch ? extensionMatch[0] : '.rpy';
+
+    const sanitizedBase = sanitizeFileName(selectedText);
+    if (!sanitizedBase) {
+      addToast('Selected text has no usable characters for a file name.', 'error');
+      return;
+    }
+
+    const fileName = `${sanitizedBase}${extension}`;
+    const relativePath = directoryPath ? `${directoryPath}/${fileName}` : fileName;
+    const nameWasSanitized = sanitizedBase !== selectedText.trim();
+    const collides = blocksRef.current.some(b => b.filePath === relativePath);
+
+    if (!nameWasSanitized && !collides) {
+      const result = await handleCreateNode(directoryPath, fileName, 'file');
+      if (result?.blockId) {
+        handleOpenEditor(result.blockId);
+      }
+      return;
+    }
+
+    setQuickCreateFileModal({ directoryPath, extension, initialFileName: sanitizedBase });
+  }, [addToast, handleCreateNode, handleOpenEditor]);
 
   // --- User Snippet CRUD ---
   const handleSaveSnippet = useCallback((snippet: UserSnippet) => {
@@ -1634,6 +1682,7 @@ const App: React.FC = () => {
     editorCursorBlockId, editorCursorPosition,
     setBlocks, handleSaveBlock, syncEditorToStateAndMarkDirty,
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
+    onCreateFileFromSelection: handleCreateFileFromSelection,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
@@ -2089,6 +2138,15 @@ const App: React.FC = () => {
         onConfirm={(name, type) => handleCreateBlockConfirm(name, type, createBlockModalFolderPath, createBlockModalPosition)}
         defaultPath={createBlockModalFolderPath || getSelectedFolderForNewBlock()}
         initialType={createBlockModalType}
+      />
+
+      <QuickCreateFileModal
+        isOpen={quickCreateFileModal !== null}
+        directoryPath={quickCreateFileModal?.directoryPath ?? ''}
+        extension={quickCreateFileModal?.extension ?? '.rpy'}
+        initialFileName={quickCreateFileModal?.initialFileName ?? ''}
+        onConfirm={handleConfirmQuickCreateFile}
+        onClose={() => setQuickCreateFileModal(null)}
       />
 
       <ConfigureRenpyModal
