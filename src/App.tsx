@@ -85,7 +85,7 @@ import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
-import { sanitizeFileName } from '@/lib/editorSelectionActions';
+import { sanitizeFileName, sanitizeIdentifier } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
 import {
   buildAfterWarpScript,
@@ -1361,6 +1361,8 @@ const App: React.FC = () => {
     initialFileName: string;
   } | null>(null);
 
+  const [pendingVariablePrefill, setPendingVariablePrefill] = useState<{ name: string; initialValue: string } | null>(null);
+
   const {
       handleCreateNode, handleRenameNode, handleDeleteNode, handleMoveNode,
       handleCut, handleCopy, handlePaste,
@@ -1646,6 +1648,24 @@ const App: React.FC = () => {
     projectRootPath, addToast, handleOpenEditor,
   });
 
+  const handleCreateVariableFromSelection = useCallback((selectedText: string) => {
+    const sanitized = sanitizeIdentifier(selectedText, true);
+    if (!sanitized) {
+      addToast('Selected text has no usable characters for a variable name.', 'error');
+      return;
+    }
+    const nameWasSanitized = sanitized !== selectedText.trim();
+    const collides = analysisResult.variables.has(sanitized);
+
+    if (!nameWasSanitized && !collides) {
+      handleAddVariable({ name: sanitized, initialValue: '0' });
+      return;
+    }
+
+    updateAppSettings(draft => { draft.isRightSidebarOpen = true; });
+    setPendingVariablePrefill({ name: sanitized, initialValue: '0' });
+  }, [addToast, analysisResult.variables, handleAddVariable, updateAppSettings]);
+
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
     editorInstances, blocksRef, pendingTagRenameRef,
@@ -1683,6 +1703,7 @@ const App: React.FC = () => {
     setBlocks, handleSaveBlock, syncEditorToStateAndMarkDirty,
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
     onCreateFileFromSelection: handleCreateFileFromSelection,
+    onCreateVariableFromSelection: handleCreateVariableFromSelection,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
@@ -2024,6 +2045,8 @@ const App: React.FC = () => {
                 onAddVariable={handleAddVariable}
                 onEditVariable={handleEditVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
+                pendingVariablePrefill={pendingVariablePrefill}
+                onVariablePrefillConsumed={() => setPendingVariablePrefill(null)}
                 onFindScreenDefinition={handleFindScreenDefinition}
                 // Image Props
                 projectImages={images}

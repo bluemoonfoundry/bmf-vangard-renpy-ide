@@ -91,6 +91,8 @@ interface StoryElementsPanelProps {
     onAddVariable: (variable: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onEditVariable: (oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
     onFindVariableUsages: (variableName: string) => void;
+    pendingVariablePrefill?: { name: string; initialValue: string } | null;
+    onVariablePrefillConsumed?: () => void;
     // Screen callbacks
     onFindScreenDefinition: (screenName: string) => void;
     // Image props & callbacks
@@ -166,6 +168,7 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
     analysisResult,
     onOpenCharacterEditor, onFindCharacterUsages,
     onAddVariable, onEditVariable, onFindVariableUsages,
+    pendingVariablePrefill, onVariablePrefillConsumed,
     onFindScreenDefinition,
     projectImages, imageMetadata, onAddImageScanDirectory, onRemoveImageScanDirectory, imageScanDirectories, onCopyImagesToProject, onOpenImageEditor, imagesLastScanned, isRefreshingImages, onRefreshImages,
     projectAudios, audioMetadata, onAddAudioScanDirectory, onRemoveAudioScanDirectory, audioScanDirectories, onCopyAudiosToProject, onOpenAudioEditor, audiosLastScanned, isRefreshingAudios, onRefreshAudios,
@@ -192,6 +195,12 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
             draft.storyElementsTabState.activeSubTab = activeSubTab;
         });
     }, [activeSubTab, onUpdateProjectSettings]);
+
+    useEffect(() => {
+        if (pendingVariablePrefill) {
+            setActiveSubTab('variables');
+        }
+    }, [pendingVariablePrefill]);
 
     const imagesArray = useMemo(() => Array.from(projectImages.values()), [projectImages]);
     const audiosArray = useMemo(() => Array.from(projectAudios.values()), [projectAudios]);
@@ -298,6 +307,8 @@ const StoryElementsPanel: React.FC<StoryElementsPanelProps> = ({
                             dismissedImplicitVarHint={dismissedImplicitVarHint}
                             onDismissImplicitVarHint={onDismissImplicitVarHint}
                             onOpenDiagnostics={onOpenDiagnostics}
+                            prefill={pendingVariablePrefill}
+                            onPrefillConsumed={onVariablePrefillConsumed}
                         />
                     </div>
                 )}
