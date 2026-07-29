@@ -139,6 +139,20 @@ describe('useBlockManagement', () => {
     expect(setCenterOnBlockRequest).toHaveBeenCalled();
   });
 
+  it('addBlock marks the new block dirty by default', () => {
+    const setDirtyBlockIds = vi.fn();
+    const { result } = renderHook(() => useBlockManagement(makeParams({ setDirtyBlockIds })));
+    act(() => result.current.addBlock('game/x.rpy', ''));
+    expect(setDirtyBlockIds).toHaveBeenCalled();
+  });
+
+  it('addBlock does not mark the new block dirty when markDirty is false', () => {
+    const setDirtyBlockIds = vi.fn();
+    const { result } = renderHook(() => useBlockManagement(makeParams({ setDirtyBlockIds })));
+    act(() => result.current.addBlock('game/x.rpy', 'content', undefined, { markDirty: false }));
+    expect(setDirtyBlockIds).not.toHaveBeenCalled();
+  });
+
   // ── deleteBlock ───────────────────────────────────────────────────────────
 
   it('deleteBlock calls setBlocks to filter out the block', () => {

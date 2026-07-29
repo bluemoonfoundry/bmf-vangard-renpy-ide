@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface ExternalFileChange {
   relativePath: string;
@@ -11,6 +12,8 @@ interface ExternalChangesBannerProps {
 }
 
 const ExternalChangesBanner: React.FC<ExternalChangesBannerProps> = ({ items, onReload, onKeep }) => {
+  const [pendingReload, setPendingReload] = useState<ExternalFileChange | null>(null);
+
   if (items.length === 0) return null;
   return (
     <div className="flex-none border-b border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30">
@@ -24,7 +27,7 @@ const ExternalChangesBanner: React.FC<ExternalChangesBannerProps> = ({ items, on
             <span className="font-medium truncate max-w-xs" title={item.relativePath}>{fileName}</span>
             <span className="text-yellow-700 dark:text-yellow-300">was modified outside the editor.</span>
             <button
-              onClick={() => onReload(item)}
+              onClick={() => setPendingReload(item)}
               className="ml-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-200 hover:bg-yellow-300 dark:bg-yellow-700 dark:hover:bg-yellow-600 text-yellow-900 dark:text-yellow-100 transition-colors"
             >
               Reload
@@ -38,6 +41,21 @@ const ExternalChangesBanner: React.FC<ExternalChangesBannerProps> = ({ items, on
           </div>
         );
       })}
+      {pendingReload && (
+        <ConfirmModal
+          title="Discard unsaved changes?"
+          confirmText="Discard Changes"
+          onConfirm={() => {
+            onReload(pendingReload);
+            setPendingReload(null);
+          }}
+          onClose={() => setPendingReload(null)}
+        >
+          {(pendingReload.relativePath.split('/').pop() ?? pendingReload.relativePath)} was modified outside the
+          editor. Reloading it from disk will permanently discard your unsaved changes in this file. This cannot
+          be undone.
+        </ConfirmModal>
+      )}
     </div>
   );
 };

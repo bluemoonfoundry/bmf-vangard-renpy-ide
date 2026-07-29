@@ -46,6 +46,23 @@ describe('useStoryElementsPanel', () => {
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('score'), 'success');
   });
 
+  it('creates variables.rpy on disk and adds a non-dirty block since content is already saved', async () => {
+    const addBlock = vi.fn();
+    const addToast = vi.fn();
+    const { result } = renderHook(() =>
+      useStoryElementsPanel(makeParams({ blocks: [], addBlock, addToast })),
+    );
+    await act(async () => {
+      await result.current.handleAddVariable({ name: 'points', initialValue: '10' });
+    });
+    expect(addBlock).toHaveBeenCalledWith(
+      'game/variables.rpy',
+      expect.stringContaining('default points = 10'),
+      undefined,
+      { markDirty: false },
+    );
+  });
+
   it('calls addBlock when no variables.rpy exists and no electronAPI', async () => {
     // Remove electronAPI to trigger the fallback path
     Object.defineProperty(window, 'electronAPI', { value: undefined, configurable: true });

@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import type React from 'react';
-import type { Block, RenpyAnalysisResult, Variable, FileSystemTreeNode } from '@/types';
+import type { Block, RenpyAnalysisResult, Variable, FileSystemTreeNode, Position } from '@/types';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 
 export interface UseStoryElementsPanelParams {
   blocks: Block[];
   analysisResult: RenpyAnalysisResult;
   updateBlock: (id: string, data: Partial<Block>) => void;
-  addBlock: (filePath: string, content: string) => void;
+  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => void;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   setHoverHighlightIds: React.Dispatch<React.SetStateAction<Set<string> | null>>;
   projectRootPath: string | null;
@@ -41,7 +41,7 @@ export function useStoryElementsPanel({
         const fullPath = await window.electronAPI.path.join(projectRootPath, 'game', 'variables.rpy') as string;
         const res = await window.electronAPI.writeFile(fullPath, varContent);
         if (res.success) {
-          addBlock(targetFile, varContent);
+          addBlock(targetFile, varContent, undefined, { markDirty: false });
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
           addToast(`Created variables.rpy and added variable ${v.name}`, 'success');

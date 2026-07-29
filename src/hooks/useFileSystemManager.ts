@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { Block, ClipboardState, FileSystemTreeNode } from '@/types';
+import type { Block, ClipboardState, FileSystemTreeNode, Position } from '@/types';
 import { produce } from 'immer';
 import { logger } from '@/lib/logger';
 
@@ -58,7 +58,7 @@ export interface UseFileSystemManagerParams {
   projectRootPath: string | null;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   blocks: Block[];
-  addBlock: (filePath: string, content: string) => void;
+  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => void;
   deleteBlock: (id: string) => void;
   clipboard: ClipboardState;
   setClipboard: React.Dispatch<React.SetStateAction<ClipboardState>>;
@@ -97,7 +97,7 @@ export function useFileSystemManager({
             if (name.toLowerCase().endsWith('.rpy')) {
                 const relativePath = parentPath ? `${parentPath}/${name}` : name;
                 const content = ''; // Empty content for newly created files
-                addBlock(relativePath, content);
+                addBlock(relativePath, content, undefined, { markDirty: false });
                 addToast(`Created block for ${name}`, 'success');
             }
         }

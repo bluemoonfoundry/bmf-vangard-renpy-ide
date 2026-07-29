@@ -40,7 +40,7 @@ export interface UseBlockManagementReturn {
   updateGroup: (id: string, data: Partial<BlockGroup>) => void;
   updateBlockPositions: (updates: { id: string; position: Position }[]) => void;
   updateGroupPositions: (updates: { id: string; position: Position }[]) => void;
-  addBlock: (filePath: string, content: string, initialPosition?: Position) => string;
+  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => string;
   handleCreateBlockConfirm: (name: string, type: BlockType, folderPath: string, initialPosition?: Position) => Promise<void>;
   handleCreateBlockFromCanvas: (type: BlockType, position: Position) => void;
   deleteBlock: (id: string) => void;
@@ -111,7 +111,7 @@ export function useBlockManagement({
     setHasUnsavedSettings(true);
   }, [setGroups, updateProjectSettings, setHasUnsavedSettings]);
 
-  const addBlock = useCallback((filePath: string, content: string, initialPosition?: Position): string => {
+  const addBlock = useCallback((filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }): string => {
     const id = `block-${Date.now()}`;
     const blockWidth = 320;
     const blockHeight = 200;
@@ -151,7 +151,9 @@ export function useBlockManagement({
     };
 
     setBlocks(prev => [...prev, newBlock]);
-    setDirtyBlockIds(prev => new Set(prev).add(id));
+    if (options?.markDirty !== false) {
+      setDirtyBlockIds(prev => new Set(prev).add(id));
+    }
 
     setSelectedBlockIds([id]);
     setFlashBlockRequest({ blockId: id, key: Date.now() });

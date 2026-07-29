@@ -227,7 +227,7 @@ describe('useFileSystemManager — handleCreateNode', () => {
     await act(async () => {
       await result.current.handleCreateNode('game', 'chapter2.rpy', 'file');
     });
-    expect(addBlock).toHaveBeenCalledWith('game/chapter2.rpy', '');
+    expect(addBlock).toHaveBeenCalledWith('game/chapter2.rpy', '', undefined, { markDirty: false });
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('chapter2.rpy'), 'success');
   });
 
