@@ -400,7 +400,8 @@ const StatsView: React.FC<StatsViewProps> = ({
         if (!block) return;
         const scriptLines = block.content.split('\n');
         lines.forEach(dl => {
-          const rawLine = scriptLines[dl.line] ?? '';
+          // dl.line is 1-based (matches Monaco's line numbering); scriptLines is 0-indexed.
+          const rawLine = scriptLines[dl.line - 1] ?? '';
           const m = rawLine.match(DIALOGUE_RE);
           if (!m) return;
           const wordCount = m[1].trim().split(/\s+/).filter(Boolean).length;

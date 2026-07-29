@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import StatsView from './StatsView';
-import { createBlock, createEmptyAnalysisResult } from '@/test/mocks/sampleData';
+import { createBlock, createCharacter, createEmptyAnalysisResult } from '@/test/mocks/sampleData';
 
 // recharts ResponsiveContainer requires a real layout measurement to render children.
 // In jsdom all elements have 0 width/height, so stub it to just render children directly.
@@ -142,5 +142,31 @@ describe('StatsView', () => {
 
     // After flush, word count appears
     expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  // ── Character speaking counts ─────────────────────────────────────────────────
+
+  it('counts words for a character whose dialogue line is correctly located', () => {
+    // 1-based line 2 (0-based index 1) is the dialogue line — matches dl.line's 1-based convention.
+    const block = createBlock({
+      id: 'block-1',
+      content: 'label start:\n    e "Hello there"\n    return\n',
+    });
+    const analysisResult = createEmptyAnalysisResult({
+      characters: new Map([['e', createCharacter()]]),
+      dialogueLines: new Map([['block-1', [{ line: 2, tag: 'e' }]]]),
+    });
+    renderStats({ blocks: [block], analysisResult });
+
+    act(() => { vi.runAllTimers(); });
+
+    // "Hello there" = 2 dialogue words, attributed to Eileen.
+    expect(screen.getByText('Dialogue Words')).toBeInTheDocument();
+    const dialogueWordsCard = screen.getByText('Dialogue Words').closest('div');
+    expect(dialogueWordsCard?.textContent).toContain('2');
+
+    // The Characters card's sub-label should report 1 speaking character, not 0.
+    const charactersCard = screen.getByText('Characters').closest('div');
+    expect(charactersCard?.textContent).toContain('1 speaking');
   });
 });
