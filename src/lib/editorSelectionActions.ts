@@ -15,10 +15,24 @@ function isDegenerate(s: string): boolean {
  * Returns '' if nothing usable survives (e.g. a fully symbolic selection).
  */
 export function sanitizeIdentifier(text: string, allowDot = false): string {
-  const collapsed = text.trim().replace(/\s+/g, '_');
+  const trimmed = text.trim();
+  const collapsed = trimmed.replace(/\s+/g, '_');
   const invalidPattern = allowDot ? /[^A-Za-z0-9_.]+/g : /[^A-Za-z0-9_]+/g;
   let result = collapsed.replace(invalidPattern, '_');
-  result = result.replace(/_+/g, '_').replace(/^_|_$/g, '');
+  result = result.replace(/_+/g, '_');
+
+  // Only trim leading/trailing underscores if they weren't in the original input.
+  // This preserves valid identifiers like '_private_var' and 'trailing_'.
+  const hadLeadingUnderscore = trimmed.startsWith('_');
+  const hadTrailingUnderscore = trimmed.endsWith('_');
+
+  if (!hadLeadingUnderscore) {
+    result = result.replace(/^_+/, '');
+  }
+  if (!hadTrailingUnderscore) {
+    result = result.replace(/_+$/, '');
+  }
+
   if (isDegenerate(result)) return '';
   if (/^[0-9]/.test(result)) result = `_${result}`;
   return result;

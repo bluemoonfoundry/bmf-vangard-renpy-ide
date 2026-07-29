@@ -6,6 +6,14 @@ describe('sanitizeIdentifier', () => {
     expect(sanitizeIdentifier('valid_name')).toBe('valid_name');
   });
 
+  it('preserves leading underscores in valid identifiers (private naming convention)', () => {
+    expect(sanitizeIdentifier('_private_var')).toBe('_private_var');
+  });
+
+  it('preserves trailing underscores in valid identifiers', () => {
+    expect(sanitizeIdentifier('trailing_')).toBe('trailing_');
+  });
+
   it('replaces spaces with underscores', () => {
     expect(sanitizeIdentifier('the golden sword')).toBe('the_golden_sword');
   });
