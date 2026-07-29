@@ -133,6 +133,29 @@ describe('useCharacterManagement — handleOpenCharacterEditor', () => {
       initialCharacterName: 'Captain Rex',
     });
   });
+
+  // Regression test for a fully-symbolic/non-Latin selection (e.g. 'エレン'), where
+  // sanitizeIdentifier(rawName) returns ''. The caller (App.tsx's
+  // handleCreateCharacterFromSelection) must substitute a non-empty placeholder tag
+  // ('new') for the tab id/characterTag so useTabContentRenderer's
+  // `tab.type === 'character' && tab.characterTag` truthiness guard still renders the
+  // tab, while keeping initialTag as the real (empty) sanitized value so the form field
+  // opens empty and existing tag-required validation catches it. This test exercises the
+  // hook at the boundary the caller actually hits: a non-empty tag with an empty
+  // initialTag prefill.
+  it('opens a usable (truthy-tag) tab when the prefill initialTag is empty (non-Latin/symbolic selection)', () => {
+    const setOpenTabs = vi.fn();
+    const { result } = renderHook(() => useCharacterManagement(makeProps({ setOpenTabs })));
+    act(() => {
+      result.current.handleOpenCharacterEditor('new', { initialTag: '', initialName: 'エレン' });
+    });
+    const updater = setOpenTabs.mock.calls[0][0] as (prev: unknown[]) => unknown[];
+    const tabs = updater([]) as Array<{ characterTag: string; initialCharacterTag: string; initialCharacterName: string }>;
+    expect(tabs[0].characterTag).toBeTruthy();
+    expect(tabs[0].characterTag).toBe('new');
+    expect(tabs[0].initialCharacterTag).toBe('');
+    expect(tabs[0].initialCharacterName).toBe('エレン');
+  });
 });
 
 // ============================================================================

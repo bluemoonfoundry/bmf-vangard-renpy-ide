@@ -13,11 +13,12 @@ interface QuickCreateFileModalProps {
   directoryPath: string;
   extension: string;
   initialFileName: string;
+  collidingWithExisting?: boolean;
   onConfirm: (fileName: string) => void;
   onClose: () => void;
 }
 
-const QuickCreateFileModal: React.FC<QuickCreateFileModalProps> = ({ isOpen, directoryPath, extension, initialFileName, onConfirm, onClose }) => {
+const QuickCreateFileModal: React.FC<QuickCreateFileModalProps> = ({ isOpen, directoryPath, extension, initialFileName, collidingWithExisting, onConfirm, onClose }) => {
   const [baseName, setBaseName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const { modalProps, contentRef } = useModalAccessibility({ isOpen, onClose, titleId: 'quick-create-file-title' });
@@ -72,6 +73,11 @@ const QuickCreateFileModal: React.FC<QuickCreateFileModalProps> = ({ isOpen, dir
                 {extension}
               </span>
             </div>
+            {collidingWithExisting && (
+              <p className="text-xs text-amber-500 dark:text-amber-400 mt-1">
+                A file named <span className="font-mono">{baseName}{extension}</span> already exists in this directory — choose a different name or Cancel.
+              </p>
+            )}
           </div>
 
           <div className="text-xs text-gray-500 dark:text-gray-400">

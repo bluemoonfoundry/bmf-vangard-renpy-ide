@@ -1359,6 +1359,7 @@ const App: React.FC = () => {
     directoryPath: string;
     extension: string;
     initialFileName: string;
+    collidingWithExisting: boolean;
   } | null>(null);
 
   const [pendingVariablePrefill, setPendingVariablePrefill] = useState<{ name: string; initialValue: string } | null>(null);
@@ -1398,7 +1399,11 @@ const App: React.FC = () => {
     const fileName = `${sanitizedBase}${extension}`;
     const relativePath = directoryPath ? `${directoryPath}/${fileName}` : fileName;
     const nameWasSanitized = sanitizedBase !== selectedText.trim();
-    const collides = blocksRef.current.some(b => b.filePath === relativePath);
+    // Case-insensitive: on Windows (and macOS default) the real filesystem is
+    // case-insensitive, so a case-only difference (e.g. 'Start.rpy' vs 'start.rpy')
+    // is still a real collision — treating it as distinct would silently truncate
+    // the existing file on direct-create.
+    const collides = blocksRef.current.some(b => b.filePath?.toLowerCase() === relativePath.toLowerCase());
 
     if (!nameWasSanitized && !collides) {
       const result = await handleCreateNode(directoryPath, fileName, 'file');
@@ -1408,7 +1413,7 @@ const App: React.FC = () => {
       return;
     }
 
-    setQuickCreateFileModal({ directoryPath, extension, initialFileName: sanitizedBase });
+    setQuickCreateFileModal({ directoryPath, extension, initialFileName: sanitizedBase, collidingWithExisting: collides });
   }, [addToast, handleCreateNode, handleOpenEditor]);
 
   // --- User Snippet CRUD ---
@@ -1670,7 +1675,13 @@ const App: React.FC = () => {
     const rawName = selectedText.trim();
     if (!rawName) return;
     const sanitizedTag = sanitizeIdentifier(rawName);
-    handleOpenCharacterEditor(sanitizedTag, { initialTag: sanitizedTag, initialName: rawName });
+    // sanitizedTag can be '' for fully-symbolic/non-Latin selections (e.g. "エレン", "---").
+    // The tab id/characterTag must stay non-empty so useTabContentRenderer's
+    // `tab.type === 'character' && tab.characterTag` guard still renders the tab; the
+    // *prefill* initialTag is kept as the real (possibly empty) sanitized value so the
+    // form field itself opens empty and the existing "tag required" validation catches it.
+    const tabTag = sanitizedTag || 'new';
+    handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
   }, [handleOpenCharacterEditor]);
 
   // --- Tab helpers (used by both panes) ---
@@ -2176,6 +2187,7 @@ const App: React.FC = () => {
         directoryPath={quickCreateFileModal?.directoryPath ?? ''}
         extension={quickCreateFileModal?.extension ?? '.rpy'}
         initialFileName={quickCreateFileModal?.initialFileName ?? ''}
+        collidingWithExisting={quickCreateFileModal?.collidingWithExisting ?? false}
         onConfirm={handleConfirmQuickCreateFile}
         onClose={() => setQuickCreateFileModal(null)}
       />

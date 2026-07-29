@@ -56,6 +56,20 @@ describe('QuickCreateFileModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('shows a collision warning when collidingWithExisting is true', () => {
+    render(
+      <QuickCreateFileModal isOpen={true} directoryPath="game" extension=".rpy" initialFileName="start" collidingWithExisting={true} onConfirm={vi.fn()} onClose={vi.fn()} />
+    );
+    expect(screen.getByText(/already exists/i)).toBeTruthy();
+  });
+
+  it('does not show a collision warning when collidingWithExisting is false or omitted', () => {
+    render(
+      <QuickCreateFileModal isOpen={true} directoryPath="game" extension=".rpy" initialFileName="start" onConfirm={vi.fn()} onClose={vi.fn()} />
+    );
+    expect(screen.queryByText(/already exists/i)).toBeNull();
+  });
+
   it('does not confirm with an empty filename', () => {
     const onConfirm = vi.fn();
     render(

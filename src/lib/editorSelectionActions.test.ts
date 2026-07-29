@@ -67,4 +67,18 @@ describe('sanitizeFileName', () => {
   it('returns empty string for a fully reserved-character selection', () => {
     expect(sanitizeFileName('???')).toBe('');
   });
+
+  it('rejects Windows reserved device names (exact match)', () => {
+    expect(sanitizeFileName('CON')).toBe('');
+    expect(sanitizeFileName('con')).toBe('');
+    expect(sanitizeFileName('COM1')).toBe('');
+    expect(sanitizeFileName('PRN')).toBe('');
+    expect(sanitizeFileName('AUX')).toBe('');
+    expect(sanitizeFileName('NUL')).toBe('');
+    expect(sanitizeFileName('LPT1')).toBe('');
+  });
+
+  it('does not reject names that merely contain a reserved name as a substring', () => {
+    expect(sanitizeFileName('CONtroller')).toBe('CONtroller');
+  });
 });
