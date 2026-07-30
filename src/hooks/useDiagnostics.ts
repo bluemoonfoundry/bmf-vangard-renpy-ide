@@ -14,17 +14,7 @@ import type {
 } from '@/types';
 import { validateRenpyCode } from '@/lib/renpyValidator';
 import { matchesIgnoredDiagnostic } from '@/lib/diagnosticIgnores';
-
-// ---------------------------------------------------------------------------
-// Ren'Py statement keywords — these should not be treated as character names
-// ---------------------------------------------------------------------------
-const STATEMENT_KEYWORDS = new Set([
-  'show', 'hide', 'scene', 'play', 'queue', 'stop', 'pause', 'with', 'window',
-  'define', 'default', 'init', 'label', 'jump', 'call', 'return', 'if', 'elif',
-  'else', 'for', 'while', 'pass', 'menu', 'image', 'transform', 'style', 'screen',
-  'python', 'translate', 'nvl', 'voice', 'renpy', 'config', 'gui', 'at', 'as',
-  'behind', 'onlayer', 'zorder', 'expression', 'extend', 'camera',
-]);
+import { STATEMENT_KEYWORDS, buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 
 // Regex for character dialogue lines: indented <tag> "<text>"
 const RE_CHAR_DIALOGUE = /^\s+([a-zA-Z_]\w*)\s+"/;
@@ -249,6 +239,30 @@ export function useDiagnostics(
           }
         }
       });
+    }
+
+    // -----------------------------------------------------------------------
+    // Source 14: Used-but-undefined variables ([interpolation] / if-conditions
+    // referencing a name that never appears in a define/default/$ statement)
+    // -----------------------------------------------------------------------
+    const knownIdentifiers = buildKnownIdentifierSet(analysisResult);
+    const seenUndefinedVars = new Set<string>();
+    for (const block of blocks) {
+      if (!block.content) continue;
+      const refs = extractUndefinedVariableReferences(block.content, knownIdentifiers);
+      for (const ref of refs) {
+        if (seenUndefinedVars.has(ref.name)) continue;
+        seenUndefinedVars.add(ref.name);
+        issues.push({
+          id: `undefined-variable:${ref.name}`,
+          severity: 'warning',
+          category: 'undefined-variable',
+          message: `Variable "${ref.name}" is used but never defined`,
+          blockId: block.id,
+          filePath: block.filePath,
+          line: ref.line,
+        });
+      }
     }
 
     // -----------------------------------------------------------------------
