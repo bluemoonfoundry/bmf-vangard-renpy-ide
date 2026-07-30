@@ -56,9 +56,8 @@ export function extractUndefinedVariableReferences(content: string, knownNames: 
     while ((m = INTERPOLATION_REGEX.exec(rawLine)) !== null) {
       const name = m[1];
       if (!knownNames.has(name)) {
-        const brackStart = m.index; // position of '['
-        const nameEnd = m.index + name.length; // position of last char of name
-        refs.push({ name, line: lineNumber, columnStart: brackStart, columnEnd: nameEnd });
+        const nameStart = m.index + 1; // skip the '['
+        refs.push({ name, line: lineNumber, columnStart: nameStart, columnEnd: nameStart + name.length });
       }
     }
 

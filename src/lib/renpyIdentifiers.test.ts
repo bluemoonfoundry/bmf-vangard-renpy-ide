@@ -57,10 +57,15 @@ describe('extractUndefinedVariableReferences', () => {
     expect(refs).toHaveLength(0);
   });
 
+  it('does not flag a bare function call target', () => {
+    const refs = extractUndefinedVariableReferences('    if some_func():\n', known);
+    expect(refs).toHaveLength(0);
+  });
+
   it('reports 0-indexed column positions for interpolation matches', () => {
     const refs = extractUndefinedVariableReferences('"Hi [oops]"', known);
-    expect(refs[0].columnStart).toBe(4);
-    expect(refs[0].columnEnd).toBe(8);
+    expect(refs[0].columnStart).toBe(5);
+    expect(refs[0].columnEnd).toBe(9);
   });
 
   it('flags multiple bare identifiers joined by and/or', () => {
