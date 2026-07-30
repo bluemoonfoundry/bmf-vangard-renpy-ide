@@ -16,7 +16,7 @@ export interface UseStoryElementsPanelParams {
 }
 
 export interface UseStoryElementsPanelReturn {
-  handleAddVariable: (v: { name: string; initialValue: string }) => Promise<void>;
+  handleAddVariable: (v: { name: string; type: 'define' | 'default'; initialValue: string }) => Promise<void>;
   handleEditVariable: (oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
   handleFindScreenDefinition: (name: string) => void;
   handleHoverHighlightStart: (key: string, type: 'character' | 'variable') => void;
@@ -29,8 +29,8 @@ export function useStoryElementsPanel({
   projectRootPath, addToast, handleOpenEditor,
 }: UseStoryElementsPanelParams): UseStoryElementsPanelReturn {
 
-  const handleAddVariable = useCallback(async (v: { name: string; initialValue: string }) => {
-    const varContent = `default ${v.name} = ${v.initialValue}\n`;
+  const handleAddVariable = useCallback(async (v: { name: string; type: 'define' | 'default'; initialValue: string }) => {
+    const varContent = `${v.type} ${v.name} = ${v.initialValue}\n`;
     const targetFile = 'game/variables.rpy';
     const existing = blocks.find(b => b.filePath === targetFile);
     if (existing) {

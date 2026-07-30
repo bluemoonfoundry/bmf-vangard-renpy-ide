@@ -38,7 +38,7 @@ describe('useStoryElementsPanel', () => {
       useStoryElementsPanel(makeParams({ blocks: [existingBlock], updateBlock, addToast })),
     );
     await act(async () => {
-      await result.current.handleAddVariable({ name: 'score', initialValue: '0' });
+      await result.current.handleAddVariable({ name: 'score', type: 'default', initialValue: '0' });
     });
     expect(updateBlock).toHaveBeenCalledWith('vars', expect.objectContaining({
       content: expect.stringContaining('default score = 0'),
@@ -53,7 +53,7 @@ describe('useStoryElementsPanel', () => {
       useStoryElementsPanel(makeParams({ blocks: [], addBlock, addToast })),
     );
     await act(async () => {
-      await result.current.handleAddVariable({ name: 'points', initialValue: '10' });
+      await result.current.handleAddVariable({ name: 'points', type: 'default', initialValue: '10' });
     });
     expect(addBlock).toHaveBeenCalledWith(
       'game/variables.rpy',
@@ -72,12 +72,33 @@ describe('useStoryElementsPanel', () => {
       useStoryElementsPanel(makeParams({ blocks: [], addBlock, addToast })),
     );
     await act(async () => {
-      await result.current.handleAddVariable({ name: 'points', initialValue: '10' });
+      await result.current.handleAddVariable({ name: 'points', type: 'default', initialValue: '10' });
     });
     expect(addBlock).toHaveBeenCalledWith('game/variables.rpy', expect.stringContaining('default points = 10'));
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('points'), 'success');
     // Restore
     installElectronAPI();
+  });
+
+  it('writes a "define" statement, not "default", when the type is define', async () => {
+    const existingBlock = createBlock({
+      id: 'vars',
+      filePath: 'game/variables.rpy',
+      content: 'default x = 0\n',
+    });
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useStoryElementsPanel(makeParams({ blocks: [existingBlock], updateBlock })),
+    );
+    await act(async () => {
+      await result.current.handleAddVariable({ name: 'GAME_VERSION', type: 'define', initialValue: '"1.0.0"' });
+    });
+    expect(updateBlock).toHaveBeenCalledWith('vars', expect.objectContaining({
+      content: expect.stringContaining('define GAME_VERSION = "1.0.0"'),
+    }));
+    expect(updateBlock).not.toHaveBeenCalledWith('vars', expect.objectContaining({
+      content: expect.stringContaining('default GAME_VERSION'),
+    }));
   });
 
   // ── handleEditVariable ────────────────────────────────────────────────────

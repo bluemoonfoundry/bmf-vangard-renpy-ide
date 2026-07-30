@@ -1663,7 +1663,7 @@ const App: React.FC = () => {
     const collides = analysisResult.variables.has(sanitized);
 
     if (!nameWasSanitized && !collides) {
-      handleAddVariable({ name: sanitized, initialValue: '0' });
+      handleAddVariable({ name: sanitized, type: 'default', initialValue: '0' });
       return;
     }
 
