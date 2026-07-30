@@ -432,18 +432,21 @@ const StatsView: React.FC<StatsViewProps> = ({
 
   const variableStats = useMemo(() => {
     let persistent = 0;
-    let nonPersistent = 0;
+    let defaulted = 0;
+    let implicit = 0;
     let constants = 0;
     variables.forEach(v => {
       if (v.name.startsWith('persistent.')) {
         persistent++;
       } else if (v.type === 'define') {
         constants++;
+      } else if (v.type === 'implicit') {
+        implicit++;
       } else {
-        nonPersistent++;
+        defaulted++;
       }
     });
-    return { total: variables.size, persistent, nonPersistent, constants };
+    return { total: variables.size, persistent, defaulted, implicit, constants };
   }, [variables]);
 
   const undefinedVariableCount = useMemo(() => {
@@ -838,9 +841,14 @@ const StatsView: React.FC<StatsViewProps> = ({
             sub="saved between sessions"
           />
           <StatCard
-            label="Non-persistent"
-            value={variableStats.nonPersistent.toLocaleString()}
-            sub="reset on new game"
+            label="Default"
+            value={variableStats.defaulted.toLocaleString()}
+            sub="default statements"
+          />
+          <StatCard
+            label="Implicit"
+            value={variableStats.implicit.toLocaleString()}
+            sub="$ assignments, not real defaults"
           />
           <StatCard
             label="Constants"

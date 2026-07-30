@@ -205,4 +205,25 @@ describe('StatsView', () => {
     expect(screen.queryByText('Total Variables')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stat-undefined-variables')).not.toBeInTheDocument();
   });
+
+  // ── Default/Implicit/Constants breakdown ────────────────────────────────────
+
+  it('breaks variable counts down into Default, Implicit, and Constants', () => {
+    const analysisResult = createEmptyAnalysisResult({
+      variables: new Map([
+        ['player_name', createVariable({ name: 'player_name', type: 'default' })],
+        ['MARKHAM_WINS', createVariable({ name: 'MARKHAM_WINS', type: 'implicit' })],
+        ['GAME_VERSION', createVariable({ name: 'GAME_VERSION', type: 'define' })],
+        ['persistent.unlocked', createVariable({ name: 'persistent.unlocked', type: 'default' })],
+      ]),
+    });
+
+    renderStats({ analysisResult });
+
+    expect(screen.getByText('Default').closest('div')?.textContent).toContain('1');
+    expect(screen.getByText('Implicit').closest('div')?.textContent).toContain('1');
+    expect(screen.getByText('Constants').closest('div')?.textContent).toContain('1');
+    expect(screen.getByText('Persistent').closest('div')?.textContent).toContain('1');
+    expect(screen.getByText('Total Variables').closest('div')?.textContent).toContain('4');
+  });
 });
