@@ -19,6 +19,7 @@ import { getTripleQuotedLineMask } from '@/lib/renpyTripleQuotes';
 import { isReservedRenpyName } from '@/lib/renpyNames';
 import { collectRenpyHasLabelGuards, isJumpGuardedByHasLabel } from '@/lib/renpyLabelGuards';
 import { getLabelAtLine } from '@/lib/warpTarget';
+import { buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 import {
   getSemanticTokensLegend,
   computeSemanticTokens,
@@ -1085,17 +1086,39 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
 
       monacoInstance.editor.setModelMarkers(model, 'renpy-jumps', markers);
   }, [analysisResult, block.id, isMounted]);
-  
+
   useEffect(() => {
       if (!isMounted || !editorRef.current || !monacoRef.current) return;
-  
+
+      const monacoInstance = monacoRef.current;
+      const model = editorRef.current.getModel();
+      if (!model) return;
+
+      const knownIdentifiers = buildKnownIdentifierSet(analysisResult);
+      const refs = extractUndefinedVariableReferences(model.getValue(), knownIdentifiers);
+
+      const markers: monaco.editor.IMarkerData[] = refs.map(ref => ({
+          startLineNumber: ref.line,
+          startColumn: ref.columnStart + 1,
+          endLineNumber: ref.line,
+          endColumn: ref.columnEnd + 1,
+          message: `Variable "${ref.name}" is used but never defined.`,
+          severity: monacoInstance.MarkerSeverity.Warning,
+      }));
+
+      monacoInstance.editor.setModelMarkers(model, 'renpy-undefined-vars', markers);
+  }, [analysisResult, block.id, isMounted, block.content]);
+
+  useEffect(() => {
+      if (!isMounted || !editorRef.current || !monacoRef.current) return;
+
       const editor = editorRef.current;
       const model = editor.getModel();
       if (!model) return;
-      
+
       // Use monaco instance from ref
       const monacoInstance = monacoRef.current;
-  
+
       const newDecorations: monaco.editor.IModelDeltaDecoration[] = [];
       const newDraftingDecorations: monaco.editor.IModelDeltaDecoration[] = [];
       
