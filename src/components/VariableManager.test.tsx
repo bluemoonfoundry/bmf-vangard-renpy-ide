@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import VariableManager from './VariableManager';
-import { createEmptyAnalysisResult } from '@/test/mocks/sampleData';
+import { createEmptyAnalysisResult, createVariable } from '@/test/mocks/sampleData';
 
 function baseProps(overrides = {}) {
   return {
@@ -52,5 +52,35 @@ describe('VariableManager prefill', () => {
     })} />);
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(onPrefillConsumed).toHaveBeenCalled();
+  });
+});
+
+describe('VariableManager implicit variable badge', () => {
+  it('labels a "$ name = value" variable as implicit, not default', () => {
+    const storyBlockId = 'block-1';
+    const implicitVar = createVariable({ name: 'MARKHAM_WINS', type: 'implicit', definedInBlockId: storyBlockId });
+    const analysisResult = createEmptyAnalysisResult({
+      variables: new Map([['MARKHAM_WINS', implicitVar]]),
+      storyBlockIds: new Set([storyBlockId]),
+    });
+    render(<VariableManager {...baseProps({ analysisResult })} />);
+
+    expect(screen.getByText('Implicit (1)')).toBeTruthy();
+    expect(screen.getByText('Default (0)')).toBeTruthy();
+    expect(screen.getByText('MARKHAM_WINS')).toBeTruthy();
+  });
+
+  it('still labels a real default statement as default', () => {
+    const storyBlockId = 'block-1';
+    const defaultVar = createVariable({ name: 'player_name', type: 'default', definedInBlockId: storyBlockId });
+    const analysisResult = createEmptyAnalysisResult({
+      variables: new Map([['player_name', defaultVar]]),
+      storyBlockIds: new Set([storyBlockId]),
+    });
+    render(<VariableManager {...baseProps({ analysisResult })} />);
+
+    expect(screen.getByText('Default (1)')).toBeTruthy();
+    expect(screen.getByText('Implicit (0)')).toBeTruthy();
+    expect(screen.getByText('player_name')).toBeTruthy();
   });
 });

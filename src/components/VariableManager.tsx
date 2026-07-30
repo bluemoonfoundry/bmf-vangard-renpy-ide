@@ -1,6 +1,6 @@
 /**
  * @file VariableManager.tsx
- * @description Virtualised list of `default`/`define`/`persistent` variables from project scripts (~200 lines).
+ * @description Virtualised list of `default`/`define`/`persistent`/`implicit` variables from project scripts (~200 lines).
  * Key features: persistence-type colour badges with tooltips, initial-value display, hover
  * highlight integration, find-usages action, add-variable form.
  * Integration: rendered as a sidebar panel; variable data comes from `useRenpyAnalysis`;
@@ -27,7 +27,7 @@ interface VariableManagerProps {
     onPrefillConsumed?: () => void;
 }
 
-const PERSISTENCE_INFO: Record<'persistent' | 'default' | 'define', { label: string; color: string; tooltip: string }> = {
+const PERSISTENCE_INFO: Record<'persistent' | 'default' | 'define' | 'implicit', { label: string; color: string; tooltip: string }> = {
     persistent: {
         label: 'persistent',
         color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
@@ -43,15 +43,21 @@ const PERSISTENCE_INFO: Record<'persistent' | 'default' | 'define', { label: str
         color: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
         tooltip: 'Constant — not saved, not rolled back. Value set once at game start and never changes during play.',
     },
+    implicit: {
+        label: 'implicit',
+        color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+        tooltip: 'Created by a "$ name = value" assignment, not a real default/define statement. Only exists once that line has run — referencing it earlier will error. Consider converting to "default".',
+    },
 };
 
-function getPersistenceKind(variable: Variable): 'persistent' | 'default' | 'define' {
+function getPersistenceKind(variable: Variable): 'persistent' | 'default' | 'define' | 'implicit' {
     if (variable.name.startsWith('persistent.')) return 'persistent';
     if (variable.type === 'define') return 'define';
+    if (variable.type === 'implicit') return 'implicit';
     return 'default';
 }
 
-const SemanticBadge: React.FC<{ kind: 'persistent' | 'default' | 'define' }> = ({ kind }) => {
+const SemanticBadge: React.FC<{ kind: 'persistent' | 'default' | 'define' | 'implicit' }> = ({ kind }) => {
     const info = PERSISTENCE_INFO[kind];
     return (
         <span
@@ -167,18 +173,20 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
 
     const shouldShowBanner = implicitVarCount >= 10 && explicitVarCount < 5 && !dismissedImplicitVarHint;
 
-    const { persistent, defaulted, defined } = useMemo(() => {
-        const grouped = { persistent: [] as Variable[], defaulted: [] as Variable[], defined: [] as Variable[] };
+    const { persistent, defaulted, defined, implicit } = useMemo(() => {
+        const grouped = { persistent: [] as Variable[], defaulted: [] as Variable[], defined: [] as Variable[], implicit: [] as Variable[] };
         for (const variable of filteredVariables) {
             const kind = getPersistenceKind(variable);
             if (kind === 'persistent') grouped.persistent.push(variable);
             else if (kind === 'define') grouped.defined.push(variable);
+            else if (kind === 'implicit') grouped.implicit.push(variable);
             else grouped.defaulted.push(variable);
         }
         const sort = (a: Variable, b: Variable) => a.name.localeCompare(b.name);
         grouped.persistent.sort(sort);
         grouped.defaulted.sort(sort);
         grouped.defined.sort(sort);
+        grouped.implicit.sort(sort);
         return grouped;
     }, [filteredVariables]);
 
@@ -200,7 +208,7 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
         setMode('edit');
     };
 
-    const VariableList: React.FC<{ title: string; kind: 'persistent' | 'default' | 'define'; vars: Variable[] }> = ({ title, kind, vars }) => {
+    const VariableList: React.FC<{ title: string; kind: 'persistent' | 'default' | 'define' | 'implicit'; vars: Variable[] }> = ({ title, kind, vars }) => {
         const [collapsed, setCollapsed] = useState(false);
         const { containerRef, handleScroll, virtualItems, totalHeight } = useVirtualList(
             collapsed ? [] : vars,
@@ -297,8 +305,9 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
                             <div className="flex-1">
                                 <div className="font-medium mb-1">Implicit Variables Detected</div>
                                 <div>
-                                    This project uses {implicitVarCount} implicit variable definition{implicitVarCount !== 1 ? 's' : ''}.
-                                    The Variables pane only shows explicit define/default statements.
+                                    This project uses {implicitVarCount} implicit variable definition{implicitVarCount !== 1 ? 's' : ''}
+                                    (shown below under "Implicit"). These are "$ name = value" assignments, not real
+                                    default/define statements — they only exist once that line has run.
                                 </div>
                             </div>
                             <div className="flex gap-2 mt-1">
@@ -342,6 +351,7 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
                         <VariableList title="Persistent" kind="persistent" vars={persistent} />
                         <VariableList title="Default" kind="default" vars={defaulted} />
                         <VariableList title="Defined" kind="define" vars={defined} />
+                        <VariableList title="Implicit" kind="implicit" vars={implicit} />
                     </div>
                     {filteredVariables.length === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
