@@ -59,6 +59,7 @@ export interface UseFileSystemManagerParams {
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   blocks: Block[];
   addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => string;
+  updateBlock: (id: string, data: Partial<Block>) => void;
   deleteBlock: (id: string) => void;
   clipboard: ClipboardState;
   setClipboard: React.Dispatch<React.SetStateAction<ClipboardState>>;
@@ -81,7 +82,7 @@ export interface UseFileSystemManagerReturn {
  * Performs the IPC calls and reconciles both the file system tree and `.rpy` blocks.
  */
 export function useFileSystemManager({
-  projectRootPath, setFileSystemTree, blocks, addBlock, deleteBlock,
+  projectRootPath, setFileSystemTree, blocks, addBlock, updateBlock, deleteBlock,
   clipboard, setClipboard, openDeleteConfirmModal, addToast,
 }: UseFileSystemManagerParams): UseFileSystemManagerReturn {
   const handleCreateNode = useCallback(async (parentPath: string, name: string, type: 'file' | 'folder') => {
@@ -117,15 +118,34 @@ export function useFileSystemManager({
       try {
           const fullOldPath = await window.electronAPI.path.join(projectRootPath, oldPath) as string;
           const parentDir = oldPath.split('/').slice(0, -1).join('/');
+          const newPath = parentDir ? `${parentDir}/${newName}` : newName;
           const fullNewPath = await window.electronAPI.path.join(projectRootPath, parentDir, newName) as string;
           await window.electronAPI.moveFile(fullOldPath, fullNewPath);
+
+          // Reconcile blocks under the renamed path — the renamed node itself (a file)
+          // or any descendant blocks if a folder was renamed — so already-loaded blocks
+          // (and any tabs open on them) reflect the new path/name without needing a
+          // manual Refresh, and the renamed file can be reopened under its new name.
+          blocks.forEach(block => {
+              if (!block.filePath) return;
+              let newFilePath: string | null = null;
+              if (block.filePath === oldPath) {
+                  newFilePath = newPath;
+              } else if (block.filePath.startsWith(`${oldPath}/`)) {
+                  newFilePath = newPath + block.filePath.slice(oldPath.length);
+              }
+              if (newFilePath) {
+                  updateBlock(block.id, { filePath: newFilePath, title: newFilePath.split('/').pop() });
+              }
+          });
+
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
       } catch (err) {
           logger.error('Failed to rename:', err);
           addToast('Failed to rename file', 'error');
       }
-  }, [projectRootPath, addToast, setFileSystemTree]);
+  }, [projectRootPath, blocks, updateBlock, addToast, setFileSystemTree]);
 
   const handleDeleteNode = useCallback((paths: string[]) => {
       if (!window.electronAPI || !projectRootPath) return;

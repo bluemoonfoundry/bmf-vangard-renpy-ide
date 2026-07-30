@@ -1368,7 +1368,7 @@ const App: React.FC = () => {
       handleCreateNode, handleRenameNode, handleDeleteNode, handleMoveNode,
       handleCut, handleCopy, handlePaste,
   } = useFileSystemManager({
-      projectRootPath, setFileSystemTree, blocks, addBlock, deleteBlock,
+      projectRootPath, setFileSystemTree, blocks, addBlock, updateBlock, deleteBlock,
       clipboard, setClipboard, openDeleteConfirmModal, addToast,
   });
 
