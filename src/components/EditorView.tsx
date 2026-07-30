@@ -49,6 +49,9 @@ interface EditorViewProps {
   onEditorUnmount: (blockId: string) => void;
   onCursorPositionChange?: (pos: { line: number; column: number } | null) => void;
   onWarpToLabel: (labelName: string) => void;
+  onCreateFileFromSelection: (blockId: string, selectedText: string) => void;
+  onCreateVariableFromSelection: (selectedText: string) => void;
+  onCreateCharacterFromSelection: (selectedText: string) => void;
   draftingMode: boolean;
   existingImageTags: Set<string>;
   existingAudioPaths: Set<string>;
@@ -74,6 +77,13 @@ const RENPY_STATEMENT_KEYWORDS = new Set([
 
 function getIndent(line: string): number {
   return line.match(/^(\s*)/)?.[1].length ?? 0;
+}
+
+function getSelectedText(ed: monaco.editor.ICodeEditor): string {
+  const selection = ed.getSelection();
+  const model = ed.getModel();
+  if (!selection || !model || selection.isEmpty()) return '';
+  return model.getValueInRange(selection);
 }
 
 function parseDialogueLine(
@@ -246,6 +256,9 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     onEditorUnmount,
     onCursorPositionChange,
     onWarpToLabel,
+    onCreateFileFromSelection,
+    onCreateVariableFromSelection,
+    onCreateCharacterFromSelection,
     draftingMode,
     existingImageTags,
     existingAudioPaths
@@ -283,12 +296,16 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
   const onEditorUnmountRef = useRef(onEditorUnmount);
   const onCursorPositionChangeRef = useRef(onCursorPositionChange);
   const onWarpToLabelRef = useRef(onWarpToLabel);
+  const onCreateFileFromSelectionRef = useRef(onCreateFileFromSelection);
+  const onCreateVariableFromSelectionRef = useRef(onCreateVariableFromSelection);
+  const onCreateCharacterFromSelectionRef = useRef(onCreateCharacterFromSelection);
   const onContentChangeRef = useRef(onContentChange);
   const contentChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userSnippetsRef = useRef(props.userSnippets);
   const menuTemplatesRef = useRef(props.menuTemplates);
   const onSaveMenuTemplateRef = useRef(props.onSaveMenuTemplate);
   const warpLabelContextKeyRef = useRef<monaco.editor.IContextKey<boolean> | null>(null);
+  const hasSelectionContextKeyRef = useRef<monaco.editor.IContextKey<boolean> | null>(null);
   const warpLabelNameRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -302,11 +319,14 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     onEditorUnmountRef.current = onEditorUnmount;
     onCursorPositionChangeRef.current = onCursorPositionChange;
     onWarpToLabelRef.current = onWarpToLabel;
+    onCreateFileFromSelectionRef.current = onCreateFileFromSelection;
+    onCreateVariableFromSelectionRef.current = onCreateVariableFromSelection;
+    onCreateCharacterFromSelectionRef.current = onCreateCharacterFromSelection;
     onContentChangeRef.current = onContentChange;
     userSnippetsRef.current = props.userSnippets;
     menuTemplatesRef.current = props.menuTemplates;
     onSaveMenuTemplateRef.current = props.onSaveMenuTemplate;
-  }, [onDirtyChange, onTriggerSave, block, onSwitchFocusBlock, analysisResult, onEditorUnmount, onCursorPositionChange, onWarpToLabel, onContentChange, props.userSnippets, props.menuTemplates, props.onSaveMenuTemplate]);
+  }, [onDirtyChange, onTriggerSave, block, onSwitchFocusBlock, analysisResult, onEditorUnmount, onCursorPositionChange, onWarpToLabel, onCreateFileFromSelection, onCreateVariableFromSelection, onCreateCharacterFromSelection, onContentChange, props.userSnippets, props.menuTemplates, props.onSaveMenuTemplate]);
 
   const syncWarpContext = useCallback((lineNumber?: number | null) => {
     const line = lineNumber ?? editorRef.current?.getPosition()?.lineNumber ?? null;
@@ -711,6 +731,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     setIsMounted(true);
     updateContext();
     warpLabelContextKeyRef.current = editor.createContextKey('renpyCanWarpHere', false);
+    hasSelectionContextKeyRef.current = editor.createContextKey('renpyHasSelection', false);
     syncWarpContext(editor.getPosition()?.lineNumber ?? null);
 
     // Scroll to the requested line on initial mount (the useEffect approach fires
@@ -805,6 +826,8 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
       } else {
         syncWarpContext(null);
       }
+      const selection = editor.getSelection();
+      hasSelectionContextKeyRef.current?.set(!!selection && !selection.isEmpty());
     });
 
     editor.addAction({
@@ -904,6 +927,45 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
                 column: insertedLines.length === 1 ? position.column + lastLen : lastLen + 1,
             });
             ed.focus();
+        },
+    });
+
+    editor.addAction({
+        id: 'create-file-from-selection',
+        label: 'New File from Selection',
+        contextMenuGroupId: 'renpy',
+        contextMenuOrder: 5,
+        precondition: 'renpyHasSelection',
+        run: (ed) => {
+            const selectedText = getSelectedText(ed);
+            if (!selectedText) return;
+            onCreateFileFromSelectionRef.current(blockRef.current.id, selectedText);
+        },
+    });
+
+    editor.addAction({
+        id: 'create-variable-from-selection',
+        label: 'Create Variable from Selection',
+        contextMenuGroupId: 'renpy',
+        contextMenuOrder: 6,
+        precondition: 'renpyHasSelection',
+        run: (ed) => {
+            const selectedText = getSelectedText(ed);
+            if (!selectedText) return;
+            onCreateVariableFromSelectionRef.current(selectedText);
+        },
+    });
+
+    editor.addAction({
+        id: 'create-character-from-selection',
+        label: 'Create Character from Selection',
+        contextMenuGroupId: 'renpy',
+        contextMenuOrder: 7,
+        precondition: 'renpyHasSelection',
+        run: (ed) => {
+            const selectedText = getSelectedText(ed);
+            if (!selectedText) return;
+            onCreateCharacterFromSelectionRef.current(selectedText);
         },
     });
 

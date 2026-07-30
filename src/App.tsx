@@ -27,6 +27,7 @@ import StoryElementsPanel from '@/components/StoryElementsPanel';
 import SettingsModal from '@/components/SettingsModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import CreateBlockModal from '@/components/CreateBlockModal';
+import QuickCreateFileModal from '@/components/QuickCreateFileModal';
 import ConfigureRenpyModal from '@/components/ConfigureRenpyModal';
 import Toast from '@/components/Toast';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -84,6 +85,7 @@ import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
+import { sanitizeFileName, sanitizeIdentifier } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
 import {
   buildAfterWarpScript,
@@ -1353,6 +1355,15 @@ const App: React.FC = () => {
     }
   }, [appSettings.isLeftSidebarOpen, updateAppSettings]);
 
+  const [quickCreateFileModal, setQuickCreateFileModal] = useState<{
+    directoryPath: string;
+    extension: string;
+    initialFileName: string;
+    collidingWithExisting: boolean;
+  } | null>(null);
+
+  const [pendingVariablePrefill, setPendingVariablePrefill] = useState<{ name: string; initialValue: string } | null>(null);
+
   const {
       handleCreateNode, handleRenameNode, handleDeleteNode, handleMoveNode,
       handleCut, handleCopy, handlePaste,
@@ -1360,6 +1371,50 @@ const App: React.FC = () => {
       projectRootPath, setFileSystemTree, blocks, addBlock, deleteBlock,
       clipboard, setClipboard, openDeleteConfirmModal, addToast,
   });
+
+  const handleConfirmQuickCreateFile = useCallback(async (fileName: string) => {
+    if (!quickCreateFileModal) return;
+    const result = await handleCreateNode(quickCreateFileModal.directoryPath, fileName, 'file');
+    if (result?.blockId) {
+      handleOpenEditor(result.blockId);
+    }
+    setQuickCreateFileModal(null);
+  }, [quickCreateFileModal, handleCreateNode, handleOpenEditor]);
+
+  const handleCreateFileFromSelection = useCallback(async (blockId: string, selectedText: string) => {
+    const sourceBlock = blocksRef.current.find(b => b.id === blockId);
+    if (!sourceBlock?.filePath) return;
+
+    const lastSlash = sourceBlock.filePath.lastIndexOf('/');
+    const directoryPath = lastSlash === -1 ? '' : sourceBlock.filePath.slice(0, lastSlash);
+    const extensionMatch = sourceBlock.filePath.match(/\.[^./]+$/);
+    const extension = extensionMatch ? extensionMatch[0] : '.rpy';
+
+    const sanitizedBase = sanitizeFileName(selectedText);
+    if (!sanitizedBase) {
+      addToast('Selected text has no usable characters for a file name.', 'error');
+      return;
+    }
+
+    const fileName = `${sanitizedBase}${extension}`;
+    const relativePath = directoryPath ? `${directoryPath}/${fileName}` : fileName;
+    const nameWasSanitized = sanitizedBase !== selectedText.trim();
+    // Case-insensitive: on Windows (and macOS default) the real filesystem is
+    // case-insensitive, so a case-only difference (e.g. 'Start.rpy' vs 'start.rpy')
+    // is still a real collision — treating it as distinct would silently truncate
+    // the existing file on direct-create.
+    const collides = blocksRef.current.some(b => b.filePath?.toLowerCase() === relativePath.toLowerCase());
+
+    if (!nameWasSanitized && !collides) {
+      const result = await handleCreateNode(directoryPath, fileName, 'file');
+      if (result?.blockId) {
+        handleOpenEditor(result.blockId);
+      }
+      return;
+    }
+
+    setQuickCreateFileModal({ directoryPath, extension, initialFileName: sanitizedBase, collidingWithExisting: collides });
+  }, [addToast, handleCreateNode, handleOpenEditor]);
 
   // --- User Snippet CRUD ---
   const handleSaveSnippet = useCallback((snippet: UserSnippet) => {
@@ -1598,6 +1653,37 @@ const App: React.FC = () => {
     projectRootPath, addToast, handleOpenEditor,
   });
 
+  const handleCreateVariableFromSelection = useCallback((selectedText: string) => {
+    const sanitized = sanitizeIdentifier(selectedText, true);
+    if (!sanitized) {
+      addToast('Selected text has no usable characters for a variable name.', 'error');
+      return;
+    }
+    const nameWasSanitized = sanitized !== selectedText.trim();
+    const collides = analysisResult.variables.has(sanitized);
+
+    if (!nameWasSanitized && !collides) {
+      handleAddVariable({ name: sanitized, initialValue: '0' });
+      return;
+    }
+
+    updateAppSettings(draft => { draft.isRightSidebarOpen = true; });
+    setPendingVariablePrefill({ name: sanitized, initialValue: '0' });
+  }, [addToast, analysisResult.variables, handleAddVariable, updateAppSettings]);
+
+  const handleCreateCharacterFromSelection = useCallback((selectedText: string) => {
+    const rawName = selectedText.trim();
+    if (!rawName) return;
+    const sanitizedTag = sanitizeIdentifier(rawName);
+    // sanitizedTag can be '' for fully-symbolic/non-Latin selections (e.g. "エレン", "---").
+    // The tab id/characterTag must stay non-empty so useTabContentRenderer's
+    // `tab.type === 'character' && tab.characterTag` guard still renders the tab; the
+    // *prefill* initialTag is kept as the real (possibly empty) sanitized value so the
+    // form field itself opens empty and the existing "tag required" validation catches it.
+    const tabTag = sanitizedTag || 'new';
+    handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
+  }, [handleOpenCharacterEditor]);
+
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
     editorInstances, blocksRef, pendingTagRenameRef,
@@ -1634,6 +1720,9 @@ const App: React.FC = () => {
     editorCursorBlockId, editorCursorPosition,
     setBlocks, handleSaveBlock, syncEditorToStateAndMarkDirty,
     setEditorCursorPosition, setEditorCursorBlockId, addToast, handleSaveMenuTemplate,
+    onCreateFileFromSelection: handleCreateFileFromSelection,
+    onCreateVariableFromSelection: handleCreateVariableFromSelection,
+    onCreateCharacterFromSelection: handleCreateCharacterFromSelection,
     characterTagsArray, handleUpdateCharacter,
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
@@ -1975,6 +2064,8 @@ const App: React.FC = () => {
                 onAddVariable={handleAddVariable}
                 onEditVariable={handleEditVariable}
                 onFindVariableUsages={(name) => handleFindUsages(name, 'variable')}
+                pendingVariablePrefill={pendingVariablePrefill}
+                onVariablePrefillConsumed={() => setPendingVariablePrefill(null)}
                 onFindScreenDefinition={handleFindScreenDefinition}
                 // Image Props
                 projectImages={images}
@@ -2089,6 +2180,16 @@ const App: React.FC = () => {
         onConfirm={(name, type) => handleCreateBlockConfirm(name, type, createBlockModalFolderPath, createBlockModalPosition)}
         defaultPath={createBlockModalFolderPath || getSelectedFolderForNewBlock()}
         initialType={createBlockModalType}
+      />
+
+      <QuickCreateFileModal
+        isOpen={quickCreateFileModal !== null}
+        directoryPath={quickCreateFileModal?.directoryPath ?? ''}
+        extension={quickCreateFileModal?.extension ?? '.rpy'}
+        initialFileName={quickCreateFileModal?.initialFileName ?? ''}
+        collidingWithExisting={quickCreateFileModal?.collidingWithExisting ?? false}
+        onConfirm={handleConfirmQuickCreateFile}
+        onClose={() => setQuickCreateFileModal(null)}
       />
 
       <ConfigureRenpyModal

@@ -23,6 +23,8 @@ interface VariableManagerProps {
     dismissedImplicitVarHint: boolean;
     onDismissImplicitVarHint: () => void;
     onOpenDiagnostics: () => void;
+    prefill?: { name: string; initialValue: string } | null;
+    onPrefillConsumed?: () => void;
 }
 
 const PERSISTENCE_INFO: Record<'persistent' | 'default' | 'define', { label: string; color: string; tooltip: string }> = {
@@ -66,11 +68,13 @@ const VariableEditor: React.FC<{
     onCancel: () => void;
     existingNames: string[];
     editing?: Variable;
-}> = ({ onSave, onCancel, existingNames, editing }) => {
-    const [name, setName] = useState(editing?.name ?? '');
+    prefillName?: string;
+    prefillInitialValue?: string;
+}> = ({ onSave, onCancel, existingNames, editing, prefillName, prefillInitialValue }) => {
+    const [name, setName] = useState(editing?.name ?? prefillName ?? '');
     // Convert implicit to default when editing (implicit vars can't be manually created)
     const [type, setType] = useState<'define' | 'default'>(editing?.type === 'implicit' ? 'default' : (editing?.type ?? 'default'));
-    const [initialValue, setInitialValue] = useState(editing?.initialValue ?? 'False');
+    const [initialValue, setInitialValue] = useState(editing?.initialValue ?? prefillInitialValue ?? 'False');
     const [nameError, setNameError] = useState('');
 
     const isRename = editing && name !== editing.name;
@@ -131,11 +135,17 @@ const VariableEditor: React.FC<{
 };
 
 
-const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAddVariable, onEditVariable, onFindUsages, onHoverHighlightStart, onHoverHighlightEnd, dismissedImplicitVarHint, onDismissImplicitVarHint, onOpenDiagnostics }) => {
+const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAddVariable, onEditVariable, onFindUsages, onHoverHighlightStart, onHoverHighlightEnd, dismissedImplicitVarHint, onDismissImplicitVarHint, onOpenDiagnostics, prefill, onPrefillConsumed }) => {
     const { variables, variableUsages, storyBlockIds } = analysisResult;
     const [mode, setMode] = useState<'list' | 'add' | 'edit'>('list');
     const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
     const [filterStoryVars, setFilterStoryVars] = useState(true);
+
+    React.useEffect(() => {
+        if (prefill) {
+            setMode('add');
+        }
+    }, [prefill]);
 
     const filteredVariables = useMemo(() => {
         const allVars = Array.from(variables.values());
@@ -343,9 +353,11 @@ const VariableManager: React.FC<VariableManagerProps> = ({ analysisResult, onAdd
 
             {mode === 'add' && (
                 <VariableEditor
-                    onSave={handleSave}
-                    onCancel={() => setMode('list')}
+                    onSave={(variable) => { handleSave(variable); onPrefillConsumed?.(); }}
+                    onCancel={() => { setMode('list'); onPrefillConsumed?.(); }}
                     existingNames={Array.from(variables.keys())}
+                    prefillName={prefill?.name}
+                    prefillInitialValue={prefill?.initialValue}
                 />
             )}
 
