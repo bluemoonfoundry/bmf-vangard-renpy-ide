@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import StatsView from './StatsView';
-import { createBlock, createCharacter, createEmptyAnalysisResult } from '@/test/mocks/sampleData';
+import { createBlock, createCharacter, createEmptyAnalysisResult, createVariable } from '@/test/mocks/sampleData';
 
 // recharts ResponsiveContainer requires a real layout measurement to render children.
 // In jsdom all elements have 0 width/height, so stub it to just render children directly.
@@ -183,5 +183,26 @@ describe('StatsView', () => {
     renderStats({ blocks, analysisResult });
 
     expect(screen.getByTestId('stat-undefined-variables')).toHaveTextContent('1');
+  });
+
+  it('shows the Variables section when known variables exist but there are no undefined-variable usages', () => {
+    // Default block content ('label start:\n    "Hello, world!"\n    return\n') has no
+    // interpolations or if/elif/while conditions, so it references no undefined variables.
+    const analysisResult = createEmptyAnalysisResult({
+      variables: new Map([['player_name', createVariable()]]),
+    });
+
+    renderStats({ analysisResult });
+
+    expect(screen.getByText('Total Variables')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-undefined-variables')).toHaveTextContent('0');
+  });
+
+  it('hides the Variables section when there are no known variables and no undefined-variable usages', () => {
+    // Default renderStats() props: empty `variables` map, default block with no undefined-variable references.
+    renderStats();
+
+    expect(screen.queryByText('Total Variables')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('stat-undefined-variables')).not.toBeInTheDocument();
   });
 });
