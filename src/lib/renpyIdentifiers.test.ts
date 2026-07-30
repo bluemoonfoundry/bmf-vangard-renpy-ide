@@ -73,4 +73,51 @@ describe('extractUndefinedVariableReferences', () => {
     const names = refs.map(r => r.name).sort();
     expect(names).toEqual(['flag_one', 'flag_two']);
   });
+
+  describe('interpolation false positives (comments, [[ escapes, Python subscripts)', () => {
+    it('does not flag a bracketed word inside a comment', () => {
+      const refs = extractUndefinedVariableReferences('# [TODO] rework this scene\n', known);
+      expect(refs).toHaveLength(0);
+    });
+
+    it('does not flag a bracketed word inside an indented comment', () => {
+      const refs = extractUndefinedVariableReferences('    # see [WIP] note\n', known);
+      expect(refs).toHaveLength(0);
+    });
+
+    it('does not flag a Python subscript outside of a string literal', () => {
+      const refs = extractUndefinedVariableReferences('$ chosen = inventory[item_key]\n', known);
+      expect(refs).toHaveLength(0);
+    });
+
+    it('does not flag a [[ escaped literal bracket inside a string', () => {
+      const refs = extractUndefinedVariableReferences('    "escaped bracket [[literal]"\n', known);
+      expect(refs).toHaveLength(0);
+    });
+
+    it('still flags a genuinely undefined variable inside a real string interpolation', () => {
+      const refs = extractUndefinedVariableReferences('    "Hello [totally_undefined]!"\n', known);
+      expect(refs).toHaveLength(1);
+      expect(refs[0]).toMatchObject({ name: 'totally_undefined', line: 1 });
+    });
+  });
+});
+
+describe('allowlisted store globals and underscore-prefixed names', () => {
+  const known = buildKnownIdentifierSet(createEmptyAnalysisResult());
+
+  it('does not flag the preferences store global', () => {
+    const refs = extractUndefinedVariableReferences('    if preferences.text_cps > 0:\n', known);
+    expect(refs).toHaveLength(0);
+  });
+
+  it('does not flag the narrator global', () => {
+    const refs = extractUndefinedVariableReferences('    if narrator:\n', known);
+    expect(refs).toHaveLength(0);
+  });
+
+  it('does not flag underscore-prefixed identifiers', () => {
+    const refs = extractUndefinedVariableReferences('    if _in_replay:\n', known);
+    expect(refs).toHaveLength(0);
+  });
 });

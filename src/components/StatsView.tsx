@@ -848,7 +848,7 @@ const StatsView: React.FC<StatsViewProps> = ({
             sub="define statements"
           />
           <StatCard
-            label="Undefined Variable Usages"
+            label="Undefined Variables"
             value={undefinedVariableCount.toLocaleString()}
             sub="referenced but never defined"
             testId="stat-undefined-variables"

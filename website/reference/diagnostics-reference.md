@@ -10,6 +10,7 @@
 | Missing Audio | Warning | `missing-audio` | An audio reference in a `play` or `queue` statement does not match any audio asset or variable. |
 | Undefined Character | Warning | `undefined-character` | A tag is used as a dialogue speaker but has no corresponding `define Character(...)` definition. |
 | Undefined Screen | Warning | `undefined-screen` | A screen name in a `call screen`, `show screen`, or `hide screen` statement has no matching `screen` definition. |
+| Undefined Variable | Warning | `undefined-variable` | A name is used in `[interpolation]` or an `if`/`elif`/`while` condition but has no corresponding `define`/`default` definition. |
 | Pickle-Unsafe Variable | Warning | `pickle-unsafe-variable` | A `default` variable stores a lambda or class instance that may not survive Ren'Py's pickle-based save system. |
 | Define Mutated | Warning | `define-mutated` | A variable declared with `define` (constant) is reassigned at runtime via `$`. Should likely be `default`. |
 | Unused Character | Info | `unused-character` | A character is defined with `define Character(...)` but never speaks a line of dialogue. |
@@ -30,6 +31,7 @@ Each diagnostic type produces a message formatted for quick identification:
 | Missing Audio | `Audio "bgm_theme.ogg" not found in assets or variables` |
 | Undefined Character | `Character "narrator_v2" used in dialogue but never defined` |
 | Undefined Screen | `Screen "custom_menu" referenced but never defined` |
+| Undefined Variable | `Variable "chosen_path" is used but never defined` |
 | Pickle-Unsafe Variable | `"my_callback" stores a lambda which may not be pickle-safe -- save files could break` |
 | Define Mutated | `"score" is declared with define (constant) but assigned in script -- use default instead` |
 | Unused Character | `Character "side_char" (Side Character) is defined but never used in dialogue` |

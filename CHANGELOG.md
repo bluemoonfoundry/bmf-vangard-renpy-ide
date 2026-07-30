@@ -4,6 +4,9 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
+### Added
+- **NEW:** Detect used-but-undefined variables (interpolation and if/elif/while conditions) with editor squiggle, Diagnostics warning, and Statistics count
+
 ## [1.0.0]
 
 ### Added
