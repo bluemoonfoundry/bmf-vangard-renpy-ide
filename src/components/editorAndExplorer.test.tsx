@@ -304,7 +304,8 @@ function createMockEditorInstance(content = '', selectedText = '') {
     deltaDecorations: vi.fn(() => []),
     onDidChangeModelContent: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
-    onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeCursorSelection: vi.fn(() => ({ dispose: vi.fn() })),
+    onMouseDown: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     onContextMenu: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     pushUndoStop: vi.fn(),
     executeEdits: vi.fn(),
@@ -619,9 +620,39 @@ describe('EditorView', () => {
     )?.value as { set: ReturnType<typeof vi.fn> };
     const contextMenuListener = mockEd.onContextMenu.mock.calls[0][0] as (e: unknown) => void;
     (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('selected text');
     act(() => { contextMenuListener({ target: { position: null } }); });
     expect(hasSelectionKey.set).toHaveBeenCalledWith(true);
     void mockMonaco;
+  });
+
+  it('still shows the selection actions when Monaco collapses the selection on right-click before onContextMenu fires', async () => {
+    // Real Monaco collapses the selection to a cursor at the click point on right-click
+    // mousedown (before the contextmenu event), so editor.getSelection() is already empty
+    // by the time onContextMenu and action.run() read it. The fix stashes the pre-collapse
+    // selection in onMouseDown and falls back to it in both places.
+    const onCreateVariableFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateVariableFromSelection });
+    const { mockEd } = await renderAndMount(props);
+    const hasSelectionKey = mockEd.createContextKey.mock.results.find(
+      (r: { value: unknown }, i: number) => mockEd.createContextKey.mock.calls[i][0] === 'renpyHasSelection'
+    )?.value as { set: ReturnType<typeof vi.fn> };
+    const mouseDownListener = mockEd.onMouseDown.mock.calls[0][0] as (e: unknown) => void;
+    const contextMenuListener = mockEd.onContextMenu.mock.calls[0][0] as (e: unknown) => void;
+
+    // Right-click mousedown while text is genuinely selected.
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('player_score');
+    act(() => { mouseDownListener({ event: { rightButton: true } }); });
+
+    // Monaco then collapses the selection before contextmenu fires.
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => true });
+    act(() => { contextMenuListener({ target: { position: null } }); });
+    expect(hasSelectionKey.set).toHaveBeenCalledWith(true);
+
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-variable-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateVariableFromSelection).toHaveBeenCalledWith('player_score');
   });
 
   it('calls onEditorUnmount after mount + unmount', async () => {

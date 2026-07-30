@@ -79,10 +79,10 @@ function getIndent(line: string): number {
   return line.match(/^(\s*)/)?.[1].length ?? 0;
 }
 
-function getSelectedText(ed: monaco.editor.ICodeEditor): string {
+function getSelectedText(ed: monaco.editor.ICodeEditor, fallback: string = ''): string {
   const selection = ed.getSelection();
   const model = ed.getModel();
-  if (!selection || !model || selection.isEmpty()) return '';
+  if (!selection || !model || selection.isEmpty()) return fallback;
   return model.getValueInRange(selection);
 }
 
@@ -307,6 +307,11 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
   const warpLabelContextKeyRef = useRef<monaco.editor.IContextKey<boolean> | null>(null);
   const hasSelectionContextKeyRef = useRef<monaco.editor.IContextKey<boolean> | null>(null);
   const warpLabelNameRef = useRef<string | null>(null);
+  // Monaco collapses the selection to a cursor on right-click mousedown (moving it to the
+  // click point) before the contextmenu event fires, so editor.getSelection() is already
+  // empty by the time onContextMenu/action.run() read it. Stash the selection here from
+  // onMouseDown, which fires before that collapse happens.
+  const rightClickSelectedTextRef = useRef<string>('');
 
   useEffect(() => {
     onDirtyChangeRef.current = onDirtyChange;
@@ -819,6 +824,21 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         }
     });
 
+    editor.onDidChangeCursorSelection(() => {
+      const selection = editor.getSelection();
+      hasSelectionContextKeyRef.current?.set(!!selection && !selection.isEmpty());
+    });
+    editor.onMouseDown((e) => {
+      if (!e.event.rightButton) {
+        rightClickSelectedTextRef.current = '';
+        return;
+      }
+      // Monaco collapses the selection to a cursor at the click point on right-click
+      // mousedown, before the contextmenu event fires — so editor.getSelection() is
+      // already empty by the time onContextMenu/action.run() read it. Stash the
+      // pre-collapse selection here so both still have it.
+      rightClickSelectedTextRef.current = getSelectedText(editor);
+    });
     editor.onContextMenu((e) => {
       if (e.target.position) {
         editor.setPosition(e.target.position);
@@ -826,8 +846,10 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
       } else {
         syncWarpContext(null);
       }
-      const selection = editor.getSelection();
-      hasSelectionContextKeyRef.current?.set(!!selection && !selection.isEmpty());
+      // Re-assert the context key here (it may have been transiently cleared by the
+      // right-click's own selection-collapse) using whichever source still has text.
+      const hasSelection = getSelectedText(editor, rightClickSelectedTextRef.current) !== '';
+      hasSelectionContextKeyRef.current?.set(hasSelection);
     });
 
     editor.addAction({
@@ -937,7 +959,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         contextMenuOrder: 5,
         precondition: 'renpyHasSelection',
         run: (ed) => {
-            const selectedText = getSelectedText(ed);
+            const selectedText = getSelectedText(ed, rightClickSelectedTextRef.current);
             if (!selectedText) return;
             onCreateFileFromSelectionRef.current(blockRef.current.id, selectedText);
         },
@@ -950,7 +972,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         contextMenuOrder: 6,
         precondition: 'renpyHasSelection',
         run: (ed) => {
-            const selectedText = getSelectedText(ed);
+            const selectedText = getSelectedText(ed, rightClickSelectedTextRef.current);
             if (!selectedText) return;
             onCreateVariableFromSelectionRef.current(selectedText);
         },
@@ -963,7 +985,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
         contextMenuOrder: 7,
         precondition: 'renpyHasSelection',
         run: (ed) => {
-            const selectedText = getSelectedText(ed);
+            const selectedText = getSelectedText(ed, rightClickSelectedTextRef.current);
             if (!selectedText) return;
             onCreateCharacterFromSelectionRef.current(selectedText);
         },
