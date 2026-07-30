@@ -169,4 +169,19 @@ describe('StatsView', () => {
     const charactersCard = screen.getByText('Characters').closest('div');
     expect(charactersCard?.textContent).toContain('1 speaking');
   });
+
+  // ── Undefined variable usages ─────────────────────────────────────────────────
+
+  it('shows a count of undefined variable usages', () => {
+    const blocks = [createBlock({
+      id: 'b1',
+      content: 'label start:\n    "Hello [oops_typo]!"\n',
+      filePath: 'game/script.rpy',
+    })];
+    const analysisResult = createEmptyAnalysisResult({ storyBlockIds: new Set(['b1']) });
+
+    renderStats({ blocks, analysisResult });
+
+    expect(screen.getByTestId('stat-undefined-variables')).toHaveTextContent('1');
+  });
 });

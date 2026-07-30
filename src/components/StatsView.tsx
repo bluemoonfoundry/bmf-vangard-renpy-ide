@@ -13,6 +13,7 @@ import {
 import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute, ProjectImage, ImageMetadata, RenpyAudio } from '@/types';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import { useCanvasFps } from '@/hooks/useCanvasFps';
+import { buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -170,13 +171,15 @@ const StatCard: React.FC<{
   value: React.ReactNode;
   sub?: string;
   onClick?: () => void;
-}> = ({ label, value, sub, onClick }) => (
+  testId?: string;
+}> = ({ label, value, sub, onClick, testId }) => (
   <div
     className={`bg-secondary rounded-lg p-4 flex flex-col gap-1 ${onClick ? 'cursor-pointer hover:ring-1 hover:ring-indigo-400 transition-shadow' : ''}`}
     onClick={onClick}
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+    data-testid={testId}
   >
     <span className="text-xs font-semibold text-secondary uppercase tracking-wide">{label}</span>
     <span className="text-2xl font-bold text-primary">{value}</span>
@@ -442,6 +445,16 @@ const StatsView: React.FC<StatsViewProps> = ({
     });
     return { total: variables.size, persistent, nonPersistent, constants };
   }, [variables]);
+
+  const undefinedVariableCount = useMemo(() => {
+    const known = buildKnownIdentifierSet(analysisResult);
+    const seen = new Set<string>();
+    blocks.forEach(block => {
+      if (!block.content) return;
+      extractUndefinedVariableReferences(block.content, known).forEach(ref => seen.add(ref.name));
+    });
+    return seen.size;
+  }, [blocks, analysisResult]);
 
   const topVariables = useMemo(() => {
     const rows: { name: string; usages: number; type: string }[] = [];
@@ -811,7 +824,7 @@ const StatsView: React.FC<StatsViewProps> = ({
       )}
 
       {/* Variables */}
-      {variableStats.total > 0 && (<>
+      {(variableStats.total > 0 || undefinedVariableCount > 0) && (<>
         <SectionLabel>Variables</SectionLabel>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <StatCard
@@ -833,6 +846,12 @@ const StatsView: React.FC<StatsViewProps> = ({
             label="Constants"
             value={variableStats.constants.toLocaleString()}
             sub="define statements"
+          />
+          <StatCard
+            label="Undefined Variable Usages"
+            value={undefinedVariableCount.toLocaleString()}
+            sub="referenced but never defined"
+            testId="stat-undefined-variables"
           />
         </div>
         {topVariables.length > 0 && (
