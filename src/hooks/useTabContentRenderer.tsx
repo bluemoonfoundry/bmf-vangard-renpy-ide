@@ -299,6 +299,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         onChangeLayoutMode={handleChangeStoryCanvasLayoutMode}
         onChangeGroupingMode={handleChangeStoryCanvasGroupingMode}
         diagnosticsResult={diagnosticsResult}
+        fileSizeThresholds={appSettings.fileSizeThresholds}
       />;
     }
     if (tab.type === 'route-canvas') {
