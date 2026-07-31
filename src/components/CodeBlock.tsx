@@ -273,6 +273,9 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
       }}
       onDoubleClick={() => onOpenEditor(block.id)}
     >
+      {/* Not redundant with FileSizeDot's own green->null check: without this guard, an empty
+          FileSizeTooltip anchor div would still render at green and sit invisibly over the
+          node's top-right corner, catching hover events for no reason. */}
       {fileSizeSeverity !== 'green' && (
         <div className="absolute -top-1.5 -right-1.5 z-20">
           <FileSizeTooltip

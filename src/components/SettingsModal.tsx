@@ -1,8 +1,9 @@
 /**
  * @file SettingsModal.tsx
- * @description Application and project settings dialog (188 lines).
+ * @description Application and project settings dialog.
  * Configures UI preferences (theme, sidebar widths, font), Ren'Py path,
- * project-specific options (draftingMode).
+ * project-specific options (draftingMode), and the file-size warning
+ * thresholds used to color-code graph nodes, tabs, and the status bar.
  * Persists settings to localStorage and project settings file.
  */
 
@@ -40,8 +41,45 @@ const DEFAULT_MOUSE_GESTURES: MouseGestureSettings = {
   zoomScrollSensitivity: 1.0,
 };
 
+type FileSizeThresholdDrafts = { healthy: string; warning: string; critical: string };
+
+function thresholdsToDrafts(thresholds: FileSizeThresholds): FileSizeThresholdDrafts {
+  return {
+    healthy: String(thresholds.healthy),
+    warning: String(thresholds.warning),
+    critical: String(thresholds.critical),
+  };
+}
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const { modalProps, contentRef } = useModalAccessibility({ isOpen, onClose, titleId: 'settings-modal-title' });
+
+  // File-size thresholds are edited via local "draft" string state, decoupled from the
+  // settings.fileSizeThresholds prop, so every keystroke is reflected immediately even
+  // when it produces a transiently non-ascending combination (e.g. typing "5" -> "50" ->
+  // "500" -> "5000" for critical while warning=1000). onSettingsChange only fires when the
+  // three drafts parse to a strictly-ascending, valid combination — invalid combinations
+  // are never persisted, matching the original blocking-validation spec. These hooks must
+  // stay above the `if (!isOpen) return null` below to satisfy the rules of hooks.
+  const committedThresholds: FileSizeThresholds = settings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS;
+  const [draftThresholds, setDraftThresholds] = React.useState<FileSizeThresholdDrafts>(
+    () => thresholdsToDrafts(committedThresholds)
+  );
+  const lastAppliedRef = React.useRef<FileSizeThresholds>(committedThresholds);
+
+  React.useEffect(() => {
+    const last = lastAppliedRef.current;
+    if (
+      committedThresholds.healthy !== last.healthy
+      || committedThresholds.warning !== last.warning
+      || committedThresholds.critical !== last.critical
+    ) {
+      // The prop changed from outside this component (e.g. a Settings Reset action) —
+      // resync the local draft so it doesn't show stale values.
+      setDraftThresholds(thresholdsToDrafts(committedThresholds));
+      lastAppliedRef.current = committedThresholds;
+    }
+  }, [committedThresholds]);
 
   if (!isOpen) {
     return null;
@@ -53,12 +91,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     onSettingsChange('mouseGestures', { ...mouseGestures, [key]: value });
   };
 
-  const fileSizeThresholds: FileSizeThresholds = settings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS;
-  const thresholdsAscending = fileSizeThresholds.healthy < fileSizeThresholds.warning
-    && fileSizeThresholds.warning < fileSizeThresholds.critical;
+  const draftThresholdValues: FileSizeThresholds = {
+    healthy: parseInt(draftThresholds.healthy) || 0,
+    warning: parseInt(draftThresholds.warning) || 0,
+    critical: parseInt(draftThresholds.critical) || 0,
+  };
+  const thresholdsAscending = draftThresholdValues.healthy < draftThresholdValues.warning
+    && draftThresholdValues.warning < draftThresholdValues.critical;
 
-  const handleThresholdChange = (key: keyof FileSizeThresholds, value: number) => {
-    onSettingsChange('fileSizeThresholds', { ...fileSizeThresholds, [key]: value });
+  const handleThresholdChange = (key: keyof FileSizeThresholds, rawValue: string) => {
+    const nextDrafts = { ...draftThresholds, [key]: rawValue };
+    setDraftThresholds(nextDrafts);
+
+    const parsed: FileSizeThresholds = {
+      healthy: parseInt(nextDrafts.healthy) || 0,
+      warning: parseInt(nextDrafts.warning) || 0,
+      critical: parseInt(nextDrafts.critical) || 0,
+    };
+    if (parsed.healthy < parsed.warning && parsed.warning < parsed.critical) {
+      lastAppliedRef.current = parsed;
+      onSettingsChange('fileSizeThresholds', parsed);
+    }
   };
 
   const handleSelectRenpyPath = async () => {
@@ -220,8 +273,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         <input
                             id="threshold-healthy"
                             type="number"
-                            value={fileSizeThresholds.healthy}
-                            onChange={(e) => handleThresholdChange('healthy', parseInt(e.target.value) || 0)}
+                            value={draftThresholds.healthy}
+                            onChange={(e) => handleThresholdChange('healthy', e.target.value)}
                             className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
                             min={1}
                         />
@@ -233,8 +286,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         <input
                             id="threshold-warning"
                             type="number"
-                            value={fileSizeThresholds.warning}
-                            onChange={(e) => handleThresholdChange('warning', parseInt(e.target.value) || 0)}
+                            value={draftThresholds.warning}
+                            onChange={(e) => handleThresholdChange('warning', e.target.value)}
                             className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
                             min={1}
                         />
@@ -246,8 +299,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         <input
                             id="threshold-critical"
                             type="number"
-                            value={fileSizeThresholds.critical}
-                            onChange={(e) => handleThresholdChange('critical', parseInt(e.target.value) || 0)}
+                            value={draftThresholds.critical}
+                            onChange={(e) => handleThresholdChange('critical', e.target.value)}
                             className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
                             min={1}
                         />

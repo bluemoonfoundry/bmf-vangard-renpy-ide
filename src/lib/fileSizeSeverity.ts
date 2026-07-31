@@ -25,14 +25,16 @@ export function getFileSizeSeverity(lineCount: number, thresholds: FileSizeThres
   return 'red';
 }
 
-const SEVERITY_LABELS: Record<FileSizeSeverity, string> = {
+type FileSizeSeverityLabel = 'Ideal' | 'Healthy' | 'Warning' | 'Critical';
+
+const SEVERITY_LABELS: Record<FileSizeSeverity, FileSizeSeverityLabel> = {
   green: 'Ideal',
   yellow: 'Healthy',
   orange: 'Warning',
   red: 'Critical',
 };
 
-export function getFileSizeSeverityLabel(severity: FileSizeSeverity): string {
+export function getFileSizeSeverityLabel(severity: FileSizeSeverity): FileSizeSeverityLabel {
   return SEVERITY_LABELS[severity];
 }
 
