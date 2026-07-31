@@ -75,3 +75,4 @@ docs/marketing/music/
 # (torch/CUDA wheels), machine-specific, and installed via that file's setup
 # instructions, not committed.
 docs/marketing/.venv-chatterbox/
+.worktrees/

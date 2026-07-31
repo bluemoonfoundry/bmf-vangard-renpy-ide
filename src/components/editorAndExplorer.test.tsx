@@ -280,29 +280,33 @@ describe('FileExplorerPanel', () => {
 // EditorView helpers
 // ============================================================================
 
-function createMockEditorInstance(content = '') {
+function createMockEditorInstance(content = '', selectedText = '') {
+  const mockSelection = selectedText ? { isEmpty: () => false } : null;
   const mockModel = {
     getValue: vi.fn(() => content),
     setValue: vi.fn(),
     updateOptions: vi.fn(),
     detectIndentation: vi.fn(),
     getLanguageId: vi.fn(() => 'renpy'),
+    getValueInRange: vi.fn(() => selectedText),
   };
   const mockEd = {
     getValue: vi.fn(() => content),
     getModel: vi.fn(() => mockModel),
     focus: vi.fn(),
     addAction: vi.fn(),
-    createContextKey: vi.fn(() => ({ set: vi.fn(), get: vi.fn(() => false) })),
+    createContextKey: vi.fn((_key: string, _defaultValue: boolean) => ({ set: vi.fn(), get: vi.fn(() => false) })),
     getDomNode: vi.fn(() => null),
     getPosition: vi.fn(() => null),
+    getSelection: vi.fn(() => mockSelection),
     setPosition: vi.fn(),
     revealLineInCenter: vi.fn(),
     deltaDecorations: vi.fn(() => []),
     onDidChangeModelContent: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
-    onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
-    onContextMenu: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeCursorSelection: vi.fn(() => ({ dispose: vi.fn() })),
+    onMouseDown: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
+    onContextMenu: vi.fn((_listener: (e: unknown) => void) => ({ dispose: vi.fn() })),
     pushUndoStop: vi.fn(),
     executeEdits: vi.fn(),
   };
@@ -374,6 +378,9 @@ function makeEditorViewProps(overrides = {}) {
     onEditorMount: vi.fn(),
     onEditorUnmount: vi.fn(),
     onWarpToLabel: vi.fn(),
+    onCreateFileFromSelection: vi.fn(),
+    onCreateVariableFromSelection: vi.fn(),
+    onCreateCharacterFromSelection: vi.fn(),
     draftingMode: false,
     existingImageTags: new Set<string>(),
     existingAudioPaths: new Set<string>(),
@@ -535,6 +542,117 @@ describe('EditorView', () => {
     const props = makeEditorViewProps();
     const { mockEd } = await renderAndMount(props);
     expect(mockEd.createContextKey).toHaveBeenCalledWith('renpyCanWarpHere', false);
+  });
+
+  it('creates the has-selection context key on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    expect(mockEd.createContextKey).toHaveBeenCalledWith('renpyHasSelection', false);
+  });
+
+  it('registers the three create-from-selection actions on mount', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    const actionIds = mockEd.addAction.mock.calls.map((c: unknown[]) => (c[0] as { id: string }).id);
+    expect(actionIds).toContain('create-file-from-selection');
+    expect(actionIds).toContain('create-variable-from-selection');
+    expect(actionIds).toContain('create-character-from-selection');
+  });
+
+  it('gates the three create-from-selection actions on renpyHasSelection', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd } = await renderAndMount(props);
+    const actions = mockEd.addAction.mock.calls.map((c: unknown[]) => c[0] as { id: string; precondition?: string });
+    const gated = actions.filter(a => ['create-file-from-selection', 'create-variable-from-selection', 'create-character-from-selection'].includes(a.id));
+    expect(gated).toHaveLength(3);
+    gated.forEach(a => expect(a.precondition).toBe('renpyHasSelection'));
+  });
+
+  it('calls onCreateFileFromSelection with blockId and selected text when the action runs', async () => {
+    const onCreateFileFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateFileFromSelection });
+    const { mockEd } = await renderAndMount({ ...props, block: { ...props.block, content: 'label start:\n    "the golden sword"\n    return\n' } });
+    // Re-render/mount already happened; simulate a selection on this editor instance.
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('the golden sword');
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-file-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateFileFromSelection).toHaveBeenCalledWith('block-1', 'the golden sword');
+  });
+
+  it('calls onCreateVariableFromSelection with selected text when the action runs', async () => {
+    const onCreateVariableFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateVariableFromSelection });
+    const { mockEd } = await renderAndMount(props);
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('player_score');
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-variable-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateVariableFromSelection).toHaveBeenCalledWith('player_score');
+  });
+
+  it('calls onCreateCharacterFromSelection with selected text when the action runs', async () => {
+    const onCreateCharacterFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateCharacterFromSelection });
+    const { mockEd } = await renderAndMount(props);
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('Captain Rex');
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-character-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateCharacterFromSelection).toHaveBeenCalledWith('Captain Rex');
+  });
+
+  it('does not call the callback when selection is empty', async () => {
+    const onCreateVariableFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateVariableFromSelection });
+    const { mockEd } = await renderAndMount(props);
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-variable-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateVariableFromSelection).not.toHaveBeenCalled();
+  });
+
+  it('syncs renpyHasSelection context key on context menu open', async () => {
+    const props = makeEditorViewProps();
+    const { mockEd, mockMonaco } = await renderAndMount(props);
+    const hasSelectionKey = mockEd.createContextKey.mock.results.find(
+      (r: { value: unknown }, i: number) => mockEd.createContextKey.mock.calls[i][0] === 'renpyHasSelection'
+    )?.value as { set: ReturnType<typeof vi.fn> };
+    const contextMenuListener = mockEd.onContextMenu.mock.calls[0][0] as (e: unknown) => void;
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('selected text');
+    act(() => { contextMenuListener({ target: { position: null } }); });
+    expect(hasSelectionKey.set).toHaveBeenCalledWith(true);
+    void mockMonaco;
+  });
+
+  it('still shows the selection actions when Monaco collapses the selection on right-click before onContextMenu fires', async () => {
+    // Real Monaco collapses the selection to a cursor at the click point on right-click
+    // mousedown (before the contextmenu event), so editor.getSelection() is already empty
+    // by the time onContextMenu and action.run() read it. The fix stashes the pre-collapse
+    // selection in onMouseDown and falls back to it in both places.
+    const onCreateVariableFromSelection = vi.fn();
+    const props = makeEditorViewProps({ onCreateVariableFromSelection });
+    const { mockEd } = await renderAndMount(props);
+    const hasSelectionKey = mockEd.createContextKey.mock.results.find(
+      (r: { value: unknown }, i: number) => mockEd.createContextKey.mock.calls[i][0] === 'renpyHasSelection'
+    )?.value as { set: ReturnType<typeof vi.fn> };
+    const mouseDownListener = mockEd.onMouseDown.mock.calls[0][0] as (e: unknown) => void;
+    const contextMenuListener = mockEd.onContextMenu.mock.calls[0][0] as (e: unknown) => void;
+
+    // Right-click mousedown while text is genuinely selected.
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => false });
+    (mockEd.getModel() as { getValueInRange: ReturnType<typeof vi.fn> }).getValueInRange.mockReturnValue('player_score');
+    act(() => { mouseDownListener({ event: { rightButton: true } }); });
+
+    // Monaco then collapses the selection before contextmenu fires.
+    (mockEd.getSelection as ReturnType<typeof vi.fn>).mockReturnValue({ isEmpty: () => true });
+    act(() => { contextMenuListener({ target: { position: null } }); });
+    expect(hasSelectionKey.set).toHaveBeenCalledWith(true);
+
+    const action = mockEd.addAction.mock.calls.find((c: unknown[]) => (c[0] as { id: string }).id === 'create-variable-from-selection')?.[0] as { run: (ed: unknown) => void };
+    action.run(mockEd);
+    expect(onCreateVariableFromSelection).toHaveBeenCalledWith('player_score');
   });
 
   it('calls onEditorUnmount after mount + unmount', async () => {

@@ -272,13 +272,33 @@ describe('ExternalChangesBanner', () => {
     expect(screen.getByText('Keep current')).toBeTruthy();
   });
 
-  it('calls onReload with the item when Reload is clicked', async () => {
+  it('does not call onReload immediately when Reload is clicked', async () => {
     const onReload = vi.fn();
     const user = userEvent.setup();
     const item = { relativePath: 'scripts/scene.rpy' };
     render(<ExternalChangesBanner items={[item]} onReload={onReload} onKeep={vi.fn()} />);
     await user.click(screen.getByText('Reload'));
+    expect(onReload).not.toHaveBeenCalled();
+  });
+
+  it('calls onReload with the item only after confirming discard', async () => {
+    const onReload = vi.fn();
+    const user = userEvent.setup();
+    const item = { relativePath: 'scripts/scene.rpy' };
+    render(<ExternalChangesBanner items={[item]} onReload={onReload} onKeep={vi.fn()} />);
+    await user.click(screen.getByText('Reload'));
+    await user.click(screen.getByRole('button', { name: 'Discard Changes' }));
     expect(onReload).toHaveBeenCalledWith(item);
+  });
+
+  it('does not call onReload when the confirmation dialog is cancelled', async () => {
+    const onReload = vi.fn();
+    const user = userEvent.setup();
+    const item = { relativePath: 'scripts/scene.rpy' };
+    render(<ExternalChangesBanner items={[item]} onReload={onReload} onKeep={vi.fn()} />);
+    await user.click(screen.getByText('Reload'));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onReload).not.toHaveBeenCalled();
   });
 
   it('calls onKeep with relativePath when Keep current is clicked', async () => {

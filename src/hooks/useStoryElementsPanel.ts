@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
 import type React from 'react';
-import type { Block, RenpyAnalysisResult, Variable, FileSystemTreeNode } from '@/types';
+import type { Block, RenpyAnalysisResult, Variable, FileSystemTreeNode, Position } from '@/types';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 
 export interface UseStoryElementsPanelParams {
   blocks: Block[];
   analysisResult: RenpyAnalysisResult;
   updateBlock: (id: string, data: Partial<Block>) => void;
-  addBlock: (filePath: string, content: string) => void;
+  addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => void;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   setHoverHighlightIds: React.Dispatch<React.SetStateAction<Set<string> | null>>;
   projectRootPath: string | null;
@@ -16,7 +16,7 @@ export interface UseStoryElementsPanelParams {
 }
 
 export interface UseStoryElementsPanelReturn {
-  handleAddVariable: (v: { name: string; initialValue: string }) => Promise<void>;
+  handleAddVariable: (v: { name: string; type: 'define' | 'default'; initialValue: string }) => Promise<void>;
   handleEditVariable: (oldName: string, updated: Omit<Variable, 'definedInBlockId' | 'line'>) => void;
   handleFindScreenDefinition: (name: string) => void;
   handleHoverHighlightStart: (key: string, type: 'character' | 'variable') => void;
@@ -29,8 +29,8 @@ export function useStoryElementsPanel({
   projectRootPath, addToast, handleOpenEditor,
 }: UseStoryElementsPanelParams): UseStoryElementsPanelReturn {
 
-  const handleAddVariable = useCallback(async (v: { name: string; initialValue: string }) => {
-    const varContent = `default ${v.name} = ${v.initialValue}\n`;
+  const handleAddVariable = useCallback(async (v: { name: string; type: 'define' | 'default'; initialValue: string }) => {
+    const varContent = `${v.type} ${v.name} = ${v.initialValue}\n`;
     const targetFile = 'game/variables.rpy';
     const existing = blocks.find(b => b.filePath === targetFile);
     if (existing) {
@@ -41,7 +41,7 @@ export function useStoryElementsPanel({
         const fullPath = await window.electronAPI.path.join(projectRootPath, 'game', 'variables.rpy') as string;
         const res = await window.electronAPI.writeFile(fullPath, varContent);
         if (res.success) {
-          addBlock(targetFile, varContent);
+          addBlock(targetFile, varContent, undefined, { markDirty: false });
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
           addToast(`Created variables.rpy and added variable ${v.name}`, 'success');

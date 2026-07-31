@@ -13,6 +13,7 @@ import {
 import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute, ProjectImage, ImageMetadata, RenpyAudio } from '@/types';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import { useCanvasFps } from '@/hooks/useCanvasFps';
+import { buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -170,13 +171,15 @@ const StatCard: React.FC<{
   value: React.ReactNode;
   sub?: string;
   onClick?: () => void;
-}> = ({ label, value, sub, onClick }) => (
+  testId?: string;
+}> = ({ label, value, sub, onClick, testId }) => (
   <div
     className={`bg-secondary rounded-lg p-4 flex flex-col gap-1 ${onClick ? 'cursor-pointer hover:ring-1 hover:ring-indigo-400 transition-shadow' : ''}`}
     onClick={onClick}
     role={onClick ? 'button' : undefined}
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+    data-testid={testId}
   >
     <span className="text-xs font-semibold text-secondary uppercase tracking-wide">{label}</span>
     <span className="text-2xl font-bold text-primary">{value}</span>
@@ -400,7 +403,8 @@ const StatsView: React.FC<StatsViewProps> = ({
         if (!block) return;
         const scriptLines = block.content.split('\n');
         lines.forEach(dl => {
-          const rawLine = scriptLines[dl.line] ?? '';
+          // dl.line is 1-based (matches Monaco's line numbering); scriptLines is 0-indexed.
+          const rawLine = scriptLines[dl.line - 1] ?? '';
           const m = rawLine.match(DIALOGUE_RE);
           if (!m) return;
           const wordCount = m[1].trim().split(/\s+/).filter(Boolean).length;
@@ -428,19 +432,32 @@ const StatsView: React.FC<StatsViewProps> = ({
 
   const variableStats = useMemo(() => {
     let persistent = 0;
-    let nonPersistent = 0;
+    let defaulted = 0;
+    let implicit = 0;
     let constants = 0;
     variables.forEach(v => {
       if (v.name.startsWith('persistent.')) {
         persistent++;
       } else if (v.type === 'define') {
         constants++;
+      } else if (v.type === 'implicit') {
+        implicit++;
       } else {
-        nonPersistent++;
+        defaulted++;
       }
     });
-    return { total: variables.size, persistent, nonPersistent, constants };
+    return { total: variables.size, persistent, defaulted, implicit, constants };
   }, [variables]);
+
+  const undefinedVariableCount = useMemo(() => {
+    const known = buildKnownIdentifierSet(analysisResult);
+    const seen = new Set<string>();
+    blocks.forEach(block => {
+      if (!block.content) return;
+      extractUndefinedVariableReferences(block.content, known).forEach(ref => seen.add(ref.name));
+    });
+    return seen.size;
+  }, [blocks, analysisResult]);
 
   const topVariables = useMemo(() => {
     const rows: { name: string; usages: number; type: string }[] = [];
@@ -810,7 +827,7 @@ const StatsView: React.FC<StatsViewProps> = ({
       )}
 
       {/* Variables */}
-      {variableStats.total > 0 && (<>
+      {(variableStats.total > 0 || undefinedVariableCount > 0) && (<>
         <SectionLabel>Variables</SectionLabel>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <StatCard
@@ -824,14 +841,25 @@ const StatsView: React.FC<StatsViewProps> = ({
             sub="saved between sessions"
           />
           <StatCard
-            label="Non-persistent"
-            value={variableStats.nonPersistent.toLocaleString()}
-            sub="reset on new game"
+            label="Default"
+            value={variableStats.defaulted.toLocaleString()}
+            sub="default statements"
+          />
+          <StatCard
+            label="Implicit"
+            value={variableStats.implicit.toLocaleString()}
+            sub="$ assignments, not real defaults"
           />
           <StatCard
             label="Constants"
             value={variableStats.constants.toLocaleString()}
             sub="define statements"
+          />
+          <StatCard
+            label="Undefined Variables"
+            value={undefinedVariableCount.toLocaleString()}
+            sub="referenced but never defined"
+            testId="stat-undefined-variables"
           />
         </div>
         {topVariables.length > 0 && (

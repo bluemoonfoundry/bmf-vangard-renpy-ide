@@ -28,7 +28,7 @@ export interface UseCharacterManagementProps {
 }
 
 export interface UseCharacterManagementReturn {
-  handleOpenCharacterEditor: (tag: string) => void;
+  handleOpenCharacterEditor: (tag: string, prefill?: { initialTag: string; initialName: string }) => void;
   handleUpdateCharacter: (char: Character, oldTag?: string) => Promise<void>;
 }
 
@@ -54,11 +54,16 @@ export function useCharacterManagement({
   setActivePaneId,
 }: UseCharacterManagementProps): UseCharacterManagementReturn {
 
-  const handleOpenCharacterEditor = useCallback((tag: string) => {
+  const handleOpenCharacterEditor = useCallback((tag: string, prefill?: { initialTag: string; initialName: string }) => {
     const tabId = `char-${tag}`;
     if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
     if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
-    const newTab: EditorTab = { id: tabId, type: 'character', characterTag: tag };
+    const newTab: EditorTab = {
+      id: tabId,
+      type: 'character',
+      characterTag: tag,
+      ...(prefill && { initialCharacterTag: prefill.initialTag, initialCharacterName: prefill.initialName }),
+    };
     if (activePaneId === 'secondary' && splitLayout !== 'none') {
       setSecondaryOpenTabs(prev => [...prev, newTab]);
       setSecondaryActiveTabId(tabId);

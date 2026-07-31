@@ -176,6 +176,7 @@ function makeHookParams(overrides: Partial<UseFileSystemManagerParams> = {}): Us
     setFileSystemTree: vi.fn(),
     blocks: [],
     addBlock: vi.fn(),
+    updateBlock: vi.fn(),
     deleteBlock: vi.fn(),
     clipboard: null,
     setClipboard: vi.fn(),
@@ -227,7 +228,7 @@ describe('useFileSystemManager — handleCreateNode', () => {
     await act(async () => {
       await result.current.handleCreateNode('game', 'chapter2.rpy', 'file');
     });
-    expect(addBlock).toHaveBeenCalledWith('game/chapter2.rpy', '');
+    expect(addBlock).toHaveBeenCalledWith('game/chapter2.rpy', '', undefined, { markDirty: false });
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('chapter2.rpy'), 'success');
   });
 
@@ -251,6 +252,33 @@ describe('useFileSystemManager — handleCreateNode', () => {
       await result.current.handleCreateNode('game', 'new.rpy', 'file');
     });
     expect(api.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('returns the new block id and relative path when creating an .rpy file', async () => {
+    const addBlock = vi.fn(() => 'new-block-id');
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ addBlock }))
+    );
+
+    let created;
+    await act(async () => {
+      created = await result.current.handleCreateNode('game', 'chapter_two.rpy', 'file');
+    });
+
+    expect(created).toEqual({ blockId: 'new-block-id', relativePath: 'game/chapter_two.rpy' });
+  });
+
+  it('returns a null blockId when creating a non-.rpy file', async () => {
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams())
+    );
+
+    let created;
+    await act(async () => {
+      created = await result.current.handleCreateNode('game', 'notes.txt', 'file');
+    });
+
+    expect(created).toEqual({ blockId: null, relativePath: 'game/notes.txt' });
   });
 });
 
@@ -288,6 +316,45 @@ describe('useFileSystemManager — handleRenameNode', () => {
       await result.current.handleRenameNode('game/script.rpy', 'newname.rpy');
     });
     expect(addToast).toHaveBeenCalledWith('Failed to rename file', 'error');
+  });
+
+  it('updates the filePath/title of the block matching the renamed file', async () => {
+    const updateBlock = vi.fn();
+    const block = createBlock({ id: 'block-1', filePath: 'game/script.rpy', title: 'script.rpy' });
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [block], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleRenameNode('game/script.rpy', 'chapter1.rpy');
+    });
+    expect(updateBlock).toHaveBeenCalledWith('block-1', { filePath: 'game/chapter1.rpy', title: 'chapter1.rpy' });
+  });
+
+  it('updates filePaths of descendant blocks when a folder is renamed', async () => {
+    const updateBlock = vi.fn();
+    const blockA = createBlock({ id: 'block-a', filePath: 'game/chapter1/scene1.rpy', title: 'scene1.rpy' });
+    const blockB = createBlock({ id: 'block-b', filePath: 'game/chapter1/scene2.rpy', title: 'scene2.rpy' });
+    const unrelated = createBlock({ id: 'block-c', filePath: 'game/other.rpy', title: 'other.rpy' });
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [blockA, blockB, unrelated], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleRenameNode('game/chapter1', 'chapter1-renamed');
+    });
+    expect(updateBlock).toHaveBeenCalledWith('block-a', { filePath: 'game/chapter1-renamed/scene1.rpy', title: 'scene1.rpy' });
+    expect(updateBlock).toHaveBeenCalledWith('block-b', { filePath: 'game/chapter1-renamed/scene2.rpy', title: 'scene2.rpy' });
+    expect(updateBlock).not.toHaveBeenCalledWith('block-c', expect.anything());
+  });
+
+  it('does not call updateBlock when no block matches the renamed path', async () => {
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleRenameNode('game/untracked.txt', 'renamed.txt');
+    });
+    expect(updateBlock).not.toHaveBeenCalled();
   });
 });
 

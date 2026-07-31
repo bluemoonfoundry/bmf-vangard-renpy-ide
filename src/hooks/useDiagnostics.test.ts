@@ -292,6 +292,59 @@ describe('useDiagnostics', () => {
     });
   });
 
+  describe('undefined variables', () => {
+    it('generates a warning when [interpolation] references an undefined variable', () => {
+      const blocks = [createBlock({
+        id: 'b1',
+        content: 'label start:\n    "Hello [player_nmae]!"\n',
+        filePath: 'game/script.rpy',
+      })];
+      const analysis = createEmptyAnalysisResult();
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const varIssues = result.current.issues.filter(i => i.category === 'undefined-variable');
+      expect(varIssues).toHaveLength(1);
+      expect(varIssues[0].severity).toBe('warning');
+      expect(varIssues[0].message).toContain('player_nmae');
+      expect(varIssues[0].line).toBe(2);
+    });
+
+    it('does not flag a variable that is defined', () => {
+      const blocks = [createBlock({
+        id: 'b1',
+        content: 'label start:\n    "Hello [player_name]!"\n',
+        filePath: 'game/script.rpy',
+      })];
+      const analysis = createEmptyAnalysisResult({
+        variables: new Map([['player_name', createVariable({ name: 'player_name' })]]),
+      });
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      expect(result.current.issues.filter(i => i.category === 'undefined-variable')).toHaveLength(0);
+    });
+
+    it('deduplicates repeated references to the same undefined variable', () => {
+      const blocks = [createBlock({
+        id: 'b1',
+        content: 'label start:\n    if has_flag:\n        "Set: [has_flag]"\n',
+        filePath: 'game/script.rpy',
+      })];
+      const analysis = createEmptyAnalysisResult();
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      expect(result.current.issues.filter(i => i.category === 'undefined-variable' && i.message.includes('has_flag'))).toHaveLength(1);
+    });
+  });
+
   describe('unused variables', () => {
     it('generates an info issue when a story-block variable is unused', () => {
       const variable = createVariable({ name: 'unused_var', definedInBlockId: 'b1', type: 'default', initialValue: '0', line: 2 });

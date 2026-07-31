@@ -28,6 +28,7 @@ import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
+import { findRegexMatchesInLine } from './src/lib/regexLineSearch.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
 
@@ -315,14 +316,19 @@ async function run() {
             } else if (entry.isFile()) {
                 if (/\.(rpy)$/i.test(entry.name)) {
                     rpyPaths.push({ fullPath, relativePath });
-                } else if (/\.(png|jpe?g|webp)$/i.test(entry.name)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.images.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
-                } else if (/\.(mp3|ogg|wav|opus)$/i.test(entry.name)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.audios.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                } else if (relativePath.startsWith('game/')) {
+                    // Project assets (images/audio) are only recognized inside game/ --
+                    // media files elsewhere in the project root (docs, marketing assets,
+                    // etc.) are not part of the Ren'Py project and must not be scanned in.
+                    if (/\.(png|jpe?g|webp)$/i.test(entry.name)) {
+                        const stats = await fs.stat(fullPath);
+                        const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
+                        results.images.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                    } else if (/\.(mp3|ogg|wav|opus)$/i.test(entry.name)) {
+                        const stats = await fs.stat(fullPath);
+                        const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
+                        results.audios.push({ path: relativePath, dataUrl: mediaUrl, lastModified: stats.mtimeMs, size: stats.size });
+                    }
                 }
             }
             children.push(childNode);
@@ -863,18 +869,13 @@ async function searchInDirectory(directory, query, options) {
             }
 
             try {
-              const regex = new RegExp(searchPattern, flags);
-
               for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  let match;
-                  while ((match = regex.exec(line)) !== null) {
-                      matches.push({
-                          lineNumber: i + 1,
-                          lineContent: line,
-                          startColumn: match.index + 1,
-                          endColumn: match.index + match[0].length + 1,
-                      });
+                  // A fresh RegExp per line resets lastIndex, since findRegexMatchesInLine
+                  // mutates it while walking zero-width matches (e.g. `/$/g`, `/^/g`).
+                  const regex = new RegExp(searchPattern, flags);
+                  for (const lineMatch of findRegexMatchesInLine(line, regex)) {
+                      matches.push({ lineNumber: i + 1, lineContent: line, ...lineMatch });
                   }
               }
             } catch (e) {
