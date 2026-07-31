@@ -61,12 +61,15 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     if (items.length === 0) return fallback;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let maxItemWidth = 0, maxItemHeight = 0;
     items.forEach(item => {
       if (item.type === 'group') return;
       minX = Math.min(minX, item.position.x);
       minY = Math.min(minY, item.position.y);
       maxX = Math.max(maxX, item.position.x + item.width);
       maxY = Math.max(maxY, item.position.y + item.height);
+      maxItemWidth = Math.max(maxItemWidth, item.width);
+      maxItemHeight = Math.max(maxItemHeight, item.height);
     });
     if (!isFinite(minX)) return fallback;
 
@@ -82,9 +85,16 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     );
     // Scale that would fill MIN_HEIGHT_FILL of the panel height.
     const minFillScale = (MINIMAP_HEIGHT * MIN_HEIGHT_FILL) / contentHeight;
+    // Cap how far we bump the scale so no single item's box can dominate the
+    // panel — the default flow-lr layout chains blocks left-to-right, making
+    // this wide/short shape the common case, not just an extreme outlier.
+    const maxItemScale = Math.min(
+      maxItemWidth > 0 ? (MINIMAP_WIDTH * 0.5) / maxItemWidth : Infinity,
+      maxItemHeight > 0 ? (MINIMAP_HEIGHT * 0.5) / maxItemHeight : Infinity,
+    );
 
     const useFollow = naturalScale < minFillScale;
-    const scale = useFollow ? minFillScale : naturalScale;
+    const scale = useFollow ? Math.min(minFillScale, maxItemScale) : naturalScale;
 
     return {
       bounds: { minX, minY, width: contentWidth, height: contentHeight },
