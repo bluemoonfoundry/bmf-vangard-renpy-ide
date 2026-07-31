@@ -300,6 +300,102 @@ describe('SettingsModal', () => {
     }));
   });
 
+  // ── File size thresholds ───────────────────────────────────────────────────
+
+  it('shows default threshold values when settings has none set', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect((screen.getByLabelText('Healthy starts at') as HTMLInputElement).value).toBe('500');
+    expect((screen.getByLabelText('Warning starts at') as HTMLInputElement).value).toBe('1000');
+    expect((screen.getByLabelText('Critical starts at') as HTMLInputElement).value).toBe('1500');
+  });
+
+  it('shows custom threshold values from settings', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={{ ...defaultSettings, fileSizeThresholds: { healthy: 100, warning: 200, critical: 300 } }}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect((screen.getByLabelText('Healthy starts at') as HTMLInputElement).value).toBe('100');
+    expect((screen.getByLabelText('Warning starts at') as HTMLInputElement).value).toBe('200');
+    expect((screen.getByLabelText('Critical starts at') as HTMLInputElement).value).toBe('300');
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Healthy input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Healthy starts at'), { target: { value: '400' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 400, warning: 1000, critical: 1500 });
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Warning input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Warning starts at'), { target: { value: '900' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 500, warning: 900, critical: 1500 });
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Critical input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Critical starts at'), { target: { value: '2000' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 500, warning: 1000, critical: 2000 });
+  });
+
+  it('shows a warning message when thresholds are not strictly ascending', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={{ ...defaultSettings, fileSizeThresholds: { healthy: 900, warning: 500, critical: 1500 } }}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Thresholds should increase from Healthy to Warning to Critical.')).toBeInTheDocument();
+  });
+
+  it('does not show a warning message when thresholds are valid', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Thresholds should increase from Healthy to Warning to Critical.')).not.toBeInTheDocument();
+  });
+
   // ── Ren'Py SDK path (requires electronAPI) ─────────────────────────────────
 
   it('shows Ren\'Py SDK section when electronAPI is present', () => {

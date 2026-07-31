@@ -8,7 +8,8 @@
 
 import React from 'react';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
-import type { Theme, IdeSettings, MouseGestureSettings, CanvasPanGesture } from '@/types';
+import type { Theme, IdeSettings, MouseGestureSettings, CanvasPanGesture, FileSizeThresholds } from '@/types';
+import { DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -50,6 +51,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
   const handleMouseGestureChange = (key: keyof MouseGestureSettings, value: MouseGestureSettings[keyof MouseGestureSettings]) => {
     onSettingsChange('mouseGestures', { ...mouseGestures, [key]: value });
+  };
+
+  const fileSizeThresholds: FileSizeThresholds = settings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS;
+  const thresholdsAscending = fileSizeThresholds.healthy < fileSizeThresholds.warning
+    && fileSizeThresholds.warning < fileSizeThresholds.critical;
+
+  const handleThresholdChange = (key: keyof FileSizeThresholds, value: number) => {
+    onSettingsChange('fileSizeThresholds', { ...fileSizeThresholds, [key]: value });
   };
 
   const handleSelectRenpyPath = async () => {
@@ -195,6 +204,60 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="border-t border-primary"></div>
+            <div>
+                <h3 className="text-sm font-medium text-primary mb-3">File Size Warnings</h3>
+                <p className="text-xs text-secondary mb-3">
+                    Line-count thresholds used to color-code file size on the graph, tabs, and status bar.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label htmlFor="threshold-healthy" className="block text-xs font-medium text-secondary mb-1">
+                            Healthy starts at
+                        </label>
+                        <input
+                            id="threshold-healthy"
+                            type="number"
+                            value={fileSizeThresholds.healthy}
+                            onChange={(e) => handleThresholdChange('healthy', parseInt(e.target.value) || 0)}
+                            className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
+                            min={1}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="threshold-warning" className="block text-xs font-medium text-secondary mb-1">
+                            Warning starts at
+                        </label>
+                        <input
+                            id="threshold-warning"
+                            type="number"
+                            value={fileSizeThresholds.warning}
+                            onChange={(e) => handleThresholdChange('warning', parseInt(e.target.value) || 0)}
+                            className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
+                            min={1}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="threshold-critical" className="block text-xs font-medium text-secondary mb-1">
+                            Critical starts at
+                        </label>
+                        <input
+                            id="threshold-critical"
+                            type="number"
+                            value={fileSizeThresholds.critical}
+                            onChange={(e) => handleThresholdChange('critical', parseInt(e.target.value) || 0)}
+                            className="w-full p-2 rounded bg-tertiary border border-primary focus:ring-accent focus:border-accent text-sm text-primary"
+                            min={1}
+                        />
+                    </div>
+                </div>
+                {!thresholdsAscending && (
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-2">
+                        Thresholds should increase from Healthy to Warning to Critical.
+                    </p>
+                )}
             </div>
 
             {window.electronAPI && (
