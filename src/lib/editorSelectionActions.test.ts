@@ -81,4 +81,14 @@ describe('sanitizeFileName', () => {
   it('does not reject names that merely contain a reserved name as a substring', () => {
     expect(sanitizeFileName('CONtroller')).toBe('CONtroller');
   });
+
+  it('trims trailing dots and spaces (Windows strips these silently)', () => {
+    expect(sanitizeFileName('chapter_one...')).toBe('chapter_one');
+    expect(sanitizeFileName('chapter_one   ')).toBe('chapter_one');
+    expect(sanitizeFileName('chapter_one. .')).toBe('chapter_one');
+  });
+
+  it('returns empty string when only trailing dots/spaces survive sanitization', () => {
+    expect(sanitizeFileName('...')).toBe('');
+  });
 });
