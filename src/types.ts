@@ -704,7 +704,22 @@ export type Theme = 'system' | 'light' | 'dark' | 'solarized-light' | 'solarized
  * @property {string} editorFontFamily - Font family for code editor
  * @property {number} editorFontSize - Font size for code editor (pixels)
  * @property {Record<string, boolean>} [snippetCategoriesState] - Collapsed/expanded state of snippet categories
+ * @property {FileSizeThresholds} [fileSizeThresholds] - Line-count thresholds for the file-size warning indicators
  */
+
+/**
+ * User-configurable line-count thresholds for the file-size warning system.
+ * Three ascending cutoffs define four severity zones: Green (Ideal) up to
+ * `healthy`, Yellow (Healthy) up to `warning`, Orange (Warning) up to
+ * `critical`, Red (Critical) above `critical`.
+ * @interface FileSizeThresholds
+ */
+export interface FileSizeThresholds {
+  healthy: number;
+  warning: number;
+  critical: number;
+}
+
 export interface AppSettings {
   theme: Theme;
   isLeftSidebarOpen: boolean;
@@ -719,6 +734,7 @@ export interface AppSettings {
   userSnippets?: UserSnippet[];
   menuTemplates?: MenuTemplate[];
   lastProjectDir?: string;
+  fileSizeThresholds?: FileSizeThresholds;
 }
 
 /**
