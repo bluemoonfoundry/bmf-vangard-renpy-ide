@@ -87,6 +87,7 @@ import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
 import { sanitizeFileName, sanitizeIdentifier } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
+import { DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
@@ -1207,6 +1208,13 @@ const App: React.FC = () => {
   const activeCanvasTabId = activeTabId === 'canvas' || activeTabId === 'route-canvas' || activeTabId === 'choice-canvas'
     ? activeTabId : null;
 
+  const activeFileBlock = useMemo(() => {
+    const activeEditorTab = openTabs.find(t => t.id === activeTabId && t.type === 'editor');
+    if (!activeEditorTab?.blockId) return null;
+    return blocks.find(b => b.id === activeEditorTab.blockId) ?? null;
+  }, [openTabs, activeTabId, blocks]);
+  const activeFileLineCount = activeFileBlock ? activeFileBlock.content.split('\n').length : null;
+
   const { goToLabelItems, goToLabelCanvasName, warpLabelItems, handleGoToLabel } = useGoToLabel({
     activeCanvasTabId,
     analysisResult,
@@ -2040,6 +2048,8 @@ const App: React.FC = () => {
               onOpenScreenshotsFolder={handleOpenScreenshotsFolder}
               onClearScreenshots={handleClearScreenshots}
               onCopyLatestScreenshotPath={handleCopyLatestScreenshotPath}
+              activeFileLineCount={activeFileLineCount}
+              fileSizeThresholds={appSettings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS}
           />
 
         </div>

@@ -6,6 +6,8 @@
  * Integration: rendered at the bottom of `App.tsx`; all props are derived from top-level app state.
  */
 import React from 'react';
+import type { FileSizeThresholds } from '@/types';
+import { getFileSizeSeverity, getFileSizeSeverityLabel, getFileSizeSeverityTextClass } from '@/lib/fileSizeSeverity';
 
 interface StatusBarProps {
   isAnalysisPending: boolean;
@@ -18,6 +20,8 @@ interface StatusBarProps {
   onOpenScreenshotsFolder?: () => void;
   onClearScreenshots?: () => void;
   onCopyLatestScreenshotPath?: () => void;
+  activeFileLineCount: number | null;
+  fileSizeThresholds: FileSizeThresholds;
 }
 
 const Spinner: React.FC = () => (
@@ -38,6 +42,8 @@ const StatusBar: React.FC<StatusBarProps> = ({
   onOpenScreenshotsFolder,
   onClearScreenshots,
   onCopyLatestScreenshotPath,
+  activeFileLineCount,
+  fileSizeThresholds,
 }) => {
   const [showContextMenu, setShowContextMenu] = React.useState(false);
   const contextMenuRef = React.useRef<HTMLDivElement>(null);
@@ -147,6 +153,14 @@ const StatusBar: React.FC<StatusBarProps> = ({
             {warningCount} warning{warningCount !== 1 ? 's' : ''}
           </span>
         )}
+        {activeFileLineCount !== null && (() => {
+          const severity = getFileSizeSeverity(activeFileLineCount, fileSizeThresholds);
+          return (
+            <span className={`flex items-center gap-1 ${getFileSizeSeverityTextClass(severity)}`}>
+              {activeFileLineCount.toLocaleString()} lines ({getFileSizeSeverityLabel(severity)})
+            </span>
+          );
+        })()}
         <span>{blockCount} file{blockCount !== 1 ? 's' : ''}</span>
         <span className="border-l border-primary pl-3 opacity-50">
           v{process.env.APP_VERSION}
