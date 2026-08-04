@@ -86,6 +86,7 @@ import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
+import { pruneOrphanedEditorTabs } from '@/lib/tabReconciliation';
 import { sanitizeFileName, sanitizeIdentifier } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
 import { DEFAULT_FILE_SIZE_THRESHOLDS, getLineCount } from '@/lib/fileSizeSeverity';
@@ -851,6 +852,7 @@ const App: React.FC = () => {
     appSettings, storyCanvasTransform,
     setCenterOnBlockRequest, setFlashBlockRequest, setSelectedBlockIds,
     activeTabId, setActiveTabId, setOpenTabs,
+    secondaryActiveTabId, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setActivePaneId,
     fileSystemTree, setFileSystemTree,
     projectRootPath, explorerSelectedPaths,
     openCreateBlockModal, openDeleteConfirmModal,
@@ -1140,6 +1142,36 @@ const App: React.FC = () => {
     openUnsavedChangesModal, closeUnsavedChangesModal,
     handleSaveAll, setHasUnsavedSettings,
   });
+
+  // Safety net: an 'editor' tab whose blockId no longer resolves in blocks[] (e.g. the
+  // block was deleted/replaced through a path that didn't reconcile tabs) used to render
+  // as a blank pane mislabeled "Untitled" (see useTabContentRenderer's blockId-not-found
+  // fallback) instead of being closed. Prune those tabs whenever blocks changes.
+  useEffect(() => {
+    const blockIds = new Set(blocks.map(b => b.id));
+
+    setOpenTabs(prev => {
+      const { tabs: next, changed } = pruneOrphanedEditorTabs(prev, blockIds);
+      if (!changed) return prev;
+      if (activeTabId && !next.some(t => t.id === activeTabId)) {
+        setActiveTabId(next[0]?.id ?? 'canvas');
+      }
+      return next;
+    });
+
+    setSecondaryOpenTabs(prev => {
+      const { tabs: next, changed } = pruneOrphanedEditorTabs(prev, blockIds);
+      if (!changed) return prev;
+      if (next.length === 0) {
+        setSplitLayout('none');
+        setActivePaneId('primary');
+        setSecondaryActiveTabId('');
+      } else if (secondaryActiveTabId && !next.some(t => t.id === secondaryActiveTabId)) {
+        setSecondaryActiveTabId(next[0].id);
+      }
+      return next;
+    });
+  }, [blocks, activeTabId, secondaryActiveTabId, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setSplitLayout, setActivePaneId]);
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
