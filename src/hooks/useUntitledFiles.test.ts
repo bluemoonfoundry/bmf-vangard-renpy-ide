@@ -19,6 +19,8 @@ function makeProps(overrides: Partial<UseUntitledFilesProps> = {}): UseUntitledF
     setActiveTabId: vi.fn(),
     setSecondaryOpenTabs: vi.fn(),
     setSecondaryActiveTabId: vi.fn(),
+    setActivePaneId: vi.fn(),
+    setSplitLayout: vi.fn(),
     ...overrides,
   };
 }
@@ -258,5 +260,35 @@ describe('useUntitledFiles — saveUntitledFile', () => {
     expect(remaining).toEqual([]);
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Saved'), 'success');
     expect(result.current.untitledFiles.has(tabId)).toBe(false);
+  });
+
+  it('collapses the split when a non-.rpy save empties the secondary pane', async () => {
+    api.showSaveDialog.mockResolvedValue('/project/game/notes.txt');
+    api.writeFile.mockResolvedValue({ success: true });
+    api.loadProject.mockResolvedValue({
+      blocks: [], settings: {}, tree: { name: 'root', path: '/project', children: [] },
+    } as unknown as Awaited<ReturnType<typeof api.loadProject>>);
+    const setSecondaryOpenTabs = vi.fn();
+    const setSecondaryActiveTabId = vi.fn();
+    const setSplitLayout = vi.fn();
+    const setActivePaneId = vi.fn();
+    const { result } = renderHook(() =>
+      useUntitledFiles(makeProps({
+        activePaneId: 'secondary', splitLayout: 'right',
+        setSecondaryOpenTabs, setSecondaryActiveTabId, setSplitLayout, setActivePaneId,
+      }))
+    );
+    act(() => result.current.createUntitledFile());
+    const tabId = [...result.current.untitledFiles.keys()][0];
+    act(() => result.current.updateUntitledContent(tabId, 'just some notes'));
+
+    await act(async () => { await result.current.saveUntitledFile(tabId); });
+
+    const secondaryUpdater = setSecondaryOpenTabs.mock.calls[setSecondaryOpenTabs.mock.calls.length - 1][0] as (prev: EditorTab[]) => EditorTab[];
+    const remaining = secondaryUpdater([{ id: tabId, type: 'untitled', title: 'Untitled-1' }]);
+    expect(remaining).toEqual([]);
+    expect(setSplitLayout).toHaveBeenCalledWith('none');
+    expect(setActivePaneId).toHaveBeenCalledWith('primary');
+    expect(setSecondaryActiveTabId).toHaveBeenCalledWith('');
   });
 });

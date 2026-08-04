@@ -1364,6 +1364,7 @@ const App: React.FC = () => {
     projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
     activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+    setActivePaneId, setSplitLayout,
   });
 
   // --- Search ---

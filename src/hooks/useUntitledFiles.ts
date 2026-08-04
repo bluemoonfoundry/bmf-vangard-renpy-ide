@@ -21,6 +21,8 @@ export interface UseUntitledFilesProps {
   setActiveTabId: Dispatch<SetStateAction<string>>;
   setSecondaryOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
   setSecondaryActiveTabId: Dispatch<SetStateAction<string>>;
+  setActivePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
+  setSplitLayout: Dispatch<SetStateAction<'none' | 'right' | 'bottom'>>;
 }
 
 export interface UseUntitledFilesReturn {
@@ -52,6 +54,7 @@ export function useUntitledFiles({
   projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
   activePaneId, splitLayout,
   setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+  setActivePaneId, setSplitLayout,
 }: UseUntitledFilesProps): UseUntitledFilesReturn {
   const [untitledFiles, setUntitledFiles] = useState<Map<string, UntitledFileState>>(new Map());
   const counterRef = useRef(0);
@@ -161,8 +164,14 @@ export function useUntitledFiles({
         const closedIdx = prev.findIndex(t => t.id === tabId);
         const next = prev.filter(t => t.id !== tabId);
         if (closedIdx !== -1) {
-          const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
-          setSecondaryActiveTabId(prevActive => (prevActive === tabId ? (fallback?.id ?? '') : prevActive));
+          if (next.length === 0) {
+            setSplitLayout('none');
+            setActivePaneId('primary');
+            setSecondaryActiveTabId('');
+          } else {
+            const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
+            setSecondaryActiveTabId(prevActive => (prevActive === tabId ? (fallback?.id ?? '') : prevActive));
+          }
         }
         return next;
       });
@@ -182,7 +191,7 @@ export function useUntitledFiles({
     }
 
     addToast(`Saved ${relativePath}`, 'success');
-  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId]);
+  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout]);
 
   return { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile };
 }
