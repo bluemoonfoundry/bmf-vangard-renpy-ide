@@ -30,7 +30,6 @@ import CharacterEditorView from '@/components/CharacterEditorView';
 import SceneComposer from '@/components/SceneComposer';
 import ImageMapComposer from '@/components/ImageMapComposer';
 import MarkdownPreviewView from '@/components/MarkdownPreviewView';
-import FileSizeDot from '@/components/FileSizeDot';
 import type { BlockType } from '@/components/CreateBlockModal';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import type {
@@ -46,7 +45,6 @@ import type {
   CanvasFilters, CanvasTransform, CenterOnBlockRequest, FlashBlockRequest,
   CenterOnStartRequest, CenterOnNodeRequest,
 } from '@/hooks/useCanvasInteraction';
-import { getLineCount, getFileSizeSeverity, getFileSizeSeverityLabel, getFileSizeSeverityLimit, DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 interface RouteAnalysisResultLike {
   labelNodes: LabelNode[];
@@ -501,22 +499,6 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
             onContextMenu={(e) => handleTabContextMenu(e, tab.id, paneId)}
           >
             <span className="truncate flex-grow">{getTabLabel(tab)}</span>
-            {tab.type === 'editor' && tab.blockId && (() => {
-              const tabBlock = blocks.find(b => b.id === tab.blockId);
-              if (!tabBlock) return null;
-              const thresholds = appSettings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS;
-              const tabLineCount = getLineCount(tabBlock.content);
-              const tabSeverity = getFileSizeSeverity(tabLineCount, thresholds);
-              return (
-                <FileSizeDot
-                  lineCount={tabLineCount}
-                  thresholds={thresholds}
-                  title={`${tabLineCount.toLocaleString()} / ${getFileSizeSeverityLimit(tabSeverity, thresholds).toLocaleString()} lines — ${getFileSizeSeverityLabel(tabSeverity)}`}
-                  className="ml-1.5"
-                  variant="triangle"
-                />
-              );
-            })()}
             {(tab.id === 'diagnostics' || tab.id === 'punchlist') && diagnosticsResult.errorCount > 0 && (
               <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center flex-none">
                 {diagnosticsResult.errorCount}
