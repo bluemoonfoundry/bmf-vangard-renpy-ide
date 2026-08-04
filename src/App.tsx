@@ -1584,6 +1584,7 @@ const App: React.FC = () => {
     onExplorerDelete: () => handleDeleteNode(Array.from(explorerSelectedPaths)),
     onExplorerRefresh: handleRefreshProject,
     onOpenScreenshotsFolder: handleOpenScreenshotsFolder,
+    onNewUntitledFile: createUntitledFile,
     onCloseTab: () => {
       const currentTabId = activePaneId === 'primary' ? activeTabId : secondaryActiveTabId;
       if (currentTabId) handleCloseTab(currentTabId, activePaneId);

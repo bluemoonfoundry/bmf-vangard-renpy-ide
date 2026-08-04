@@ -20,6 +20,7 @@ export interface MenuCommandHandlers {
   onExplorerDelete: () => void;
   onExplorerRefresh: () => void;
   onOpenScreenshotsFolder: () => void;
+  onNewUntitledFile: () => void;
   onCloseTab: () => void;
 }
 
@@ -52,6 +53,7 @@ export function useMenuCommandDispatch(handlers: MenuCommandHandlers) {
       if (data.command === 'explorer-delete') h.onExplorerDelete();
       if (data.command === 'explorer-refresh') h.onExplorerRefresh();
       if (data.command === 'open-screenshots-folder') h.onOpenScreenshotsFolder();
+      if (data.command === 'new-untitled-file') h.onNewUntitledFile();
       if (data.command === 'close-tab') h.onCloseTab();
     });
     return removeListener;
