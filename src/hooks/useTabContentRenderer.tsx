@@ -217,7 +217,7 @@ export interface UseTabContentRendererParams {
   untitledFiles: Map<string, UntitledFileState>;
   updateUntitledContent: (tabId: string, content: string) => void;
   setUntitledDirty: (tabId: string, isDirty: boolean) => void;
-  saveUntitledFile: (tabId: string) => Promise<void>;
+  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<void>;
 }
 
 export interface UseTabContentRendererReturn {
@@ -428,7 +428,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
       return <EditorView
         block={syntheticBlock} blocks={blocks} analysisResult={analysisResult}
         onSwitchFocusBlock={handleOpenEditor} onSave={(id, content) => updateUntitledContent(id, content)}
-        onTriggerSave={saveUntitledFile}
+        onTriggerSave={(id) => saveUntitledFile(id, editorInstances.current.get(id)?.getValue())}
         onDirtyChange={(id, dirty) => setUntitledDirty(id, dirty)}
         onContentChange={(id, content) => updateUntitledContent(id, content)}
         editorTheme={appSettings.theme.includes('dark') ? 'dark' : 'light'} editorFontFamily={appSettings.editorFontFamily}

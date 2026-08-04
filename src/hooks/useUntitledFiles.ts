@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { EditorTab, FileSystemTreeNode, Position } from '@/types';
+import type { Block, EditorTab, FileSystemTreeNode, Position } from '@/types';
 
 export interface UntitledFileState {
   title: string;
@@ -10,7 +10,9 @@ export interface UntitledFileState {
 
 export interface UseUntitledFilesProps {
   projectRootPath: string | null;
+  blocks: Block[];
   addBlock: (filePath: string, content: string, initialPosition?: Position, options?: { markDirty?: boolean }) => string;
+  updateBlock: (id: string, data: Partial<Block>) => void;
   setFileSystemTree: Dispatch<SetStateAction<FileSystemTreeNode | null>>;
   addToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
   activePaneId: 'primary' | 'secondary';
@@ -26,7 +28,7 @@ export interface UseUntitledFilesReturn {
   createUntitledFile: () => void;
   updateUntitledContent: (tabId: string, content: string) => void;
   setUntitledDirty: (tabId: string, isDirty: boolean) => void;
-  saveUntitledFile: (tabId: string) => Promise<void>;
+  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<void>;
 }
 
 /**
@@ -47,7 +49,7 @@ export function toProjectRelativePath(absolutePath: string, projectRoot: string)
 }
 
 export function useUntitledFiles({
-  projectRootPath, addBlock, setFileSystemTree, addToast,
+  projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
   activePaneId, splitLayout,
   setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
 }: UseUntitledFilesProps): UseUntitledFilesReturn {
@@ -99,9 +101,10 @@ export function useUntitledFiles({
     });
   }, []);
 
-  const saveUntitledFile = useCallback(async (tabId: string) => {
+  const saveUntitledFile = useCallback(async (tabId: string, liveContent?: string) => {
     const draft = untitledFiles.get(tabId);
     if (!draft || !window.electronAPI || !projectRootPath) return;
+    const content = liveContent ?? draft.content;
 
     const defaultPath = `${projectRootPath.replace(/[\\/]+$/, '')}/game`;
     const chosenPath = await window.electronAPI.showSaveDialog({
@@ -114,21 +117,56 @@ export function useUntitledFiles({
     });
     if (!chosenPath) return;
 
-    const res = await window.electronAPI.writeFile(chosenPath, draft.content);
+    const res = await window.electronAPI.writeFile(chosenPath, content);
     if (!res.success) {
       addToast(`Failed to save file: ${res.error || 'Unknown error'}`, 'error');
       return;
     }
 
     const relativePath = toProjectRelativePath(chosenPath, projectRootPath);
-    const newBlockId = addBlock(relativePath, draft.content, undefined, { markDirty: false });
+    const isScript = relativePath.endsWith('.rpy');
 
-    const swapTab = (t: EditorTab): EditorTab =>
-      t.id === tabId ? { id: newBlockId, type: 'editor', blockId: newBlockId } : t;
-    setOpenTabs(prev => prev.map(swapTab));
-    setActiveTabId(prev => (prev === tabId ? newBlockId : prev));
-    setSecondaryOpenTabs(prev => prev.map(swapTab));
-    setSecondaryActiveTabId(prev => (prev === tabId ? newBlockId : prev));
+    let targetTabId: string | null = null;
+    if (isScript) {
+      const existingBlock = blocks.find(b => b.filePath === relativePath);
+      if (existingBlock) {
+        updateBlock(existingBlock.id, { content });
+        targetTabId = existingBlock.id;
+      } else {
+        targetTabId = addBlock(relativePath, content, undefined, { markDirty: false });
+      }
+
+      const swapTab = (t: EditorTab): EditorTab =>
+        t.id === tabId ? { id: targetTabId!, type: 'editor', blockId: targetTabId! } : t;
+      setOpenTabs(prev => prev.map(swapTab));
+      setActiveTabId(prev => (prev === tabId ? targetTabId! : prev));
+      setSecondaryOpenTabs(prev => prev.map(swapTab));
+      setSecondaryActiveTabId(prev => (prev === tabId ? targetTabId! : prev));
+    } else {
+      // Non-.rpy files aren't collected as blocks on project load (see electron.js),
+      // so registering one here would create a block/tab that vanishes on reload.
+      // Write succeeded, but just close the tab rather than convert it to a phantom block,
+      // picking a fallback active tab the same way useTabLifecycle's handleCloseTab does
+      // (the tab that took this one's place, or the one before it, or none).
+      setOpenTabs(prev => {
+        const closedIdx = prev.findIndex(t => t.id === tabId);
+        const next = prev.filter(t => t.id !== tabId);
+        if (closedIdx !== -1) {
+          const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
+          setActiveTabId(prevActive => (prevActive === tabId ? (fallback?.id ?? '') : prevActive));
+        }
+        return next;
+      });
+      setSecondaryOpenTabs(prev => {
+        const closedIdx = prev.findIndex(t => t.id === tabId);
+        const next = prev.filter(t => t.id !== tabId);
+        if (closedIdx !== -1) {
+          const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
+          setSecondaryActiveTabId(prevActive => (prevActive === tabId ? (fallback?.id ?? '') : prevActive));
+        }
+        return next;
+      });
+    }
 
     setUntitledFiles(prev => {
       const next = new Map(prev);
@@ -144,7 +182,7 @@ export function useUntitledFiles({
     }
 
     addToast(`Saved ${relativePath}`, 'success');
-  }, [untitledFiles, projectRootPath, addBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId]);
+  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId]);
 
   return { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile };
 }

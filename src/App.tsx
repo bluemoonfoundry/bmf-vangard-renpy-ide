@@ -1361,7 +1361,7 @@ const App: React.FC = () => {
 
   // --- Untitled (blank) File Tabs ---
   const { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile } = useUntitledFiles({
-    projectRootPath, addBlock, setFileSystemTree, addToast,
+    projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
     activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
   });
