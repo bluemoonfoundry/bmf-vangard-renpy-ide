@@ -72,7 +72,8 @@ Triggered by `onTriggerSave` (the same prop `EditorView` already uses for Ctrl+S
 
 ### 5. Menu wiring
 
-- `electron.js`: new File-menu item, `id: 'new-untitled-file'`, label `"New File"`, accelerator `CmdOrCtrl+Alt+N` (`CmdOrCtrl+N` is already bound to "New Project"), `enabled: false` initially, sends command `new-untitled-file`. Placed near the top of the File menu, distinct from the existing Explorer-scoped `"New File"` item (which keeps its current label/behavior).
+- `electron.js`: new File-menu item, `id: 'new-untitled-file'`, label `"New File"`, accelerator `CmdOrCtrl+Alt+N` (`CmdOrCtrl+N` is already bound to "New Project"), `enabled: false` initially, sends command `new-untitled-file`. Placed in the first File-menu group (after "Open Recent", before the first separator).
+- To avoid two menu items both reading "New File", the existing Explorer-scoped item (`id: 'explorer-new-file'`) is relabeled `"New File in Folder"`. Its behavior, enablement (folder-selection-based), and command (`explorer-new-file`) are unchanged — label only.
 - Enablement: extend the existing `explorer:update-menu-state` IPC payload with `canNewUntitledFile`, and extend `setExplorerMenuState`'s id map with `'new-untitled-file': canNewUntitledFile`. Renderer side, the existing `App.tsx` effect that computes `hasFolderSelected` (~line 1529) also computes `canNewUntitledFile: projectRootPath !== null` and includes it in the `updateExplorerMenuState` call; add `projectRootPath` to that effect's dependency array.
 - `useMenuCommandDispatch.ts`: add `onNewUntitledFile: () => void` to `MenuCommandHandlers`, dispatch `if (data.command === 'new-untitled-file') h.onNewUntitledFile();`.
 - `App.tsx`: wire `onNewUntitledFile: createUntitledFile` into the `useMenuCommandDispatch` call.
