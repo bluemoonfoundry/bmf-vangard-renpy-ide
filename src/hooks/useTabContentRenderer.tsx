@@ -485,6 +485,9 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         projectImages={imagesArray} imageMetadata={imageMetadata}
         initialTag={char ? undefined : tab.initialCharacterTag}
         initialName={char ? undefined : tab.initialCharacterName}
+        analysisResult={analysisResultWithProfiles}
+        blocks={blocks}
+        onOpenEditor={handleOpenEditor}
       />;
     }
     if (tab.type === 'scene-composer' && tab.sceneId) {
