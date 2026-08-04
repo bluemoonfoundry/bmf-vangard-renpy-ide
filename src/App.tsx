@@ -1750,6 +1750,7 @@ const App: React.FC = () => {
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
     projectRootPath,
+    untitledFiles, updateUntitledContent, setUntitledDirty, saveUntitledFile,
   });
   const focusedTabId = activePaneId === 'secondary' && splitLayout !== 'none'
     ? secondaryActiveTabId

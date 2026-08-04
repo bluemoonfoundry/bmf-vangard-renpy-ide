@@ -41,6 +41,7 @@ import type {
 } from '@/types';
 
 type ProjectSettingsState = PersistedProjectSettings;
+import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 import type {
   CanvasFilters, CanvasTransform, CenterOnBlockRequest, FlashBlockRequest,
   CenterOnStartRequest, CenterOnNodeRequest,
@@ -211,6 +212,12 @@ export interface UseTabContentRendererParams {
 
   // Markdown
   projectRootPath: string | null;
+
+  // Untitled (unsaved, blank) file tabs
+  untitledFiles: Map<string, UntitledFileState>;
+  updateUntitledContent: (tabId: string, content: string) => void;
+  setUntitledDirty: (tabId: string, isDirty: boolean) => void;
+  saveUntitledFile: (tabId: string) => Promise<void>;
 }
 
 export interface UseTabContentRendererReturn {
@@ -260,6 +267,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
     projectRootPath,
+    untitledFiles, updateUntitledContent, setUntitledDirty, saveUntitledFile,
   } = params;
 
   const getTabLabel = (tab: EditorTab): React.ReactNode => {
@@ -273,6 +281,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     if (tab.type === 'scene-composer') return sceneNames[tab.sceneId!] || 'Scene';
     if (tab.type === 'imagemap-composer') return imagemapCompositions[tab.imagemapId!]?.screenName || 'ImageMap';
     if (tab.type === 'character') return `Char: ${tab.characterTag}`;
+    if (tab.type === 'untitled') return tab.title ?? 'Untitled';
     if (tab.type === 'editor') return blocks.find(b => b.id === tab.blockId)?.title || 'Untitled';
     if (tab.type === 'markdown') return tab.filePath?.split('/').pop() ?? 'Markdown';
     return tab.filePath?.split('/').pop() ?? 'Untitled';
@@ -405,6 +414,45 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         onSaveMenuTemplate={handleSaveMenuTemplate}
       />;
     }
+    if (tab.type === 'untitled') {
+      const draft = untitledFiles.get(tab.id);
+      if (!draft) return null;
+      const syntheticBlock: Block = {
+        id: tab.id,
+        content: draft.content,
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 200,
+        title: draft.title,
+      };
+      return <EditorView
+        block={syntheticBlock} blocks={blocks} analysisResult={analysisResult}
+        onSwitchFocusBlock={handleOpenEditor} onSave={(id, content) => updateUntitledContent(id, content)}
+        onTriggerSave={saveUntitledFile}
+        onDirtyChange={(id, dirty) => setUntitledDirty(id, dirty)}
+        onContentChange={(id, content) => updateUntitledContent(id, content)}
+        editorTheme={appSettings.theme.includes('dark') ? 'dark' : 'light'} editorFontFamily={appSettings.editorFontFamily}
+        editorFontSize={appSettings.editorFontSize} addToast={addToast}
+        onEditorMount={(id, editor) => editorInstances.current.set(id, editor)}
+        onEditorUnmount={(id) => {
+          const editor = editorInstances.current.get(id);
+          if (editor) {
+            const current = untitledFiles.get(id);
+            if (current && editor.getValue() !== current.content) updateUntitledContent(id, editor.getValue());
+          }
+          editorInstances.current.delete(id);
+        }}
+        onCursorPositionChange={(pos) => { setEditorCursorPosition(pos); setEditorCursorBlockId(tab.id); }}
+        onWarpToLabel={handleWarpToLabel}
+        onCreateFileFromSelection={onCreateFileFromSelection}
+        onCreateVariableFromSelection={onCreateVariableFromSelection}
+        onCreateCharacterFromSelection={onCreateCharacterFromSelection}
+        draftingMode={projectSettings.draftingMode} existingImageTags={existingImageTags} existingAudioPaths={existingAudioPaths}
+        userSnippets={appSettings.userSnippets}
+        menuTemplates={appSettings.menuTemplates}
+        onSaveMenuTemplate={handleSaveMenuTemplate}
+      />;
+    }
     if (tab.type === 'image' && tab.filePath) {
       const img = images.get(tab.filePath);
       if (img) { const meta = imageMetadata.get(img.projectFilePath || img.filePath); return <ImageEditorView
@@ -507,7 +555,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
             <button onClick={(e) => handleCloseTab(tab.id, paneId, e)} aria-label="Close tab" className="ml-2 opacity-0 group-hover:opacity-100 hover:text-red-500 rounded-full p-0.5">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
-            {tab.blockId && (dirtyBlockIds.has(tab.blockId) || dirtyEditors.has(tab.blockId)) && <div className="w-2 h-2 ml-2 bg-blue-500 rounded-full flex-none" />}
+            {((tab.blockId && (dirtyBlockIds.has(tab.blockId) || dirtyEditors.has(tab.blockId))) || (tab.type === 'untitled' && untitledFiles.get(tab.id)?.isDirty)) && <div className="w-2 h-2 ml-2 bg-blue-500 rounded-full flex-none" />}
           </div>
         ))}
       </div>
