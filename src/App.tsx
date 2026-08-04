@@ -69,6 +69,7 @@ import { useProjectIO } from '@/hooks/useProjectIO';
 import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
 import { useCharacterManagement } from '@/hooks/useCharacterManagement';
+import { useUntitledFiles } from '@/hooks/useUntitledFiles';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
@@ -1356,6 +1357,13 @@ const App: React.FC = () => {
     pendingTagRenameRef,
     openTabs, secondaryOpenTabs, activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId,
+  });
+
+  // --- Untitled (blank) File Tabs ---
+  const { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile } = useUntitledFiles({
+    projectRootPath, addBlock, setFileSystemTree, addToast,
+    activePaneId, splitLayout,
+    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
   });
 
   // --- Search ---
