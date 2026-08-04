@@ -644,7 +644,7 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations' | 'untitled';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
@@ -653,6 +653,8 @@ export interface EditorTab {
   sceneId?: string;
   imagemapId?: string;
   scrollRequest?: { line: number; key: number };
+  /** Display title for tab types that don't derive one from `blocks[]` or a file path — currently only 'untitled'. */
+  title?: string;
 }
 
 /**
