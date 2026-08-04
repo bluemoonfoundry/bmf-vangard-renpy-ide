@@ -6,7 +6,8 @@
  * images from `AssetContext` passed as props.
  */
 import React, { useState, useEffect, useMemo, memo } from 'react';
-import type { Character, ProjectImage, ImageMetadata } from '@/types';
+import type { Character, ProjectImage, ImageMetadata, RenpyAnalysisResult, Block } from '@/types';
+import { groupUsageLocations } from '@/lib/usageLocations';
 import ColorDropTarget from './ColorDropTarget';
 
 interface CharacterEditorViewProps {
@@ -17,13 +18,16 @@ interface CharacterEditorViewProps {
   imageMetadata: Map<string, ImageMetadata>;
   initialTag?: string;
   initialName?: string;
+  analysisResult: RenpyAnalysisResult;
+  blocks: Block[];
+  onOpenEditor: (blockId: string, line?: number) => void;
 }
 
 const HelpText: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{children}</p>
 );
 
-const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, onSave, existingTags, projectImages, imageMetadata, initialTag, initialName }) => {
+const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, onSave, existingTags, projectImages, imageMetadata, initialTag, initialName, analysisResult, blocks, onOpenEditor }) => {
     const isNew = !character;
 
     // Core
@@ -111,6 +115,17 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
         });
         return Array.from(options.keys()).sort().slice(0, 100);
     }, [projectImages, imageMetadata, imageSearch]);
+
+    const usageLocations = useMemo(() => {
+        if (!character) return [];
+        const occurrences: { blockId: string; line: number }[] = [];
+        analysisResult.dialogueLines.forEach((dialogues, blockId) => {
+            dialogues.forEach(d => {
+                if (d.tag === character.tag) occurrences.push({ blockId, line: d.line });
+            });
+        });
+        return groupUsageLocations(occurrences, blocks, analysisResult.labelNodes);
+    }, [character, analysisResult.dialogueLines, analysisResult.labelNodes, blocks]);
 
     const handleSave = () => {
         const isTagUnique = !existingTags.some(t => t === tag && t !== character?.tag);
@@ -334,6 +349,42 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
                                     </select>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Usage Locations */}
+                    {character && (
+                        <div className="space-y-3">
+                            <h3 className="text-lg font-semibold border-b pb-2 border-gray-300 dark:border-gray-700">Usage Locations</h3>
+                            {usageLocations.length === 0 ? (
+                                <p className="text-sm text-gray-400 dark:text-gray-500">No dialogue found for this character yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-xs">
+                                                <th className="px-3 py-2 text-left font-semibold">File</th>
+                                                <th className="px-3 py-2 text-left font-semibold">Label</th>
+                                                <th className="px-3 py-2 text-right font-semibold w-16">Lines</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {usageLocations.map((loc, i) => (
+                                                <tr
+                                                    key={`${loc.blockId}:${loc.label ?? ''}`}
+                                                    className={`border-b border-gray-100 dark:border-gray-800 last:border-0 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30 ${i % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/30' : ''}`}
+                                                    onClick={() => onOpenEditor(loc.blockId, loc.firstLine)}
+                                                    title="Open in editor"
+                                                >
+                                                    <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 truncate max-w-[160px]" title={loc.filePath}>{loc.fileName}</td>
+                                                    <td className="px-3 py-2 font-mono text-xs text-gray-700 dark:text-gray-300">{loc.label ?? '—'}</td>
+                                                    <td className="px-3 py-2 text-right tabular-nums text-xs text-gray-500 dark:text-gray-400">{loc.count}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
