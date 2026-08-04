@@ -1692,8 +1692,11 @@ const App: React.FC = () => {
     // *prefill* initialTag is kept as the real (possibly empty) sanitized value so the
     // form field itself opens empty and the existing "tag required" validation catches it.
     const tabTag = sanitizedTag || 'new';
+    if (sanitizedTag && analysisResult.characters.has(sanitizedTag)) {
+      addToast(`Character '${rawName}' already exists — opening it.`, 'info');
+    }
     handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
-  }, [handleOpenCharacterEditor]);
+  }, [addToast, analysisResult.characters, handleOpenCharacterEditor]);
 
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
