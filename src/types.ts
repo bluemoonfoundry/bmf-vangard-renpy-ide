@@ -1434,7 +1434,7 @@ declare global {
           onUpdateDownloaded?: (callback: (version: string) => void) => () => void;
           installUpdate?: () => void;
           openExternal?: (url: string) => Promise<void>;
-          updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean }) => void;
+          updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean; canNewUntitledFile?: boolean }) => void;
           captureScreenshot?: () => Promise<{ success: boolean; filename?: string; filepath?: string; error?: string }>;
           getScreenshotCount?: () => Promise<number>;
           openScreenshotsFolder?: () => Promise<{ success: boolean; error?: string }>;

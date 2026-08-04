@@ -1560,8 +1560,9 @@ const App: React.FC = () => {
       canNewFolder: hasFolderSelected,
       canRename: hasSingleSelection,
       canDelete: hasAnySelection,
+      canNewUntitledFile: projectRootPath !== null,
     });
-  }, [explorerSelectedPaths, fileSystemTree]);
+  }, [explorerSelectedPaths, fileSystemTree, projectRootPath]);
 
   // --- Menu Command Handling ---
   useMenuCommandDispatch({

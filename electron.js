@@ -541,6 +541,13 @@ async function updateApplicationMenu() {
                 label: 'Open Recent',
                 submenu: openRecentSubmenu
             },
+            {
+                id: 'new-untitled-file',
+                label: 'New File',
+                accelerator: 'CmdOrCtrl+Alt+N',
+                enabled: false,
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'new-untitled-file' }); }
+            },
             { type: 'separator' },
             {
                 label: 'Save All',
@@ -562,7 +569,7 @@ async function updateApplicationMenu() {
             { type: 'separator' },
             {
                 id: 'explorer-new-file',
-                label: 'New File',
+                label: 'New File in Folder',
                 enabled: false,
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'explorer-new-file' }); }
             },
@@ -1400,7 +1407,7 @@ app.whenReady().then(() => {
     if (stopItem) stopItem.enabled = running;
   }
 
-  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete, canRefresh, hasScreenshots }) {
+  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete, canRefresh, hasScreenshots, canNewUntitledFile }) {
     const menu = Menu.getApplicationMenu();
     if (!menu) return;
     const ids = {
@@ -1409,7 +1416,8 @@ app.whenReady().then(() => {
       'explorer-rename': canRename,
       'explorer-delete': canDelete,
       'explorer-refresh': canRefresh ?? canNewFile,
-      'open-screenshots-folder': hasScreenshots
+      'open-screenshots-folder': hasScreenshots,
+      'new-untitled-file': canNewUntitledFile
     };
     for (const [id, enabled] of Object.entries(ids)) {
       const item = menu.getMenuItemById(id);
