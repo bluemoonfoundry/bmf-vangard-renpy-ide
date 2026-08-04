@@ -32,4 +32,20 @@ describe('FileSizeDot', () => {
     render(<FileSizeDot lineCount={2000} thresholds={DEFAULT_FILE_SIZE_THRESHOLDS} title="2000 lines" />);
     expect(screen.getByTestId('file-size-dot')).toHaveAttribute('title', '2000 lines');
   });
+
+  it('renders a triangle glyph instead of a circle when variant is "triangle"', () => {
+    const { container } = render(
+      <FileSizeDot lineCount={2000} thresholds={DEFAULT_FILE_SIZE_THRESHOLDS} variant="triangle" />
+    );
+    const indicator = screen.getByTestId('file-size-dot');
+    expect(indicator.tagName.toLowerCase()).toBe('svg');
+    expect(container.querySelector('.rounded-full')).toBeNull();
+  });
+
+  it('renders nothing for the triangle variant when line count is within the healthy threshold', () => {
+    const { container } = render(
+      <FileSizeDot lineCount={200} thresholds={DEFAULT_FILE_SIZE_THRESHOLDS} variant="triangle" />
+    );
+    expect(container.firstChild).toBeNull();
+  });
 });

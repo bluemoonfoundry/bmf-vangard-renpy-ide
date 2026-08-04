@@ -513,6 +513,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
                   thresholds={thresholds}
                   title={`${tabLineCount.toLocaleString()} / ${getFileSizeSeverityLimit(tabSeverity, thresholds).toLocaleString()} lines — ${getFileSizeSeverityLabel(tabSeverity)}`}
                   className="ml-1.5"
+                  variant="triangle"
                 />
               );
             })()}
