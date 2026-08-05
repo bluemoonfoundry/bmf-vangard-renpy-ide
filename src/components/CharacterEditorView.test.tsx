@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import CharacterEditorView from '@/components/CharacterEditorView';
 import { createEmptyAnalysisResult, createBlock, createCharacter, createLabelNode } from '@/test/mocks/sampleData';
 
@@ -51,6 +51,10 @@ describe('CharacterEditorView — initialTag/initialName prefill', () => {
 describe('CharacterEditorView — Usage Locations', () => {
   const eileen = createCharacter({ tag: 'e', name: 'Eileen' });
 
+  function usageLocationsSection() {
+    return screen.getByText('Usage Locations').closest('div') as HTMLElement;
+  }
+
   it('renders a usage row grouped by file and label', () => {
     const block = createBlock({ id: 'block-1', filePath: 'game/script.rpy' });
     const analysisResult = createEmptyAnalysisResult({
@@ -72,9 +76,10 @@ describe('CharacterEditorView — Usage Locations', () => {
     );
 
     expect(screen.getByText('Usage Locations')).toBeInTheDocument();
-    expect(screen.getByText('script.rpy')).toBeInTheDocument();
-    expect(screen.getByText('start')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument(); // Lines count column
+    const section = within(usageLocationsSection());
+    expect(section.getByText('script.rpy')).toBeInTheDocument();
+    expect(section.getByText('start')).toBeInTheDocument();
+    expect(section.getByText('2')).toBeInTheDocument(); // Lines count column
   });
 
   it('shows an empty state when the character has no dialogue lines', () => {

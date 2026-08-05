@@ -489,11 +489,11 @@ const StatsView: React.FC<StatsViewProps> = ({
     const rows: VariableCoverageRow[] = [];
     variables.forEach((v, name) => {
       const usages = variableUsages.get(name) ?? [];
-      const locations = groupUsageLocations(usages, blocks, labelNodes);
+      const locations = groupUsageLocations(usages, blocks, analysisResult.labelNodes);
       rows.push({ name, type: v.type, status: usages.length > 0 ? 'referenced' : 'unreferenced', locations });
     });
     return rows;
-  }, [variables, variableUsages, blocks, labelNodes]);
+  }, [variables, variableUsages, blocks, analysisResult.labelNodes]);
 
   const filteredVariableCoverageRows = useMemo(() => {
     let list = variableCoverageRows;
@@ -1164,6 +1164,7 @@ const StatsView: React.FC<StatsViewProps> = ({
                 <button
                   key={t}
                   onClick={() => setCoverageTypeFilter(t)}
+                  aria-pressed={coverageTypeFilter === t}
                   className={`px-2.5 py-1 capitalize border-r border-primary last:border-0 transition-colors ${coverageTypeFilter === t ? 'bg-indigo-500 text-white' : 'bg-secondary text-secondary hover:bg-tertiary'}`}
                 >
                   {t === 'all' ? 'All Types' : t === 'image' ? 'Images' : 'Audio'}
@@ -1176,6 +1177,7 @@ const StatsView: React.FC<StatsViewProps> = ({
                 <button
                   key={s}
                   onClick={() => setCoverageStatusFilter(s)}
+                  aria-pressed={coverageStatusFilter === s}
                   className={`px-2.5 py-1 capitalize border-r border-primary last:border-0 transition-colors ${coverageStatusFilter === s ? 'bg-indigo-500 text-white' : 'bg-secondary text-secondary hover:bg-tertiary'}`}
                 >
                   {s === 'all' ? 'All Status' : s}
@@ -1299,6 +1301,7 @@ const StatsView: React.FC<StatsViewProps> = ({
                 <button
                   key={s}
                   onClick={() => setVarCoverageStatusFilter(s)}
+                  aria-pressed={varCoverageStatusFilter === s}
                   className={`px-2.5 py-1 capitalize border-r border-primary last:border-0 transition-colors ${varCoverageStatusFilter === s ? 'bg-indigo-500 text-white' : 'bg-secondary text-secondary hover:bg-tertiary'}`}
                 >
                   {s === 'all' ? 'All Status' : s}
@@ -1389,7 +1392,7 @@ const StatsView: React.FC<StatsViewProps> = ({
                                 <tr
                                   key={`${loc.blockId}:${loc.label ?? ''}`}
                                   className={onOpenEditor ? 'cursor-pointer hover:text-indigo-500' : ''}
-                                  onClick={onOpenEditor ? (e) => { e.stopPropagation(); onOpenEditor(loc.blockId, loc.firstLine); } : undefined}
+                                  onClick={onOpenEditor ? () => { onOpenEditor(loc.blockId, loc.firstLine); } : undefined}
                                 >
                                   <td className="py-1 text-primary truncate max-w-[200px]" title={loc.filePath}>{loc.fileName}</td>
                                   <td className="py-1 font-mono text-primary">{loc.label ?? '—'}</td>
