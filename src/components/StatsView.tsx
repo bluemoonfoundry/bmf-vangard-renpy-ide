@@ -14,6 +14,7 @@ import type { Block, RenpyAnalysisResult, LabelNode, RouteLink, IdentifiedRoute,
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import { useCanvasFps } from '@/hooks/useCanvasFps';
 import { buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
+import { groupUsageLocations, type UsageLocationGroup } from '@/lib/usageLocations';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -41,6 +42,17 @@ type CoverageTypeFilter = 'all' | 'image' | 'audio';
 type CoverageStatusFilter = 'all' | 'referenced' | 'missing' | 'orphaned';
 type CoverageSortKey = 'name' | 'status' | 'type';
 type CoverageSortDir = 'asc' | 'desc';
+
+type VariableCoverageStatusFilter = 'all' | 'referenced' | 'unreferenced';
+type VariableCoverageSortKey = 'name' | 'status';
+type VariableCoverageSortDir = 'asc' | 'desc';
+
+interface VariableCoverageRow {
+  name: string;
+  type: string;
+  status: 'referenced' | 'unreferenced';
+  locations: UsageLocationGroup[];
+}
 
 function countWordsInScript(script: string): number {
   if (!script) return 0;
@@ -358,6 +370,11 @@ const StatsView: React.FC<StatsViewProps> = ({
   const [coverageTextFilter, setCoverageTextFilter] = useState('');
   const [coverageSortKey, setCoverageSortKey] = useState<CoverageSortKey>('status');
   const [coverageSortDir, setCoverageSortDir] = useState<CoverageSortDir>('asc');
+  const [varCoverageStatusFilter, setVarCoverageStatusFilter] = useState<VariableCoverageStatusFilter>('all');
+  const [varCoverageTextFilter, setVarCoverageTextFilter] = useState('');
+  const [varCoverageSortKey, setVarCoverageSortKey] = useState<VariableCoverageSortKey>('name');
+  const [varCoverageSortDir, setVarCoverageSortDir] = useState<VariableCoverageSortDir>('asc');
+  const [expandedVarNames, setExpandedVarNames] = useState<Set<string>>(new Set());
 
   const { branchingBlockIds, labels, characters, dialogueLines, variables, variableUsages } = analysisResult;
   const { identifiedRoutes, labelNodes, routeLinks, routesTruncated } = routeAnalysisResult;
@@ -467,6 +484,44 @@ const StatsView: React.FC<StatsViewProps> = ({
     });
     return rows.sort((a, b) => b.usages - a.usages).slice(0, 10);
   }, [variables, variableUsages]);
+
+  const variableCoverageRows = useMemo(() => {
+    const rows: VariableCoverageRow[] = [];
+    variables.forEach((v, name) => {
+      const usages = variableUsages.get(name) ?? [];
+      const locations = groupUsageLocations(usages, blocks, labelNodes);
+      rows.push({ name, type: v.type, status: usages.length > 0 ? 'referenced' : 'unreferenced', locations });
+    });
+    return rows;
+  }, [variables, variableUsages, blocks, labelNodes]);
+
+  const filteredVariableCoverageRows = useMemo(() => {
+    let list = variableCoverageRows;
+    if (varCoverageStatusFilter !== 'all') list = list.filter(r => r.status === varCoverageStatusFilter);
+    if (varCoverageTextFilter) {
+      const lower = varCoverageTextFilter.toLowerCase();
+      list = list.filter(r => r.name.toLowerCase().includes(lower));
+    }
+    return [...list].sort((a, b) => {
+      const mul = varCoverageSortDir === 'asc' ? 1 : -1;
+      if (varCoverageSortKey === 'name') return mul * a.name.localeCompare(b.name);
+      const statusOrder = { referenced: 0, unreferenced: 1 };
+      return mul * (statusOrder[a.status] - statusOrder[b.status]);
+    });
+  }, [variableCoverageRows, varCoverageStatusFilter, varCoverageTextFilter, varCoverageSortKey, varCoverageSortDir]);
+
+  function toggleVarCoverageSort(key: VariableCoverageSortKey) {
+    if (varCoverageSortKey === key) setVarCoverageSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setVarCoverageSortKey(key); setVarCoverageSortDir('asc'); }
+  }
+
+  function toggleVarExpanded(name: string) {
+    setExpandedVarNames(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
 
   const complexity = useMemo(
     () => getComplexityBucket(branchingBlockIds.size, blocks.length, identifiedRoutes.length),
@@ -1205,6 +1260,154 @@ const StatsView: React.FC<StatsViewProps> = ({
           </div>
         </>)}
       </section>
+
+      {/* Variable Coverage */}
+      {variableCoverageRows.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Variable Coverage</h2>
+
+          {/* Coverage bar */}
+          {(() => {
+            const total = variableCoverageRows.length;
+            const referenced = variableCoverageRows.filter(r => r.status === 'referenced').length;
+            const unreferenced = total - referenced;
+            const pct = total > 0 ? Math.round((referenced / total) * 100) : 0;
+            return (
+              <div className="bg-secondary rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-primary">Variables</span>
+                  <span className="text-xs text-secondary tabular-nums">{referenced}/{total} referenced ({pct}%)</span>
+                </div>
+                <div className="h-2 bg-tertiary rounded-full overflow-hidden mb-2">
+                  <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="flex items-center gap-3 text-xs text-secondary">
+                  {unreferenced > 0 ? (
+                    <span className="text-gray-400">{unreferenced} unreferenced</span>
+                  ) : (
+                    <span className="text-green-500">All variables referenced</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex rounded-md border border-primary overflow-hidden text-xs flex-none">
+              {(['all', 'referenced', 'unreferenced'] as VariableCoverageStatusFilter[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setVarCoverageStatusFilter(s)}
+                  className={`px-2.5 py-1 capitalize border-r border-primary last:border-0 transition-colors ${varCoverageStatusFilter === s ? 'bg-indigo-500 text-white' : 'bg-secondary text-secondary hover:bg-tertiary'}`}
+                >
+                  {s === 'all' ? 'All Status' : s}
+                </button>
+              ))}
+            </div>
+            <div className="relative flex-1 min-w-[140px]">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Filter variables…"
+                value={varCoverageTextFilter}
+                onChange={e => setVarCoverageTextFilter(e.target.value)}
+                className="w-full pl-7 pr-2 py-1 text-xs bg-secondary border border-primary rounded focus:outline-none focus:ring-1 focus:ring-indigo-400 text-primary placeholder:text-secondary"
+              />
+            </div>
+            <span className="text-xs text-secondary flex-none">{filteredVariableCoverageRows.length} variable{filteredVariableCoverageRows.length !== 1 ? 's' : ''}</span>
+          </div>
+
+          {/* Coverage table */}
+          <div className="overflow-x-auto rounded-lg border border-primary">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-tertiary border-b border-primary text-secondary text-xs">
+                  <th className="px-3 py-2 text-left font-semibold cursor-pointer select-none" onClick={() => toggleVarCoverageSort('name')}>
+                    Variable {varCoverageSortKey === 'name' ? (varCoverageSortDir === 'asc' ? '↑' : '↓') : <span className="opacity-40">↕</span>}
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold w-24">Type</th>
+                  <th className="px-3 py-2 text-left font-semibold cursor-pointer select-none w-36" onClick={() => toggleVarCoverageSort('status')}>
+                    Status {varCoverageSortKey === 'status' ? (varCoverageSortDir === 'asc' ? '↑' : '↓') : <span className="opacity-40">↕</span>}
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold w-28">Locations</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVariableCoverageRows.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-6 text-center text-secondary text-xs">No variables match the current filter</td>
+                  </tr>
+                )}
+                {filteredVariableCoverageRows.map((row, i) => (
+                  <React.Fragment key={row.name}>
+                    <tr
+                      className={`border-b border-primary last:border-0 ${i % 2 === 1 ? 'bg-secondary/20' : ''} ${row.locations.length > 0 ? 'cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30' : ''}`}
+                      onClick={row.locations.length > 0 ? () => toggleVarExpanded(row.name) : undefined}
+                    >
+                      <td className="px-3 py-2 font-mono text-xs text-primary truncate max-w-xs">{row.name}</td>
+                      <td className="px-3 py-2 text-xs text-secondary capitalize">{row.type}</td>
+                      <td className="px-3 py-2">
+                        {row.status === 'referenced' ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                            Referenced
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                            Unreferenced
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-secondary">
+                        {row.locations.length > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            {row.locations.length} location{row.locations.length !== 1 ? 's' : ''}
+                            <svg className={`w-3 h-3 transition-transform ${expandedVarNames.has(row.name) ? '' : '-rotate-90'}`} viewBox="0 0 12 12" fill="none">
+                              <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </span>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                    {expandedVarNames.has(row.name) && row.locations.length > 0 && (
+                      <tr className="border-b border-primary last:border-0 bg-tertiary/40">
+                        <td colSpan={4} className="px-3 py-2">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-secondary">
+                                <th className="text-left font-semibold pb-1">File</th>
+                                <th className="text-left font-semibold pb-1">Label</th>
+                                <th className="text-right font-semibold pb-1 w-16">Lines</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {row.locations.map(loc => (
+                                <tr
+                                  key={`${loc.blockId}:${loc.label ?? ''}`}
+                                  className={onOpenEditor ? 'cursor-pointer hover:text-indigo-500' : ''}
+                                  onClick={onOpenEditor ? (e) => { e.stopPropagation(); onOpenEditor(loc.blockId, loc.firstLine); } : undefined}
+                                >
+                                  <td className="py-1 text-primary truncate max-w-[200px]" title={loc.filePath}>{loc.fileName}</td>
+                                  <td className="py-1 font-mono text-primary">{loc.label ?? '—'}</td>
+                                  <td className="py-1 text-right tabular-nums text-secondary">{loc.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {performanceMetrics && (
         <section className="mb-8">

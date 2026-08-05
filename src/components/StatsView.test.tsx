@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import StatsView from './StatsView';
-import { createBlock, createCharacter, createEmptyAnalysisResult, createVariable } from '@/test/mocks/sampleData';
+import { createBlock, createCharacter, createEmptyAnalysisResult, createVariable, createLabelNode } from '@/test/mocks/sampleData';
 
 // recharts ResponsiveContainer requires a real layout measurement to render children.
 // In jsdom all elements have 0 width/height, so stub it to just render children directly.
@@ -225,5 +225,77 @@ describe('StatsView', () => {
     expect(screen.getByText('Constants').closest('div')?.textContent).toContain('1');
     expect(screen.getByText('Persistent').closest('div')?.textContent).toContain('1');
     expect(screen.getByText('Total Variables').closest('div')?.textContent).toContain('4');
+  });
+
+  // ── Variable Coverage ────────────────────────────────────────────────────────
+
+  describe('Variable Coverage', () => {
+    function coverageSection() {
+      return screen.getByText('Variable Coverage').closest('section') as HTMLElement;
+    }
+
+    it('renders a referenced row with its file/label location', () => {
+      const block = createBlock({ id: 'block-1', filePath: 'game/script.rpy' });
+      const analysisResult = createEmptyAnalysisResult({
+        variables: new Map([['coverage_var', createVariable({ name: 'coverage_var' })]]),
+        variableUsages: new Map([['coverage_var', [{ blockId: 'block-1', line: 2 }]]]),
+        labelNodes: [createLabelNode({ blockId: 'block-1', label: 'start', startLine: 1 })],
+      });
+      renderStats({ blocks: [block], analysisResult });
+
+      const section = within(coverageSection());
+      expect(section.getByText('coverage_var')).toBeInTheDocument();
+      expect(section.getByText('Referenced')).toBeInTheDocument();
+    });
+
+    it('marks a variable with no usages as Unreferenced', () => {
+      const analysisResult = createEmptyAnalysisResult({
+        variables: new Map([['unused_var', createVariable({ name: 'unused_var' })]]),
+      });
+      renderStats({ analysisResult });
+
+      const section = within(coverageSection());
+      expect(section.getByText('unused_var')).toBeInTheDocument();
+      expect(section.getByText('Unreferenced')).toBeInTheDocument();
+    });
+
+    it('expands a row to show its locations and calls onOpenEditor when a location is clicked', () => {
+      const block = createBlock({ id: 'block-1', filePath: 'game/script.rpy' });
+      const analysisResult = createEmptyAnalysisResult({
+        variables: new Map([['coverage_var', createVariable({ name: 'coverage_var' })]]),
+        variableUsages: new Map([['coverage_var', [{ blockId: 'block-1', line: 2 }]]]),
+        labelNodes: [createLabelNode({ blockId: 'block-1', label: 'start', startLine: 1 })],
+      });
+      const onOpenEditor = vi.fn();
+      renderStats({ blocks: [block], analysisResult, onOpenEditor });
+
+      const section = within(coverageSection());
+      fireEvent.click(section.getByText('coverage_var'));
+      expect(section.getByText('script.rpy')).toBeInTheDocument();
+
+      fireEvent.click(section.getByText('script.rpy'));
+      expect(onOpenEditor).toHaveBeenCalledWith('block-1', 2);
+    });
+
+    it('filters to only unreferenced variables when that status pill is clicked', () => {
+      const analysisResult = createEmptyAnalysisResult({
+        variables: new Map([
+          ['used_var', createVariable({ name: 'used_var' })],
+          ['unused_var', createVariable({ name: 'unused_var' })],
+        ]),
+        variableUsages: new Map([['used_var', [{ blockId: 'block-1', line: 2 }]]]),
+      });
+      renderStats({ analysisResult });
+
+      const section = within(coverageSection());
+      fireEvent.click(section.getByRole('button', { name: 'unreferenced' }));
+      expect(section.getByText('unused_var')).toBeInTheDocument();
+      expect(section.queryByText('used_var')).not.toBeInTheDocument();
+    });
+
+    it('does not render the section when there are no variables', () => {
+      renderStats();
+      expect(screen.queryByText('Variable Coverage')).not.toBeInTheDocument();
+    });
   });
 });
