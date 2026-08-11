@@ -39,10 +39,10 @@ Managing a Ren'Py project in a plain text editor means juggling dozens of `.rpy`
 
 Vangard gives you that picture — and keeps it in sync as you write.
 
-- **See your story's structure** at a glance, without opening a single file
+- **See your story's structure** at a glance
 - **Navigate instantly** from a canvas node to the code behind it
 - **Catch problems early** — broken jumps, missing assets, and unreachable labels flagged automatically
-- **Compose visually** — build scenes and imagemaps with drag-and-drop, then copy the generated code
+
 
 ## Our Philosophy
 
