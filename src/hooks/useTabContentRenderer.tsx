@@ -380,6 +380,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         onGenerateTranslations={handleGenerateTranslations}
         isGenerating={isGeneratingTranslations}
         isRenpyPathValid={isRenpyPathValid}
+        addToast={addToast}
       />;
     }
     if (tab.type === 'screen-preview') {
