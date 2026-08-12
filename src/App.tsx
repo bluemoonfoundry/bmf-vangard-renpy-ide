@@ -859,6 +859,14 @@ const App: React.FC = () => {
     addToast,
   });
 
+  // --- Untitled (blank) File Tabs ---
+  const { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile } = useUntitledFiles({
+    projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
+    activePaneId, splitLayout,
+    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+    setActivePaneId, setSplitLayout,
+  });
+
   // --- Layout ---
   const {
     handleTidyUp,
@@ -923,6 +931,7 @@ const App: React.FC = () => {
       setHasUnsavedSettings, setSaveStatus, filesWithDiskConflict, setFilesWithDiskConflict,
       setExternallyChangedFiles, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal,
       setOpenTabs,
+      untitledFiles, saveUntitledFile,
       addToast,
   });
 
@@ -1074,8 +1083,9 @@ const App: React.FC = () => {
   }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject, setIsGeneratingTranslations]);
 
   const handleNewProjectRequest = useCallback(() => {
-    const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
-    
+    const hasUnsavedUntitled = [...untitledFiles.values()].some(f => f.isDirty);
+    const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings || hasUnsavedUntitled;
+
     if (hasUnsaved) {
       openUnsavedChangesModal({
         title: 'Unsaved Changes',
@@ -1098,7 +1108,7 @@ const App: React.FC = () => {
     } else {
       handleCreateProject();
     }
-  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
+  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, untitledFiles, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   // --- Tab Management ---
   const {
@@ -1139,6 +1149,7 @@ const App: React.FC = () => {
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
     setSplitLayout, setSplitPrimarySize, setDraggedTabId, setDragSourcePaneId,
     dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+    untitledFiles, saveUntitledFile, discardUntitledFile,
     openUnsavedChangesModal, closeUnsavedChangesModal,
     handleSaveAll, setHasUnsavedSettings,
   });
@@ -1389,14 +1400,6 @@ const App: React.FC = () => {
     pendingTagRenameRef,
     openTabs, secondaryOpenTabs, activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId,
-  });
-
-  // --- Untitled (blank) File Tabs ---
-  const { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile } = useUntitledFiles({
-    projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
-    activePaneId, splitLayout,
-    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
-    setActivePaneId, setSplitLayout,
   });
 
   // --- Search ---
@@ -1652,9 +1655,12 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!window.electronAPI) return;
 
+      const hasUnsavedChanges = () =>
+          dirtyBlockIdsRef.current.size > 0 || dirtyEditorsRef.current.size > 0 || hasUnsavedSettingsRef.current ||
+          [...untitledFilesRef.current.values()].some(f => f.isDirty);
+
       const removeCheck = window.electronAPI.onCheckUnsavedChangesBeforeExit(() => {
-          const hasUnsaved = dirtyBlockIdsRef.current.size > 0 || dirtyEditorsRef.current.size > 0 || hasUnsavedSettingsRef.current;
-          window.electronAPI!.replyUnsavedChangesBeforeExit(hasUnsaved);
+          window.electronAPI!.replyUnsavedChangesBeforeExit(hasUnsavedChanges());
       });
 
       const removeShowModal = window.electronAPI.onShowExitModal(() => {
@@ -1668,6 +1674,11 @@ const App: React.FC = () => {
                       await handleSaveAllRef.current();
                   } catch (err) {
                       logger.error('Failed to save before exit:', err);
+                  }
+                  if (hasUnsavedChanges()) {
+                      // A save was canceled or failed (e.g. an untitled file's Save dialog was
+                      // dismissed) — don't quit with unsaved work still pending.
+                      return;
                   }
                   window.electronAPI!.ideStateSavedForQuit();
               },

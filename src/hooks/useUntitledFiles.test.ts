@@ -126,19 +126,21 @@ describe('useUntitledFiles — saveUntitledFile', () => {
     uninstallElectronAPI();
   });
 
-  it('does nothing when the save dialog is canceled', async () => {
+  it('does nothing and resolves false when the save dialog is canceled', async () => {
     api.showSaveDialog.mockResolvedValue(null);
     const addBlock = vi.fn();
     const { result } = renderHook(() => useUntitledFiles(makeProps({ addBlock })));
     act(() => result.current.createUntitledFile());
     const tabId = [...result.current.untitledFiles.keys()][0];
 
-    await act(async () => { await result.current.saveUntitledFile(tabId); });
+    let saved: boolean | undefined;
+    await act(async () => { saved = await result.current.saveUntitledFile(tabId); });
+    expect(saved).toBe(false);
     expect(addBlock).not.toHaveBeenCalled();
     expect(result.current.untitledFiles.has(tabId)).toBe(true);
   });
 
-  it('toasts an error and keeps the tab open when the write fails', async () => {
+  it('toasts an error, keeps the tab open, and resolves false when the write fails', async () => {
     api.showSaveDialog.mockResolvedValue('/project/game/newfile.rpy');
     api.writeFile.mockResolvedValue({ success: false, error: 'disk full' });
     const addToast = vi.fn();
@@ -147,7 +149,9 @@ describe('useUntitledFiles — saveUntitledFile', () => {
     act(() => result.current.createUntitledFile());
     const tabId = [...result.current.untitledFiles.keys()][0];
 
-    await act(async () => { await result.current.saveUntitledFile(tabId); });
+    let saved: boolean | undefined;
+    await act(async () => { saved = await result.current.saveUntitledFile(tabId); });
+    expect(saved).toBe(false);
     expect(addBlock).not.toHaveBeenCalled();
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('disk full'), 'error');
     expect(result.current.untitledFiles.has(tabId)).toBe(true);
@@ -171,8 +175,10 @@ describe('useUntitledFiles — saveUntitledFile', () => {
     const tabId = [...result.current.untitledFiles.keys()][0];
     act(() => result.current.updateUntitledContent(tabId, 'label start:\n    return\n'));
 
-    await act(async () => { await result.current.saveUntitledFile(tabId); });
+    let saved: boolean | undefined;
+    await act(async () => { saved = await result.current.saveUntitledFile(tabId); });
 
+    expect(saved).toBe(true);
     expect(addBlock).toHaveBeenCalledWith('game/newfile.rpy', 'label start:\n    return\n', undefined, { markDirty: false });
     const tabsUpdater = setOpenTabs.mock.calls[setOpenTabs.mock.calls.length - 1][0] as (prev: EditorTab[]) => EditorTab[];
     const swapped = tabsUpdater([{ id: tabId, type: 'untitled', title: 'Untitled-1' }]);
@@ -290,5 +296,26 @@ describe('useUntitledFiles — saveUntitledFile', () => {
     expect(setSplitLayout).toHaveBeenCalledWith('none');
     expect(setActivePaneId).toHaveBeenCalledWith('primary');
     expect(setSecondaryActiveTabId).toHaveBeenCalledWith('');
+  });
+});
+
+describe('useUntitledFiles — discardUntitledFile', () => {
+  it('removes the draft from untitledFiles without touching tabs or blocks', () => {
+    const setOpenTabs = vi.fn();
+    const { result } = renderHook(() => useUntitledFiles(makeProps({ setOpenTabs })));
+    act(() => result.current.createUntitledFile());
+    const tabId = [...result.current.untitledFiles.keys()][0];
+    setOpenTabs.mockClear();
+
+    act(() => result.current.discardUntitledFile(tabId));
+
+    expect(result.current.untitledFiles.has(tabId)).toBe(false);
+    expect(setOpenTabs).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for an unknown tabId', () => {
+    const { result } = renderHook(() => useUntitledFiles(makeProps()));
+    act(() => result.current.discardUntitledFile('does-not-exist'));
+    expect(result.current.untitledFiles.size).toBe(0);
   });
 });

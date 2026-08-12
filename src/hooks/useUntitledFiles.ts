@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Block, EditorTab, FileSystemTreeNode, Position } from '@/types';
 
@@ -27,10 +27,14 @@ export interface UseUntitledFilesProps {
 
 export interface UseUntitledFilesReturn {
   untitledFiles: Map<string, UntitledFileState>;
+  untitledFilesRef: React.MutableRefObject<Map<string, UntitledFileState>>;
   createUntitledFile: () => void;
   updateUntitledContent: (tabId: string, content: string) => void;
   setUntitledDirty: (tabId: string, isDirty: boolean) => void;
-  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<void>;
+  /** Saves the draft via a native Save dialog. Resolves true once written and the tab converted/closed, false if the dialog was canceled or the write failed (tab stays open and dirty). */
+  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<boolean>;
+  /** Discards a draft without saving, removing it from untitledFiles. Does not touch openTabs. */
+  discardUntitledFile: (tabId: string) => void;
 }
 
 /**
@@ -58,6 +62,8 @@ export function useUntitledFiles({
 }: UseUntitledFilesProps): UseUntitledFilesReturn {
   const [untitledFiles, setUntitledFiles] = useState<Map<string, UntitledFileState>>(new Map());
   const counterRef = useRef(0);
+  const untitledFilesRef = useRef(untitledFiles);
+  useEffect(() => { untitledFilesRef.current = untitledFiles; }, [untitledFiles]);
 
   const createUntitledFile = useCallback(() => {
     if (!projectRootPath) {
@@ -104,9 +110,17 @@ export function useUntitledFiles({
     });
   }, []);
 
-  const saveUntitledFile = useCallback(async (tabId: string, liveContent?: string) => {
+  const discardUntitledFile = useCallback((tabId: string) => {
+    setUntitledFiles(prev => {
+      const next = new Map(prev);
+      next.delete(tabId);
+      return next;
+    });
+  }, []);
+
+  const saveUntitledFile = useCallback(async (tabId: string, liveContent?: string): Promise<boolean> => {
     const draft = untitledFiles.get(tabId);
-    if (!draft || !window.electronAPI || !projectRootPath) return;
+    if (!draft || !window.electronAPI || !projectRootPath) return false;
     const content = liveContent ?? draft.content;
 
     const defaultPath = `${projectRootPath.replace(/[\\/]+$/, '')}/game`;
@@ -118,12 +132,12 @@ export function useUntitledFiles({
         { name: 'All Files', extensions: ['*'] },
       ],
     });
-    if (!chosenPath) return;
+    if (!chosenPath) return false;
 
     const res = await window.electronAPI.writeFile(chosenPath, content);
     if (!res.success) {
       addToast(`Failed to save file: ${res.error || 'Unknown error'}`, 'error');
-      return;
+      return false;
     }
 
     const relativePath = toProjectRelativePath(chosenPath, projectRootPath);
@@ -177,11 +191,7 @@ export function useUntitledFiles({
       });
     }
 
-    setUntitledFiles(prev => {
-      const next = new Map(prev);
-      next.delete(tabId);
-      return next;
-    });
+    discardUntitledFile(tabId);
 
     try {
       const projData = await window.electronAPI.loadProject(projectRootPath);
@@ -191,7 +201,8 @@ export function useUntitledFiles({
     }
 
     addToast(`Saved ${relativePath}`, 'success');
-  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout]);
+    return true;
+  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout, discardUntitledFile]);
 
-  return { untitledFiles, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile };
+  return { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile };
 }

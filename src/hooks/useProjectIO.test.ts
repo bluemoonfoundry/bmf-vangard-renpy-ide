@@ -73,6 +73,8 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
     closeUnsavedChangesModal: vi.fn(),
 
     setOpenTabs: vi.fn(),
+    untitledFiles: new Map(),
+    saveUntitledFile: vi.fn().mockResolvedValue(true),
     addToast: vi.fn(),
     ...overrides,
   };
@@ -199,6 +201,60 @@ describe('useProjectIO', () => {
     expect(setDirtyBlockIds).toHaveBeenCalledWith(new Set());
     expect(setDirtyEditors).toHaveBeenCalledWith(new Set());
     expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('saves dirty untitled tabs across both panes', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+
+    const saveUntitledFile = vi.fn().mockResolvedValue(true);
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      openTabs: [{ id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as never],
+      secondaryOpenTabs: [{ id: 'untitled-2', type: 'untitled', title: 'Untitled-2' } as never],
+      untitledFiles: new Map([
+        ['untitled-1', { title: 'Untitled-1', content: 'a', isDirty: true }],
+        ['untitled-2', { title: 'Untitled-2', content: 'b', isDirty: true }],
+      ]),
+      saveUntitledFile,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-2');
+    expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('does not save a non-dirty untitled tab, and warns instead of full success when an untitled save is canceled', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+
+    const saveUntitledFile = vi.fn().mockResolvedValue(false);
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      openTabs: [
+        { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as never,
+        { id: 'untitled-2', type: 'untitled', title: 'Untitled-2' } as never,
+      ],
+      untitledFiles: new Map([
+        ['untitled-1', { title: 'Untitled-1', content: 'a', isDirty: true }],
+        ['untitled-2', { title: 'Untitled-2', content: '', isDirty: false }],
+      ]),
+      saveUntitledFile,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(saveUntitledFile).toHaveBeenCalledTimes(1);
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('untitled files were not saved'), 'warning');
   });
 
   it('reads content from editor instance for dirtyEditors', async () => {

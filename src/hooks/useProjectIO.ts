@@ -16,6 +16,7 @@ import type {
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
   Position,
 } from '@/types';
+import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 
 // Re-export so App.tsx import of these types from useProjectIO keeps working
 export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
@@ -93,6 +94,10 @@ export interface UseProjectIOParams {
   // Tabs (used by handleRefreshProject to close removed-file tabs)
   setOpenTabs: React.Dispatch<React.SetStateAction<EditorTab[]>>;
 
+  // Untitled draft tracking (Save All also saves dirty untitled drafts)
+  untitledFiles: Map<string, UntitledFileState>;
+  saveUntitledFile: (tabId: string) => Promise<boolean>;
+
   addToast: (message: string, type?: ToastType) => void;
 }
 
@@ -119,6 +124,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     setHasUnsavedSettings, setSaveStatus, filesWithDiskConflict, setFilesWithDiskConflict,
     setExternallyChangedFiles, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal,
     setOpenTabs,
+    untitledFiles, saveUntitledFile,
     addToast,
   } = params;
 
@@ -243,11 +249,24 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
               await handleSaveProjectSettings();
           }
 
+          const dirtyUntitledIds = [...openTabs, ...secondaryOpenTabs]
+            .filter(t => t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty)
+            .map(t => t.id);
+          let untitledSaveFailed = false;
+          for (const tabId of dirtyUntitledIds) {
+            const saved = await saveUntitledFile(tabId);
+            if (!saved) untitledSaveFailed = true;
+          }
+
           setDirtyBlockIds(new Set());
           setDirtyEditors(new Set());
           setSaveStatus('saved');
           notifyFirstSave();
-          addToast('All changes saved', 'success');
+          if (untitledSaveFailed) {
+            addToast('Some changes saved — one or more untitled files were not saved', 'warning');
+          } else {
+            addToast('All changes saved', 'success');
+          }
       } catch (err) {
           logger.error('Failed to save changes', err);
           setSaveStatus('error');
@@ -278,7 +297,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     }
 
     await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict]);
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict, openTabs, secondaryOpenTabs, untitledFiles, saveUntitledFile]);
 
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);

@@ -217,7 +217,7 @@ export interface UseTabContentRendererParams {
   untitledFiles: Map<string, UntitledFileState>;
   updateUntitledContent: (tabId: string, content: string) => void;
   setUntitledDirty: (tabId: string, isDirty: boolean) => void;
-  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<void>;
+  saveUntitledFile: (tabId: string, liveContent?: string) => Promise<boolean>;
 }
 
 export interface UseTabContentRendererReturn {
