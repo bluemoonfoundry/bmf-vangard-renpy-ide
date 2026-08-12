@@ -25,7 +25,7 @@ interface StatsViewProps {
   projectAudios: Map<string, RenpyAudio>;
   diagnosticsErrorCount: number;
   onOpenDiagnostics: () => void;
-  onOpenEditor?: (blockId: string, line: number) => void;
+  onOpenEditor?: (blockId: string, line?: number) => void;
   performanceMetrics?: PerformanceSnapshot;
 }
 
