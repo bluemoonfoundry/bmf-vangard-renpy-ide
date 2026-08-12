@@ -488,12 +488,16 @@ const StatsView: React.FC<StatsViewProps> = ({
   const variableCoverageRows = useMemo(() => {
     const rows: VariableCoverageRow[] = [];
     variables.forEach((v, name) => {
+      // Limit to story blocks to avoid false positives on GUI/config variables
+      // that Ren'Py may consume internally without explicit code references
+      // (matches useDiagnostics.ts's unused-variable check).
+      if (!analysisResult.storyBlockIds.has(v.definedInBlockId)) return;
       const usages = variableUsages.get(name) ?? [];
       const locations = groupUsageLocations(usages, blocks, analysisResult.labelNodes);
       rows.push({ name, type: v.type, status: usages.length > 0 ? 'referenced' : 'unreferenced', locations });
     });
     return rows;
-  }, [variables, variableUsages, blocks, analysisResult.labelNodes]);
+  }, [variables, variableUsages, blocks, analysisResult.labelNodes, analysisResult.storyBlockIds]);
 
   const filteredVariableCoverageRows = useMemo(() => {
     let list = variableCoverageRows;

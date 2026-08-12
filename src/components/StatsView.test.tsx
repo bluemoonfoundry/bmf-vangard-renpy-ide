@@ -240,6 +240,7 @@ describe('StatsView', () => {
         variables: new Map([['coverage_var', createVariable({ name: 'coverage_var' })]]),
         variableUsages: new Map([['coverage_var', [{ blockId: 'block-1', line: 2 }]]]),
         labelNodes: [createLabelNode({ blockId: 'block-1', label: 'start', startLine: 1 })],
+        storyBlockIds: new Set(['block-1']),
       });
       renderStats({ blocks: [block], analysisResult });
 
@@ -251,6 +252,7 @@ describe('StatsView', () => {
     it('marks a variable with no usages as Unreferenced', () => {
       const analysisResult = createEmptyAnalysisResult({
         variables: new Map([['unused_var', createVariable({ name: 'unused_var' })]]),
+        storyBlockIds: new Set(['block-1']),
       });
       renderStats({ analysisResult });
 
@@ -265,6 +267,7 @@ describe('StatsView', () => {
         variables: new Map([['coverage_var', createVariable({ name: 'coverage_var' })]]),
         variableUsages: new Map([['coverage_var', [{ blockId: 'block-1', line: 2 }]]]),
         labelNodes: [createLabelNode({ blockId: 'block-1', label: 'start', startLine: 1 })],
+        storyBlockIds: new Set(['block-1']),
       });
       const onOpenEditor = vi.fn();
       renderStats({ blocks: [block], analysisResult, onOpenEditor });
@@ -284,6 +287,7 @@ describe('StatsView', () => {
           ['unused_var', createVariable({ name: 'unused_var' })],
         ]),
         variableUsages: new Map([['used_var', [{ blockId: 'block-1', line: 2 }]]]),
+        storyBlockIds: new Set(['block-1']),
       });
       renderStats({ analysisResult });
 
@@ -296,6 +300,21 @@ describe('StatsView', () => {
     it('does not render the section when there are no variables', () => {
       renderStats();
       expect(screen.queryByText('Variable Coverage')).not.toBeInTheDocument();
+    });
+
+    it('excludes variables outside storyBlockIds (e.g. gui.rpy/options.rpy config vars)', () => {
+      const analysisResult = createEmptyAnalysisResult({
+        variables: new Map([
+          ['story_var', createVariable({ name: 'story_var', definedInBlockId: 'block-1' })],
+          ['config.name', createVariable({ name: 'config.name', definedInBlockId: 'block-gui' })],
+        ]),
+        storyBlockIds: new Set(['block-1']),
+      });
+      renderStats({ analysisResult });
+
+      const section = within(coverageSection());
+      expect(section.getByText('story_var')).toBeInTheDocument();
+      expect(section.queryByText('config.name')).not.toBeInTheDocument();
     });
   });
 });
