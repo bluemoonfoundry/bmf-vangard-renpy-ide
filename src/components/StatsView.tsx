@@ -860,6 +860,14 @@ const StatsView: React.FC<StatsViewProps> = ({
                     key={node.id}
                     className={`border-b border-orange-100 dark:border-orange-900 last:border-0 ${i % 2 === 1 ? 'bg-secondary/20' : ''} ${onOpenEditor ? 'cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-950/30 group' : ''}`}
                     onClick={onOpenEditor ? () => onOpenEditor(node.blockId, node.startLine) : undefined}
+                    onKeyDown={onOpenEditor ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onOpenEditor(node.blockId, node.startLine);
+                      }
+                    } : undefined}
+                    tabIndex={onOpenEditor ? 0 : undefined}
+                    role={onOpenEditor ? 'button' : undefined}
                     title={onOpenEditor ? `Open "${node.label}" in editor` : undefined}
                   >
                     <td className="px-3 py-2 font-mono text-xs text-primary">{node.label}</td>
@@ -1349,6 +1357,15 @@ const StatsView: React.FC<StatsViewProps> = ({
                     <tr
                       className={`border-b border-primary last:border-0 ${i % 2 === 1 ? 'bg-secondary/20' : ''} ${row.locations.length > 0 ? 'cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30' : ''}`}
                       onClick={row.locations.length > 0 ? () => toggleVarExpanded(row.name) : undefined}
+                      onKeyDown={row.locations.length > 0 ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleVarExpanded(row.name);
+                        }
+                      } : undefined}
+                      tabIndex={row.locations.length > 0 ? 0 : undefined}
+                      role={row.locations.length > 0 ? 'button' : undefined}
+                      aria-expanded={row.locations.length > 0 ? expandedVarNames.has(row.name) : undefined}
                     >
                       <td className="px-3 py-2 font-mono text-xs text-primary truncate max-w-xs">{row.name}</td>
                       <td className="px-3 py-2 text-xs text-secondary capitalize">{row.type}</td>
@@ -1393,6 +1410,14 @@ const StatsView: React.FC<StatsViewProps> = ({
                                   key={`${loc.blockId}:${loc.label ?? ''}`}
                                   className={onOpenEditor ? 'cursor-pointer hover:text-indigo-500' : ''}
                                   onClick={onOpenEditor ? () => { onOpenEditor(loc.blockId, loc.firstLine); } : undefined}
+                                  onKeyDown={onOpenEditor ? (e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      onOpenEditor(loc.blockId, loc.firstLine);
+                                    }
+                                  } : undefined}
+                                  tabIndex={onOpenEditor ? 0 : undefined}
+                                  role={onOpenEditor ? 'button' : undefined}
                                 >
                                   <td className="py-1 text-primary truncate max-w-[200px]" title={loc.filePath}>{loc.fileName}</td>
                                   <td className="py-1 font-mono text-primary">{loc.label ?? '—'}</td>

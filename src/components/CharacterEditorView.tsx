@@ -374,6 +374,14 @@ const CharacterEditorView: React.FC<CharacterEditorViewProps> = ({ character, on
                                                     key={`${loc.blockId}:${loc.label ?? ''}`}
                                                     className={`border-b border-gray-100 dark:border-gray-800 last:border-0 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-950/30 ${i % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/30' : ''}`}
                                                     onClick={() => onOpenEditor(loc.blockId, loc.firstLine)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            onOpenEditor(loc.blockId, loc.firstLine);
+                                                        }
+                                                    }}
+                                                    tabIndex={0}
+                                                    role="button"
                                                     title="Open in editor"
                                                 >
                                                     <td className="px-3 py-2 text-xs text-gray-700 dark:text-gray-300 truncate max-w-[160px]" title={loc.filePath}>{loc.fileName}</td>
