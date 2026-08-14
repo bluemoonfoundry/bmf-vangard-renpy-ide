@@ -42,7 +42,7 @@ export interface UseTabLifecycleProps {
     onCancel: () => void;
   }) => void;
   closeUnsavedChangesModal: () => void;
-  handleSaveAll: () => Promise<void>;
+  handleSaveAll: () => Promise<boolean>;
   setHasUnsavedSettings: Dispatch<SetStateAction<boolean>>;
 }
 

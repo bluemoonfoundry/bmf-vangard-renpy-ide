@@ -1670,12 +1670,19 @@ const App: React.FC = () => {
               confirmText: 'Save & Exit',
               dontSaveText: "Don't Save",
               onConfirm: async () => {
+                  // Trust handleSaveAll's own return value rather than re-checking
+                  // hasUnsavedChanges() afterward: dirtyBlockIdsRef/hasUnsavedSettingsRef
+                  // are only synced via a useEffect, which may not have flushed yet
+                  // immediately after this await resolves (caused a double-click-to-exit
+                  // bug — the first click's save succeeded but this stale-ref check still
+                  // reported unsaved changes).
+                  let saveSucceeded = false;
                   try {
-                      await handleSaveAllRef.current();
+                      saveSucceeded = await handleSaveAllRef.current();
                   } catch (err) {
                       logger.error('Failed to save before exit:', err);
                   }
-                  if (hasUnsavedChanges()) {
+                  if (!saveSucceeded) {
                       // A save was canceled or failed (e.g. an untitled file's Save dialog was
                       // dismissed) — don't quit with unsaved work still pending.
                       return;

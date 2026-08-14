@@ -104,7 +104,15 @@ export interface UseProjectIOParams {
 export interface UseProjectIOReturn {
   /** Returns true on success, false if the write failed (already toasted internally). */
   handleSaveProjectSettings: () => Promise<boolean>;
-  handleSaveAll: () => Promise<void>;
+  /**
+   * Returns true only if every dirty source file, project.ide.json, and every
+   * dirty untitled file all saved successfully -- i.e. it's genuinely safe to
+   * treat the workspace as clean (e.g. to proceed with quitting). Computed
+   * synchronously within this call, not derived from dirty-state refs
+   * afterward -- those are only synced via a useEffect and can still read
+   * stale values immediately after this promise resolves.
+   */
+  handleSaveAll: () => Promise<boolean>;
   handleReloadFromDisk: (item: { relativePath: string; absolutePath: string }) => Promise<void>;
   handleRefreshProject: () => Promise<void>;
 }
@@ -202,7 +210,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       .filter(b => dirtyIds.has(b.id) && b.filePath && filesWithDiskConflict.has(b.filePath))
       .map(b => b.filePath!);
 
-    const doSaveAll = async () => {
+    const doSaveAll = async (): Promise<boolean> => {
       setSaveStatus('saving');
       try {
           const currentBlocks = [...blocks];
@@ -238,7 +246,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                setSaveStatus('saved');
                notifyFirstSave();
                addToast('Changes saved to memory', 'success');
-               return;
+               return true;
           }
 
           if (window.electronAPI) {
@@ -271,13 +279,15 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
           notifyFirstSave();
           if (untitledSaveFailed) {
             addToast('Some changes saved — one or more untitled files were not saved', 'warning');
-          } else {
-            addToast('All changes saved', 'success');
+            return false;
           }
+          addToast('All changes saved', 'success');
+          return true;
       } catch (err) {
           logger.error('Failed to save changes', err);
           setSaveStatus('error');
           addToast(err instanceof Error ? err.message : 'Failed to save changes', 'error');
+          return false;
       }
     };
 
@@ -300,10 +310,12 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         onDontSave: () => closeUnsavedChangesModal(),
         onCancel: () => closeUnsavedChangesModal(),
       });
-      return;
+      // The actual save happens later, asynchronously, once the user resolves
+      // the conflict modal -- there's no result to report synchronously here.
+      return false;
     }
 
-    await doSaveAll();
+    return await doSaveAll();
   }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict, openTabs, secondaryOpenTabs, untitledFiles, saveUntitledFile]);
 
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
