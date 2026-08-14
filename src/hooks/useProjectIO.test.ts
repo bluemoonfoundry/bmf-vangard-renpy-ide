@@ -138,6 +138,24 @@ describe('useProjectIO', () => {
     expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
   });
 
+  it('does not clear the unsaved-settings flag when writeFile resolves with success: false', async () => {
+    // fs:writeFile in electron.js never rejects -- it catches internally and
+    // resolves { success: false, error }. A settings save that "fails" this
+    // way must not be treated as saved, or a crash-safety gap opens: the
+    // user believes their workspace state persisted when it didn't.
+    const api = createMockElectronAPI();
+    api.writeFile.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
+    installElectronAPI(api);
+    const setHasUnsavedSettings = vi.fn();
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ setHasUnsavedSettings, addToast })));
+
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+
+    expect(setHasUnsavedSettings).not.toHaveBeenCalledWith(false);
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('ENOSPC'), 'error');
+  });
+
   it('serializes sceneCompositions to file-path-only sprites', async () => {
     const api = createMockElectronAPI();
     installElectronAPI(api);
@@ -201,6 +219,44 @@ describe('useProjectIO', () => {
     expect(setDirtyBlockIds).toHaveBeenCalledWith(new Set());
     expect(setDirtyEditors).toHaveBeenCalledWith(new Set());
     expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('does not clear dirty state or report success when the block saves but project.ide.json fails to save', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('project.ide.json')) {
+        return Promise.resolve({ success: false, error: 'ENOSPC: no space left on device' });
+      }
+      return Promise.resolve({ success: true });
+    });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'label start:\n    return\n' });
+    const setDirtyBlockIds = vi.fn();
+    const setDirtyEditors = vi.fn();
+    const setSaveStatus = vi.fn();
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setDirtyBlockIds,
+      setDirtyEditors,
+      setSaveStatus,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    // The block content did get written to disk, but the overall save must
+    // not be reported as clean/successful -- the workspace metadata (open
+    // tabs, layouts, etc.) never persisted.
+    expect(setDirtyBlockIds).not.toHaveBeenCalledWith(new Set());
+    expect(setSaveStatus).toHaveBeenCalledWith('error');
+    expect(addToast).not.toHaveBeenCalledWith('All changes saved', 'success');
   });
 
   it('saves dirty untitled tabs across both panes', async () => {
@@ -309,6 +365,31 @@ describe('useProjectIO', () => {
 
     expect(setSaveStatus).toHaveBeenCalledWith('error');
     expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('names the failing file and the underlying error in the save-failure toast', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
+    installElectronAPI(api);
+
+    const addToast = vi.fn();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringMatching(/game\/script\.rpy.*ENOSPC: no space left on device/),
+      'error',
+    );
   });
 
   it('saves to memory when projectRootPath is null', async () => {

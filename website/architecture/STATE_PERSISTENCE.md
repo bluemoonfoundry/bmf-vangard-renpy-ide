@@ -112,7 +112,22 @@ The `project:refresh` IPC handler performs a full reconciliation — re-reads al
 
 ---
 
-## 6. Migration Patterns
+## 6. Crash Safety and Recovery
+
+The `fs:writeFile` IPC handler (used for both `.rpy` source files and `game/project.ide.json`) writes atomically: content goes to a temp file in the same directory (`.<filename>.tmp-<uuid>`), then `fs.rename()`s it over the destination. `fs.rename` is a single atomic directory-entry update on both POSIX and NTFS, so a crash, forced kill, or power loss mid-save can only ever leave one of two outcomes for the destination file:
+
+- **Before the rename completes:** the destination still has its old content, untouched. A stray `.tmp-*` file may be left next to it — harmless, safe to delete manually if ever seen.
+- **After the rename completes:** the destination has the full new content. There is no window where it can be partially written or truncated.
+
+`cleanupStaleTempFiles` (`src/lib/atomicFileWrite.js`) runs automatically on `project:load`, recursively removing any leftover `.tmp-*` files from a previous crashed session. This is pure tidy-up — the files those temp files were meant to replace were never touched, so nothing needs to be recovered from them.
+
+### Save All / project.ide.json failure handling
+
+`handleSaveAll` (`src/hooks/useProjectIO.ts`) only clears dirty-block/dirty-editor state and reports "All changes saved" if every dirty `.rpy` file **and** `game/project.ide.json` wrote successfully. If any individual write fails (including a settings-save failure that happens after all source files wrote fine), the save is reported as failed, dirty state is left intact so the user can retry, and the toast names the specific file and underlying OS error where available.
+
+---
+
+## 7. Migration Patterns
 
 When a persisted data format changes, add a migration function and call it in the `project:load` path. The pattern:
 

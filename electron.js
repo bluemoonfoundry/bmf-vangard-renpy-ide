@@ -32,6 +32,7 @@ import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
 import { scanDirectoryForAssets } from './src/lib/assetScanner.js';
 import { searchInDirectory } from './src/lib/projectSearch.js';
+import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1107,6 +1108,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('project:load', async (event, rootPath) => {
     currentProjectRoot = rootPath; // Track for screenshots
+    // Best-effort: remove any atomic-write temp files stranded by a previous
+    // crashed/killed session. The files they were meant to replace were never
+    // touched (see atomicWriteFile), so this is pure tidy-up, not recovery.
+    cleanupStaleTempFiles(rootPath).catch((err) => logger.warn('Stale temp file cleanup failed:', err));
     const result = await readProjectFiles(rootPath, { readContent: true }, (value, message) => {
       if (!event.sender.isDestroyed()) {
         event.sender.send('project:load-progress', value, message);
@@ -1133,7 +1138,10 @@ app.whenReady().then(() => {
       // Record self-write so the watcher ignores this change
       const normalizedPath = filePath.replace(/\\/g, '/');
       recentSelfWrites.set(normalizedPath, Date.now());
-      await fs.writeFile(filePath, content, encoding);
+      // Atomic write (temp file + rename) so a crash/power-loss mid-write can
+      // never leave filePath truncated -- it's either the old content or the
+      // fully-written new content, never a partial state.
+      await atomicWriteFile(filePath, content, encoding);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

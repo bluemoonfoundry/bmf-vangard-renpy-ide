@@ -102,7 +102,8 @@ export interface UseProjectIOParams {
 }
 
 export interface UseProjectIOReturn {
-  handleSaveProjectSettings: () => Promise<void>;
+  /** Returns true on success, false if the write failed (already toasted internally). */
+  handleSaveProjectSettings: () => Promise<boolean>;
   handleSaveAll: () => Promise<void>;
   handleReloadFromDisk: (item: { relativePath: string; absolutePath: string }) => Promise<void>;
   handleRefreshProject: () => Promise<void>;
@@ -184,11 +185,14 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         scannedAudioPaths: Array.from(audioScanDirectories.keys()),
       };
       const settingsPath = await window.electronAPI.path.join(projectRootPath as string, 'game/project.ide.json') as string;
-      await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      if (!res.success) throw new Error(res.error || 'Unknown error saving workspace settings');
       setHasUnsavedSettings(false);
+      return true;
     } catch (e) {
       logger.error("Failed to save IDE settings:", e);
-      addToast('Failed to save workspace settings', 'error');
+      addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
+      return false;
     }
   }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
 
@@ -243,10 +247,13 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                   if (block && block.filePath) {
                       const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
                       const res = await window.electronAPI.writeFile(absPath, block.content);
-                      if (!res.success) throw new Error((res.error as string) || 'Unknown error saving file');
+                      if (!res.success) throw new Error(`Failed to save ${block.filePath}: ${(res.error as string) || 'Unknown error'}`);
                   }
               }
-              await handleSaveProjectSettings();
+              const settingsSaved = await handleSaveProjectSettings();
+              if (settingsSaved === false) {
+                  throw new Error('Workspace settings failed to save -- see previous toast for details');
+              }
           }
 
           const dirtyUntitledIds = [...openTabs, ...secondaryOpenTabs]
@@ -270,7 +277,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       } catch (err) {
           logger.error('Failed to save changes', err);
           setSaveStatus('error');
-          addToast('Failed to save changes', 'error');
+          addToast(err instanceof Error ? err.message : 'Failed to save changes', 'error');
       }
     };
 
