@@ -10,7 +10,7 @@
 
 > _Formerly known as Ren'IDE._
 
-Vangard Studio is a desktop IDE for Ren'Py visual novel development. Your `.rpy` files appear as draggable blocks on a visual canvas — `jump` and `call` connections auto-draw as arrows. Three canvases let you see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, two visual composers, asset managers, diagnostics, and a color picker are all built in.
+Vangard Studio is a desktop IDE for Ren'Py visual novel development. It is designed a tool to help your organize and manage your Ren'py project as it grows. Built on a "code first" philosophy, it helps you visualize your story structure, see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, a visual drag-and-drop scene composer, an image map composer, image and audio asset managers, translation dashboard, statistics, diagnostics, and a color picker, and more are all built in.
 
 ## Getting Started 
 
