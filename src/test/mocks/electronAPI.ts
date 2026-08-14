@@ -16,7 +16,7 @@
  */
 
 import { vi, type Mock } from 'vitest';
-import type { AppSettings, SearchResult } from '@/types';
+import type { AppSettings, ProjectSearchOutcome } from '@/types';
 
 interface MockLoadedProject {
   blocks: unknown[];
@@ -67,6 +67,8 @@ export interface MockElectronAPI {
   moveFile: Mock<(oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>>;
   copyEntry: Mock<(sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>>;
   scanDirectory: Mock<(path: string) => Promise<MockScannedDirectory>>;
+  cancelScanDirectory: Mock<() => void>;
+  onScanProgress: Mock<(callback: (count: number) => void) => Unsubscribe>;
 
   // Menu commands
   onMenuCommand: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
@@ -105,7 +107,9 @@ export interface MockElectronAPI {
   openExternal: Mock<(url: string) => Promise<void>>;
 
   // Search & dialogs
-  searchInProject: Mock<(args: SearchInProjectArgs) => Promise<SearchResult[]>>;
+  searchInProject: Mock<(args: SearchInProjectArgs) => Promise<ProjectSearchOutcome>>;
+  cancelSearch: Mock<() => void>;
+  onSearchProgress: Mock<(callback: (count: number) => void) => Unsubscribe>;
   showSaveDialog: Mock<(options: SaveDialogOptions) => Promise<string | null>>;
   path: {
     join: Mock<(...paths: string[]) => Promise<string>>;
@@ -140,7 +144,9 @@ export function createMockElectronAPI(): MockElectronAPI {
     removeEntry: vi.fn().mockResolvedValue({ success: true }),
     moveFile: vi.fn().mockResolvedValue({ success: true }),
     copyEntry: vi.fn().mockResolvedValue({ success: true }),
-    scanDirectory: vi.fn().mockResolvedValue({ images: [], audios: [] }),
+    scanDirectory: vi.fn().mockResolvedValue({ images: [], audios: [], truncated: false, cancelled: false, errors: [] }),
+    cancelScanDirectory: vi.fn(),
+    onScanProgress: vi.fn().mockReturnValue(noopUnsubscribe),
 
     // Menu commands — returns an unsubscribe function
     onMenuCommand: vi.fn().mockReturnValue(noopUnsubscribe),
@@ -179,7 +185,9 @@ export function createMockElectronAPI(): MockElectronAPI {
     openExternal: vi.fn().mockResolvedValue(undefined),
 
     // Search & dialogs
-    searchInProject: vi.fn().mockResolvedValue([]),
+    searchInProject: vi.fn().mockResolvedValue({ results: [], truncated: false, cancelled: false, skipped: [], regexError: null }),
+    cancelSearch: vi.fn(),
+    onSearchProgress: vi.fn().mockReturnValue(noopUnsubscribe),
     showSaveDialog: vi.fn().mockResolvedValue(null),
     path: {
       join: vi.fn().mockImplementation((...paths: string[]) => Promise.resolve(paths.join('/'))),

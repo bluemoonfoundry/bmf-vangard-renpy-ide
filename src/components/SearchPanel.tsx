@@ -27,7 +27,7 @@ const SearchPanel: React.FC = () => {
         replaceQuery: replace, setReplaceQuery: setReplace,
         searchOptions: options, setSearchOptions: setOptions,
         searchResults: results,
-        executeSearch: onSearch, executeReplaceAll: onReplaceAll,
+        executeSearch: onSearch, cancelSearch: onCancelSearch, executeReplaceAll: onReplaceAll,
         handleResultClick: onResultClick,
         isSearching,
     } = search;
@@ -96,13 +96,22 @@ const SearchPanel: React.FC = () => {
                                 onKeyDown={handleSearchKeyDown}
                                 className="w-full px-2 py-1 text-sm rounded bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
                             />
-                            <button 
-                                onClick={onSearch} 
-                                disabled={isSearching || !query}
-                                className="px-3 py-1 text-sm font-semibold rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
-                            >
-                                Find All
-                            </button>
+                            {isSearching ? (
+                                <button
+                                    onClick={onCancelSearch}
+                                    className="px-3 py-1 text-sm font-semibold rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900"
+                                >
+                                    Cancel
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={onSearch}
+                                    disabled={!query}
+                                    className="px-3 py-1 text-sm font-semibold rounded bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
+                                >
+                                    Find All
+                                </button>
+                            )}
                         </div>
                         {showReplace && (
                             <div className="flex items-center space-x-2">

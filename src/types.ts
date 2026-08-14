@@ -1240,7 +1240,19 @@ export interface ProjectLoadResult {
 export interface ScanDirectoryResult {
   images: ScannedImageAsset[];
   audios: ScannedAudioAsset[];
+  truncated?: boolean;
+  cancelled?: boolean;
+  errors?: { path: string; message: string }[];
   error?: string;
+}
+
+/** Result of the searchInProject IPC call. */
+export interface ProjectSearchOutcome {
+  results: SearchResult[];
+  truncated: boolean;
+  cancelled: boolean;
+  skipped: { path: string; message: string }[];
+  regexError: string | null;
 }
 
 export interface PendingStoryLayoutRefresh {
@@ -1383,6 +1395,8 @@ declare global {
           moveFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
           copyEntry: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>;
           scanDirectory: (path: string) => Promise<ScanDirectoryResult>;
+          cancelScanDirectory?: () => void;
+          onScanProgress?: (callback: (count: number) => void) => () => void;
           onMenuCommand: (callback: (data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist', path?: string }) => void) => () => void;
           onCheckUnsavedChangesBeforeExit: (callback: () => void) => () => void;
           replyUnsavedChangesBeforeExit: (hasUnsaved: boolean) => void;
@@ -1404,13 +1418,15 @@ declare global {
           path: {
               join: (...paths: string[]) => Promise<string>;
           };
-          searchInProject: (options: { 
-              projectPath: string; 
-              query: string; 
-              isCaseSensitive?: boolean; 
-              isWholeWord?: boolean; 
-              isRegex?: boolean; 
-          }) => Promise<SearchResult[]>;
+          searchInProject: (options: {
+              projectPath: string;
+              query: string;
+              isCaseSensitive?: boolean;
+              isWholeWord?: boolean;
+              isRegex?: boolean;
+          }) => Promise<ProjectSearchOutcome>;
+          cancelSearch?: () => void;
+          onSearchProgress?: (callback: (count: number) => void) => () => void;
           showSaveDialog: (options: {
               title?: string;
               defaultPath?: string;

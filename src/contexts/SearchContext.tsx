@@ -31,6 +31,7 @@ interface SearchContextType {
 
   // Actions
   executeSearch: () => Promise<void>;
+  cancelSearch: () => void;
   executeReplaceAll: () => void;
   handleResultClick: (filePath: string, lineNumber: number) => void;
 }
@@ -45,6 +46,7 @@ const SearchContext = createContext<SearchContextType>({
   searchResults: [],
   isSearching: false,
   executeSearch: async () => {},
+  cancelSearch: () => {},
   executeReplaceAll: () => {},
   handleResultClick: () => {},
 });
@@ -83,12 +85,21 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
     if (window.electronAPI && projectRootPath) {
       setIsSearching(true);
       try {
-        const results = await window.electronAPI.searchInProject({
+        const outcome = await window.electronAPI.searchInProject({
           projectPath: projectRootPath,
           query: searchQuery,
           ...searchOptions,
         });
-        setSearchResults(results);
+        setSearchResults(outcome.results);
+        if (outcome.regexError) {
+          addToast(`Invalid search pattern: ${outcome.regexError}`, 'error');
+        } else if (outcome.cancelled) {
+          addToast('Search cancelled', 'info');
+        } else if (outcome.truncated) {
+          addToast('Search stopped early: too many files to search. Showing partial results.', 'warning');
+        } else if (outcome.skipped.length > 0) {
+          addToast(`Search skipped ${outcome.skipped.length} file${outcome.skipped.length === 1 ? '' : 's'} that could not be read.`, 'warning');
+        }
       } catch (err) {
         logger.error('Search failed:', err);
         addToast('Search failed', 'error');
@@ -97,6 +108,10 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
       }
     }
   }, [projectRootPath, searchQuery, searchOptions, addToast, setSearchResults]);
+
+  const cancelSearch = useCallback(() => {
+    window.electronAPI?.cancelSearch?.();
+  }, []);
 
   const buildReplaceRegex = useCallback((query: string, options: SearchOptions): RegExp | null => {
     if (!query) return null;
@@ -176,9 +191,10 @@ export const SearchProvider: React.FC<SearchProviderProps> = ({
     searchResults,
     isSearching,
     executeSearch,
+    cancelSearch,
     executeReplaceAll,
     handleResultClick,
-  }), [searchQuery, replaceQuery, searchOptions, searchResults, isSearching, executeSearch, executeReplaceAll, handleResultClick, setSearchOptions]);
+  }), [searchQuery, replaceQuery, searchOptions, searchResults, isSearching, executeSearch, cancelSearch, executeReplaceAll, handleResultClick, setSearchOptions]);
 
   return (
     <SearchContext.Provider value={value}>

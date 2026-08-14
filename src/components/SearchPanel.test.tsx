@@ -14,6 +14,7 @@ const mockUseSearch = {
   setSearchOptions: vi.fn(),
   searchResults: [] as SearchResult[],
   executeSearch: vi.fn(),
+  cancelSearch: vi.fn(),
   executeReplaceAll: vi.fn(),
   handleResultClick: vi.fn(),
   isSearching: false,
@@ -77,6 +78,21 @@ describe('SearchPanel', () => {
     mockUseSearch.isSearching = true;
     render(<SearchPanel />);
     expect(screen.getByText('Searching...')).toBeInTheDocument();
+  });
+
+  it('shows a Cancel button instead of Find All while searching', () => {
+    mockUseSearch.isSearching = true;
+    render(<SearchPanel />);
+    expect(screen.queryByText('Find All')).not.toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('calls cancelSearch when Cancel is clicked', async () => {
+    mockUseSearch.isSearching = true;
+    const user = userEvent.setup();
+    render(<SearchPanel />);
+    await user.click(screen.getByText('Cancel'));
+    expect(mockUseSearch.cancelSearch).toHaveBeenCalledTimes(1);
   });
 
   it('shows "No results found." when query exists but results are empty', () => {

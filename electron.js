@@ -21,16 +21,17 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage
 import electronUpdaterPkg from 'electron-updater';
 const { autoUpdater } = electronUpdaterPkg;
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { createReadStream, watch } from 'fs';
 import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
-import { findRegexMatchesInLine } from './src/lib/regexLineSearch.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
+import { scanDirectoryForAssets } from './src/lib/assetScanner.js';
+import { searchInDirectory } from './src/lib/projectSearch.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -266,6 +267,11 @@ async function checkRenpyProject(rootPath) {
 // Active worker for project loading — replaced on each load, terminated on cancel.
 let activeLoadWorker = null;
 
+// Cancellation state for the in-flight asset scan / project search (single-flight,
+// mirroring activeLoadWorker above) — set to null once the operation settles.
+let activeScanState = null;
+let activeSearchState = null;
+
 // Inline worker code for reading project files in a dedicated thread.
 // Using String.raw to preserve backslashes in regex patterns.
 const PROJECT_LOAD_WORKER_CODE = String.raw`
@@ -415,58 +421,6 @@ function readProjectFiles(rootPath, { readContent = true } = {}, onProgress = nu
             }
         });
     });
-}
-
-// TODO(#99): the thumbnail-rendering side of this issue is already handled --
-// ImageManager.tsx virtualizes its grid and ImageThumbnail.tsx lazy-loads --
-// but this directory walk itself is unbounded recursion with no batching/
-// streaming/progress reporting back to the renderer. On a very large asset
-// tree this still blocks the initial scan before any thumbnail can render.
-// Worth revisiting if #99 isn't actually closed by the ImageManager work.
-async function scanDirectoryForAssets(dirPath) {
-    const results = {
-        images: [],
-        audios: []
-    };
-
-    const scanRecursive = async (currentPath) => {
-        const entries = await fs.readdir(currentPath, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(currentPath, entry.name);
-            // Normalize path separators to forward slashes for consistency in frontend
-            const normalizedPath = fullPath.replace(/\\/g, '/');
-
-            if (entry.isDirectory()) {
-                await scanRecursive(fullPath);
-            } else if (entry.isFile()) {
-                const ext = path.extname(entry.name).toLowerCase();
-                if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.images.push({ 
-                        path: normalizedPath, 
-                        fileName: entry.name, 
-                        dataUrl: mediaUrl, 
-                        lastModified: stats.mtimeMs,
-                        size: stats.size
-                    });
-                } else if (['.mp3', '.ogg', '.wav', '.opus'].includes(ext)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.audios.push({ 
-                        path: normalizedPath, 
-                        fileName: entry.name, 
-                        dataUrl: mediaUrl, 
-                        lastModified: stats.mtimeMs,
-                        size: stats.size
-                    });
-                }
-            }
-        }
-    };
-
-    await scanRecursive(dirPath);
-    return results;
 }
 
 function getMimeType(filePath) {
@@ -849,52 +803,6 @@ async function createWindow() {
   await updateApplicationMenu();
 
   mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
-}
-
-async function searchInDirectory(directory, query, options) {
-    const results = [];
-    const entries = await fs.readdir(directory, { withFileTypes: true });
-
-    for (const entry of entries) {
-        const fullPath = path.join(directory, entry.name);
-        const relativePath = path.relative(options.projectPath, fullPath).replace(/\\/g, '/');
-        
-        if (entry.isDirectory()) {
-            if (entry.name === '.git' || entry.name === 'node_modules') continue;
-            results.push(...await searchInDirectory(fullPath, query, options));
-        } else if (entry.isFile() && entry.name.endsWith('.rpy')) {
-            const content = await fs.readFile(fullPath, 'utf-8');
-            const lines = content.split('\n');
-            const matches = [];
-            
-            let flags = 'g';
-            if (!options.isCaseSensitive) flags += 'i';
-            
-            let searchPattern = options.isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            if (options.isWholeWord) {
-                searchPattern = `\\b${searchPattern}\\b`;
-            }
-
-            try {
-              for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  // A fresh RegExp per line resets lastIndex, since findRegexMatchesInLine
-                  // mutates it while walking zero-width matches (e.g. `/$/g`, `/^/g`).
-                  const regex = new RegExp(searchPattern, flags);
-                  for (const lineMatch of findRegexMatchesInLine(line, regex)) {
-                      matches.push({ lineNumber: i + 1, lineContent: line, ...lineMatch });
-                  }
-              }
-            } catch (e) {
-              logger.error(`Invalid regex for file ${relativePath}:`, e.message);
-            }
-
-            if (matches.length > 0) {
-                results.push({ filePath: relativePath, matches });
-            }
-        }
-    }
-    return results;
 }
 
 app.whenReady().then(() => {
@@ -1280,11 +1188,25 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:scanDirectory', async (event, dirPath) => {
       try {
           await guardProjectPath(dirPath);
-          return await scanDirectoryForAssets(dirPath);
+          const state = { cancelled: false };
+          activeScanState = state;
+          return await scanDirectoryForAssets(dirPath, {
+              isCancelled: () => state.cancelled,
+              onProgress: (count) => {
+                  if (!event.sender.isDestroyed()) event.sender.send('fs:scan-progress', count);
+              },
+          });
       } catch (error) {
           logger.error("Scan directory failed:", error);
           return { images: [], audios: [], error: error.message };
+      } finally {
+          activeScanState = null;
       }
+  });
+
+  // Fire-and-forget: renderer sends this to cancel the in-flight asset scan.
+  ipcMain.on('fs:cancel-scan-directory', () => {
+      if (activeScanState) activeScanState.cancelled = true;
   });
   
   ipcMain.handle('fs:readFile', async (event, filePath) => {
@@ -1513,15 +1435,31 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('project:search', async (event, { projectPath, query, ...options }) => {
-    if (!query) return [];
+    if (!query) return { results: [], truncated: false, cancelled: false, skipped: [], regexError: null };
     try {
         await guardProjectPath(projectPath);
-        const results = await searchInDirectory(projectPath, query, { projectPath, ...options });
-        return results;
+        const state = { cancelled: false };
+        activeSearchState = state;
+        const outcome = await searchInDirectory(projectPath, query, {
+            projectPath,
+            ...options,
+            isCancelled: () => state.cancelled,
+            onProgress: (count) => {
+                if (!event.sender.isDestroyed()) event.sender.send('project:search-progress', count);
+            },
+        });
+        return outcome;
     } catch (error) {
         logger.error('Search failed:', error);
-        return [];
+        return { results: [], truncated: false, cancelled: false, skipped: [], regexError: null };
+    } finally {
+        activeSearchState = null;
     }
+  });
+
+  // Fire-and-forget: renderer sends this to cancel the in-flight project search.
+  ipcMain.on('project:cancel-search', () => {
+    if (activeSearchState) activeSearchState.cancelled = true;
   });
 
   createWindow();
