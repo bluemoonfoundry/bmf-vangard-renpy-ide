@@ -1,15 +1,21 @@
 import { logger, electronLog } from './src/lib/logger.main.js';
+import { isAppImageRuntime, shouldDisableSandbox } from './src/lib/sandboxProbe.js';
 
 // CRITICAL: Fix AppImage sandbox and shared memory issues
 // Must inject flags into process.argv BEFORE importing electron
-const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
-if (isAppImage) {
-    logger.info('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
-    if (!process.argv.includes('--no-sandbox')) {
-        process.argv.push('--no-sandbox');
-    }
+if (isAppImageRuntime()) {
+    logger.info('[Vangard] Running in AppImage mode');
     if (!process.argv.includes('--disable-dev-shm-usage')) {
         process.argv.push('--disable-dev-shm-usage');
+    }
+    // --no-sandbox is only injected when the setuid chrome-sandbox helper is
+    // confirmed unusable (AppImage's FUSE/extraction mount is commonly
+    // nosuid). This is a scoped, tested fallback — see
+    // docs/security/appimage-sandbox.md for the residual threat model. It
+    // never applies to Windows, macOS, or Linux .deb installs.
+    if (shouldDisableSandbox() && !process.argv.includes('--no-sandbox')) {
+        logger.warn('[Vangard] chrome-sandbox helper unusable in this AppImage environment - falling back to --no-sandbox. See docs/security/appimage-sandbox.md');
+        process.argv.push('--no-sandbox');
     }
     logger.info('[Vangard] process.argv:', process.argv);
 } else {

@@ -60,7 +60,7 @@ For crashes, also ask for the `traceback.txt` from their Ren'Py project folder i
 
 ### Blank white window on first launch (Linux)
 **Symptom:** App window opens but renderer is blank.  
-**Fix:** Usually a GPU sandbox issue. Try launching with `--no-sandbox` flag: `./Vangard_Studio_Linux_*.AppImage --no-sandbox`. If that resolves it, document the environment (distro, GPU driver) in the issue.
+**Fix:** Usually a GPU sandbox issue. The app already auto-detects and falls back to `--no-sandbox` when the AppImage's `chrome-sandbox` helper can't run (see `docs/security/appimage-sandbox.md`), so this should be rare. If it still happens, try launching manually with `./Vangard_Studio_Linux_*.AppImage --no-sandbox` and document the environment (distro, GPU driver) in the issue.
 
 ### Auto-updater silently fails
 **Symptom:** No update notification on a version that should prompt one.  
