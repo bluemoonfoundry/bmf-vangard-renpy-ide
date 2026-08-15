@@ -472,6 +472,7 @@ const App: React.FC = () => {
     handleCopyImageToProject,
     handleSaveAudioMetadata,
     handleCopyAudioToProject,
+    cancelAssetScan,
   } = useAssetManagement({
     projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId,
@@ -2113,6 +2114,7 @@ const App: React.FC = () => {
           <StatusBar
               isAnalysisPending={isAnalysisPending}
               isScanningAssets={isScanningAssets}
+              onCancelScan={cancelAssetScan}
               saveStatus={saveStatus}
               blockCount={blocks.length}
               errorCount={diagnosticsResult.errorCount}

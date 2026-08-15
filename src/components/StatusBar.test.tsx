@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import StatusBar from './StatusBar';
 import { DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
@@ -16,6 +17,25 @@ function createDefaultProps(overrides: Partial<React.ComponentProps<typeof Statu
     ...overrides,
   };
 }
+
+describe('StatusBar — asset scan cancellation', () => {
+  it('does not show a Cancel button when not scanning', () => {
+    render(<StatusBar {...createDefaultProps({ isScanningAssets: false })} />);
+    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a Cancel button while scanning assets', () => {
+    render(<StatusBar {...createDefaultProps({ isScanningAssets: true, onCancelScan: vi.fn() })} />);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('calls onCancelScan when the Cancel button is clicked', async () => {
+    const onCancelScan = vi.fn();
+    render(<StatusBar {...createDefaultProps({ isScanningAssets: true, onCancelScan })} />);
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(onCancelScan).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('StatusBar — active file line count', () => {
   it('shows nothing when no file is active', () => {

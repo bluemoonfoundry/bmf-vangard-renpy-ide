@@ -22,6 +22,7 @@ interface StatusBarProps {
   onCopyLatestScreenshotPath?: () => void;
   activeFileLineCount: number | null;
   fileSizeThresholds: FileSizeThresholds;
+  onCancelScan?: () => void;
 }
 
 const Spinner: React.FC = () => (
@@ -44,6 +45,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
   onCopyLatestScreenshotPath,
   activeFileLineCount,
   fileSizeThresholds,
+  onCancelScan,
 }) => {
   const [showContextMenu, setShowContextMenu] = React.useState(false);
   const contextMenuRef = React.useRef<HTMLDivElement>(null);
@@ -70,6 +72,16 @@ const StatusBar: React.FC<StatusBarProps> = ({
       <div className={`flex items-center gap-1.5 ${activity.color}`}>
         {activity.spinner && <Spinner />}
         <span>{activity.label}</span>
+        {isScanningAssets && onCancelScan && (
+          <button
+            onClick={onCancelScan}
+            className="ml-1 px-1.5 rounded hover:bg-black/10 text-secondary hover:text-primary transition-colors"
+            aria-label="Cancel scan"
+            title="Cancel scan"
+          >
+            Cancel
+          </button>
+        )}
       </div>
 
       {/* Right — project summary + version */}

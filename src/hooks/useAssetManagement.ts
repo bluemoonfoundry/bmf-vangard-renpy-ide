@@ -72,6 +72,7 @@ export interface UseAssetManagementReturn {
   handleRefreshAudios: () => Promise<void>;
   handleRemoveAudioScanDirectory: (path: string) => void;
   handleCopyAudiosToProjectBulk: (sourcePaths: string[]) => Promise<void>;
+  cancelAssetScan: () => void;
 
   // Single-file metadata / copy operations (used by ImageEditorView / AudioEditorView tabs)
   handleSaveImageMetadata: (currentFilePath: string, newMeta: ImageMetadata) => Promise<void>;
@@ -237,7 +238,7 @@ export function useAssetManagement({
           setIsScanningAssets(true);
           setIsRefreshingImages(true);
           try {
-            const { images: scanned, truncated, errors } = await window.electronAPI.scanDirectory(path);
+            const { images: scanned, truncated, cancelled, errors } = await window.electronAPI.scanDirectory(path);
             setImages(prev => {
               const next = new Map(prev);
               scanned.forEach((img) => {
@@ -245,7 +246,9 @@ export function useAssetManagement({
               });
               return next;
             });
-            if (truncated) {
+            if (cancelled) {
+              addToast('Scan cancelled — showing partial results.', 'warning');
+            } else if (truncated) {
               addToast('Scan stopped early: too many files in that directory. Showing partial results.', 'warning');
             } else if (errors && errors.length > 0) {
               addToast(`Skipped ${errors.length} file${errors.length === 1 ? '' : 's'} that could not be read.`, 'warning');
@@ -347,7 +350,7 @@ export function useAssetManagement({
           setIsScanningAssets(true);
           setIsRefreshingAudios(true);
           try {
-            const { audios: scanned, truncated, errors } = await window.electronAPI.scanDirectory(path);
+            const { audios: scanned, truncated, cancelled, errors } = await window.electronAPI.scanDirectory(path);
             setAudios(prev => {
               const next = new Map(prev);
               scanned.forEach((aud) => {
@@ -355,7 +358,9 @@ export function useAssetManagement({
               });
               return next;
             });
-            if (truncated) {
+            if (cancelled) {
+              addToast('Scan cancelled — showing partial results.', 'warning');
+            } else if (truncated) {
               addToast('Scan stopped early: too many files in that directory. Showing partial results.', 'warning');
             } else if (errors && errors.length > 0) {
               addToast(`Skipped ${errors.length} file${errors.length === 1 ? '' : 's'} that could not be read.`, 'warning');
@@ -604,6 +609,15 @@ export function useAssetManagement({
     }
   }, [projectRootPath, addToast, setFileSystemTree, setAudios]);
 
+  /**
+   * Requests cancellation of the in-flight asset scan (fire-and-forget IPC).
+   * The scanner is cooperative — it stops at its next check and the awaiting
+   * handleAdd*ScanDirectory call resolves with `cancelled: true`.
+   */
+  const cancelAssetScan = useCallback(() => {
+    window.electronAPI?.cancelScanDirectory?.();
+  }, []);
+
   return {
     // Image state
     images,
@@ -648,6 +662,7 @@ export function useAssetManagement({
     handleRefreshAudios,
     handleRemoveAudioScanDirectory,
     handleCopyAudiosToProjectBulk,
+    cancelAssetScan,
 
     // Single-file metadata / copy operations
     handleSaveImageMetadata,
