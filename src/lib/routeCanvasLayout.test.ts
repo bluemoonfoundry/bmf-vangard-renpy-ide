@@ -210,6 +210,29 @@ describe('computeRouteCanvasLayoutFingerprint', () => {
     expect(fp1).toBe(fp2);
   });
 
+  it('produces the same fingerprint across sessions even though node/block IDs are regenerated on every load', () => {
+    // Production LabelNode ids/blockIds are `${block.id}:${label}` composites,
+    // and block.id is re-minted every session (see storyCanvasLayout's
+    // equivalent regression test). containerName/label stay stable across
+    // sessions -- the fingerprint must key off those, not the raw id, or it
+    // falsely reports "the route graph changed" on every project open.
+    const makeNode = (blockId: string, label: string, containerName: string): LabelNode => ({
+      id: `${blockId}:${label}`, label, blockId, containerName,
+      startLine: 1, position: { x: 0, y: 0 }, width: 220, height: 110,
+    });
+
+    const sessionOneNodes = [makeNode('block-0-1000', 'start', 'script.rpy'), makeNode('block-1-1000', 'end', 'scene.rpy')];
+    const sessionOneLinks: RouteLink[] = [{ id: 'l1', sourceId: 'block-0-1000:start', targetId: 'block-1-1000:end', type: 'jump' }];
+
+    const sessionTwoNodes = [makeNode('block-0-999999', 'start', 'script.rpy'), makeNode('block-1-999999', 'end', 'scene.rpy')];
+    const sessionTwoLinks: RouteLink[] = [{ id: 'l1', sourceId: 'block-0-999999:start', targetId: 'block-1-999999:end', type: 'jump' }];
+
+    const fp1 = computeRouteCanvasLayoutFingerprint(sessionOneNodes, sessionOneLinks, 'flow-lr', 'none');
+    const fp2 = computeRouteCanvasLayoutFingerprint(sessionTwoNodes, sessionTwoLinks, 'flow-lr', 'none');
+
+    expect(fp2).toBe(fp1);
+  });
+
   it('fingerprint includes the layout version', () => {
     const fp = computeRouteCanvasLayoutFingerprint([], [], 'flow-lr', 'none');
     expect(fp).toMatch(/^v\d+;/);

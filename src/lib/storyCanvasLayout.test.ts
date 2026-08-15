@@ -63,6 +63,26 @@ describe('storyCanvasLayout', () => {
     expect(changedMode).not.toBe(base);
   });
 
+  it('produces the same fingerprint across sessions even though block IDs are regenerated on every load', () => {
+    // deserializeProjectData mints a fresh `block-${index}-${Date.now()}` id for
+    // every block whenever there's no matching in-memory block to reuse an id
+    // from (i.e. every fresh app launch / project open). If the fingerprint
+    // baked those volatile ids into its link part, it would never match the
+    // fingerprint saved in a *previous* session -- falsely flagging "the story
+    // graph changed" and marking the project dirty on every single open, even
+    // with zero real changes. See bmf-vangard-renpy-ide-6o47 follow-up.
+    const sessionOneBlocks = [createBlock('block-0-1000', 'game/script.rpy'), createBlock('block-1-1000', 'game/scene.rpy')];
+    const sessionOneLinks: Link[] = [{ sourceId: 'block-0-1000', targetId: 'block-1-1000', targetLabel: 'scene', type: 'jump' }];
+
+    const sessionTwoBlocks = [createBlock('block-0-9999999', 'game/script.rpy'), createBlock('block-1-9999999', 'game/scene.rpy')];
+    const sessionTwoLinks: Link[] = [{ sourceId: 'block-0-9999999', targetId: 'block-1-9999999', targetLabel: 'scene', type: 'jump' }];
+
+    const fingerprintOne = computeStoryLayoutFingerprint(sessionOneBlocks, sessionOneLinks, 'flow-lr', 'none');
+    const fingerprintTwo = computeStoryLayoutFingerprint(sessionTwoBlocks, sessionTwoLinks, 'flow-lr', 'none');
+
+    expect(fingerprintTwo).toBe(fingerprintOne);
+  });
+
   it('builds saved layouts only for file-backed blocks', () => {
     const blocks = [createBlock('a', 'game/script.rpy'), { ...createBlock('b', 'game/temp.rpy'), filePath: undefined }];
 

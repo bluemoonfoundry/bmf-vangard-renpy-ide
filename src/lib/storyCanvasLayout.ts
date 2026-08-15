@@ -269,8 +269,14 @@ export function computeStoryLayoutFingerprint(
     .map(block => `${block.filePath ?? block.id}:${block.width}x${block.height}`)
     .sort()
     .join('|');
+  // link.sourceId/targetId are raw block.id values, which are re-minted every
+  // session (deserializeProjectData assigns a fresh `block-${index}-${Date.now()}`
+  // id whenever there's no matching in-memory block to reuse one from -- i.e.
+  // every fresh project load). Translate to the stable filePath before hashing
+  // so the fingerprint doesn't spuriously change across app restarts.
+  const idToPath = new Map(blocks.map(block => [block.id, block.filePath ?? block.id]));
   const linkPart = links
-    .map(link => `${link.sourceId}->${link.targetId}:${link.type ?? 'jump'}`)
+    .map(link => `${idToPath.get(link.sourceId) ?? link.sourceId}->${idToPath.get(link.targetId) ?? link.targetId}:${link.type ?? 'jump'}`)
     .sort()
     .join('|');
   return `v${LAYOUT_VERSION};mode=${layoutMode};group=${groupingMode};blocks=${blockPart};links=${linkPart}`;
