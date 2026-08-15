@@ -26,6 +26,11 @@ export interface UseBlockManagementParams {
   activeTabId: string;
   setActiveTabId: Dispatch<SetStateAction<string>>;
   setOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
+  secondaryActiveTabId: string;
+  setSecondaryActiveTabId: Dispatch<SetStateAction<string>>;
+  setSecondaryOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
+  setSplitLayout: Dispatch<SetStateAction<'none' | 'right' | 'bottom'>>;
+  setActivePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
   fileSystemTree: FileSystemTreeNode | null;
   setFileSystemTree: Dispatch<SetStateAction<FileSystemTreeNode | null>>;
   projectRootPath: string | null;
@@ -57,6 +62,7 @@ export function useBlockManagement({
   appSettings, storyCanvasTransform,
   setCenterOnBlockRequest, setFlashBlockRequest, setSelectedBlockIds,
   activeTabId, setActiveTabId, setOpenTabs,
+  secondaryActiveTabId, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setActivePaneId,
   fileSystemTree, setFileSystemTree,
   projectRootPath, explorerSelectedPaths,
   openCreateBlockModal, openDeleteConfirmModal,
@@ -251,7 +257,24 @@ export function useBlockManagement({
     setBlocks(prev => prev.filter(b => b.id !== id));
     setOpenTabs(prev => prev.filter(t => t.blockId !== id));
     if (activeTabId === id) setActiveTabId('canvas');
-  }, [setBlocks, setGroups, activeTabId, setActiveTabId, setOpenTabs]);
+
+    // Secondary (split) pane tabs were never pruned here, so a block deleted while its
+    // editor was open on the right side left a tab with an unresolvable blockId behind --
+    // it rendered as a blank pane mislabeled "Untitled" (see useTabContentRenderer's
+    // blockId-not-found fallback).
+    setSecondaryOpenTabs(prev => {
+      const next = prev.filter(t => t.blockId !== id);
+      if (next.length === prev.length) return prev;
+      if (next.length === 0) {
+        setSplitLayout('none');
+        setActivePaneId('primary');
+        setSecondaryActiveTabId('');
+      } else if (secondaryActiveTabId === id) {
+        setSecondaryActiveTabId(next[0].id);
+      }
+      return next;
+    });
+  }, [setBlocks, setGroups, activeTabId, setActiveTabId, setOpenTabs, secondaryActiveTabId, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setActivePaneId]);
 
   const deleteBlockWithFile = useCallback(async (id: string) => {
     const block = blocks.find(b => b.id === id);

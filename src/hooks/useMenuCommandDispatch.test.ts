@@ -24,6 +24,7 @@ function makeHandlers(overrides = {}) {
     onExplorerDelete: vi.fn(),
     onExplorerRefresh: vi.fn(),
     onOpenScreenshotsFolder: vi.fn(),
+    onNewUntitledFile: vi.fn(),
     onCloseTab: vi.fn(),
     ...overrides,
   };
@@ -65,6 +66,7 @@ describe('useMenuCommandDispatch', () => {
     ['explorer-delete', 'onExplorerDelete'],
     ['explorer-refresh', 'onExplorerRefresh'],
     ['open-screenshots-folder', 'onOpenScreenshotsFolder'],
+    ['new-untitled-file', 'onNewUntitledFile'],
     ['close-tab', 'onCloseTab'],
   ] as const)('dispatches command "%s" to handler "%s"', (command, handlerKey) => {
     const handlers = makeHandlers();

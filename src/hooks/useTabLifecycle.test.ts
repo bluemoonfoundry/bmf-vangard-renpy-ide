@@ -29,6 +29,9 @@ function makeProps(overrides: Partial<Parameters<typeof useTabLifecycle>[0]> = {
     dirtyEditors: new Set<string>(),
     setDirtyBlockIds: vi.fn(),
     setDirtyEditors: vi.fn(),
+    untitledFiles: new Map(),
+    saveUntitledFile: vi.fn().mockResolvedValue(true),
+    discardUntitledFile: vi.fn(),
     openUnsavedChangesModal: vi.fn(),
     closeUnsavedChangesModal: vi.fn(),
     handleSaveAll: vi.fn().mockResolvedValue(undefined),
@@ -134,6 +137,91 @@ describe('useTabLifecycle', () => {
       const tabWithBlock: EditorTab = { id: 'block-1', type: 'editor', blockId: 'block-1' } as EditorTab;
       act(() => result.current.processTabCloseRequest([tabWithBlock], 'canvas'));
       expect(props.openUnsavedChangesModal).toHaveBeenCalled();
+    });
+
+    it('opens unsaved changes modal for a dirty untitled tab even with no dirty real blocks', () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const props = makeProps({
+        openTabs: [untitledTab],
+        untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: 'x', isDirty: true }]]),
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([untitledTab], 'canvas'));
+      expect(props.openUnsavedChangesModal).toHaveBeenCalled();
+    });
+
+    it('closes directly when the only untitled tab in the batch is not dirty', () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const props = makeProps({
+        openTabs: [untitledTab],
+        untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: '', isDirty: false }]]),
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([untitledTab], 'canvas'));
+      expect(props.openUnsavedChangesModal).not.toHaveBeenCalled();
+      expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+
+    it('on confirm, saves the dirty untitled tab and closes it once saved', async () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const saveUntitledFile = vi.fn().mockResolvedValue(true);
+      const setOpenTabs = vi.fn();
+      const openUnsavedChangesModal = vi.fn();
+      const props = makeProps({
+        openTabs: [untitledTab],
+        untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: 'x', isDirty: true }]]),
+        saveUntitledFile, setOpenTabs, openUnsavedChangesModal,
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([untitledTab], 'canvas'));
+
+      const { onConfirm } = openUnsavedChangesModal.mock.calls[0][0];
+      await act(async () => { await onConfirm(); });
+
+      expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+      const updater = setOpenTabs.mock.calls[setOpenTabs.mock.calls.length - 1][0] as (prev: EditorTab[]) => EditorTab[];
+      expect(updater([untitledTab])).toEqual([]);
+    });
+
+    it('on confirm, keeps a dirty untitled tab open if its save dialog was canceled', async () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const saveUntitledFile = vi.fn().mockResolvedValue(false);
+      const setOpenTabs = vi.fn();
+      const openUnsavedChangesModal = vi.fn();
+      const props = makeProps({
+        openTabs: [untitledTab],
+        untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: 'x', isDirty: true }]]),
+        saveUntitledFile, setOpenTabs, openUnsavedChangesModal,
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([untitledTab], 'canvas'));
+
+      const { onConfirm } = openUnsavedChangesModal.mock.calls[0][0];
+      await act(async () => { await onConfirm(); });
+
+      expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+      const updater = setOpenTabs.mock.calls[setOpenTabs.mock.calls.length - 1][0] as (prev: EditorTab[]) => EditorTab[];
+      expect(updater([untitledTab])).toEqual([untitledTab]);
+    });
+
+    it('on "Don\'t Save", discards the untitled draft and closes the tab', () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const discardUntitledFile = vi.fn();
+      const setOpenTabs = vi.fn();
+      const openUnsavedChangesModal = vi.fn();
+      const props = makeProps({
+        openTabs: [untitledTab],
+        untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: 'x', isDirty: true }]]),
+        discardUntitledFile, setOpenTabs, openUnsavedChangesModal,
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([untitledTab], 'canvas'));
+
+      const { onDontSave } = openUnsavedChangesModal.mock.calls[0][0];
+      act(() => onDontSave());
+
+      expect(discardUntitledFile).toHaveBeenCalledWith('untitled-1');
+      expect(setOpenTabs).toHaveBeenCalled();
     });
   });
 

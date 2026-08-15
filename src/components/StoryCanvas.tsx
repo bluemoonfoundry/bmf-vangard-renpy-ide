@@ -16,7 +16,7 @@ import CanvasLayoutControls from './CanvasLayoutControls';
 import CanvasToolbox from './CanvasToolbox';
 import CanvasNavControls from './CanvasNavControls';
 import type { MinimapItem } from './Minimap';
-import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult } from '@/types';
+import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult, FileSizeThresholds } from '@/types';
 import type { BlockType } from './CreateBlockModal';
 import { useDualPane } from '@/contexts/DualPaneContext';
 
@@ -59,6 +59,7 @@ export interface StoryCanvasProps {
   onChangeLayoutMode: (mode: StoryCanvasLayoutMode) => void;
   onChangeGroupingMode: (mode: StoryCanvasGroupingMode) => void;
   diagnosticsResult?: DiagnosticsResult;
+  fileSizeThresholds?: FileSizeThresholds;
 }
 
 const getBlockById = (blocks: Block[], id: string) => blocks.find(b => b.id === id);
@@ -243,7 +244,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
     findUsagesHighlightIds, clearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     transform, onTransformChange, onCreateBlock, onAddStickyNote, onOpenRouteCanvas, mouseGestures,
-    layoutMode, groupingMode, onChangeLayoutMode, onChangeGroupingMode, diagnosticsResult,
+    layoutMode, groupingMode, onChangeLayoutMode, onChangeGroupingMode, diagnosticsResult, fileSizeThresholds,
 }) => {
   const { dirtyBlockIds } = useDualPane();
   const [rubberBandRect, setRubberBandRect] = useState<Rect | null>(null);
@@ -1450,6 +1451,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               isEntering={enteringBlockIds.includes(block.id)}
               isLinkEndpoint={selectedLinkEndpointIds?.has(block.id) ?? false}
               diagnosticSeverity={blockDiagnosticSeverity.get(block.id) ?? null}
+              fileSizeThresholds={fileSizeThresholds}
             />
           );
         })}
@@ -1475,6 +1477,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
             isFlashing={false}
             isExiting={true}
             diagnosticSeverity={null}
+            fileSizeThresholds={fileSizeThresholds}
           />
         ))}
 

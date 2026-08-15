@@ -6,9 +6,10 @@
  */
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { TranslationAnalysisResult, LanguageCoverage, TranslationFileBreakdown, Block } from '@/types';
+import type { TranslationAnalysisResult, LanguageCoverage, TranslationFileBreakdown, Block, TranslatableString } from '@/types';
 import { useVirtualList } from '@/hooks/useVirtualList';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
+import { deriveTlFilePath } from '@/lib/renpyTranslationParser';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -21,6 +22,7 @@ interface TranslationDashboardProps {
   onGenerateTranslations: (language: string) => Promise<void>;
   isGenerating: boolean;
   isRenpyPathValid: boolean;
+  addToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +79,7 @@ type StatusFilter = 'all' | 'translated' | 'untranslated' | 'stale';
 
 const LANGUAGE_PATTERN = /^[a-z][a-z0-9_]*$/;
 
-const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translationData, blocks: _blocks, onOpenBlock, onGenerateTranslations, isGenerating, isRenpyPathValid }) => {
+const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translationData, blocks, onOpenBlock, onGenerateTranslations, isGenerating, isRenpyPathValid, addToast }) => {
   // --- State ---
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -229,16 +231,32 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
     return stringTranslations.get(stringId)?.get(language) ?? null;
   }, [stringTranslations]);
 
-  const openTranslationForString = useCallback((stringId: string, sourceBlockId: string, sourceLine: number, preferredLanguage?: string | null) => {
-    const preferredTranslation = preferredLanguage ? getTranslationForLanguage(stringId, preferredLanguage) : null;
+  // No matched translation exists for this string+language. Best effort: jump into
+  // the tl/<language>/ file itself (if it's been generated) so the user lands
+  // somewhere useful to add the translation, rather than silently opening source.
+  const attemptOpenUntranslated = useCallback((sourceFilePath: string, sourceBlockId: string, sourceLine: number, language: string) => {
+    const tlPath = deriveTlFilePath(sourceFilePath, language);
+    const tlBlock = blocks.find(b => b.filePath && b.filePath.replace(/\\/g, '/') === tlPath);
+    if (tlBlock) {
+      setSelectedLanguage(language);
+      onOpenBlock(tlBlock.id);
+      addToast?.(`No ${language} translation yet for this string — opened ${tlPath} so you can add it.`, 'info');
+    } else {
+      addToast?.(`No translation file exists yet for ${language}. Generate translations first.`, 'warning');
+      onOpenBlock(sourceBlockId, sourceLine);
+    }
+  }, [blocks, onOpenBlock, addToast]);
+
+  const openTranslationForString = useCallback((s: TranslatableString, preferredLanguage?: string | null) => {
+    const preferredTranslation = preferredLanguage ? getTranslationForLanguage(s.id, preferredLanguage) : null;
     if (preferredTranslation) {
-      setSelectedLanguage(preferredLanguage);
+      setSelectedLanguage(preferredLanguage!);
       onOpenBlock(preferredTranslation.blockId, preferredTranslation.line);
       return;
     }
 
     for (const language of detectedLanguages) {
-      const translation = getTranslationForLanguage(stringId, language);
+      const translation = getTranslationForLanguage(s.id, language);
       if (translation) {
         setSelectedLanguage(language);
         onOpenBlock(translation.blockId, translation.line);
@@ -246,8 +264,14 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
       }
     }
 
-    onOpenBlock(sourceBlockId, sourceLine);
-  }, [detectedLanguages, getTranslationForLanguage, onOpenBlock]);
+    const targetLanguage = preferredLanguage ?? detectedLanguages[0] ?? null;
+    if (targetLanguage) {
+      attemptOpenUntranslated(s.filePath, s.blockId, s.line, targetLanguage);
+      return;
+    }
+
+    onOpenBlock(s.blockId, s.line);
+  }, [detectedLanguages, getTranslationForLanguage, onOpenBlock, attemptOpenUntranslated]);
 
   const activeCoverage: LanguageCoverage | null = useMemo(
     () => languageCoverages.find(c => c.language === activeLang) ?? null,
@@ -485,10 +509,10 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
                     key={s.id}
                     className="absolute left-0 right-0 flex items-center gap-3 px-3 border-b border-primary hover:bg-tertiary-hover cursor-pointer"
                     style={{ top: offsetTop, height: 56 }}
-                    onClick={() => openTranslationForString(s.id, s.blockId, s.line, activeLang)}
+                    onClick={() => openTranslationForString(s, activeLang)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={e => { if (e.key === 'Enter') openTranslationForString(s.id, s.blockId, s.line, activeLang); }}
+                    onKeyDown={e => { if (e.key === 'Enter') openTranslationForString(s, activeLang); }}
                     data-testid={`string-row-${index}`}
                   >
                     {/* Type badge */}
@@ -523,15 +547,17 @@ const TranslationDashboard: React.FC<TranslationDashboardProps> = ({ translation
                           <button
                             key={lang}
                             type="button"
-                            disabled={!t}
-                            className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400 ${color} ${t ? 'cursor-pointer hover:brightness-95' : 'cursor-not-allowed opacity-60'}`}
-                            title={t ? (isStale ? `${lang}: stale` : `${lang}: ${t.translatedText}`) : `${lang}: missing`}
-                            aria-label={t ? `Open ${lang} translation` : `${lang} translation missing`}
+                            className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer hover:brightness-95 ${color}`}
+                            title={t ? (isStale ? `${lang}: stale` : `${lang}: ${t.translatedText}`) : `${lang}: missing — click to go to the tl/${lang}/ file`}
+                            aria-label={t ? `Open ${lang} translation` : `Go to ${lang} translation file`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (t) {
                                 setSelectedLanguage(lang);
                                 onOpenBlock(t.blockId, t.line);
+                              } else {
+                                setSelectedLanguage(lang);
+                                attemptOpenUntranslated(s.filePath, s.blockId, s.line, lang);
                               }
                             }}
                           >

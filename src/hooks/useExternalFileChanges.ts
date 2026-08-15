@@ -10,6 +10,7 @@ interface UseExternalFileChangesParams {
   dirtyEditorsRef: React.MutableRefObject<Set<string>>;
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
   editorInstances: React.MutableRefObject<Map<string, monaco.editor.IStandaloneCodeEditor>>;
+  addToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
 export function useExternalFileChanges({
@@ -19,6 +20,7 @@ export function useExternalFileChanges({
   dirtyEditorsRef,
   setBlocks,
   editorInstances,
+  addToast,
 }: UseExternalFileChangesParams) {
   const [externallyChangedFiles, setExternallyChangedFiles] = useState<Array<{ relativePath: string; absolutePath: string }>>([]);
   const [filesWithDiskConflict, setFilesWithDiskConflict] = useState<Set<string>>(new Set());
@@ -51,6 +53,14 @@ export function useExternalFileChanges({
     });
     return unsub;
   }, [projectRootPath, setBlocks]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onWatcherError) return;
+    const unsub = window.electronAPI.onWatcherError(() => {
+      addToast?.('Live file change detection is unavailable for this project — external edits will not auto-sync.', 'warning');
+    });
+    return unsub;
+  }, [addToast]);
 
   const handleKeepCurrentFile = useCallback((relativePath: string) => {
     setExternallyChangedFiles(prev => prev.filter(f => f.relativePath !== relativePath));

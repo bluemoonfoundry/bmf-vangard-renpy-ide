@@ -49,7 +49,10 @@ export function sanitizeIdentifier(text: string, allowDot = false): string {
  */
 export function sanitizeFileName(text: string): string {
   const collapsed = text.trim().replace(/\s+/g, ' ');
-  const result = collapsed.replace(/[<>:"/\\|?*]+/g, '_');
+  let result = collapsed.replace(/[<>:"/\\|?*]+/g, '_');
+  // Windows silently strips trailing dots/spaces from filenames; trim them
+  // explicitly so the sanitized name matches what would actually land on disk.
+  result = result.replace(/[. ]+$/, '');
   if (isDegenerate(result)) return '';
   if (WINDOWS_RESERVED_NAMES.test(result)) return '';
   return result;

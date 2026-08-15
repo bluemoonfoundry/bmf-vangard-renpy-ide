@@ -56,7 +56,7 @@ Vangard Studio follows Electron's standard multi-process architecture with three
 **Key Features:**
 - **File Watcher**: Monitors project directory for external `.rpy` changes with 400ms debounce
 - **Self-Write Suppression**: Ignores change events for 3 seconds after the app writes a file
-- **AppImage Workarounds**: Injects `--no-sandbox` flags before Electron import for Linux AppImages
+- **AppImage Workarounds**: Always injects `--disable-dev-shm-usage` for Linux AppImages; only injects `--no-sandbox` when the setuid `chrome-sandbox` helper is probed and confirmed unusable (see `docs/security/appimage-sandbox.md`)
 - **Update Management**: Integrates with `electron-updater` for auto-updates
 
 ### Renderer Process (React Application)

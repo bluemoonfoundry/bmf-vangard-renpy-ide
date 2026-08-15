@@ -3,11 +3,12 @@
  * @description Tests for useAssetManagement — image/audio CRUD operations and state management.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAssetManagement } from '@/hooks/useAssetManagement';
 import type { UseAssetManagementParams } from '@/hooks/useAssetManagement';
 import type { ProjectImage, RenpyAudio, ImageMetadata, AudioMetadata } from '@/types';
+import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
 
 function makeParams(overrides: Partial<UseAssetManagementParams> = {}): UseAssetManagementParams {
   return {
@@ -221,6 +222,64 @@ describe('useAssetManagement — clearAudios', () => {
     expect(result.current.audios.size).toBe(0);
     expect(result.current.audioMetadata.size).toBe(0);
     expect(result.current.audiosLastScanned).toBeNull();
+  });
+});
+
+// ============================================================================
+// Scan cancellation
+// ============================================================================
+
+describe('useAssetManagement — scan cancellation', () => {
+  beforeEach(() => {
+    installElectronAPI();
+  });
+
+  afterAll(() => {
+    uninstallElectronAPI();
+  });
+
+  it('toasts a distinct cancelled message when an image scan is cancelled', async () => {
+    const api = window.electronAPI!;
+    (api.openDirectory as ReturnType<typeof vi.fn>).mockResolvedValue('/scan/dir');
+    (api.scanDirectory as ReturnType<typeof vi.fn>).mockResolvedValue({
+      images: [], audios: [], truncated: false, cancelled: true, errors: [],
+    });
+    const params = makeParams();
+    const { result } = renderHook(() => useAssetManagement(params));
+
+    await act(async () => {
+      await result.current.handleAddImageScanDirectory();
+    });
+
+    expect(params.addToast).toHaveBeenCalledWith(
+      expect.stringContaining('Scan cancelled'),
+      'warning',
+    );
+  });
+
+  it('toasts a distinct cancelled message when an audio scan is cancelled', async () => {
+    const api = window.electronAPI!;
+    (api.openDirectory as ReturnType<typeof vi.fn>).mockResolvedValue('/scan/dir');
+    (api.scanDirectory as ReturnType<typeof vi.fn>).mockResolvedValue({
+      images: [], audios: [], truncated: false, cancelled: true, errors: [],
+    });
+    const params = makeParams();
+    const { result } = renderHook(() => useAssetManagement(params));
+
+    await act(async () => {
+      await result.current.handleAddAudioScanDirectory();
+    });
+
+    expect(params.addToast).toHaveBeenCalledWith(
+      expect.stringContaining('Scan cancelled'),
+      'warning',
+    );
+  });
+
+  it('cancelAssetScan calls electronAPI.cancelScanDirectory', () => {
+    const { result } = renderHook(() => useAssetManagement(makeParams()));
+    act(() => result.current.cancelAssetScan());
+    expect(window.electronAPI!.cancelScanDirectory).toHaveBeenCalledTimes(1);
   });
 });
 

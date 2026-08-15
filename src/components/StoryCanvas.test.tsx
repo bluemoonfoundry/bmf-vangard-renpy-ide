@@ -7,12 +7,21 @@ import {
   createStickyNote,
   createEmptyAnalysisResult,
 } from '@/test/mocks/sampleData';
-import type { Block, BlockGroup, StickyNote as StickyNoteType } from '@/types';
+import type { Block, BlockGroup, StickyNote as StickyNoteType, FileSizeThresholds } from '@/types';
+import { getFileSizeSeverity, DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 vi.mock('./CodeBlock', () => ({
-  default: ({ block }: { block: Block }) => (
-    <div data-testid="code-block" data-block-id={block.id}>{block.title}</div>
-  ),
+  default: ({ block, fileSizeThresholds }: { block: Block; fileSizeThresholds?: FileSizeThresholds }) => {
+    const thresholds = fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS;
+    const lineCount = block.content.split('\n').length;
+    const severity = getFileSizeSeverity(lineCount, thresholds);
+    return (
+      <div data-testid="code-block" data-block-id={block.id}>
+        {block.title}
+        {severity !== 'green' && <div data-testid="file-size-dot" data-severity={severity} />}
+      </div>
+    );
+  },
 }));
 vi.mock('./GroupContainer', () => ({
   default: ({ group }: { group: BlockGroup }) => (
@@ -100,6 +109,21 @@ describe('StoryCanvas', () => {
     expect(screen.getAllByTestId('code-block')).toHaveLength(2);
     expect(screen.getByText('start')).toBeInTheDocument();
     expect(screen.getByText('chapter1')).toBeInTheDocument();
+  });
+
+  it('renders a file-size badge on a block whose content exceeds the healthy threshold', () => {
+    const bigContent = Array.from({ length: 800 }, (_, i) => `# line ${i}`).join('\n');
+    const blocks = [createBlock({ content: bigContent })];
+    const analysisResult = createEmptyAnalysisResult({
+      storyBlockIds: new Set(['block-1']),
+    });
+    render(<StoryCanvas {...createProps({ blocks, analysisResult })} />);
+    expect(screen.getByTestId('file-size-dot')).toBeInTheDocument();
+  });
+
+  it('does not render a file-size badge for a short block', () => {
+    render(<StoryCanvas {...createProps()} />);
+    expect(screen.queryByTestId('file-size-dot')).not.toBeInTheDocument();
   });
 
   it('renders a GroupContainer for each group', () => {

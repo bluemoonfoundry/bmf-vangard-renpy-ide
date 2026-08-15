@@ -73,6 +73,8 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
     closeUnsavedChangesModal: vi.fn(),
 
     setOpenTabs: vi.fn(),
+    untitledFiles: new Map(),
+    saveUntitledFile: vi.fn().mockResolvedValue(true),
     addToast: vi.fn(),
     ...overrides,
   };
@@ -134,6 +136,24 @@ describe('useProjectIO', () => {
     const { result } = renderHook(() => useProjectIO(makeParams({ addToast })));
     await act(async () => { await result.current.handleSaveProjectSettings(); });
     expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('does not clear the unsaved-settings flag when writeFile resolves with success: false', async () => {
+    // fs:writeFile in electron.js never rejects -- it catches internally and
+    // resolves { success: false, error }. A settings save that "fails" this
+    // way must not be treated as saved, or a crash-safety gap opens: the
+    // user believes their workspace state persisted when it didn't.
+    const api = createMockElectronAPI();
+    api.writeFile.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
+    installElectronAPI(api);
+    const setHasUnsavedSettings = vi.fn();
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({ setHasUnsavedSettings, addToast })));
+
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+
+    expect(setHasUnsavedSettings).not.toHaveBeenCalledWith(false);
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('ENOSPC'), 'error');
   });
 
   it('serializes sceneCompositions to file-path-only sprites', async () => {
@@ -201,6 +221,165 @@ describe('useProjectIO', () => {
     expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
   });
 
+  it('handleSaveAll resolves true when everything saves successfully', async () => {
+    // The exit-confirmation flow (App.tsx) trusts this return value directly
+    // instead of re-deriving "is it safe to quit" from dirty-state refs that
+    // are only synced via a useEffect -- checking those refs immediately after
+    // this promise resolves can read stale (pre-clear) values. See
+    // bmf-vangard-renpy-ide-6o47.1 follow-up: double-click-to-exit bug.
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'label start:\n    return\n' });
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+    })));
+
+    let saveResult: boolean | undefined;
+    await act(async () => { saveResult = await result.current.handleSaveAll(); });
+
+    expect(saveResult).toBe(true);
+  });
+
+  it('handleSaveAll resolves false when a block write fails', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: false, error: 'write failed' });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+    })));
+
+    let saveResult: boolean | undefined;
+    await act(async () => { saveResult = await result.current.handleSaveAll(); });
+
+    expect(saveResult).toBe(false);
+  });
+
+  it('handleSaveAll resolves false when an untitled file save is canceled, even though blocks saved', async () => {
+    // doSaveAll still clears dirtyBlockIds/dirtyEditors and toasts a "warning"
+    // (not error) in this case -- but the untitled file itself is still
+    // unsaved, so it must not be treated as safe to quit.
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: true });
+    installElectronAPI(api);
+
+    const saveUntitledFile = vi.fn().mockResolvedValue(false);
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      openTabs: [{ id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as never],
+      untitledFiles: new Map([['untitled-1', { title: 'Untitled-1', content: 'a', isDirty: true }]]),
+      saveUntitledFile,
+    })));
+
+    let saveResult: boolean | undefined;
+    await act(async () => { saveResult = await result.current.handleSaveAll(); });
+
+    expect(saveResult).toBe(false);
+  });
+
+  it('does not clear dirty state or report success when the block saves but project.ide.json fails to save', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('project.ide.json')) {
+        return Promise.resolve({ success: false, error: 'ENOSPC: no space left on device' });
+      }
+      return Promise.resolve({ success: true });
+    });
+    installElectronAPI(api);
+
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'label start:\n    return\n' });
+    const setDirtyBlockIds = vi.fn();
+    const setDirtyEditors = vi.fn();
+    const setSaveStatus = vi.fn();
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setDirtyBlockIds,
+      setDirtyEditors,
+      setSaveStatus,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    // The block content did get written to disk, but the overall save must
+    // not be reported as clean/successful -- the workspace metadata (open
+    // tabs, layouts, etc.) never persisted.
+    expect(setDirtyBlockIds).not.toHaveBeenCalledWith(new Set());
+    expect(setSaveStatus).toHaveBeenCalledWith('error');
+    expect(addToast).not.toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('saves dirty untitled tabs across both panes', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+
+    const saveUntitledFile = vi.fn().mockResolvedValue(true);
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      openTabs: [{ id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as never],
+      secondaryOpenTabs: [{ id: 'untitled-2', type: 'untitled', title: 'Untitled-2' } as never],
+      untitledFiles: new Map([
+        ['untitled-1', { title: 'Untitled-1', content: 'a', isDirty: true }],
+        ['untitled-2', { title: 'Untitled-2', content: 'b', isDirty: true }],
+      ]),
+      saveUntitledFile,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-2');
+    expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('does not save a non-dirty untitled tab, and warns instead of full success when an untitled save is canceled', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+
+    const saveUntitledFile = vi.fn().mockResolvedValue(false);
+    const addToast = vi.fn();
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      openTabs: [
+        { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as never,
+        { id: 'untitled-2', type: 'untitled', title: 'Untitled-2' } as never,
+      ],
+      untitledFiles: new Map([
+        ['untitled-1', { title: 'Untitled-1', content: 'a', isDirty: true }],
+        ['untitled-2', { title: 'Untitled-2', content: '', isDirty: false }],
+      ]),
+      saveUntitledFile,
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(saveUntitledFile).toHaveBeenCalledTimes(1);
+    expect(saveUntitledFile).toHaveBeenCalledWith('untitled-1');
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('untitled files were not saved'), 'warning');
+  });
+
   it('reads content from editor instance for dirtyEditors', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
@@ -253,6 +432,31 @@ describe('useProjectIO', () => {
 
     expect(setSaveStatus).toHaveBeenCalledWith('error');
     expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('names the failing file and the underlying error in the save-failure toast', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.writeFile.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
+    installElectronAPI(api);
+
+    const addToast = vi.fn();
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      addToast,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringMatching(/game\/script\.rpy.*ENOSPC: no space left on device/),
+      'error',
+    );
   });
 
   it('saves to memory when projectRootPath is null', async () => {

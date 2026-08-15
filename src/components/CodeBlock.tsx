@@ -7,7 +7,10 @@
  * forwards ref for canvas drag-event handling.
  */
 import React, { useState, useRef, useEffect, useMemo, forwardRef } from 'react';
-import type { Block, RenpyAnalysisResult, LabelLocation } from '@/types';
+import type { Block, RenpyAnalysisResult, LabelLocation, FileSizeThresholds } from '@/types';
+import FileSizeDot from './FileSizeDot';
+import FileSizeTooltip from './FileSizeTooltip';
+import { getFileSizeSeverity, DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 interface CodeBlockProps {
   block: Block;
@@ -32,6 +35,7 @@ interface CodeBlockProps {
   isExiting?: boolean;
   isLinkEndpoint?: boolean;
   diagnosticSeverity?: 'error' | 'warning' | null;
+  fileSizeThresholds?: FileSizeThresholds;
 }
 
 const LabelIcon: React.FC = () => <div title="Contains Labels"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A1 1 0 012 10V5a1 1 0 011-1h5a1 1 0 01.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg></div>;
@@ -86,6 +90,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
   isExiting,
   isLinkEndpoint,
   diagnosticSeverity,
+  fileSizeThresholds = DEFAULT_FILE_SIZE_THRESHOLDS,
 }, ref) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
@@ -93,7 +98,7 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   
-  const { firstLabels, invalidJumps, labels, dialogueLines, characters, blockTypes } = analysisResult;
+  const { firstLabels, invalidJumps, labels, dialogueLines, characters, blockTypes, jumps } = analysisResult;
   
   const getFilename = (path?: string) => path?.split('/').pop()?.replace(/\.rpy$/, '');
   const displayedTitle = block.title ?? getFilename(block.filePath) ?? firstLabels[block.id] ?? "Ren'Py Block";
@@ -159,7 +164,9 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
   }, [dialogueLines, characters, block.id]);
 
   const lineCount = useMemo(() => block.content.split('\n').length, [block.content]);
-  
+
+  const fileSizeSeverity = useMemo(() => getFileSizeSeverity(lineCount, fileSizeThresholds), [lineCount, fileSizeThresholds]);
+
   const blockContentSummary = useMemo(() => {
     return blockTypes.get(block.id) || new Set<string>();
   }, [blockTypes, block.id]);
@@ -266,6 +273,22 @@ const CodeBlock = forwardRef<HTMLDivElement, CodeBlockProps>(({
       }}
       onDoubleClick={() => onOpenEditor(block.id)}
     >
+      {/* Not redundant with FileSizeDot's own green->null check: without this guard, an empty
+          FileSizeTooltip anchor div would still render at green and sit invisibly over the
+          node's top-right corner, catching hover events for no reason. */}
+      {fileSizeSeverity !== 'green' && (
+        <div className="absolute -top-1.5 -right-1.5 z-20">
+          <FileSizeTooltip
+            fileName={displayedTitle}
+            lineCount={lineCount}
+            thresholds={fileSizeThresholds}
+            labelCount={blockLabels.length}
+            jumpCount={(jumps[block.id] || []).length}
+          >
+            <FileSizeDot lineCount={lineCount} thresholds={fileSizeThresholds} />
+          </FileSizeTooltip>
+        </div>
+      )}
       <div className={`drag-handle h-8 ${headerClass} rounded-t-md flex items-center px-3 justify-between cursor-grab transition-colors duration-200`}>
         <div className="flex items-center space-x-2 flex-grow min-w-0">
           <div className="flex items-center space-x-1 flex-shrink-0">

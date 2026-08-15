@@ -1,15 +1,22 @@
 import { logger, electronLog } from './src/lib/logger.main.js';
+import { isAppImageRuntime, shouldDisableSandbox } from './src/lib/sandboxProbe.js';
+import { classifyFsReadError } from './src/lib/fsErrorClassification.js';
 
 // CRITICAL: Fix AppImage sandbox and shared memory issues
 // Must inject flags into process.argv BEFORE importing electron
-const isAppImage = process.env.APPIMAGE || process.env.APPDIR || /^\/tmp\/\.mount_/.test(process.execPath);
-if (isAppImage) {
-    logger.info('[Vangard] Running in AppImage mode - injecting sandbox workarounds into process.argv');
-    if (!process.argv.includes('--no-sandbox')) {
-        process.argv.push('--no-sandbox');
-    }
+if (isAppImageRuntime()) {
+    logger.info('[Vangard] Running in AppImage mode');
     if (!process.argv.includes('--disable-dev-shm-usage')) {
         process.argv.push('--disable-dev-shm-usage');
+    }
+    // --no-sandbox is only injected when the setuid chrome-sandbox helper is
+    // confirmed unusable (AppImage's FUSE/extraction mount is commonly
+    // nosuid). This is a scoped, tested fallback — see
+    // docs/security/appimage-sandbox.md for the residual threat model. It
+    // never applies to Windows, macOS, or Linux .deb installs.
+    if (shouldDisableSandbox() && !process.argv.includes('--no-sandbox')) {
+        logger.warn('[Vangard] chrome-sandbox helper unusable in this AppImage environment - falling back to --no-sandbox. See docs/security/appimage-sandbox.md');
+        process.argv.push('--no-sandbox');
     }
     logger.info('[Vangard] process.argv:', process.argv);
 } else {
@@ -21,16 +28,18 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, shell, safeStorage
 import electronUpdaterPkg from 'electron-updater';
 const { autoUpdater } = electronUpdaterPkg;
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { createReadStream, watch } from 'fs';
 import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
-import { findRegexMatchesInLine } from './src/lib/regexLineSearch.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
 import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
+import { scanDirectoryForAssets } from './src/lib/assetScanner.js';
+import { searchInDirectory } from './src/lib/projectSearch.js';
+import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,8 +99,8 @@ let currentProjectRoot = null;
  * Throws ACCESS_DENIED if filePath is not within the current project root.
  * Applied to all fs:* IPC handlers to prevent renderer-side path traversal.
  */
-function guardProjectPath(filePath) {
-    const err = validateProjectPath(filePath, currentProjectRoot);
+async function guardProjectPath(filePath) {
+    const err = await validateProjectPath(filePath, currentProjectRoot);
     if (err) {
         logger.warn(`IPC path guard blocked: ${err} — path: ${filePath}`);
         throw new Error(`ACCESS_DENIED: ${err}`);
@@ -139,7 +148,10 @@ function startProjectWatcher(rootPath) {
             }, WATCH_DEBOUNCE_MS));
         });
     } catch (err) {
-        logger.error('Failed to start file watcher:', err);
+        logger.error(`Failed to start file watcher for project root ${rootPath}:`, err);
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('fs:watcher-error', { message: err.message });
+        }
     }
 }
 
@@ -174,11 +186,17 @@ const appSettingsPath = path.join(app.getPath('userData'), 'app-settings.json');
 
 async function loadAppSettings() {
     let settings = null;
+    let warning = null;
     try {
         const data = await fs.readFile(appSettingsPath, 'utf-8');
         settings = JSON.parse(data);
-    } catch {
-        // No saved settings yet
+    } catch (err) {
+        const category = classifyFsReadError(err);
+        if (category !== 'missing') {
+            // Corrupt or inaccessible settings file — distinct from "no settings yet".
+            logger.warn(`App settings could not be read (${category}) at ${appSettingsPath}:`, err);
+            warning = { code: category, message: err.message };
+        }
     }
     // Playwright screenshot capture injects the production app's settings via
     // this env var so the correct theme and layout prefs are used.
@@ -188,7 +206,7 @@ async function loadAppSettings() {
             settings = { ...settings, ...override };
         } catch { /* ignore malformed override */ }
     }
-    return settings;
+    return { settings, warning };
 }
 
 async function saveAppSettings(settings) {
@@ -265,6 +283,11 @@ async function checkRenpyProject(rootPath) {
 
 // Active worker for project loading — replaced on each load, terminated on cancel.
 let activeLoadWorker = null;
+
+// Cancellation state for the in-flight asset scan / project search (single-flight,
+// mirroring activeLoadWorker above) — set to null once the operation settles.
+let activeScanState = null;
+let activeSearchState = null;
 
 // Inline worker code for reading project files in a dedicated thread.
 // Using String.raw to preserve backslashes in regex patterns.
@@ -359,11 +382,21 @@ async function run() {
 
     progress(92, 'Loading project settings...');
 
+    const settingsPath = path.join(rootPath, 'game', 'project.ide.json');
     try {
-        const settingsContent = await fs.readFile(path.join(rootPath, 'game', 'project.ide.json'), 'utf-8');
+        const settingsContent = await fs.readFile(settingsPath, 'utf-8');
         results.settings = JSON.parse(settingsContent);
-    } catch {
+    } catch (err) {
         results.settings = {};
+        // ENOENT (no settings file yet) is expected and stays silent; anything
+        // else (malformed JSON, permission errors) is a real failure the
+        // renderer should surface instead of quietly using defaults.
+        if (err.code !== 'ENOENT') {
+            const category = err instanceof SyntaxError ? 'corrupted'
+                : (err.code === 'EACCES' || err.code === 'EPERM') ? 'permission-denied'
+                : 'unknown';
+            results.settingsWarning = { code: category, message: err.message };
+        }
     }
 
     parentPort.postMessage({ type: 'result', ok: true, data: results });
@@ -417,58 +450,6 @@ function readProjectFiles(rootPath, { readContent = true } = {}, onProgress = nu
     });
 }
 
-// TODO(#99): the thumbnail-rendering side of this issue is already handled --
-// ImageManager.tsx virtualizes its grid and ImageThumbnail.tsx lazy-loads --
-// but this directory walk itself is unbounded recursion with no batching/
-// streaming/progress reporting back to the renderer. On a very large asset
-// tree this still blocks the initial scan before any thumbnail can render.
-// Worth revisiting if #99 isn't actually closed by the ImageManager work.
-async function scanDirectoryForAssets(dirPath) {
-    const results = {
-        images: [],
-        audios: []
-    };
-
-    const scanRecursive = async (currentPath) => {
-        const entries = await fs.readdir(currentPath, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(currentPath, entry.name);
-            // Normalize path separators to forward slashes for consistency in frontend
-            const normalizedPath = fullPath.replace(/\\/g, '/');
-
-            if (entry.isDirectory()) {
-                await scanRecursive(fullPath);
-            } else if (entry.isFile()) {
-                const ext = path.extname(entry.name).toLowerCase();
-                if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.images.push({ 
-                        path: normalizedPath, 
-                        fileName: entry.name, 
-                        dataUrl: mediaUrl, 
-                        lastModified: stats.mtimeMs,
-                        size: stats.size
-                    });
-                } else if (['.mp3', '.ogg', '.wav', '.opus'].includes(ext)) {
-                    const stats = await fs.stat(fullPath);
-                    const mediaUrl = pathToFileURL(fullPath).toString().replace(/^file:/, 'media:');
-                    results.audios.push({ 
-                        path: normalizedPath, 
-                        fileName: entry.name, 
-                        dataUrl: mediaUrl, 
-                        lastModified: stats.mtimeMs,
-                        size: stats.size
-                    });
-                }
-            }
-        }
-    };
-
-    await scanRecursive(dirPath);
-    return results;
-}
-
 function getMimeType(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     switch (ext) {
@@ -497,7 +478,7 @@ let forceQuit = false;
 // menu construction ever throws here, it would surface only as "app never
 // opens" with no diagnosable error, which is independent of the signing gap.
 async function updateApplicationMenu() {
-  const settings = await loadAppSettings();
+  const { settings } = await loadAppSettings();
   const recentProjects = settings?.recentProjects || [];
 
   const openRecentSubmenu = recentProjects.length > 0
@@ -541,6 +522,13 @@ async function updateApplicationMenu() {
                 label: 'Open Recent',
                 submenu: openRecentSubmenu
             },
+            {
+                id: 'new-untitled-file',
+                label: 'New File',
+                accelerator: 'CmdOrCtrl+Alt+N',
+                enabled: false,
+                click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'new-untitled-file' }); }
+            },
             { type: 'separator' },
             {
                 label: 'Save All',
@@ -562,7 +550,7 @@ async function updateApplicationMenu() {
             { type: 'separator' },
             {
                 id: 'explorer-new-file',
-                label: 'New File',
+                label: 'New File in Folder',
                 enabled: false,
                 click: (item, focusedWindow) => { if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'explorer-new-file' }); }
             },
@@ -842,52 +830,6 @@ async function createWindow() {
   await updateApplicationMenu();
 
   mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
-}
-
-async function searchInDirectory(directory, query, options) {
-    const results = [];
-    const entries = await fs.readdir(directory, { withFileTypes: true });
-
-    for (const entry of entries) {
-        const fullPath = path.join(directory, entry.name);
-        const relativePath = path.relative(options.projectPath, fullPath).replace(/\\/g, '/');
-        
-        if (entry.isDirectory()) {
-            if (entry.name === '.git' || entry.name === 'node_modules') continue;
-            results.push(...await searchInDirectory(fullPath, query, options));
-        } else if (entry.isFile() && entry.name.endsWith('.rpy')) {
-            const content = await fs.readFile(fullPath, 'utf-8');
-            const lines = content.split('\n');
-            const matches = [];
-            
-            let flags = 'g';
-            if (!options.isCaseSensitive) flags += 'i';
-            
-            let searchPattern = options.isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            if (options.isWholeWord) {
-                searchPattern = `\\b${searchPattern}\\b`;
-            }
-
-            try {
-              for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  // A fresh RegExp per line resets lastIndex, since findRegexMatchesInLine
-                  // mutates it while walking zero-width matches (e.g. `/$/g`, `/^/g`).
-                  const regex = new RegExp(searchPattern, flags);
-                  for (const lineMatch of findRegexMatchesInLine(line, regex)) {
-                      matches.push({ lineNumber: i + 1, lineContent: line, ...lineMatch });
-                  }
-              }
-            } catch (e) {
-              logger.error(`Invalid regex for file ${relativePath}:`, e.message);
-            }
-
-            if (matches.length > 0) {
-                results.push({ filePath: relativePath, matches });
-            }
-        }
-    }
-    return results;
 }
 
 app.whenReady().then(() => {
@@ -1192,6 +1134,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('project:load', async (event, rootPath) => {
     currentProjectRoot = rootPath; // Track for screenshots
+    // Best-effort: remove any atomic-write temp files stranded by a previous
+    // crashed/killed session. The files they were meant to replace were never
+    // touched (see atomicWriteFile), so this is pure tidy-up, not recovery.
+    cleanupStaleTempFiles(rootPath).catch((err) => logger.warn('Stale temp file cleanup failed:', err));
     const result = await readProjectFiles(rootPath, { readContent: true }, (value, message) => {
       if (!event.sender.isDestroyed()) {
         event.sender.send('project:load-progress', value, message);
@@ -1213,12 +1159,15 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:writeFile', async (event, filePath, content, encoding) => {
     try {
-      guardProjectPath(filePath);
+      await guardProjectPath(filePath);
       await fs.mkdir(path.dirname(filePath), { recursive: true });
       // Record self-write so the watcher ignores this change
       const normalizedPath = filePath.replace(/\\/g, '/');
       recentSelfWrites.set(normalizedPath, Date.now());
-      await fs.writeFile(filePath, content, encoding);
+      // Atomic write (temp file + rename) so a crash/power-loss mid-write can
+      // never leave filePath truncated -- it's either the old content or the
+      // fully-written new content, never a partial state.
+      await atomicWriteFile(filePath, content, encoding);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -1227,7 +1176,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
     try {
-      guardProjectPath(dirPath);
+      await guardProjectPath(dirPath);
       await fs.mkdir(dirPath, { recursive: true });
       return { success: true };
     } catch (error) {
@@ -1237,7 +1186,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:removeEntry', async (event, entryPath) => {
     try {
-      guardProjectPath(entryPath);
+      await guardProjectPath(entryPath);
       await fs.rm(entryPath, { recursive: true, force: true });
       return { success: true };
     } catch (error) {
@@ -1247,8 +1196,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:moveFile', async (event, oldPath, newPath) => {
     try {
-      guardProjectPath(oldPath);
-      guardProjectPath(newPath);
+      await guardProjectPath(oldPath);
+      await guardProjectPath(newPath);
       await fs.mkdir(path.dirname(newPath), { recursive: true });
       await fs.rename(oldPath, newPath);
       return { success: true };
@@ -1259,8 +1208,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:copyEntry', async (event, sourcePath, destPath) => {
     try {
-      guardProjectPath(sourcePath);
-      guardProjectPath(destPath);
+      await guardProjectPath(sourcePath);
+      await guardProjectPath(destPath);
       // Ensure the directory exists before copying
       await fs.mkdir(path.dirname(destPath), { recursive: true });
       await fs.cp(sourcePath, destPath, { recursive: true });
@@ -1272,17 +1221,31 @@ app.whenReady().then(() => {
   
   ipcMain.handle('fs:scanDirectory', async (event, dirPath) => {
       try {
-          guardProjectPath(dirPath);
-          return await scanDirectoryForAssets(dirPath);
+          await guardProjectPath(dirPath);
+          const state = { cancelled: false };
+          activeScanState = state;
+          return await scanDirectoryForAssets(dirPath, {
+              isCancelled: () => state.cancelled,
+              onProgress: (count) => {
+                  if (!event.sender.isDestroyed()) event.sender.send('fs:scan-progress', count);
+              },
+          });
       } catch (error) {
           logger.error("Scan directory failed:", error);
           return { images: [], audios: [], error: error.message };
+      } finally {
+          activeScanState = null;
       }
+  });
+
+  // Fire-and-forget: renderer sends this to cancel the in-flight asset scan.
+  ipcMain.on('fs:cancel-scan-directory', () => {
+      if (activeScanState) activeScanState.cancelled = true;
   });
   
   ipcMain.handle('fs:readFile', async (event, filePath) => {
     try {
-      guardProjectPath(filePath);
+      await guardProjectPath(filePath);
       const content = await fs.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
@@ -1293,7 +1256,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:fileExists', async (event, filePath) => {
     try {
-      guardProjectPath(filePath);
+      await guardProjectPath(filePath);
       await fs.access(filePath);
       return true;
     } catch {
@@ -1400,7 +1363,7 @@ app.whenReady().then(() => {
     if (stopItem) stopItem.enabled = running;
   }
 
-  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete, canRefresh, hasScreenshots }) {
+  function setExplorerMenuState({ canNewFile, canNewFolder, canRename, canDelete, canRefresh, hasScreenshots, canNewUntitledFile }) {
     const menu = Menu.getApplicationMenu();
     if (!menu) return;
     const ids = {
@@ -1409,7 +1372,8 @@ app.whenReady().then(() => {
       'explorer-rename': canRename,
       'explorer-delete': canDelete,
       'explorer-refresh': canRefresh ?? canNewFile,
-      'open-screenshots-folder': hasScreenshots
+      'open-screenshots-folder': hasScreenshots,
+      'new-untitled-file': canNewUntitledFile
     };
     for (const [id, enabled] of Object.entries(ids)) {
       const item = menu.getMenuItemById(id);
@@ -1481,7 +1445,11 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:get-settings', async () => {
-    return await loadAppSettings();
+    const { settings, warning } = await loadAppSettings();
+    if (warning && mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('app:settings-warning', warning);
+    }
+    return settings;
   });
 
   ipcMain.handle('app:save-settings', async (event, settings) => {
@@ -1505,15 +1473,31 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('project:search', async (event, { projectPath, query, ...options }) => {
-    if (!query) return [];
+    if (!query) return { results: [], truncated: false, cancelled: false, skipped: [], regexError: null };
     try {
-        guardProjectPath(projectPath);
-        const results = await searchInDirectory(projectPath, query, { projectPath, ...options });
-        return results;
+        await guardProjectPath(projectPath);
+        const state = { cancelled: false };
+        activeSearchState = state;
+        const outcome = await searchInDirectory(projectPath, query, {
+            projectPath,
+            ...options,
+            isCancelled: () => state.cancelled,
+            onProgress: (count) => {
+                if (!event.sender.isDestroyed()) event.sender.send('project:search-progress', count);
+            },
+        });
+        return outcome;
     } catch (error) {
         logger.error('Search failed:', error);
-        return [];
+        return { results: [], truncated: false, cancelled: false, skipped: [], regexError: null };
+    } finally {
+        activeSearchState = null;
     }
+  });
+
+  // Fire-and-forget: renderer sends this to cancel the in-flight project search.
+  ipcMain.on('project:cancel-search', () => {
+    if (activeSearchState) activeSearchState.cancelled = true;
   });
 
   createWindow();

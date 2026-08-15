@@ -5,6 +5,7 @@ import {
   extractTranslatableStrings,
   extractTranslatedStrings,
   deriveSourceFilePath,
+  deriveTlFilePath,
   buildStringTranslationMap,
   computeLanguageCoverages,
   performTranslationAnalysis,
@@ -70,6 +71,26 @@ describe('deriveSourceFilePath', () => {
 
   it('returns the original path if tl segment not found', () => {
     expect(deriveSourceFilePath('game/script.rpy', 'french')).toBe('game/script.rpy');
+  });
+});
+
+describe('deriveTlFilePath', () => {
+  it('inserts the tl/<lang>/ segment right after game/', () => {
+    expect(deriveTlFilePath('game/script.rpy', 'french')).toBe('game/tl/french/script.rpy');
+    expect(deriveTlFilePath('game/scenes/stage1/foo.rpy', 'japanese')).toBe('game/tl/japanese/scenes/stage1/foo.rpy');
+  });
+
+  it('handles backslash paths and absolute prefixes', () => {
+    expect(deriveTlFilePath('C:\\Projects\\Demo\\game\\script.rpy', 'french')).toBe('C:/Projects/Demo/game/tl/french/script.rpy');
+  });
+
+  it('is the inverse of deriveSourceFilePath', () => {
+    const tlPath = deriveTlFilePath('game/scenes/stage1/foo.rpy', 'french');
+    expect(deriveSourceFilePath(tlPath, 'french')).toBe('game/scenes/stage1/foo.rpy');
+  });
+
+  it('returns the normalized path unchanged if no game/ segment is found', () => {
+    expect(deriveTlFilePath('script.rpy', 'french')).toBe('script.rpy');
   });
 });
 

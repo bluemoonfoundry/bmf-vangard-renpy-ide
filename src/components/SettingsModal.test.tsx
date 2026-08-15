@@ -300,6 +300,143 @@ describe('SettingsModal', () => {
     }));
   });
 
+  // ── File size thresholds ───────────────────────────────────────────────────
+
+  it('shows default threshold values when settings has none set', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect((screen.getByLabelText('Healthy starts at') as HTMLInputElement).value).toBe('500');
+    expect((screen.getByLabelText('Warning starts at') as HTMLInputElement).value).toBe('1000');
+    expect((screen.getByLabelText('Critical starts at') as HTMLInputElement).value).toBe('1500');
+  });
+
+  it('shows custom threshold values from settings', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={{ ...defaultSettings, fileSizeThresholds: { healthy: 100, warning: 200, critical: 300 } }}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect((screen.getByLabelText('Healthy starts at') as HTMLInputElement).value).toBe('100');
+    expect((screen.getByLabelText('Warning starts at') as HTMLInputElement).value).toBe('200');
+    expect((screen.getByLabelText('Critical starts at') as HTMLInputElement).value).toBe('300');
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Healthy input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Healthy starts at'), { target: { value: '400' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 400, warning: 1000, critical: 1500 });
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Warning input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Warning starts at'), { target: { value: '900' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 500, warning: 900, critical: 1500 });
+  });
+
+  it('calls onSettingsChange with updated fileSizeThresholds when Critical input changes', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Critical starts at'), { target: { value: '2000' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 500, warning: 1000, critical: 2000 });
+  });
+
+  it('shows a warning message when thresholds are not strictly ascending', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={{ ...defaultSettings, fileSizeThresholds: { healthy: 900, warning: 500, critical: 1500 } }}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Thresholds should increase from Healthy to Warning to Critical.')).toBeInTheDocument();
+  });
+
+  it('does not show a warning message when thresholds are valid', () => {
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Thresholds should increase from Healthy to Warning to Critical.')).not.toBeInTheDocument();
+  });
+
+  it('does not call onSettingsChange when a change makes the thresholds non-ascending, and shows the warning', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={defaultSettings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    // Warning starts at 1000 by default; setting it above Critical (1500) breaks ascending order.
+    fireEvent.change(screen.getByLabelText('Warning starts at'), { target: { value: '2000' } });
+    expect(onSettingsChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Thresholds should increase from Healthy to Warning to Critical.')).toBeInTheDocument();
+    // The input itself still reflects what was typed, even though it wasn't persisted.
+    expect((screen.getByLabelText('Warning starts at') as HTMLInputElement).value).toBe('2000');
+  });
+
+  it('persists the corrected value once a multi-keystroke edit becomes ascending again', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        settings={{ ...defaultSettings, fileSizeThresholds: { healthy: 500, warning: 1000, critical: 1500 } }}
+        onSettingsChange={onSettingsChange}
+      />
+    );
+    const criticalInput = screen.getByLabelText('Critical starts at');
+    // Simulate typing "5" then "50" then "500" (transiently invalid, since 500 < warning=1000)
+    // then "5000" (valid again) — the field must never get stuck reverting to the last-saved value.
+    fireEvent.change(criticalInput, { target: { value: '5' } });
+    fireEvent.change(criticalInput, { target: { value: '50' } });
+    fireEvent.change(criticalInput, { target: { value: '500' } });
+    expect(onSettingsChange).not.toHaveBeenCalled();
+    expect((criticalInput as HTMLInputElement).value).toBe('500');
+    fireEvent.change(criticalInput, { target: { value: '5000' } });
+    expect(onSettingsChange).toHaveBeenCalledWith('fileSizeThresholds', { healthy: 500, warning: 1000, critical: 5000 });
+    expect((criticalInput as HTMLInputElement).value).toBe('5000');
+  });
+
   // ── Ren'Py SDK path (requires electronAPI) ─────────────────────────────────
 
   it('shows Ren\'Py SDK section when electronAPI is present', () => {

@@ -77,7 +77,7 @@ describe('Test Infrastructure', () => {
       expect((window as WindowWithElectronAPI).electronAPI).toBe(api);
       expect(await api.openDirectory()).toBeNull();
       expect(await api.writeFile('/test', 'content')).toEqual({ success: true });
-      expect(await api.scanDirectory('/dir')).toEqual({ images: [], audios: [] });
+      expect(await api.scanDirectory('/dir')).toEqual({ images: [], audios: [], truncated: false, cancelled: false, errors: [] });
       expect(await api.path.join('a', 'b', 'c')).toBe('a/b/c');
     });
 

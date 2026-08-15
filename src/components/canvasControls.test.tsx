@@ -8,6 +8,7 @@ import CanvasNavControls from '@/components/CanvasNavControls';
 import CanvasToolbox from '@/components/CanvasToolbox';
 import StatusBar from '@/components/StatusBar';
 import CodeActionButtons from '@/components/CodeActionButtons';
+import { DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 // ─── CanvasLayoutControls ─────────────────────────────────────────────────────
 
@@ -162,6 +163,8 @@ const defaultStatusProps = {
   errorCount: 0,
   warningCount: 0,
   screenshotCount: 0,
+  activeFileLineCount: null,
+  fileSizeThresholds: DEFAULT_FILE_SIZE_THRESHOLDS,
 };
 
 describe('StatusBar', () => {

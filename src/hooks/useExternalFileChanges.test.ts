@@ -13,6 +13,7 @@ function makeParams(overrides: Partial<Parameters<typeof useExternalFileChanges>
     dirtyEditorsRef: { current: new Set<string>() },
     setBlocks: vi.fn(),
     editorInstances: { current: new Map() },
+    addToast: vi.fn(),
     ...overrides,
   };
 }
@@ -169,6 +170,23 @@ describe('useExternalFileChanges', () => {
     expect(result.current.externallyChangedFiles).toEqual([
       { relativePath: 'game/script.rpy', absolutePath: '/project/game/script.rpy' },
     ]);
+  });
+
+  it('toasts a warning when the watcher reports an error', () => {
+    let emitError: (data: { message: string }) => void = () => {};
+    window.electronAPI!.onWatcherError = vi.fn((cb) => {
+      emitError = cb;
+      return vi.fn();
+    });
+    const addToast = vi.fn();
+    renderHook(() => useExternalFileChanges(makeParams({ addToast })));
+
+    act(() => emitError({ message: 'EACCES' }));
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringContaining('Live file change detection'),
+      'warning',
+    );
   });
 
   it('does not queue duplicate entries for the same relative path', () => {

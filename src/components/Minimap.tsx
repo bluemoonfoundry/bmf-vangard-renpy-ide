@@ -6,12 +6,12 @@
  * Integration: rendered anchored at the bottom-right of `StoryCanvas`, `RouteCanvas`, and
  * `ChoiceCanvas`; reads `MinimapItem[]` and canvas `transform` from the parent canvas.
  *
- * Scale strategy:
- *   - Normal projects: Math.min(scaleX, scaleY) fits all content in the frame.
- *   - Extreme-aspect-ratio projects (e.g. 80 blocks in a horizontal row): the natural
- *     width-constrained scale would make content occupy < MIN_HEIGHT_FILL of the panel height.
- *     In that case we switch to a larger "min-fill" scale and follow the viewport so the
- *     minimap always shows the area around where the user is currently looking.
+ * Scale strategy: Math.min(scaleX, scaleY) always fits the ENTIRE graph in the frame —
+ * a minimap that hides part of the graph defeats its purpose. Extreme-aspect-ratio
+ * projects (e.g. 80 blocks in a horizontal row) end up with very small item boxes at
+ * this scale; legibility there comes from the per-item min-size floor below, not from
+ * cropping the view to "follow" the viewport (a prior approach that was removed because
+ * it clipped out blocks the user hadn't scrolled to yet).
  */
 import React, { useRef, useMemo, useCallback } from 'react';
 import type { NoteColor } from '@/types';
@@ -35,8 +35,6 @@ interface MinimapProps {
 const MINIMAP_WIDTH = 240;
 const MINIMAP_HEIGHT = 180;
 const PADDING = 4;
-/** Activate viewport-following mode when height fill would be below this fraction. */
-const MIN_HEIGHT_FILL = 0.45;
 
 const ITEM_COLORS: Record<MinimapItem['type'], string> = {
   block: 'rgba(107, 114, 128, 0.7)',
@@ -56,8 +54,8 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
   // Compute bounds and scale from items only (cheap re-run: only when items change).
   // Groups are excluded from the bounding box — a large group container must not
   // force the scale tiny and push block dots into one corner.
-  const { bounds, minimapScale, viewportFollow } = useMemo(() => {
-    const fallback = { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1, viewportFollow: false };
+  const { bounds, minimapScale } = useMemo(() => {
+    const fallback = { bounds: { minX: 0, minY: 0, width: 0, height: 0 }, minimapScale: 1 };
     if (items.length === 0) return fallback;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -73,40 +71,24 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
     if (contentWidth <= 0 || contentHeight <= 0) {
-      return { bounds: { minX, minY, width: contentWidth, height: contentHeight }, minimapScale: 1, viewportFollow: false };
+      return { bounds: { minX, minY, width: contentWidth, height: contentHeight }, minimapScale: 1 };
     }
 
-    const naturalScale = Math.min(
+    const scale = Math.min(
       (MINIMAP_WIDTH - PADDING * 2) / contentWidth,
       (MINIMAP_HEIGHT - PADDING * 2) / contentHeight,
     );
-    // Scale that would fill MIN_HEIGHT_FILL of the panel height.
-    const minFillScale = (MINIMAP_HEIGHT * MIN_HEIGHT_FILL) / contentHeight;
-
-    const useFollow = naturalScale < minFillScale;
-    const scale = useFollow ? minFillScale : naturalScale;
 
     return {
       bounds: { minX, minY, width: contentWidth, height: contentHeight },
       minimapScale: scale,
-      viewportFollow: useFollow,
     };
   }, [items]);
 
-  // Pan offset — cheap inline arithmetic, recomputes every render.
-  // In normal mode: centre content in the fixed frame.
-  // In viewport-follow mode: centre the minimap on the current viewport position.
-  let panX: number;
-  let panY: number;
-  if (viewportFollow && canvasDimensions.width > 0) {
-    const viewCenterX = (-transform.x + canvasDimensions.width / 2) / transform.scale;
-    const viewCenterY = (-transform.y + canvasDimensions.height / 2) / transform.scale;
-    panX = MINIMAP_WIDTH  / 2 - (viewCenterX - bounds.minX) * minimapScale;
-    panY = MINIMAP_HEIGHT / 2 - (viewCenterY - bounds.minY) * minimapScale;
-  } else {
-    panX = (MINIMAP_WIDTH  - bounds.width  * minimapScale) / 2;
-    panY = (MINIMAP_HEIGHT - bounds.height * minimapScale) / 2;
-  }
+  // Pan offset — cheap inline arithmetic, recomputes every render. Always centres
+  // the full graph in the fixed frame so every block stays visible.
+  const panX = (MINIMAP_WIDTH  - bounds.width  * minimapScale) / 2;
+  const panY = (MINIMAP_HEIGHT - bounds.height * minimapScale) / 2;
 
   const viewportStyle = useMemo<React.CSSProperties>(() => {
     if (!canvasDimensions.width || !canvasDimensions.height) return {};

@@ -22,6 +22,11 @@ function makeParams(overrides: Partial<UseBlockManagementParams> = {}): UseBlock
     activeTabId: 'canvas',
     setActiveTabId: vi.fn(),
     setOpenTabs: vi.fn(),
+    secondaryActiveTabId: '',
+    setSecondaryActiveTabId: vi.fn(),
+    setSecondaryOpenTabs: vi.fn(),
+    setSplitLayout: vi.fn(),
+    setActivePaneId: vi.fn(),
     fileSystemTree: null,
     setFileSystemTree: vi.fn(),
     projectRootPath: '/project',
@@ -185,6 +190,52 @@ describe('useBlockManagement', () => {
     );
     act(() => result.current.deleteBlock('block-1'));
     expect(setActiveTabId).not.toHaveBeenCalled();
+  });
+
+  it('deleteBlock prunes the tab from the secondary pane too', () => {
+    const setSecondaryOpenTabs = vi.fn();
+    const { result } = renderHook(() =>
+      useBlockManagement(makeParams({ setSecondaryOpenTabs })),
+    );
+    act(() => result.current.deleteBlock('block-1'));
+    expect(setSecondaryOpenTabs).toHaveBeenCalled();
+    const updater = setSecondaryOpenTabs.mock.calls[0][0];
+    const next = updater([
+      { id: 'block-1', type: 'editor', blockId: 'block-1' },
+      { id: 'block-2', type: 'editor', blockId: 'block-2' },
+    ]);
+    expect(next).toEqual([{ id: 'block-2', type: 'editor', blockId: 'block-2' }]);
+  });
+
+  it('deleteBlock collapses the split when the deleted block was the only secondary tab', () => {
+    const setSecondaryOpenTabs = vi.fn();
+    const setSplitLayout = vi.fn();
+    const setActivePaneId = vi.fn();
+    const setSecondaryActiveTabId = vi.fn();
+    const { result } = renderHook(() =>
+      useBlockManagement(makeParams({
+        setSecondaryOpenTabs, setSplitLayout, setActivePaneId, setSecondaryActiveTabId,
+        secondaryActiveTabId: 'block-1',
+      })),
+    );
+    act(() => result.current.deleteBlock('block-1'));
+    const updater = setSecondaryOpenTabs.mock.calls[0][0];
+    const next = updater([{ id: 'block-1', type: 'editor', blockId: 'block-1' }]);
+    expect(next).toEqual([]);
+    expect(setSplitLayout).toHaveBeenCalledWith('none');
+    expect(setActivePaneId).toHaveBeenCalledWith('primary');
+    expect(setSecondaryActiveTabId).toHaveBeenCalledWith('');
+  });
+
+  it('deleteBlock leaves secondary tabs untouched when none reference the deleted block', () => {
+    const setSecondaryOpenTabs = vi.fn();
+    const { result } = renderHook(() =>
+      useBlockManagement(makeParams({ setSecondaryOpenTabs })),
+    );
+    act(() => result.current.deleteBlock('block-1'));
+    const updater = setSecondaryOpenTabs.mock.calls[0][0];
+    const prev = [{ id: 'block-2', type: 'editor', blockId: 'block-2' }];
+    expect(updater(prev)).toBe(prev);
   });
 
   // ── deleteBlockWithFile ───────────────────────────────────────────────────

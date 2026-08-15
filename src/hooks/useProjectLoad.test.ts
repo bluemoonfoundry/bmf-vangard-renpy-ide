@@ -262,6 +262,29 @@ describe('useProjectLoad', () => {
     expect(typeof result.current.loadProject).toBe('function');
   });
 
+  it('toasts a warning when the project load result carries a settingsWarning', async () => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue({
+      rootPath: '/project',
+      files: [],
+      images: [],
+      audios: [],
+      tree: { name: 'game', path: '', children: [] },
+      settings: null,
+      settingsWarning: { code: 'corrupted', message: 'Unexpected token in JSON' },
+    } as unknown as Parameters<typeof api.loadProject.mockResolvedValue>[0]);
+
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => {
+      await result.current.loadProject('/project');
+    });
+
+    expect(params.addToast).toHaveBeenCalledWith(
+      expect.stringContaining('Project settings could not be read'),
+      'warning',
+    );
+  });
+
   it('calls setIsLoading(true) at start of load', async () => {
     const params = makeParams();
     // loadProject() will fail when electronAPI.loadProject is the default mock
