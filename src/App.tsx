@@ -559,6 +559,7 @@ const App: React.FC = () => {
     dirtyEditorsRef,
     setBlocks,
     editorInstances,
+    addToast,
   });
 
   // --- Utility Functions ---
@@ -785,6 +786,10 @@ const App: React.FC = () => {
       }).finally(() => {
         setAppSettingsLoaded(true);
       });
+      const unsubSettingsWarning = window.electronAPI?.onSettingsWarning?.(() => {
+        addToast('App settings could not be read — using defaults', 'warning');
+      });
+      return unsubSettingsWarning;
     } else { // Browser fallback
       const savedSettings = localStorage.getItem('renpy-ide-app-settings');
       if (savedSettings) {
@@ -799,7 +804,7 @@ const App: React.FC = () => {
       }
       setAppSettingsLoaded(true);
     }
-  }, [updateAppSettings, setAppSettingsLoaded]);
+  }, [updateAppSettings, setAppSettingsLoaded, addToast]);
 
   // --- CLI --project flag: auto-open a project on startup ---
   // Runs once after app settings have loaded to avoid racing the settings fetch.

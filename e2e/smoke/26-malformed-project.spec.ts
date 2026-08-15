@@ -45,7 +45,7 @@ base.describe('malformed projects', () => {
     }
   });
 
-  base('a project with a corrupt project.ide.json still loads via the {} fallback', async () => {
+  base('a project with a corrupt project.ide.json still loads via the {} fallback and warns', async () => {
     const dir = await makeScratchDir('corrupt-ide-json');
     try {
       await fs.mkdir(path.join(dir, 'game'), { recursive: true });
@@ -58,6 +58,9 @@ base.describe('malformed projects', () => {
       try {
         const block = window.locator('[data-block-id]').first();
         await expect(block).toBeVisible({ timeout: 30_000 });
+        // bmf-vangard-renpy-ide-6o47.2: malformed settings must not fail silently --
+        // a distinct, actionable toast should surface even though the load succeeds.
+        await expect(window.getByText(/Project settings could not be read/i)).toBeVisible({ timeout: 10_000 });
       } finally {
         await forceExit(app);
       }

@@ -1,5 +1,6 @@
 import { logger, electronLog } from './src/lib/logger.main.js';
 import { isAppImageRuntime, shouldDisableSandbox } from './src/lib/sandboxProbe.js';
+import { classifyFsReadError } from './src/lib/fsErrorClassification.js';
 
 // CRITICAL: Fix AppImage sandbox and shared memory issues
 // Must inject flags into process.argv BEFORE importing electron
@@ -147,7 +148,10 @@ function startProjectWatcher(rootPath) {
             }, WATCH_DEBOUNCE_MS));
         });
     } catch (err) {
-        logger.error('Failed to start file watcher:', err);
+        logger.error(`Failed to start file watcher for project root ${rootPath}:`, err);
+        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+            mainWindowRef.webContents.send('fs:watcher-error', { message: err.message });
+        }
     }
 }
 
@@ -182,11 +186,17 @@ const appSettingsPath = path.join(app.getPath('userData'), 'app-settings.json');
 
 async function loadAppSettings() {
     let settings = null;
+    let warning = null;
     try {
         const data = await fs.readFile(appSettingsPath, 'utf-8');
         settings = JSON.parse(data);
-    } catch {
-        // No saved settings yet
+    } catch (err) {
+        const category = classifyFsReadError(err);
+        if (category !== 'missing') {
+            // Corrupt or inaccessible settings file — distinct from "no settings yet".
+            logger.warn(`App settings could not be read (${category}) at ${appSettingsPath}:`, err);
+            warning = { code: category, message: err.message };
+        }
     }
     // Playwright screenshot capture injects the production app's settings via
     // this env var so the correct theme and layout prefs are used.
@@ -196,7 +206,7 @@ async function loadAppSettings() {
             settings = { ...settings, ...override };
         } catch { /* ignore malformed override */ }
     }
-    return settings;
+    return { settings, warning };
 }
 
 async function saveAppSettings(settings) {
@@ -372,11 +382,21 @@ async function run() {
 
     progress(92, 'Loading project settings...');
 
+    const settingsPath = path.join(rootPath, 'game', 'project.ide.json');
     try {
-        const settingsContent = await fs.readFile(path.join(rootPath, 'game', 'project.ide.json'), 'utf-8');
+        const settingsContent = await fs.readFile(settingsPath, 'utf-8');
         results.settings = JSON.parse(settingsContent);
-    } catch {
+    } catch (err) {
         results.settings = {};
+        // ENOENT (no settings file yet) is expected and stays silent; anything
+        // else (malformed JSON, permission errors) is a real failure the
+        // renderer should surface instead of quietly using defaults.
+        if (err.code !== 'ENOENT') {
+            const category = err instanceof SyntaxError ? 'corrupted'
+                : (err.code === 'EACCES' || err.code === 'EPERM') ? 'permission-denied'
+                : 'unknown';
+            results.settingsWarning = { code: category, message: err.message };
+        }
     }
 
     parentPort.postMessage({ type: 'result', ok: true, data: results });
@@ -458,7 +478,7 @@ let forceQuit = false;
 // menu construction ever throws here, it would surface only as "app never
 // opens" with no diagnosable error, which is independent of the signing gap.
 async function updateApplicationMenu() {
-  const settings = await loadAppSettings();
+  const { settings } = await loadAppSettings();
   const recentProjects = settings?.recentProjects || [];
 
   const openRecentSubmenu = recentProjects.length > 0
@@ -1425,7 +1445,11 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:get-settings', async () => {
-    return await loadAppSettings();
+    const { settings, warning } = await loadAppSettings();
+    if (warning && mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send('app:settings-warning', warning);
+    }
+    return settings;
   });
 
   ipcMain.handle('app:save-settings', async (event, settings) => {

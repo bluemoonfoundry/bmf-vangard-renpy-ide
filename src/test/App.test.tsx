@@ -240,6 +240,26 @@ describe('App', () => {
       });
     });
 
+    it('toasts a warning when the main process reports corrupt app settings', async () => {
+      const api = createMockElectronAPI();
+      let emitWarning: ((data: { code: string; message: string }) => void) | null = null;
+      api.getAppSettings.mockResolvedValue(null);
+      (api as unknown as { onSettingsWarning: (cb: (data: { code: string; message: string }) => void) => () => void }).onSettingsWarning =
+        (cb) => { emitWarning = cb; return () => {}; };
+      installElectronAPI(api);
+      renderApp();
+      await waitFor(() => {
+        expect(document.querySelector('[data-app-ready="true"]')).toBeInTheDocument();
+      });
+
+      expect(emitWarning).not.toBeNull();
+      emitWarning!({ code: 'corrupted', message: 'Unexpected token' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/App settings could not be read/i)).toBeInTheDocument();
+      });
+    });
+
     it('falls back to localStorage when electronAPI is absent', async () => {
       uninstallElectronAPI();
       localStorage.setItem('renpy-ide-app-settings', JSON.stringify({ theme: 'dark' }));

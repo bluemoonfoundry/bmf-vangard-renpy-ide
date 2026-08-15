@@ -142,6 +142,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('fs:file-changed-externally', subscription);
     return () => ipcRenderer.removeListener('fs:file-changed-externally', subscription);
   },
+  onWatcherError: (callback) => {
+    const subscription = (_event, data) => callback(data);
+    ipcRenderer.on('fs:watcher-error', subscription);
+    return () => ipcRenderer.removeListener('fs:watcher-error', subscription);
+  },
+  onSettingsWarning: (callback) => {
+    const subscription = (_event, data) => callback(data);
+    ipcRenderer.on('app:settings-warning', subscription);
+    return () => ipcRenderer.removeListener('app:settings-warning', subscription);
+  },
   // --- Logging ---
   log: (level, ...args) => ipcRenderer.send('app:log', level, ...args),
   getLogPath: () => ipcRenderer.invoke('app:get-log-path'),

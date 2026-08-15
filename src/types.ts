@@ -1234,6 +1234,8 @@ export interface ProjectLoadResult {
   audios: ScannedAudioAsset[];
   settings: ProjectSettings | null;
   tree: FileSystemTreeNode;
+  /** Set when game/project.ide.json existed but could not be parsed/read (as opposed to simply being absent). */
+  settingsWarning?: { code: 'corrupted' | 'permission-denied' | 'unknown'; message: string } | null;
 }
 
 /** Result of the scanDirectory IPC call. */
@@ -1458,6 +1460,8 @@ declare global {
           getLatestScreenshotPath?: () => Promise<string | null>;
           onScreenshotCaptured?: (callback: (data: { filename: string; filepath: string }) => void) => () => void;
           onFileChangedExternally?: (callback: (data: { relativePath: string; absolutePath: string }) => void) => () => void;
+          onWatcherError?: (callback: (data: { message: string }) => void) => () => void;
+          onSettingsWarning?: (callback: (data: { code: string; message: string }) => void) => () => void;
           log?: (level: 'error' | 'warn' | 'info' | 'debug', ...args: unknown[]) => void;
           getLogPath?: () => Promise<string | null>;
           openLogDirectory?: () => Promise<{ success: boolean; error?: string }>;
