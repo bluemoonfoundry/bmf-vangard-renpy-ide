@@ -5,7 +5,7 @@
   "description": "Tree-sitter grammar for the Ren'Py visual novel scripting language",
   "main": "bindings/node",
   "scripts": {
-    "build": "tree-sitter generate && tree-sitter build --wasm",
+    "build": "tree-sitter generate && tree-sitter build --wasm -o renpy.wasm",
     "test": "tree-sitter test"
   },
   "devDependencies": {
