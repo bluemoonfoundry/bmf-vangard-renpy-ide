@@ -15,3 +15,35 @@ Nested indentation with dedent to outer scope
   (comment)
   (comment)
   (comment))
+
+==================
+Multi-level dedent in a single logical newline
+==================
+block:
+    block:
+        leaf
+back
+
+---
+
+(source_file
+  (block_statement
+    (block_statement
+      (identifier)))
+  (identifier))
+
+==================
+Comment at an unusual column inside a block is not indentation-significant
+==================
+block:
+    leaf
+# stray comment flush against column zero, still inside the block
+    leaf2
+
+---
+
+(source_file
+  (block_statement
+    (identifier)
+    (comment)
+    (identifier)))
