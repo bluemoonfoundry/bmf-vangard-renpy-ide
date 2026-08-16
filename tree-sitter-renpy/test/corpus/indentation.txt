@@ -1,0 +1,17 @@
+==================
+Nested indentation with dedent to outer scope
+==================
+# top level
+# nested
+# nested twice
+# back to nested
+# back to top
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (comment))
