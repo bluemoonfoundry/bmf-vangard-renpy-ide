@@ -44,6 +44,11 @@ module.exports = grammar({
       $.with_statement,
       $.screen_statement,
       $.transform_statement,
+      $.translate_statement,
+      $.style_statement,
+      $.camera_statement,
+      $.layeredimage_statement,
+      $.nvl_statement,
       $.expression_statement,
     ),
 
@@ -512,6 +517,111 @@ module.exports = grammar({
         seq($.identifier, optional($.expression)),
         $.expression,
       ),
+      $._newline,
+    ),
+
+    // `scope` is either an arbitrary namespace identifier (`translate french
+    // start_label:`) or the literal keyword `strings` (`translate french
+    // strings:`, Ren'Py's syntax for a block of translated string literals
+    // rather than translated statements). Reuses `_block`/`_statement` so
+    // the body can hold ordinary statements (say_statement, etc.) exactly
+    // like every other block-taking statement in this grammar — the
+    // brief's corpus expectation of a nested `(say_statement ...)` node
+    // falls out of that reuse for free, no special-casing needed.
+    translate_statement: $ => seq(
+      'translate',
+      field('language', $.identifier),
+      field('scope', choice($.identifier, 'strings')),
+      $._block,
+    ),
+
+    style_statement: $ => seq(
+      'style',
+      field('name', $.identifier),
+      optional(seq('is', field('parent', $.identifier))),
+      optional(seq('take', field('take_from', $.identifier))),
+      ':',
+      $._newline,
+      $._indent,
+      repeat1($.style_property_statement),
+      $._dedent,
+    ),
+
+    // Like every other "simple" statement in this grammar (see the
+    // `_statement` comment's convention, and the `dollar_statement`/
+    // `atl_transform_property` bug notes above), this must consume its own
+    // trailing `_newline` explicitly — it sits inside a `repeat1` between
+    // its owning statement's `_indent`/`_dedent` pair rather than
+    // delegating to `_block`, so without this the external scanner never
+    // emits a NEWLINE here and a second sibling property on the next line
+    // becomes lexically unreachable (verified against the brief's snippet,
+    // which omitted this and produced an ERROR node on the second property
+    // of a multi-property style/layeredimage block).
+    //
+    // `value` additionally accepts `$.string` (aliased to the shared
+    // `$.expression` node type, matching this grammar's opaque-value
+    // convention). A bare `field('value', $.expression)` alone is not
+    // enough: style/layeredimage property values are frequently quoted
+    // string literals (`background "#333"`, image filenames), and the
+    // top-level `expression` token's regex (`/[^\n#:]+/`) deliberately
+    // *excludes* `#` so it never swallows a trailing comment — but that
+    // means it can't consume a color literal like `"#333"` at all (it stops
+    // dead after the opening quote), leaving the rest of the line
+    // (`#333"`) to be mis-lexed as a comment and produce an ERROR node
+    // (verified: this happened with the brief's literal `$.expression`-only
+    // field). Trying `$.string` first is unambiguous and safe here since,
+    // unlike at the top-level `_statement` position, this field has no
+    // competing rule that also wants to consume a leading quote.
+    style_property_statement: $ => seq(
+      field('property', $.identifier),
+      field('value', choice(alias($.string, $.expression), $.expression)),
+      $._newline,
+    ),
+
+    // "Simple" statement (no block) — consumes its own trailing `_newline`
+    // per the same convention as `dollar_statement`/`with_statement`/etc.
+    // The brief's snippet omitted this.
+    camera_statement: $ => seq(
+      'camera',
+      optional(field('layer', $.identifier)),
+      optional(seq('at', field('at_expr', $.expression))),
+      $._newline,
+    ),
+
+    // `name` is a whitespace-separated run of identifiers, same convention
+    // as `image_statement`'s name field. Reuses `style_property_statement`'s
+    // shape for its body per the brief's guidance that layeredimage should
+    // be modeled consistent with style (both are `name value` property
+    // lists inside an indented block).
+    layeredimage_statement: $ => seq(
+      'layeredimage',
+      field('name', repeat1($.identifier)),
+      ':',
+      $._newline,
+      $._indent,
+      repeat1($.style_property_statement),
+      $._dedent,
+    ),
+
+    // `nvl clear` / `nvl show` / `nvl hide` reuse the exact same literal
+    // keyword tokens `show`/`hide` already declared by `show_statement`/
+    // `hide_statement` (Task 4). This is *not* a lexer ambiguity: tree-sitter
+    // unifies identical string-literal tokens into one shared terminal
+    // symbol across the whole grammar, but which *rule* that terminal is
+    // allowed to reduce into at any point is still governed by the parser's
+    // current state (i.e. what came immediately before). `show_statement`
+    // and `hide_statement` only start a statement at the top of
+    // `_statement`'s choice; `nvl_statement`'s `show`/`hide` only appear
+    // immediately after a preceding `nvl` token. Those are disjoint parser
+    // states, so `nvl show` cannot be mistaken for a bare `show_statement`
+    // (which requires a following `image` identifier list, not end-of-line)
+    // and a bare `show eileen` cannot be mistaken for `nvl_statement` (which
+    // requires a preceding `nvl`). `tree-sitter generate` confirms this:
+    // no GLR conflict is reported for `show`/`hide` between the two rules.
+    // Simple statement — consumes its own trailing `_newline`.
+    nvl_statement: $ => seq(
+      'nvl',
+      choice('clear', 'show', 'hide'),
       $._newline,
     ),
 

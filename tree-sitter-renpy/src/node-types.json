@@ -115,6 +115,32 @@
     }
   },
   {
+    "type": "camera_statement",
+    "named": true,
+    "fields": {
+      "at_expr": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "layer": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "default_statement",
     "named": true,
     "fields": {
@@ -206,6 +232,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -254,7 +284,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -282,7 +320,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -309,6 +355,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -357,7 +407,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -385,7 +443,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -457,6 +523,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -505,7 +575,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -533,7 +611,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -597,6 +683,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -653,7 +743,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -681,7 +779,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -738,6 +844,10 @@
             "named": true
           },
           {
+            "type": "camera_statement",
+            "named": true
+          },
+          {
             "type": "comment",
             "named": true
           },
@@ -786,7 +896,15 @@
             "named": true
           },
           {
+            "type": "layeredimage_statement",
+            "named": true
+          },
+          {
             "type": "menu_statement",
+            "named": true
+          },
+          {
+            "type": "nvl_statement",
             "named": true
           },
           {
@@ -814,7 +932,15 @@
             "named": true
           },
           {
+            "type": "style_statement",
+            "named": true
+          },
+          {
             "type": "transform_statement",
+            "named": true
+          },
+          {
+            "type": "translate_statement",
             "named": true
           },
           {
@@ -893,6 +1019,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -941,7 +1071,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -969,7 +1107,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -978,6 +1124,32 @@
         },
         {
           "type": "with_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "layeredimage_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "style_property_statement",
           "named": true
         }
       ]
@@ -1021,6 +1193,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -1069,7 +1245,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -1097,7 +1281,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -1136,6 +1328,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "nvl_statement",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "parameter_list",
@@ -1205,6 +1402,10 @@
             "named": true
           },
           {
+            "type": "camera_statement",
+            "named": true
+          },
+          {
             "type": "comment",
             "named": true
           },
@@ -1253,7 +1454,15 @@
             "named": true
           },
           {
+            "type": "layeredimage_statement",
+            "named": true
+          },
+          {
             "type": "menu_statement",
+            "named": true
+          },
+          {
+            "type": "nvl_statement",
             "named": true
           },
           {
@@ -1281,7 +1490,15 @@
             "named": true
           },
           {
+            "type": "style_statement",
+            "named": true
+          },
+          {
             "type": "transform_statement",
+            "named": true
+          },
+          {
+            "type": "translate_statement",
             "named": true
           },
           {
@@ -1530,6 +1747,10 @@
           "named": true
         },
         {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
           "type": "comment",
           "named": true
         },
@@ -1578,7 +1799,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -1606,7 +1835,15 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -1624,6 +1861,78 @@
     "type": "string",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "style_property_statement",
+    "named": true,
+    "fields": {
+      "property": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "style_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "parent": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "take_from": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "style_property_statement",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "transform_statement",
@@ -1674,16 +1983,30 @@
     }
   },
   {
-    "type": "while_statement",
+    "type": "translate_statement",
     "named": true,
     "fields": {
-      "condition": {
+      "language": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "identifier",
             "named": true
+          }
+        ]
+      },
+      "scope": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "strings",
+            "named": false
           }
         ]
       }
@@ -1694,6 +2017,10 @@
       "types": [
         {
           "type": "call_statement",
+          "named": true
+        },
+        {
+          "type": "camera_statement",
           "named": true
         },
         {
@@ -1745,7 +2072,15 @@
           "named": true
         },
         {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
           "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
           "named": true
         },
         {
@@ -1773,7 +2108,149 @@
           "named": true
         },
         {
+          "type": "style_statement",
+          "named": true
+        },
+        {
           "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
+          "named": true
+        },
+        {
+          "type": "while_statement",
+          "named": true
+        },
+        {
+          "type": "with_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "while_statement",
+    "named": true,
+    "fields": {
+      "condition": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "call_statement",
+          "named": true
+        },
+        {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "default_statement",
+          "named": true
+        },
+        {
+          "type": "define_statement",
+          "named": true
+        },
+        {
+          "type": "dollar_statement",
+          "named": true
+        },
+        {
+          "type": "expression_statement",
+          "named": true
+        },
+        {
+          "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
+          "named": true
+        },
+        {
+          "type": "image_statement",
+          "named": true
+        },
+        {
+          "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "jump_statement",
+          "named": true
+        },
+        {
+          "type": "label_statement",
+          "named": true
+        },
+        {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
+          "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "return_statement",
+          "named": true
+        },
+        {
+          "type": "say_statement",
+          "named": true
+        },
+        {
+          "type": "scene_statement",
+          "named": true
+        },
+        {
+          "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_statement",
+          "named": true
+        },
+        {
+          "type": "style_statement",
+          "named": true
+        },
+        {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
           "named": true
         },
         {
@@ -1848,7 +2325,15 @@
     "named": false
   },
   {
+    "type": "camera",
+    "named": false
+  },
+  {
     "type": "choice",
+    "named": false
+  },
+  {
+    "type": "clear",
     "named": false
   },
   {
@@ -1920,6 +2405,10 @@
     "named": false
   },
   {
+    "type": "is",
+    "named": false
+  },
+  {
     "type": "jump",
     "named": false
   },
@@ -1928,7 +2417,15 @@
     "named": false
   },
   {
+    "type": "layeredimage",
+    "named": false
+  },
+  {
     "type": "menu",
+    "named": false
+  },
+  {
+    "type": "nvl",
     "named": false
   },
   {
@@ -1964,11 +2461,27 @@
     "named": false
   },
   {
+    "type": "strings",
+    "named": false
+  },
+  {
+    "type": "style",
+    "named": false
+  },
+  {
+    "type": "take",
+    "named": false
+  },
+  {
     "type": "time",
     "named": false
   },
   {
     "type": "transform",
+    "named": false
+  },
+  {
+    "type": "translate",
     "named": false
   },
   {

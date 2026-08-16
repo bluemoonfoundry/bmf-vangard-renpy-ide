@@ -1,0 +1,46 @@
+==================
+Camera, layeredimage, nvl
+==================
+camera at truecenter
+
+layeredimage eileen:
+    always "eileen_base.png"
+
+label start:
+    nvl clear
+
+---
+
+(source_file
+  (camera_statement at_expr: (expression))
+  (layeredimage_statement
+    name: (identifier)
+    (style_property_statement property: (identifier) value: (expression)))
+  (label_statement
+    name: (identifier)
+    (nvl_statement)))
+
+==================
+Camera with layer
+==================
+camera master at truecenter
+
+---
+
+(source_file
+  (camera_statement layer: (identifier) at_expr: (expression)))
+
+==================
+Nvl show and hide
+==================
+label start:
+    nvl show
+    nvl hide
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (nvl_statement)
+    (nvl_statement)))
