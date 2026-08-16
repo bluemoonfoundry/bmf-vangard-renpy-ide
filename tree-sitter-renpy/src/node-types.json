@@ -1678,7 +1678,7 @@
     },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "screen_language_statement",
@@ -2281,15 +2281,7 @@
     }
   },
   {
-    "type": "\"",
-    "named": false
-  },
-  {
     "type": "$",
-    "named": false
-  },
-  {
-    "type": "'",
     "named": false
   },
   {

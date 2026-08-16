@@ -1,0 +1,32 @@
+==================
+Unterminated label header with no body
+==================
+label start:
+
+---
+
+(source_file
+  (label_statement name: (identifier)))
+
+==================
+Unterminated string on a say statement being typed
+==================
+label start:
+    eileen "Hello, how are
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Menu header with no choices yet
+==================
+menu:
+
+---
+
+(source_file
+  (ERROR))

@@ -86,9 +86,41 @@ module.exports = grammar({
 
     // Shared block body used by every block-taking statement: `label foo:`
     // / `if x:` / `menu:` etc.
+    //
+    // Task 8 fix: this used to be `seq(':', optional(seq($._newline,
+    // $._indent, repeat1($._statement), $._dedent)))` — wrapping the
+    // *whole* newline-through-dedent sequence in one `optional(...)`. That
+    // looks like it should already handle "header with no body" (the case
+    // this task is hardening), but it doesn't: whenever a trailing newline
+    // is physically present after the ':' (the overwhelmingly common case —
+    // a user who just typed `label foo:` and hit Enter, or any header
+    // immediately followed by a sibling statement at the same indent), the
+    // external scanner has no choice but to hand that newline to the parser
+    // as a real `_newline` token (it's the only external token that can
+    // possibly be valid there), which forces entry into the optional's
+    // *inner* `seq` before the parser can know whether an `_indent` will
+    // actually follow. When it doesn't (no body), `_indent` fails to match
+    // and that already-consumed `_newline` has nowhere to go, surfacing as
+    // a genuine `ERROR` node — verified empirically: `label start:` followed
+    // by another top-level statement at the same indent, or by EOF, produced
+    // an `ERROR` for exactly this reason before this fix, even though the
+    // brief describes this case as already working.
+    //
+    // The fix separates "does a trailing newline get consumed" from "does a
+    // body follow": the first `choice` arm is the body-present path
+    // (newline + indent + statements + dedent, unchanged from before); the
+    // second arm handles the body-absent path by consuming an *optional*
+    // trailing newline on its own, with no expectation of an indent after
+    // it. `optional` (not required) on that second arm's newline also covers
+    // a header at the literal end of a buffer with no trailing newline
+    // yet — another real half-typed editing state (Monaco doesn't force a
+    // final newline while the user is still typing the line).
     _block: $ => seq(
       ':',
-      optional(seq($._newline, $._indent, repeat1($._statement), $._dedent)),
+      choice(
+        seq($._newline, $._indent, repeat1($._statement), $._dedent),
+        optional($._newline),
+      ),
     ),
 
     label_statement: $ => seq(
@@ -315,15 +347,23 @@ module.exports = grammar({
       $._newline,
     ),
 
+    // Task 8: mirrors `_block`'s body-optional fix (see its comment above)
+    // rather than delegating to `_block` itself, because a screen's body is
+    // `repeat1($.screen_language_statement)`, not `repeat1($._statement)`.
+    // Before this fix, `screen bar():` with no body yet (a very common
+    // half-typed editing state — user has just opened the block) produced a
+    // whole-statement `ERROR` (verified empirically), not a clean empty
+    // `screen_statement`, because the required `$._newline, $._indent, ...`
+    // sequence had no fallback for "newline consumed, no indent follows."
     screen_statement: $ => seq(
       'screen',
       field('name', $.identifier),
       optional(field('parameters', $.parameter_list)),
       ':',
-      $._newline,
-      $._indent,
-      repeat1($.screen_language_statement),
-      $._dedent,
+      choice(
+        seq($._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
+        optional($._newline),
+      ),
     ),
 
     // One shared shape for every screen-language widget/control-flow
@@ -625,9 +665,35 @@ module.exports = grammar({
       $._newline,
     ),
 
+    // Task 8: wrapped in `token(...)` (previously a plain, non-atomic `seq`)
+    // and the closing quote made `optional`, with the content class
+    // additionally excluding `\n`. Two independent fixes bundled here:
+    //
+    // 1. Permissive unterminated strings — a string literal being actively
+    //    typed in Monaco (opening quote present, closing quote not yet
+    //    typed) is a hot-path half-typed editing state. Before this fix the
+    //    closing quote was required, so `eileen "Hello, how are` (no closing
+    //    `"`) fell through to `ERROR` instead of lexing as an (incomplete)
+    //    `string` node — verified empirically. `optional('"')`/`optional("'")`
+    //    lets the token still match up to end-of-line/EOF without a closer;
+    //    downstream consumers can detect "unterminated" by checking whether
+    //    the matched text's last character isn't the opening quote character.
+    //    Excluding `\n` from the content class keeps an unterminated string
+    //    from swallowing subsequent lines (and their indentation) into one
+    //    token — it stops exactly at the line the user is on.
+    // 2. `token(...)` makes the whole alternative one atomic lexical token
+    //    instead of a normal grammar `seq`. This matters together with fix
+    //    1: once the closing quote is optional, an *un*terminated string's
+    //    match boundary is ambiguous at the grammar level (nothing stops the
+    //    parser from trying to split the content differently token-by-token,
+    //    since `repeat(choice(...))` is no longer forced to end at a real
+    //    quote). Atomicizing it via `token()` commits the lexer to the
+    //    longest single match up front, the same way every other lexical
+    //    leaf in this grammar (`comment`, `expression`, etc.) is already
+    //    `token()`-wrapped.
     string: $ => choice(
-      seq('"', repeat(choice(/[^"\\]/, /\\./)), '"'),
-      seq("'", repeat(choice(/[^'\\]/, /\\./)), "'"),
+      token(seq('"', repeat(choice(/[^"\\\n]/, /\\./)), optional('"'))),
+      token(seq("'", repeat(choice(/[^'\\\n]/, /\\./)), optional("'"))),
     ),
   }
 });
