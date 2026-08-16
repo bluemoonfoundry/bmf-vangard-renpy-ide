@@ -43,6 +43,7 @@ module.exports = grammar({
       $.hide_statement,
       $.with_statement,
       $.screen_statement,
+      $.transform_statement,
       $.expression_statement,
     ),
 
@@ -396,6 +397,75 @@ module.exports = grammar({
       /[a-zA-Z_][a-zA-Z0-9_]*/,
       repeat1(/[^\n#: \t\r]/),
     )),
+
+    // ATL (Animated Transform Language) — used by `transform` statements
+    // and by `at`-clause ATL blocks. Structurally similar to
+    // screen_language_statement: a small fixed set of ATL-specific
+    // keywords (`parallel`/`contains`/`choice`/`block`/`repeat`/`pause`/
+    // `time`/`with`) plus arbitrary `name value` property sets, all opaque
+    // Python-ish expressions on the value side per the same granularity
+    // convention used everywhere else in this grammar. `word: $ =>
+    // $.identifier` means these keyword literals win lexical ties against
+    // plain `identifier` whenever they match exactly (tree-sitter's
+    // keyword-extraction rule), so an ATL property genuinely named e.g.
+    // `contains` would be shadowed by the block keyword — an accepted,
+    // pre-existing limitation shared with screen-language tags.
+    transform_statement: $ => seq(
+      'transform',
+      field('name', $.identifier),
+      optional(field('parameters', $.parameter_list)),
+      ':',
+      $._newline,
+      $._indent,
+      repeat1($._atl_statement),
+      $._dedent,
+    ),
+
+    _atl_statement: $ => choice(
+      $.atl_transform_property,
+      $.atl_with_statement,
+      $.atl_block_statement,
+      $.atl_time_statement,
+    ),
+
+    // `xalign 0.5`, `zoom 1.2`, `rotate persistent.angle` style property
+    // sets — reuses the opaque-expression pattern since ATL property
+    // values are Python-ish numeric/interpolated expressions. Like every
+    // other "simple" statement in this grammar (see the `_statement`
+    // comment's convention, and the `dollar_statement`/
+    // `screen_language_statement` bug notes above), this must consume its
+    // own trailing `_newline` explicitly — it doesn't delegate to `_block`
+    // or otherwise own an indent/dedent pair, so without this the
+    // external scanner never emits a NEWLINE here and sibling
+    // atl_statements on the next line become lexically unreachable
+    // (verified against the brief's snippet, which omitted this and
+    // produced ERROR nodes on any transform with more than one property).
+    atl_transform_property: $ => seq(
+      field('property', $.identifier),
+      field('value', $.expression),
+      $._newline,
+    ),
+
+    atl_with_statement: $ => seq(
+      'with',
+      field('warper', $.expression),
+      $._newline,
+    ),
+
+    atl_block_statement: $ => seq(
+      choice('parallel', 'contains', 'choice', 'block', 'repeat'),
+      ':',
+      $._newline,
+      $._indent,
+      repeat1($._atl_statement),
+      $._dedent,
+    ),
+
+    atl_time_statement: $ => seq(
+      choice('pause', 'time'),
+      field('duration', $.expression),
+      $._newline,
+    ),
 
     // Fallback so raw Python-ish lines inside `python:`/`init python:`
     // blocks (which this task doesn't decompose — see the injection-point

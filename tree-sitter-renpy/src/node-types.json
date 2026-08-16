@@ -1,5 +1,90 @@
 [
   {
+    "type": "atl_block_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "atl_block_statement",
+          "named": true
+        },
+        {
+          "type": "atl_time_statement",
+          "named": true
+        },
+        {
+          "type": "atl_transform_property",
+          "named": true
+        },
+        {
+          "type": "atl_with_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "atl_time_statement",
+    "named": true,
+    "fields": {
+      "duration": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "atl_transform_property",
+    "named": true,
+    "fields": {
+      "property": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "atl_with_statement",
+    "named": true,
+    "fields": {
+      "warper": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "call_statement",
     "named": true,
     "fields": {
@@ -197,6 +282,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -293,6 +382,10 @@
         },
         {
           "type": "show_statement",
+          "named": true
+        },
+        {
+          "type": "transform_statement",
           "named": true
         },
         {
@@ -440,6 +533,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -584,6 +681,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -710,6 +811,10 @@
           },
           {
             "type": "show_statement",
+            "named": true
+          },
+          {
+            "type": "transform_statement",
             "named": true
           },
           {
@@ -864,6 +969,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -985,6 +1094,10 @@
         },
         {
           "type": "show_statement",
+          "named": true
+        },
+        {
+          "type": "transform_statement",
           "named": true
         },
         {
@@ -1165,6 +1278,10 @@
           },
           {
             "type": "show_statement",
+            "named": true
+          },
+          {
+            "type": "transform_statement",
             "named": true
           },
           {
@@ -1489,6 +1606,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -1503,6 +1624,54 @@
     "type": "string",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "transform_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "parameters": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "parameter_list",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "atl_block_statement",
+          "named": true
+        },
+        {
+          "type": "atl_time_statement",
+          "named": true
+        },
+        {
+          "type": "atl_transform_property",
+          "named": true
+        },
+        {
+          "type": "atl_with_statement",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "while_statement",
@@ -1604,6 +1773,10 @@
           "named": true
         },
         {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -1667,12 +1840,24 @@
     "named": false
   },
   {
+    "type": "block",
+    "named": false
+  },
+  {
     "type": "call",
+    "named": false
+  },
+  {
+    "type": "choice",
     "named": false
   },
   {
     "type": "comment",
     "named": true
+  },
+  {
+    "type": "contains",
+    "named": false
   },
   {
     "type": "default",
@@ -1747,7 +1932,19 @@
     "named": false
   },
   {
+    "type": "parallel",
+    "named": false
+  },
+  {
+    "type": "pause",
+    "named": false
+  },
+  {
     "type": "python",
+    "named": false
+  },
+  {
+    "type": "repeat",
     "named": false
   },
   {
@@ -1764,6 +1961,14 @@
   },
   {
     "type": "show",
+    "named": false
+  },
+  {
+    "type": "time",
+    "named": false
+  },
+  {
+    "type": "transform",
     "named": false
   },
   {

@@ -1,0 +1,18 @@
+==================
+Transform with property sets and a parallel block
+==================
+transform bounce:
+    xalign 0.5
+    parallel:
+        rotate 45
+        pause 1.0
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_transform_property property: (identifier) value: (expression))
+    (atl_block_statement
+      (atl_transform_property property: (identifier) value: (expression))
+      (atl_time_statement duration: (expression)))))
