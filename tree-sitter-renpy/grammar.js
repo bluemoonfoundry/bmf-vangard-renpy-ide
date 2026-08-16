@@ -42,6 +42,7 @@ module.exports = grammar({
       $.show_statement,
       $.hide_statement,
       $.with_statement,
+      $.screen_statement,
       $.expression_statement,
     ),
 
@@ -307,6 +308,94 @@ module.exports = grammar({
       field('transition', $.expression),
       $._newline,
     ),
+
+    screen_statement: $ => seq(
+      'screen',
+      field('name', $.identifier),
+      optional(field('parameters', $.parameter_list)),
+      ':',
+      $._newline,
+      $._indent,
+      repeat1($.screen_language_statement),
+      $._dedent,
+    ),
+
+    // One shared shape for every screen-language widget/control-flow
+    // construct (if/for/use/frame/vbox/button/text/imagemap/...) since
+    // Ren'Py screen-language is structurally uniform: a tag, optional
+    // positional/keyword properties, and an optional indented body. This
+    // is a deliberate spec decision — do not split into per-widget rule
+    // types even though it would look tidier; the point is that the
+    // uniform shape is sufficient to represent every widget.
+    // Every screen_language_statement must consume exactly one trailing
+    // `_newline` of its own, mirroring the convention "simple" `_statement`s
+    // use (see the `_statement` comment above) — this rule sits *outside*
+    // `_block`'s pattern (it has no required leading `:'), so unlike
+    // `if_statement`/`while_statement`/etc. it can't just delegate to
+    // `_block`. The brief's snippet omitted this newline entirely, which
+    // left the grammar with no marker between sibling widgets on the same
+    // indent level: the external scanner only emits a NEWLINE token when
+    // the grammar actually asks for one at that position (see scanner.c),
+    // so an unconsumed newline is silently skipped as whitespace and two
+    // adjacent widgets (e.g. `text "Welcome"` then `if ...:`) become
+    // lexically indistinguishable from one widget with extra properties —
+    // a genuine `tree-sitter generate` conflict ("Unresolved conflict...
+    // Specify a left or right associativity... Add a conflict"), not a
+    // lexer-precedence issue. Requiring the newline (or the block's own
+    // internal `_newline` right after `:') removes the ambiguity: the
+    // parser always knows where one screen_language_statement ends.
+    screen_language_statement: $ => seq(
+      field('widget_tag', $.identifier),
+      repeat(field('properties', $.property)),
+      choice(
+        $._newline,
+        seq(':', $._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
+      ),
+    ),
+
+    // A property is either a `name value` keyword pair (e.g. `action
+    // Start()`) or a single bare expression (e.g. a widget's positional
+    // argument, or — for control-flow tags like `if`/`for` reused inside
+    // screen-language — the condition/target itself, e.g. `if
+    // persistent.unlocked:`). Both alternatives can start with the exact
+    // same identifier-shaped text (`persistent...` vs `action ...`), so
+    // this can't be resolved by `expression`'s usual `prec(-1)` alone: at
+    // the position right after `if `, plain `identifier` (prec 0, matches
+    // just "persistent") would always beat plain `expression` (prec -1,
+    // would match the whole "persistent.unlocked") on precedence *before*
+    // length is even considered, splitting the dotted attribute access
+    // into a bogus name:"persistent" + value:".unlocked" pair instead of
+    // one bare expression — the brief's snippet has this bug (verified:
+    // it produced exactly that malformed split against the brief's own
+    // corpus expectation of a single `(property (expression))`).
+    //
+    // `_bare_expr_head` fixes this by requiring at least one more
+    // *immediately adjacent, no-space* character after the leading word
+    // (`repeat1`, not `repeat0`) before it's a valid token at all. That
+    // means it can never even compete for cases like `action Start()`
+    // (a space follows "action", so the blob simply fails to match there
+    // and only plain `identifier` is on offer — alt1 still wins normally),
+    // but for `persistent.unlocked` (no space before the continuing `.`)
+    // it matches the full 20 characters at the *same* (default, 0)
+    // precedence as `identifier`'s 10-character match — a tie that then
+    // falls through to tree-sitter's next tiebreaker, longest match, which
+    // the blob wins outright. This keeps `action Start()` splitting into
+    // name+value (real keyword-argument screen properties always have a
+    // separating space) while letting any expression that runs directly
+    // into its head word — dotted attributes, calls, subscripts — lex as
+    // one opaque expression, matching real Ren'Py semantics: only
+    // `if`/`for`/bare-positional tags take a single expression, and they
+    // have no notion of a `name` sub-field to split into.
+    property: $ => choice(
+      seq(field('name', $.identifier), field('value', $.expression)),
+      alias($._bare_expr_head, $.expression),
+      $.expression,
+    ),
+
+    _bare_expr_head: $ => token(seq(
+      /[a-zA-Z_][a-zA-Z0-9_]*/,
+      repeat1(/[^\n#: \t\r]/),
+    )),
 
     // Fallback so raw Python-ish lines inside `python:`/`init python:`
     // blocks (which this task doesn't decompose — see the injection-point

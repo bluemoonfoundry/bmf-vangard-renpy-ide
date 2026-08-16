@@ -1,0 +1,33 @@
+==================
+Screen with nested if and vbox/button widgets
+==================
+screen main_menu():
+    vbox:
+        text "Welcome"
+        if persistent.unlocked:
+            button:
+                action Start()
+                text "Play"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        (screen_language_statement
+          widget_tag: (identifier)
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression)))
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression))))))))
