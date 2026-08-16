@@ -1,0 +1,26 @@
+==================
+Simple label with jump
+==================
+label start:
+    jump chapter_one
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement target: (identifier))))
+
+==================
+Label with parameters and return
+==================
+label ask_name(default_name="Alex"):
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    parameters: (parameter_list (expression))
+    (return_statement)))

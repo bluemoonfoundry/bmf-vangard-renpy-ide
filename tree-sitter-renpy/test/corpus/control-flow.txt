@@ -1,0 +1,28 @@
+==================
+If/elif/else with nested for loop
+==================
+label check:
+    if points > 10:
+        for i in range(points):
+            call award_point
+    elif points > 0:
+        jump low_score
+    else:
+        jump no_score
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (for_statement
+        variable: (expression)
+        iterable: (expression)
+        (call_statement target: (identifier)))
+      (elif_clause
+        condition: (expression)
+        (jump_statement target: (identifier)))
+      (else_clause
+        (jump_statement target: (identifier))))))

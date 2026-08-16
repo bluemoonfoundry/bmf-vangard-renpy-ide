@@ -19,31 +19,34 @@ Nested indentation with dedent to outer scope
 ==================
 Multi-level dedent in a single logical newline
 ==================
-block:
-    block:
-        leaf
-back
+label a:
+    if x:
+        jump y
+jump z
 
 ---
 
 (source_file
-  (block_statement
-    (block_statement
-      (identifier)))
-  (identifier))
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (jump_statement target: (identifier))))
+  (jump_statement target: (identifier)))
 
 ==================
 Comment at an unusual column inside a block is not indentation-significant
 ==================
-block:
-    leaf
+label a:
+    jump x
 # stray comment flush against column zero, still inside the block
-    leaf2
+    jump y
 
 ---
 
 (source_file
-  (block_statement
-    (identifier)
+  (label_statement
+    name: (identifier)
+    (jump_statement target: (identifier))
     (comment)
-    (identifier)))
+    (jump_statement target: (identifier))))
