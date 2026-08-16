@@ -762,21 +762,25 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": "with"
-                },
-                {
-                  "type": "FIELD",
-                  "name": "transition",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "expression"
+              "type": "PREC_DYNAMIC",
+              "value": 1,
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "with"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "transition",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "expression"
+                    }
                   }
-                }
-              ]
+                ]
+              }
             },
             {
               "type": "BLANK"
@@ -784,8 +788,16 @@
           ]
         },
         {
-          "type": "SYMBOL",
-          "name": "_newline"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_newline"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -2109,7 +2121,11 @@
       "value": "[ \\t\\r]"
     }
   ],
-  "conflicts": [],
+  "conflicts": [
+    [
+      "say_statement"
+    ]
+  ],
   "precedences": [],
   "externals": [
     {

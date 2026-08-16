@@ -13,6 +13,25 @@ module.exports = grammar({
 
   word: $ => $.identifier,
 
+  // Task 8 fix (post-review): making `say_statement`'s trailing `$._newline`
+  // optional (see the comment on `say_statement` below) made its own
+  // optional `with`-clause nullable at the exact point where `'with'` is
+  // also a valid FOLLOW token for `say_statement` (any top-level
+  // `with_statement` can immediately follow any statement). That's a real,
+  // not merely cosmetic, static ambiguity: for input like `eileen "hi" with
+  // dissolve\n`, the grammar as written now admits two distinct, fully
+  // valid parses — (a) one `say_statement` whose own `with`-clause consumes
+  // "with dissolve", or (b) a `say_statement` that ends right after the
+  // string (using its now-optional, zero-width newline) followed by a
+  // separate top-level `with_statement` that consumes "with dissolve\n".
+  // `prec.dynamic` on `say_statement`'s with-clause below picks (a)
+  // whenever both are viable, matching real Ren'Py semantics: an inline
+  // `with` immediately after a say's string always belongs to that say
+  // statement, never to a following statement.
+  conflicts: $ => [
+    [$.say_statement],
+  ],
+
   rules: {
     source_file: $ => repeat($._statement),
 
@@ -229,14 +248,30 @@ module.exports = grammar({
     // `character` is forced to consume exactly the first identifier
     // whenever the who/attributes clause is present at all, and there's
     // only one way to parse the line.
+    // Task 8 fix (post-review): the trailing `$._newline` used to be
+    // required, unconditionally. That's fine once a real newline byte
+    // exists in the buffer, but it misses the single most common
+    // "actively typing" trigger for a live-analysis tool: the user is
+    // mid-line, cursor at the very end of the buffer, no `\n` byte typed
+    // yet at all (e.g. `eileen "Hello, how are` with nothing after it —
+    // not even a line ending). The external scanner's EOF branch only
+    // emits a synthetic NEWLINE when `saw_newline` was true in that same
+    // scan call (see scanner.c's `if (lexer->eof(lexer))` block); with no
+    // `\n` byte present, `saw_newline` is false, no NEWLINE token is ever
+    // produced, and a required `$._newline` here can never be satisfied —
+    // surfacing as `ERROR` even though the say-statement itself (character,
+    // attributes, text) is otherwise fully formed. Making the newline
+    // `optional(...)` (mirroring `_block`'s identical fix for the same
+    // "end of buffer, no trailing newline yet" case) lets a say-statement
+    // at the literal end of a buffer resolve cleanly instead.
     say_statement: $ => seq(
       optional(seq(
         field('character', choice($.identifier, $.expression)),
         optional(field('attributes', repeat1($.identifier))),
       )),
       field('text', $.string),
-      optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      optional(prec.dynamic(1, seq('with', field('transition', $.expression)))),
+      optional($._newline),
     ),
 
     // Injection point (Task 9): body text between `python:`/`:` and dedent

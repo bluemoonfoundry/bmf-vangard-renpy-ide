@@ -22,6 +22,18 @@ label start:
     (say_statement character: (identifier) text: (string))))
 
 ==================
+Unterminated say-statement string with no trailing newline at all (buffer ends mid-string)
+==================
+label start:
+    eileen "Hello, how are
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))))
+
+==================
 Menu header with no choices yet
 ==================
 menu:
