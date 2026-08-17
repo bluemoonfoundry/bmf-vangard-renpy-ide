@@ -1,6 +1,6 @@
-[![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
-[![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
-![Version](https://img.shields.io/badge/version-0.8.0-blue)
+[![Build/Release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/build.yml)
+[![CodeQL](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
 # Vangard Studio : The Ren'Py Visual Designer
@@ -15,7 +15,7 @@ Vangard Studio is a desktop IDE for Ren'Py visual novel development. It is desig
 
 **[Watch the Full Beta 4 Walkthrough Video @ YouTube →](https://youtu.be/PNgV-JjFNag)**
 
-**[Download the latest stable release (v0.8.0)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v0.8.0)**
+**[Download the latest stable release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/latest)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
 
@@ -382,8 +382,8 @@ You'll also be asked to locate your Ren'Py SDK installation directory in Setting
 ### Setup
 
 ```bash
-git clone https://github.com/bluemoonfoundry/vangard-renpy-ide.git
-cd vangard-renpy-ide
+git clone https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide.git
+cd bmf-vangard-renpy-ide
 npm install
 ```
 
@@ -438,4 +438,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Vangard Studio — v0.8.0*
+*Vangard Studio — v1.0.0*
