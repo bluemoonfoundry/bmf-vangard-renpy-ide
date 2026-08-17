@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { logger } from '@/lib/logger';
 import { useVirtualList } from '@/hooks/useVirtualList';
+import { sanitizeFileName } from '@/lib/editorSelectionActions';
 
 // py-1 (4+4) + h-5 icon (20px) = 28px per row
 const TREE_ROW_HEIGHT = 28;
@@ -64,11 +65,25 @@ const NewNodeInput: React.FC<{
         if (submittedRef.current) return;
         submittedRef.current = true;
 
-        if (name.trim()) {
-            onCreate(parentPath, name.trim(), type);
-        } else {
-             onCreate(parentPath, '', type); // Signal cancellation
+        const trimmed = name.trim();
+        if (!trimmed) {
+            onCreate(parentPath, '', type); // Signal cancellation
+            return;
         }
+
+        if (type === 'folder') {
+            onCreate(parentPath, sanitizeFileName(trimmed), type);
+            return;
+        }
+
+        // Files may include an extension (e.g. "new_file.rpy") — sanitize just the
+        // base name so filesystem-reserved characters/names and trailing dots/spaces
+        // are stripped without mangling the extension itself.
+        const extensionMatch = trimmed.match(/\.[^./]+$/);
+        const extension = extensionMatch ? extensionMatch[0] : '';
+        const base = extension ? trimmed.slice(0, -extension.length) : trimmed;
+        const sanitizedBase = sanitizeFileName(base);
+        onCreate(parentPath, sanitizedBase ? `${sanitizedBase}${extension}` : '', type);
     };
 
     return (

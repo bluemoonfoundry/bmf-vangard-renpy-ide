@@ -85,7 +85,7 @@ describe('SearchContext', () => {
 
   it('executeSearch calls electronAPI.searchInProject when projectRootPath is set', async () => {
     const api = installElectronAPI();
-    api.searchInProject.mockResolvedValue([]);
+    api.searchInProject.mockResolvedValue({ results: [], truncated: false, cancelled: false, skipped: [], regexError: null });
 
     function WithPath({ children }: { children: React.ReactNode }) {
       return (
@@ -143,12 +143,15 @@ describe('SearchContext', () => {
 
     it('replaces all matches in affected blocks and marks them dirty after confirmation', async () => {
       const api = installElectronAPI();
-      api.searchInProject.mockResolvedValue([
-        { filePath: 'game/script.rpy', matches: [
-          { lineNumber: 2, lineContent: '    "hello world"', startColumn: 6, endColumn: 11 },
-          { lineNumber: 3, lineContent: '    "hello again"', startColumn: 6, endColumn: 11 },
-        ] },
-      ]);
+      api.searchInProject.mockResolvedValue({
+        results: [
+          { filePath: 'game/script.rpy', matches: [
+            { lineNumber: 2, lineContent: '    "hello world"', startColumn: 6, endColumn: 11 },
+            { lineNumber: 3, lineContent: '    "hello again"', startColumn: 6, endColumn: 11 },
+          ] },
+        ],
+        truncated: false, cancelled: false, skipped: [], regexError: null,
+      });
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
       const { setBlocks, setDirtyBlockIds, addToast } = renderReplaceHarness();
       const user = userEvent.setup();
@@ -172,11 +175,14 @@ describe('SearchContext', () => {
 
     it('does not replace when the user cancels the confirmation', async () => {
       const api = installElectronAPI();
-      api.searchInProject.mockResolvedValue([
-        { filePath: 'game/script.rpy', matches: [
-          { lineNumber: 2, lineContent: '    "hello world"', startColumn: 6, endColumn: 11 },
-        ] },
-      ]);
+      api.searchInProject.mockResolvedValue({
+        results: [
+          { filePath: 'game/script.rpy', matches: [
+            { lineNumber: 2, lineContent: '    "hello world"', startColumn: 6, endColumn: 11 },
+          ] },
+        ],
+        truncated: false, cancelled: false, skipped: [], regexError: null,
+      });
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
       const { setBlocks } = renderReplaceHarness();
       const user = userEvent.setup();

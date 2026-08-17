@@ -12,6 +12,7 @@ import { useImmer } from 'use-immer';
 import type { AppSettings, PersistedProjectSettings } from '@/types';
 import { getStoryLayoutVersion } from '@/lib/storyCanvasLayout';
 import { getRouteCanvasLayoutVersion } from '@/lib/routeCanvasLayout';
+import { DEFAULT_FILE_SIZE_THRESHOLDS } from '@/lib/fileSizeSeverity';
 
 export interface UseSettingsManagementReturn {
   // App settings (global, persisted to userData)
@@ -95,6 +96,7 @@ export function useSettingsManagement(): UseSettingsManagementReturn {
       zoomScrollSensitivity: 1.0,
     },
     lastProjectDir: '',
+    fileSizeThresholds: DEFAULT_FILE_SIZE_THRESHOLDS,
   });
   const [appSettingsLoaded, setAppSettingsLoaded] = useState(false);
 
@@ -226,6 +228,7 @@ export function useSettingsManagement(): UseSettingsManagementReturn {
         zoomScrollDirection: 'normal',
         zoomScrollSensitivity: 1.0,
       };
+      draft.fileSizeThresholds = DEFAULT_FILE_SIZE_THRESHOLDS;
       // Keep renpyPath, recentProjects, lastProjectDir
     });
   };

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { EditorTab } from '@/types';
+import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 
 export interface UseTabLifecycleProps {
   // Tab state
@@ -26,6 +27,10 @@ export interface UseTabLifecycleProps {
   dirtyEditors: Set<string>;
   setDirtyBlockIds: Dispatch<SetStateAction<Set<string>>>;
   setDirtyEditors: Dispatch<SetStateAction<Set<string>>>;
+  // Untitled draft tracking
+  untitledFiles: Map<string, UntitledFileState>;
+  saveUntitledFile: (tabId: string) => Promise<boolean>;
+  discardUntitledFile: (tabId: string) => void;
   // Orchestration callbacks
   openUnsavedChangesModal: (opts: {
     title: string;
@@ -37,7 +42,7 @@ export interface UseTabLifecycleProps {
     onCancel: () => void;
   }) => void;
   closeUnsavedChangesModal: () => void;
-  handleSaveAll: () => Promise<void>;
+  handleSaveAll: () => Promise<boolean>;
   setHasUnsavedSettings: Dispatch<SetStateAction<boolean>>;
 }
 
@@ -68,6 +73,7 @@ export function useTabLifecycle({
   setSplitLayout, setSplitPrimarySize,
   setDraggedTabId, setDragSourcePaneId,
   dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+  untitledFiles, saveUntitledFile, discardUntitledFile,
   openUnsavedChangesModal, closeUnsavedChangesModal,
   handleSaveAll, setHasUnsavedSettings,
 }: UseTabLifecycleProps): UseTabLifecycleReturn {
@@ -102,10 +108,13 @@ export function useTabLifecycle({
   const processTabCloseRequest = useCallback((tabsToClose: EditorTab[], fallbackTabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     if (tabsToClose.length === 0) return;
 
-    const hasUnsaved = tabsToClose.some(t => t.blockId && (dirtyBlockIds.has(t.blockId) || dirtyEditors.has(t.blockId)));
+    const hasUnsaved = tabsToClose.some(t =>
+      (t.blockId && (dirtyBlockIds.has(t.blockId) || dirtyEditors.has(t.blockId))) ||
+      (t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty)
+    );
 
-    const performClose = () => {
-      const idsToClose = new Set(tabsToClose.map(t => t.id));
+    const performClose = (idsOverride?: Set<string>) => {
+      const idsToClose = idsOverride ?? new Set(tabsToClose.map(t => t.id));
       if (paneId === 'primary') {
         setOpenTabs(prev => {
           const next = prev.filter(t => !idsToClose.has(t.id));
@@ -138,7 +147,14 @@ export function useTabLifecycle({
         dontSaveText: "Don't Save & Close",
         onConfirm: async () => {
           await handleSaveAll();
-          performClose();
+          const closableIds = new Set(tabsToClose.map(t => t.id));
+          for (const t of tabsToClose) {
+            if (t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty) {
+              const saved = await saveUntitledFile(t.id);
+              if (!saved) closableIds.delete(t.id);
+            }
+          }
+          performClose(closableIds);
           closeUnsavedChangesModal();
         },
         onDontSave: () => {
@@ -153,6 +169,7 @@ export function useTabLifecycle({
             blockIdsToClean.forEach(id => next.delete(id));
             return next;
           });
+          tabsToClose.forEach(t => { if (t.type === 'untitled') discardUntitledFile(t.id); });
           performClose();
           closeUnsavedChangesModal();
         },
@@ -163,7 +180,7 @@ export function useTabLifecycle({
     } else {
       performClose();
     }
-  }, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setDirtyBlockIds, setDirtyEditors]);
+  }, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setDirtyBlockIds, setDirtyEditors, untitledFiles, saveUntitledFile, discardUntitledFile]);
 
   const handleCloseOthersRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;

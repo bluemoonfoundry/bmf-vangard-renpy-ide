@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveFile: (oldPath, newPath) => ipcRenderer.invoke('fs:moveFile', oldPath, newPath),
   copyEntry: (sourcePath, destPath) => ipcRenderer.invoke('fs:copyEntry', sourcePath, destPath),
   scanDirectory: (dirPath) => ipcRenderer.invoke('fs:scanDirectory', dirPath),
+  cancelScanDirectory: () => ipcRenderer.send('fs:cancel-scan-directory'),
+  onScanProgress: (callback) => {
+    const handler = (_event, count) => callback(count);
+    ipcRenderer.on('fs:scan-progress', handler);
+    return () => ipcRenderer.removeListener('fs:scan-progress', handler);
+  },
   onMenuCommand: (callback) => {
     const subscription = (_event, ...args) => callback(...args);
     ipcRenderer.on('menu-command', subscription);
@@ -87,6 +93,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // --- Search ---
   searchInProject: (options) => ipcRenderer.invoke('project:search', options),
+  cancelSearch: () => ipcRenderer.send('project:cancel-search'),
+  onSearchProgress: (callback) => {
+    const handler = (_event, count) => callback(count);
+    ipcRenderer.on('project:search-progress', handler);
+    return () => ipcRenderer.removeListener('project:search-progress', handler);
+  },
   // --- Dialogs ---
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSaveDialog', options),
   // --- Snippet pack import/export ---
@@ -129,6 +141,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const subscription = (_event, data) => callback(data);
     ipcRenderer.on('fs:file-changed-externally', subscription);
     return () => ipcRenderer.removeListener('fs:file-changed-externally', subscription);
+  },
+  onWatcherError: (callback) => {
+    const subscription = (_event, data) => callback(data);
+    ipcRenderer.on('fs:watcher-error', subscription);
+    return () => ipcRenderer.removeListener('fs:watcher-error', subscription);
+  },
+  onSettingsWarning: (callback) => {
+    const subscription = (_event, data) => callback(data);
+    ipcRenderer.on('app:settings-warning', subscription);
+    return () => ipcRenderer.removeListener('app:settings-warning', subscription);
   },
   // --- Logging ---
   log: (level, ...args) => ipcRenderer.send('app:log', level, ...args),

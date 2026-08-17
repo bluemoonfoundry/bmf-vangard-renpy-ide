@@ -644,7 +644,7 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations' | 'untitled';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
@@ -653,6 +653,8 @@ export interface EditorTab {
   sceneId?: string;
   imagemapId?: string;
   scrollRequest?: { line: number; key: number };
+  /** Display title for tab types that don't derive one from `blocks[]` or a file path — currently only 'untitled'. */
+  title?: string;
 }
 
 /**
@@ -690,6 +692,19 @@ export interface ToastMessage {
 export type Theme = 'system' | 'light' | 'dark' | 'solarized-light' | 'solarized-dark' | 'colorful' | 'colorful-light' | 'neon-dark' | 'ocean-dark' | 'candy-light' | 'forest-light' | 'synthwave';
 
 /**
+ * User-configurable line-count thresholds for the file-size warning system.
+ * Three ascending cutoffs define four severity zones: Green (Ideal) up to
+ * `healthy`, Yellow (Healthy) up to `warning`, Orange (Warning) up to
+ * `critical`, Red (Critical) above `critical`.
+ * @interface FileSizeThresholds
+ */
+export interface FileSizeThresholds {
+  healthy: number;
+  warning: number;
+  critical: number;
+}
+
+/**
  * Application-level settings persisted across sessions.
  * Includes UI preferences, paths, and editor settings.
  * @interface AppSettings
@@ -704,6 +719,7 @@ export type Theme = 'system' | 'light' | 'dark' | 'solarized-light' | 'solarized
  * @property {string} editorFontFamily - Font family for code editor
  * @property {number} editorFontSize - Font size for code editor (pixels)
  * @property {Record<string, boolean>} [snippetCategoriesState] - Collapsed/expanded state of snippet categories
+ * @property {FileSizeThresholds} [fileSizeThresholds] - Line-count thresholds for the file-size warning indicators
  */
 export interface AppSettings {
   theme: Theme;
@@ -719,6 +735,7 @@ export interface AppSettings {
   userSnippets?: UserSnippet[];
   menuTemplates?: MenuTemplate[];
   lastProjectDir?: string;
+  fileSizeThresholds?: FileSizeThresholds;
 }
 
 /**
@@ -1217,13 +1234,27 @@ export interface ProjectLoadResult {
   audios: ScannedAudioAsset[];
   settings: ProjectSettings | null;
   tree: FileSystemTreeNode;
+  /** Set when game/project.ide.json existed but could not be parsed/read (as opposed to simply being absent). */
+  settingsWarning?: { code: 'corrupted' | 'permission-denied' | 'unknown'; message: string } | null;
 }
 
 /** Result of the scanDirectory IPC call. */
 export interface ScanDirectoryResult {
   images: ScannedImageAsset[];
   audios: ScannedAudioAsset[];
+  truncated?: boolean;
+  cancelled?: boolean;
+  errors?: { path: string; message: string }[];
   error?: string;
+}
+
+/** Result of the searchInProject IPC call. */
+export interface ProjectSearchOutcome {
+  results: SearchResult[];
+  truncated: boolean;
+  cancelled: boolean;
+  skipped: { path: string; message: string }[];
+  regexError: string | null;
 }
 
 export interface PendingStoryLayoutRefresh {
@@ -1366,6 +1397,8 @@ declare global {
           moveFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
           copyEntry: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>;
           scanDirectory: (path: string) => Promise<ScanDirectoryResult>;
+          cancelScanDirectory?: () => void;
+          onScanProgress?: (callback: (count: number) => void) => () => void;
           onMenuCommand: (callback: (data: { command: string, type?: 'canvas' | 'route-canvas' | 'punchlist', path?: string }) => void) => () => void;
           onCheckUnsavedChangesBeforeExit: (callback: () => void) => () => void;
           replyUnsavedChangesBeforeExit: (hasUnsaved: boolean) => void;
@@ -1387,13 +1420,15 @@ declare global {
           path: {
               join: (...paths: string[]) => Promise<string>;
           };
-          searchInProject: (options: { 
-              projectPath: string; 
-              query: string; 
-              isCaseSensitive?: boolean; 
-              isWholeWord?: boolean; 
-              isRegex?: boolean; 
-          }) => Promise<SearchResult[]>;
+          searchInProject: (options: {
+              projectPath: string;
+              query: string;
+              isCaseSensitive?: boolean;
+              isWholeWord?: boolean;
+              isRegex?: boolean;
+          }) => Promise<ProjectSearchOutcome>;
+          cancelSearch?: () => void;
+          onSearchProgress?: (callback: (count: number) => void) => () => void;
           showSaveDialog: (options: {
               title?: string;
               defaultPath?: string;
@@ -1417,7 +1452,7 @@ declare global {
           onUpdateDownloaded?: (callback: (version: string) => void) => () => void;
           installUpdate?: () => void;
           openExternal?: (url: string) => Promise<void>;
-          updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean }) => void;
+          updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean; canNewUntitledFile?: boolean }) => void;
           captureScreenshot?: () => Promise<{ success: boolean; filename?: string; filepath?: string; error?: string }>;
           getScreenshotCount?: () => Promise<number>;
           openScreenshotsFolder?: () => Promise<{ success: boolean; error?: string }>;
@@ -1425,6 +1460,8 @@ declare global {
           getLatestScreenshotPath?: () => Promise<string | null>;
           onScreenshotCaptured?: (callback: (data: { filename: string; filepath: string }) => void) => () => void;
           onFileChangedExternally?: (callback: (data: { relativePath: string; absolutePath: string }) => void) => () => void;
+          onWatcherError?: (callback: (data: { message: string }) => void) => () => void;
+          onSettingsWarning?: (callback: (data: { code: string; message: string }) => void) => () => void;
           log?: (level: 'error' | 'warn' | 'info' | 'debug', ...args: unknown[]) => void;
           getLogPath?: () => Promise<string | null>;
           openLogDirectory?: () => Promise<{ success: boolean; error?: string }>;

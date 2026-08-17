@@ -182,6 +182,74 @@ describe('TranslationDashboard', () => {
     expect(onOpenBlock).toHaveBeenCalledWith('tl2', 3);
   });
 
+  it('opens the tl/<lang>/ file and toasts when a string has no translation but the tl file exists', () => {
+    const onOpenBlock = vi.fn();
+    const addToast = vi.fn();
+    const data = makeSampleTranslationData();
+    // id2 ("Goodbye") has no entry in stringTranslations — it's untranslated.
+    const blocks: Block[] = [
+      ...makeSampleBlocks(),
+      {
+        id: 'tlFile-french',
+        content: '',
+        position: { x: 0, y: 0 },
+        width: 200,
+        height: 150,
+        title: 'french/script',
+        filePath: 'game/tl/french/script.rpy',
+      },
+    ];
+    render(
+      <TranslationDashboard translationData={data} blocks={blocks} onOpenBlock={onOpenBlock} addToast={addToast} {...defaultGenerateProps} />,
+    );
+
+    fireEvent.click(screen.getByTestId('string-row-1'));
+
+    expect(onOpenBlock).toHaveBeenCalledWith('tlFile-french');
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('game/tl/french/script.rpy'), 'info');
+  });
+
+  it('falls back to source and toasts a warning when no tl file exists for the language at all', () => {
+    const onOpenBlock = vi.fn();
+    const addToast = vi.fn();
+    const data = makeSampleTranslationData();
+    render(
+      <TranslationDashboard translationData={data} blocks={makeSampleBlocks()} onOpenBlock={onOpenBlock} addToast={addToast} {...defaultGenerateProps} />,
+    );
+
+    fireEvent.click(screen.getByTestId('string-row-1'));
+
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('Generate translations first'), 'warning');
+    expect(onOpenBlock).toHaveBeenCalledWith('b1', 2);
+  });
+
+  it('language badge is clickable even without a translation and opens the tl file', () => {
+    const onOpenBlock = vi.fn();
+    const addToast = vi.fn();
+    const data = makeSampleTranslationData();
+    const blocks: Block[] = [
+      ...makeSampleBlocks(),
+      {
+        id: 'tlFile-french',
+        content: '',
+        position: { x: 0, y: 0 },
+        width: 200,
+        height: 150,
+        title: 'french/script',
+        filePath: 'game/tl/french/script.rpy',
+      },
+    ];
+    render(
+      <TranslationDashboard translationData={data} blocks={blocks} onOpenBlock={onOpenBlock} addToast={addToast} {...defaultGenerateProps} />,
+    );
+
+    const badge = screen.getByRole('button', { name: 'Go to french translation file' });
+    expect(badge).not.toBeDisabled();
+    fireEvent.click(badge);
+
+    expect(onOpenBlock).toHaveBeenCalledWith('tlFile-french');
+  });
+
   it('filters by status pill', () => {
     const data = makeSampleTranslationData();
     render(

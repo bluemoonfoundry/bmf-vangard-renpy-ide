@@ -242,12 +242,19 @@ export function computeRouteCanvasLayoutFingerprint(
   layoutMode: StoryCanvasLayoutMode,
   groupingMode: StoryCanvasGroupingMode,
 ): string {
+  // node.id (and blockId) are `${block.id}:${label}` composites, and block.id
+  // is re-minted every session (deserializeProjectData assigns a fresh
+  // `block-${index}-${Date.now()}` id whenever there's no matching in-memory
+  // block to reuse one from -- i.e. every fresh project load). containerName
+  // and label are stable across sessions, so use those for the fingerprint
+  // instead of the raw ids, or it spuriously changes on every app restart.
+  const idToStableKey = new Map(nodes.map(node => [node.id, `${node.containerName ?? node.blockId}:${node.label}`]));
   const nodePart = nodes
-    .map(node => `${node.id}:${node.containerName ?? ''}:${node.width}x${node.height}`)
+    .map(node => `${idToStableKey.get(node.id)}:${node.width}x${node.height}`)
     .sort()
     .join('|');
   const edgePart = edges
-    .map(edge => `${edge.sourceId}->${edge.targetId}:${edge.type}`)
+    .map(edge => `${idToStableKey.get(edge.sourceId) ?? edge.sourceId}->${idToStableKey.get(edge.targetId) ?? edge.targetId}:${edge.type}`)
     .sort()
     .join('|');
   return `v${LAYOUT_VERSION};mode=${layoutMode};group=${groupingMode};nodes=${nodePart};edges=${edgePart}`;

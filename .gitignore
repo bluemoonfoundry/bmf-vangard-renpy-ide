@@ -76,3 +76,4 @@ docs/marketing/music/
 # instructions, not committed.
 docs/marketing/.venv-chatterbox/
 .worktrees/
+.superpowers/

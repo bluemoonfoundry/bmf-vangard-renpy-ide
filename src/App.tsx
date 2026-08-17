@@ -69,6 +69,7 @@ import { useProjectIO } from '@/hooks/useProjectIO';
 import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
 import { useCharacterManagement } from '@/hooks/useCharacterManagement';
+import { useUntitledFiles } from '@/hooks/useUntitledFiles';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
@@ -85,8 +86,10 @@ import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
 import { resolveWarpTarget } from '@/lib/warpTarget';
 import { logger } from '@/lib/logger';
+import { pruneOrphanedEditorTabs } from '@/lib/tabReconciliation';
 import { sanitizeFileName, sanitizeIdentifier } from '@/lib/editorSelectionActions';
 import { UI_TIMING } from '@/lib/constants';
+import { DEFAULT_FILE_SIZE_THRESHOLDS, getLineCount } from '@/lib/fileSizeSeverity';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
@@ -469,6 +472,7 @@ const App: React.FC = () => {
     handleCopyImageToProject,
     handleSaveAudioMetadata,
     handleCopyAudioToProject,
+    cancelAssetScan,
   } = useAssetManagement({
     projectRootPath, perfRecorders, setIsScanningAssets, setHasUnsavedSettings, setFileSystemTree, addToast,
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId,
@@ -556,6 +560,7 @@ const App: React.FC = () => {
     dirtyEditorsRef,
     setBlocks,
     editorInstances,
+    addToast,
   });
 
   // --- Utility Functions ---
@@ -782,6 +787,10 @@ const App: React.FC = () => {
       }).finally(() => {
         setAppSettingsLoaded(true);
       });
+      const unsubSettingsWarning = window.electronAPI?.onSettingsWarning?.(() => {
+        addToast('App settings could not be read — using defaults', 'warning');
+      });
+      return unsubSettingsWarning;
     } else { // Browser fallback
       const savedSettings = localStorage.getItem('renpy-ide-app-settings');
       if (savedSettings) {
@@ -796,7 +805,7 @@ const App: React.FC = () => {
       }
       setAppSettingsLoaded(true);
     }
-  }, [updateAppSettings, setAppSettingsLoaded]);
+  }, [updateAppSettings, setAppSettingsLoaded, addToast]);
 
   // --- CLI --project flag: auto-open a project on startup ---
   // Runs once after app settings have loaded to avoid racing the settings fetch.
@@ -849,10 +858,19 @@ const App: React.FC = () => {
     appSettings, storyCanvasTransform,
     setCenterOnBlockRequest, setFlashBlockRequest, setSelectedBlockIds,
     activeTabId, setActiveTabId, setOpenTabs,
+    secondaryActiveTabId, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setActivePaneId,
     fileSystemTree, setFileSystemTree,
     projectRootPath, explorerSelectedPaths,
     openCreateBlockModal, openDeleteConfirmModal,
     addToast,
+  });
+
+  // --- Untitled (blank) File Tabs ---
+  const { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile } = useUntitledFiles({
+    projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
+    activePaneId, splitLayout,
+    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+    setActivePaneId, setSplitLayout,
   });
 
   // --- Layout ---
@@ -919,6 +937,7 @@ const App: React.FC = () => {
       setHasUnsavedSettings, setSaveStatus, filesWithDiskConflict, setFilesWithDiskConflict,
       setExternallyChangedFiles, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal,
       setOpenTabs,
+      untitledFiles, saveUntitledFile,
       addToast,
   });
 
@@ -1070,8 +1089,9 @@ const App: React.FC = () => {
   }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject, setIsGeneratingTranslations]);
 
   const handleNewProjectRequest = useCallback(() => {
-    const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings;
-    
+    const hasUnsavedUntitled = [...untitledFiles.values()].some(f => f.isDirty);
+    const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings || hasUnsavedUntitled;
+
     if (hasUnsaved) {
       openUnsavedChangesModal({
         title: 'Unsaved Changes',
@@ -1094,7 +1114,7 @@ const App: React.FC = () => {
     } else {
       handleCreateProject();
     }
-  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
+  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, untitledFiles, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   // --- Tab Management ---
   const {
@@ -1135,9 +1155,40 @@ const App: React.FC = () => {
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
     setSplitLayout, setSplitPrimarySize, setDraggedTabId, setDragSourcePaneId,
     dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
+    untitledFiles, saveUntitledFile, discardUntitledFile,
     openUnsavedChangesModal, closeUnsavedChangesModal,
     handleSaveAll, setHasUnsavedSettings,
   });
+
+  // Safety net: an 'editor' tab whose blockId no longer resolves in blocks[] (e.g. the
+  // block was deleted/replaced through a path that didn't reconcile tabs) used to render
+  // as a blank pane mislabeled "Untitled" (see useTabContentRenderer's blockId-not-found
+  // fallback) instead of being closed. Prune those tabs whenever blocks changes.
+  useEffect(() => {
+    const blockIds = new Set(blocks.map(b => b.id));
+
+    setOpenTabs(prev => {
+      const { tabs: next, changed } = pruneOrphanedEditorTabs(prev, blockIds);
+      if (!changed) return prev;
+      if (activeTabId && !next.some(t => t.id === activeTabId)) {
+        setActiveTabId(next[0]?.id ?? 'canvas');
+      }
+      return next;
+    });
+
+    setSecondaryOpenTabs(prev => {
+      const { tabs: next, changed } = pruneOrphanedEditorTabs(prev, blockIds);
+      if (!changed) return prev;
+      if (next.length === 0) {
+        setSplitLayout('none');
+        setActivePaneId('primary');
+        setSecondaryActiveTabId('');
+      } else if (secondaryActiveTabId && !next.some(t => t.id === secondaryActiveTabId)) {
+        setSecondaryActiveTabId(next[0].id);
+      }
+      return next;
+    });
+  }, [blocks, activeTabId, secondaryActiveTabId, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setSplitLayout, setActivePaneId]);
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
@@ -1206,6 +1257,16 @@ const App: React.FC = () => {
 
   const activeCanvasTabId = activeTabId === 'canvas' || activeTabId === 'route-canvas' || activeTabId === 'choice-canvas'
     ? activeTabId : null;
+
+  const activeFileBlock = useMemo(() => {
+    const isSecondaryFocused = activePaneId === 'secondary' && splitLayout !== 'none';
+    const focusedTabs = isSecondaryFocused ? secondaryOpenTabs : openTabs;
+    const focusedTabId = isSecondaryFocused ? secondaryActiveTabId : activeTabId;
+    const activeEditorTab = focusedTabs.find(t => t.id === focusedTabId && t.type === 'editor');
+    if (!activeEditorTab?.blockId) return null;
+    return blocks.find(b => b.id === activeEditorTab.blockId) ?? null;
+  }, [openTabs, activeTabId, secondaryOpenTabs, secondaryActiveTabId, activePaneId, splitLayout, blocks]);
+  const activeFileLineCount = activeFileBlock ? getLineCount(activeFileBlock.content) : null;
 
   const { goToLabelItems, goToLabelCanvasName, warpLabelItems, handleGoToLabel } = useGoToLabel({
     activeCanvasTabId,
@@ -1541,8 +1602,9 @@ const App: React.FC = () => {
       canNewFolder: hasFolderSelected,
       canRename: hasSingleSelection,
       canDelete: hasAnySelection,
+      canNewUntitledFile: projectRootPath !== null,
     });
-  }, [explorerSelectedPaths, fileSystemTree]);
+  }, [explorerSelectedPaths, fileSystemTree, projectRootPath]);
 
   // --- Menu Command Handling ---
   useMenuCommandDispatch({
@@ -1565,6 +1627,7 @@ const App: React.FC = () => {
     onExplorerDelete: () => handleDeleteNode(Array.from(explorerSelectedPaths)),
     onExplorerRefresh: handleRefreshProject,
     onOpenScreenshotsFolder: handleOpenScreenshotsFolder,
+    onNewUntitledFile: createUntitledFile,
     onCloseTab: () => {
       const currentTabId = activePaneId === 'primary' ? activeTabId : secondaryActiveTabId;
       if (currentTabId) handleCloseTab(currentTabId, activePaneId);
@@ -1598,9 +1661,12 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!window.electronAPI) return;
 
+      const hasUnsavedChanges = () =>
+          dirtyBlockIdsRef.current.size > 0 || dirtyEditorsRef.current.size > 0 || hasUnsavedSettingsRef.current ||
+          [...untitledFilesRef.current.values()].some(f => f.isDirty);
+
       const removeCheck = window.electronAPI.onCheckUnsavedChangesBeforeExit(() => {
-          const hasUnsaved = dirtyBlockIdsRef.current.size > 0 || dirtyEditorsRef.current.size > 0 || hasUnsavedSettingsRef.current;
-          window.electronAPI!.replyUnsavedChangesBeforeExit(hasUnsaved);
+          window.electronAPI!.replyUnsavedChangesBeforeExit(hasUnsavedChanges());
       });
 
       const removeShowModal = window.electronAPI.onShowExitModal(() => {
@@ -1610,10 +1676,22 @@ const App: React.FC = () => {
               confirmText: 'Save & Exit',
               dontSaveText: "Don't Save",
               onConfirm: async () => {
+                  // Trust handleSaveAll's own return value rather than re-checking
+                  // hasUnsavedChanges() afterward: dirtyBlockIdsRef/hasUnsavedSettingsRef
+                  // are only synced via a useEffect, which may not have flushed yet
+                  // immediately after this await resolves (caused a double-click-to-exit
+                  // bug — the first click's save succeeded but this stale-ref check still
+                  // reported unsaved changes).
+                  let saveSucceeded = false;
                   try {
-                      await handleSaveAllRef.current();
+                      saveSucceeded = await handleSaveAllRef.current();
                   } catch (err) {
                       logger.error('Failed to save before exit:', err);
+                  }
+                  if (!saveSucceeded) {
+                      // A save was canceled or failed (e.g. an untitled file's Save dialog was
+                      // dismissed) — don't quit with unsaved work still pending.
+                      return;
                   }
                   window.electronAPI!.ideStateSavedForQuit();
               },
@@ -1681,8 +1759,11 @@ const App: React.FC = () => {
     // *prefill* initialTag is kept as the real (possibly empty) sanitized value so the
     // form field itself opens empty and the existing "tag required" validation catches it.
     const tabTag = sanitizedTag || 'new';
+    if (sanitizedTag && analysisResult.characters.has(sanitizedTag)) {
+      addToast(`Character '${rawName}' already exists — opening it.`, 'info');
+    }
     handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
-  }, [handleOpenCharacterEditor]);
+  }, [addToast, analysisResult.characters, handleOpenCharacterEditor]);
 
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
@@ -1727,6 +1808,7 @@ const App: React.FC = () => {
     sceneCompositions, sceneNames, handleSceneUpdate, handleRenameScene, getActiveEditor,
     imagemapCompositions, handleImageMapUpdate, handleRenameImageMap,
     projectRootPath,
+    untitledFiles, updateUntitledContent, setUntitledDirty, saveUntitledFile,
   });
   const focusedTabId = activePaneId === 'secondary' && splitLayout !== 'none'
     ? secondaryActiveTabId
@@ -2032,6 +2114,7 @@ const App: React.FC = () => {
           <StatusBar
               isAnalysisPending={isAnalysisPending}
               isScanningAssets={isScanningAssets}
+              onCancelScan={cancelAssetScan}
               saveStatus={saveStatus}
               blockCount={blocks.length}
               errorCount={diagnosticsResult.errorCount}
@@ -2040,6 +2123,8 @@ const App: React.FC = () => {
               onOpenScreenshotsFolder={handleOpenScreenshotsFolder}
               onClearScreenshots={handleClearScreenshots}
               onCopyLatestScreenshotPath={handleCopyLatestScreenshotPath}
+              activeFileLineCount={activeFileLineCount}
+              fileSizeThresholds={appSettings.fileSizeThresholds ?? DEFAULT_FILE_SIZE_THRESHOLDS}
           />
 
         </div>

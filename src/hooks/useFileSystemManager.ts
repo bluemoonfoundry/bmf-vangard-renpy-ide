@@ -197,6 +197,23 @@ export function useFileSystemManager({
               const fileName = p.split('/').pop() || '';
               const fullDest = await window.electronAPI.path.join(fullTargetDir, fileName);
               await window.electronAPI.moveFile(fullSource, fullDest);
+
+              // Reconcile blocks under the moved path — same reasoning as handleRenameNode:
+              // keep already-loaded blocks (and any tabs open on them) pointed at the new
+              // location instead of desyncing from disk.
+              const newPath = targetPath ? `${targetPath}/${fileName}` : fileName;
+              blocks.forEach(block => {
+                  if (!block.filePath) return;
+                  let newFilePath: string | null = null;
+                  if (block.filePath === p) {
+                      newFilePath = newPath;
+                  } else if (block.filePath.startsWith(`${p}/`)) {
+                      newFilePath = newPath + block.filePath.slice(p.length);
+                  }
+                  if (newFilePath) {
+                      updateBlock(block.id, { filePath: newFilePath, title: newFilePath.split('/').pop() });
+                  }
+              });
           }
           const projData = await window.electronAPI.loadProject(projectRootPath);
           setFileSystemTree(projData.tree);
@@ -204,7 +221,7 @@ export function useFileSystemManager({
           logger.error('Failed to move file(s):', err);
           addToast('Failed to move file(s)', 'error');
       }
-  }, [projectRootPath, addToast, setFileSystemTree]);
+  }, [projectRootPath, blocks, updateBlock, addToast, setFileSystemTree]);
 
   const handleCut = useCallback((paths: string[]) => setClipboard({ type: 'cut', paths: new Set(paths) }), [setClipboard]);
   const handleCopy = useCallback((paths: string[]) => setClipboard({ type: 'copy', paths: new Set(paths) }), [setClipboard]);

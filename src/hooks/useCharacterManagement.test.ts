@@ -277,6 +277,102 @@ describe('useCharacterManagement — handleUpdateCharacter (update existing)', (
 });
 
 // ============================================================================
+// handleUpdateCharacter — source fidelity (preserve unrelated content, idempotence)
+// ============================================================================
+
+describe('useCharacterManagement — handleUpdateCharacter (source fidelity)', () => {
+  it('preserves unrelated content surrounding the define line when updating a character', async () => {
+    const block = createBlock({
+      id: 'block-1',
+      content: '# header comment\ndefine e = Character("Eileen")\ndefine narrator = Character(None)\n# trailing comment\n',
+    });
+    const eileen = createCharacter({ tag: 'e', name: 'Eileen', definedInBlockId: 'block-1' });
+    const analysisResult = createEmptyAnalysisResult({
+      characters: new Map([['e', eileen]]),
+    });
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useCharacterManagement(makeProps({ blocks: [block], analysisResult, updateBlock }))
+    );
+    const updatedChar: Character = { tag: 'e', name: 'Eileen Updated', color: '#ff0000', definedInBlockId: 'block-1' };
+    await act(async () => {
+      await result.current.handleUpdateCharacter(updatedChar, 'e');
+    });
+    const newContent = updateBlock.mock.calls[0][1].content as string;
+    expect(newContent).toContain('# header comment');
+    expect(newContent).toContain('define narrator = Character(None)');
+    expect(newContent).toContain('# trailing comment');
+    expect(newContent).toContain('define e = Character("Eileen Updated", color="#ff0000")');
+  });
+
+  it('produces a stable define line when saving the same character twice in a row (idempotence)', async () => {
+    const block = createBlock({
+      id: 'block-1',
+      content: 'define e = Character("Eileen")\n',
+    });
+    const eileen = createCharacter({ tag: 'e', name: 'Eileen', definedInBlockId: 'block-1' });
+    const analysisResult = createEmptyAnalysisResult({
+      characters: new Map([['e', eileen]]),
+    });
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useCharacterManagement(makeProps({ blocks: [block], analysisResult, updateBlock }))
+    );
+    const char: Character = { tag: 'e', name: 'Eileen', color: '#cc6600', definedInBlockId: 'block-1' };
+    await act(async () => {
+      await result.current.handleUpdateCharacter(char, 'e');
+    });
+    const firstContent = updateBlock.mock.calls[0][1].content as string;
+
+    updateBlock.mockClear();
+    const { result: result2 } = renderHook(() =>
+      useCharacterManagement(makeProps({
+        blocks: [{ ...block, content: firstContent }],
+        analysisResult,
+        updateBlock,
+      }))
+    );
+    await act(async () => {
+      await result2.current.handleUpdateCharacter(char, 'e');
+    });
+    const secondContent = updateBlock.mock.calls[0][1].content as string;
+    expect(secondContent).toBe(firstContent);
+  });
+
+  it('does not touch unrelated dialogue lines that merely start with a similar-looking prefix on rename', async () => {
+    const defineBlock = createBlock({
+      id: 'block-1',
+      content: 'define e = Character("Eileen")\n',
+    });
+    const dialogueBlock = createBlock({
+      id: 'block-2',
+      content: 'label start:\n    e "Hello!"\n    eve "Not the same character!"\n    return\n',
+    });
+    const eileen = createCharacter({ tag: 'e', name: 'Eileen', definedInBlockId: 'block-1' });
+    const analysisResult = createEmptyAnalysisResult({
+      characters: new Map([['e', eileen]]),
+    });
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useCharacterManagement(makeProps({
+        blocks: [defineBlock, dialogueBlock],
+        analysisResult,
+        updateBlock,
+      }))
+    );
+    const renamedChar: Character = { tag: 'eileen', name: 'Eileen', color: '#cc6600', definedInBlockId: 'block-1' };
+    await act(async () => {
+      await result.current.handleUpdateCharacter(renamedChar, 'e');
+    });
+    const dialogueUpdateCall = updateBlock.mock.calls.find(call => call[0] === 'block-2');
+    expect(dialogueUpdateCall).toBeDefined();
+    const newDialogueContent = dialogueUpdateCall![1].content as string;
+    expect(newDialogueContent).toContain('eileen "Hello!"');
+    expect(newDialogueContent).toContain('eve "Not the same character!"');
+  });
+});
+
+// ============================================================================
 // handleUpdateCharacter — rename (oldTag !== newTag)
 // ============================================================================
 

@@ -31,6 +31,7 @@ import type { DialoguePreviewData, MenuChoice } from './DialoguePreview';
 import { MenuConstructorModal } from './MenuConstructorModal';
 import { MenuTemplatePickerModal } from './MenuTemplatePickerModal';
 import { createId } from '@/lib/createId';
+import { reindentInsertedCode } from '@/lib/reindentInsertedCode';
 
 interface EditorViewProps {
   block: Block;
@@ -1320,19 +1321,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     if (!model) return;
 
     const currentIndent = model.getLineContent(insertionPosition.lineNumber).match(/^[\t ]*/)?.[0] || '';
-    let text = code;
-    if (currentIndent) {
-      const lines = code.split('\n');
-      const nonEmpty = lines.slice(1).filter(l => l.trim().length > 0);
-      const baseLen = nonEmpty.length > 0
-        ? Math.min(...nonEmpty.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
-        : 0;
-      text = lines.map((line, idx) => {
-        if (idx === 0) return line;
-        if (!line.trim()) return line;
-        return currentIndent + line.slice(baseLen);
-      }).join('\n');
-    }
+    const text = reindentInsertedCode(code, currentIndent);
 
     const range = new monaco.Range(
       insertionPosition.lineNumber,
@@ -1419,19 +1408,7 @@ const EditorView: React.FC<EditorViewProps> = (props) => {
     });
 
     // Re-anchor to cursor indentation (same dedent logic as handleInsertMenu)
-    let text = code;
-    if (currentIndent) {
-      const lines = code.split('\n');
-      const nonEmpty = lines.slice(1).filter(l => l.trim().length > 0);
-      const baseLen = nonEmpty.length > 0
-        ? Math.min(...nonEmpty.map(l => (l.match(/^[\t ]*/) ?? [''])[0].length))
-        : 0;
-      text = lines.map((line, idx) => {
-        if (idx === 0) return line;
-        if (!line.trim()) return line;
-        return currentIndent + line.slice(baseLen);
-      }).join('\n');
-    }
+    const text = reindentInsertedCode(code, currentIndent);
 
     const range = new monaco.Range(
       insertionPosition.lineNumber,

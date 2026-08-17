@@ -16,6 +16,7 @@ import type {
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
   Position,
 } from '@/types';
+import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 
 // Re-export so App.tsx import of these types from useProjectIO keeps working
 export type { PendingStoryLayoutRefresh, PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
@@ -93,12 +94,25 @@ export interface UseProjectIOParams {
   // Tabs (used by handleRefreshProject to close removed-file tabs)
   setOpenTabs: React.Dispatch<React.SetStateAction<EditorTab[]>>;
 
+  // Untitled draft tracking (Save All also saves dirty untitled drafts)
+  untitledFiles: Map<string, UntitledFileState>;
+  saveUntitledFile: (tabId: string) => Promise<boolean>;
+
   addToast: (message: string, type?: ToastType) => void;
 }
 
 export interface UseProjectIOReturn {
-  handleSaveProjectSettings: () => Promise<void>;
-  handleSaveAll: () => Promise<void>;
+  /** Returns true on success, false if the write failed (already toasted internally). */
+  handleSaveProjectSettings: () => Promise<boolean>;
+  /**
+   * Returns true only if every dirty source file, project.ide.json, and every
+   * dirty untitled file all saved successfully -- i.e. it's genuinely safe to
+   * treat the workspace as clean (e.g. to proceed with quitting). Computed
+   * synchronously within this call, not derived from dirty-state refs
+   * afterward -- those are only synced via a useEffect and can still read
+   * stale values immediately after this promise resolves.
+   */
+  handleSaveAll: () => Promise<boolean>;
   handleReloadFromDisk: (item: { relativePath: string; absolutePath: string }) => Promise<void>;
   handleRefreshProject: () => Promise<void>;
 }
@@ -119,6 +133,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     setHasUnsavedSettings, setSaveStatus, filesWithDiskConflict, setFilesWithDiskConflict,
     setExternallyChangedFiles, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal,
     setOpenTabs,
+    untitledFiles, saveUntitledFile,
     addToast,
   } = params;
 
@@ -178,11 +193,14 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         scannedAudioPaths: Array.from(audioScanDirectories.keys()),
       };
       const settingsPath = await window.electronAPI.path.join(projectRootPath as string, 'game/project.ide.json') as string;
-      await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      if (!res.success) throw new Error(res.error || 'Unknown error saving workspace settings');
       setHasUnsavedSettings(false);
+      return true;
     } catch (e) {
       logger.error("Failed to save IDE settings:", e);
-      addToast('Failed to save workspace settings', 'error');
+      addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
+      return false;
     }
   }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
 
@@ -192,7 +210,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       .filter(b => dirtyIds.has(b.id) && b.filePath && filesWithDiskConflict.has(b.filePath))
       .map(b => b.filePath!);
 
-    const doSaveAll = async () => {
+    const doSaveAll = async (): Promise<boolean> => {
       setSaveStatus('saving');
       try {
           const currentBlocks = [...blocks];
@@ -228,7 +246,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                setSaveStatus('saved');
                notifyFirstSave();
                addToast('Changes saved to memory', 'success');
-               return;
+               return true;
           }
 
           if (window.electronAPI) {
@@ -237,21 +255,39 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                   if (block && block.filePath) {
                       const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
                       const res = await window.electronAPI.writeFile(absPath, block.content);
-                      if (!res.success) throw new Error((res.error as string) || 'Unknown error saving file');
+                      if (!res.success) throw new Error(`Failed to save ${block.filePath}: ${(res.error as string) || 'Unknown error'}`);
                   }
               }
-              await handleSaveProjectSettings();
+              const settingsSaved = await handleSaveProjectSettings();
+              if (settingsSaved === false) {
+                  throw new Error('Workspace settings failed to save -- see previous toast for details');
+              }
+          }
+
+          const dirtyUntitledIds = [...openTabs, ...secondaryOpenTabs]
+            .filter(t => t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty)
+            .map(t => t.id);
+          let untitledSaveFailed = false;
+          for (const tabId of dirtyUntitledIds) {
+            const saved = await saveUntitledFile(tabId);
+            if (!saved) untitledSaveFailed = true;
           }
 
           setDirtyBlockIds(new Set());
           setDirtyEditors(new Set());
           setSaveStatus('saved');
           notifyFirstSave();
+          if (untitledSaveFailed) {
+            addToast('Some changes saved — one or more untitled files were not saved', 'warning');
+            return false;
+          }
           addToast('All changes saved', 'success');
+          return true;
       } catch (err) {
           logger.error('Failed to save changes', err);
           setSaveStatus('error');
-          addToast('Failed to save changes', 'error');
+          addToast(err instanceof Error ? err.message : 'Failed to save changes', 'error');
+          return false;
       }
     };
 
@@ -274,11 +310,13 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         onDontSave: () => closeUnsavedChangesModal(),
         onCancel: () => closeUnsavedChangesModal(),
       });
-      return;
+      // The actual save happens later, asynchronously, once the user resolves
+      // the conflict modal -- there's no result to report synchronously here.
+      return false;
     }
 
-    await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict]);
+    return await doSaveAll();
+  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict, openTabs, secondaryOpenTabs, untitledFiles, saveUntitledFile]);
 
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);

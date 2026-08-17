@@ -270,6 +270,10 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
       if (loadCancelRef.current) return;
 
+      if (projectData.settingsWarning) {
+        addToast('Project settings could not be read — using defaults', 'warning');
+      }
+
       setLoadingProgress(93);
       setLoadingMessage(`Processing ${projectData.files.length} files and ${projectData.images.length} images...`);
 

@@ -35,6 +35,15 @@ describe('useSettingsManagement', () => {
     expect(result.current.projectSettings.draftingMode).toBe(false);
   });
 
+  it('initializes fileSizeThresholds with the defaults', () => {
+    const { result } = renderHook(() => useSettingsManagement());
+    expect(result.current.appSettings.fileSizeThresholds).toEqual({
+      healthy: 500,
+      warning: 1000,
+      critical: 1500,
+    });
+  });
+
   // ── updateTheme ───────────────────────────────────────────────────────────
 
   it('updateTheme changes the theme', () => {
@@ -155,6 +164,22 @@ describe('useSettingsManagement', () => {
     expect(result.current.appSettings.theme).toBe('system');
     expect(result.current.appSettings.editorFontSize).toBe(14);
     expect(result.current.appSettings.renpyPath).toBe('/custom/renpy');
+  });
+
+  it('resetAppSettings restores default fileSizeThresholds after a change', () => {
+    const { result } = renderHook(() => useSettingsManagement());
+    act(() => {
+      result.current.updateAppSettings((draft) => {
+        draft.fileSizeThresholds = { healthy: 100, warning: 200, critical: 300 };
+      });
+    });
+    expect(result.current.appSettings.fileSizeThresholds).toEqual({ healthy: 100, warning: 200, critical: 300 });
+    act(() => result.current.resetAppSettings());
+    expect(result.current.appSettings.fileSizeThresholds).toEqual({
+      healthy: 500,
+      warning: 1000,
+      critical: 1500,
+    });
   });
 
   // ── resetProjectSettings ──────────────────────────────────────────────────

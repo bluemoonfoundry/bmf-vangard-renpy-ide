@@ -221,6 +221,24 @@ export function deriveSourceFilePath(translationFilePath: string, language: stri
 }
 
 /**
+ * Derive the translation file path a source file's strings would live under for a
+ * given language. Inverse of {@link deriveSourceFilePath}: inserts `tl/<language>/`
+ * right after the `game/` root segment. For example:
+ *   `game/script.rpy` → `game/tl/french/script.rpy`
+ *   `game/scenes/stage1/foo.rpy` → `game/tl/french/scenes/stage1/foo.rpy`
+ * Returns the input path unchanged if no `game/` segment is found.
+ */
+const GAME_DIR_REGEX = /(^|\/)game\//;
+
+export function deriveTlFilePath(sourceFilePath: string, language: string): string {
+  const normalized = sourceFilePath.replace(/\\/g, '/');
+  const m = normalized.match(GAME_DIR_REGEX);
+  if (!m || m.index === undefined) return normalized;
+  const insertAt = m.index + m[0].length;
+  return normalized.slice(0, insertAt) + `tl/${language}/` + normalized.slice(insertAt);
+}
+
+/**
  * Extract translated strings from translation blocks (files under `/tl/<lang>/`).
  * Parses both `translate <lang> <id>:` blocks and `translate <lang> strings:` tables.
  */

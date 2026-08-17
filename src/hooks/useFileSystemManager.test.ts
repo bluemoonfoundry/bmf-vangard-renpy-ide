@@ -535,4 +535,41 @@ describe('useFileSystemManager — handleMoveNode', () => {
     });
     expect(addToast).toHaveBeenCalledWith('Failed to move file(s)', 'error');
   });
+
+  it('updates the filePath/title of the block matching the moved file', async () => {
+    const updateBlock = vi.fn();
+    const block = createBlock({ id: 'block-1', filePath: 'game/a.rpy', title: 'a.rpy' });
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [block], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleMoveNode(['game/a.rpy'], 'game/archive');
+    });
+    expect(updateBlock).toHaveBeenCalledWith('block-1', { filePath: 'game/archive/a.rpy', title: 'a.rpy' });
+  });
+
+  it('updates filePaths of descendant blocks when a folder is moved', async () => {
+    const updateBlock = vi.fn();
+    const blockA = createBlock({ id: 'block-a', filePath: 'game/chapter1/scene1.rpy', title: 'scene1.rpy' });
+    const unrelated = createBlock({ id: 'block-c', filePath: 'game/other.rpy', title: 'other.rpy' });
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [blockA, unrelated], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleMoveNode(['game/chapter1'], 'game/archive');
+    });
+    expect(updateBlock).toHaveBeenCalledWith('block-a', { filePath: 'game/archive/chapter1/scene1.rpy', title: 'scene1.rpy' });
+    expect(updateBlock).not.toHaveBeenCalledWith('block-c', expect.anything());
+  });
+
+  it('does not call updateBlock when no block matches the moved path', async () => {
+    const updateBlock = vi.fn();
+    const { result } = renderHook(() =>
+      useFileSystemManager(makeHookParams({ blocks: [], updateBlock }))
+    );
+    await act(async () => {
+      await result.current.handleMoveNode(['game/untracked.txt'], 'game/archive');
+    });
+    expect(updateBlock).not.toHaveBeenCalled();
+  });
 });
