@@ -93,6 +93,15 @@ export default tseslint.config(
       'coverage/**',
       'node_modules/**',
       'DemoProject/**',
+      // Self-contained tree-sitter grammar package: `grammar.js` is written
+      // in tree-sitter's DSL (bare `grammar`/`seq`/`choice`/... globals, all
+      // `no-undef`), and `src/`+`bindings/` are generated build artifacts.
+      // Linted by tree-sitter's own tooling, not this app's ESLint config.
+      'tree-sitter-renpy/**',
+      // Local Python virtualenvs created by the marketing tooling ship
+      // thousands of vendored .js/.mjs files (torch, gradio, sklearn); they
+      // are untracked build environments, never this app's source.
+      'docs/marketing/.venv-*/**',
     ],
   },
 );
