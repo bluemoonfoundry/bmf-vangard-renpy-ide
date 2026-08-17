@@ -5,6 +5,20 @@ Copy it into a GitHub issue using the **Release Checklist** issue template so si
 
 ---
 
+## 0. Release Candidate Build Log
+
+Track CI-verified pre-release (`rc`) builds here as they're cut. A green
+`rc` build satisfies the *automated* portions of §1 and §5 for the commit
+it was built from — re-verify those boxes are still accurate if `main`
+moves before the final `vX.Y.Z` tag. Manual sign-off (§3, §4, §6) is
+**never** satisfied by an `rc` build and must be re-done against the
+final tag's own artifacts.
+
+| Tag | Commit | Date | Test & Lint | E2E Smoke (97) | Win / macOS ARM / macOS Intel / Linux builds | Notes |
+|---|---|---|---|---|---|---|
+| `v1.0.0-rc1` | — | 2026-07-20 | ✅ | ✅ | ✅ / ✅ / ✅ / ✅ | [run](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/runs/29711195126) |
+| `v1.0.0-rc2` | `9d97314` | 2026-08-17 | ✅ | ✅ | ✅ / ✅ / ✅ / ✅ | All 4 platform installers + `SHA256SUMS.txt` published to [the pre-release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v1.0.0-rc2). Manual installer sign-off (§3) still outstanding — tracked as `bmf-vangard-renpy-ide-zji`. |
+
 ## 1. Code Quality Gates
 
 - [ ] All commits intended for this release are on `main` (or the release branch)
