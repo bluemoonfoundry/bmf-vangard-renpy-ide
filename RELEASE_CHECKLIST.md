@@ -10,7 +10,7 @@ Copy it into a GitHub issue using the **Release Checklist** issue template so si
 - [ ] All commits intended for this release are on `main` (or the release branch)
 - [ ] CI is green: **Test & Lint** job passes on the release commit
 - [ ] **Coverage Gate** passes (`npm run test:coverage` — thresholds in `vite.config.ts`)
-- [ ] **E2E Smoke Suite** passes (5 smoke tests via Playwright)
+- [ ] **E2E Smoke Suite** passes (97 smoke tests via Playwright)
 - [ ] No open P0 or P1 beads issues (`bd list --status=open` filtered by priority)
 
 ## 2. Changelog & Versioning

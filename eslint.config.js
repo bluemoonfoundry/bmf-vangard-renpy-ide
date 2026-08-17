@@ -93,6 +93,8 @@ export default tseslint.config(
       'coverage/**',
       'node_modules/**',
       'DemoProject/**',
+      'docs/marketing/.venv-*/**',
+      'tree-sitter-renpy/**',
     ],
   },
 );

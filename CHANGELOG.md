@@ -4,12 +4,10 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
-### Added
-- **NEW:** Detect used-but-undefined variables (interpolation and if/elif/while conditions) with editor squiggle, Diagnostics warning, and Statistics count
-
 ## [1.0.0]
 
 ### Added
+- **NEW:** Detect used-but-undefined variables (interpolation and if/elif/while conditions) with editor squiggle, Diagnostics warning, and Statistics count
 - **NEW:** Vangard Studio is now fully rebranded from Ren'IDE — UI, installer, project templates, LICENSE, and documentation all reflect the new name and branding
 - **NEW:** Full documentation website ([VitePress](https://vitepress.dev/), published to GitHub Pages) replacing the old PDF-based user guide — a complete Guide, Reference, and Architecture section, plus a redesigned Welcome page
 - **NEW:** Script Statistics: unreachable-label detection via canvas BFS, surfaced directly in the Stats panel
