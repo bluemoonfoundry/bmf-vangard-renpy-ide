@@ -44,3 +44,17 @@ label start:
     name: (identifier)
     (nvl_statement)
     (nvl_statement)))
+
+==================================================================
+I4: unrecognized keyword-led statements are not fabricated say-statements
+==================================================================
+stop sound
+window show
+play music fadein
+
+---
+
+(source_file
+  (unknown_statement (identifier) (identifier))
+  (unknown_statement (identifier) (identifier))
+  (unknown_statement (identifier) (identifier) (identifier)))

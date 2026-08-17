@@ -40,6 +40,12 @@
 ; the sibling `priority: (expression)` node (which is *not* part of the
 ; body and must not be treated as Python-injection content), since
 ; `expression` is not one of the alternated statement types.
+; (Final-review fix I4/C1: `unknown_statement` was added to both
+; alternations below. It is the node type that colon-opened Python headers
+; inside a `python:` block — `def foo(a):`, `class C:`, `try:` — now parse
+; as, so omitting it would silently drop those (and their entire indented
+; bodies) from the injected Python span.)
+;
 ; Injection point 1: python:/init python: block bodies — the block's
 ; top-level statements (there is no single whole-body node — see note
 ; above) are captured together and combined into one Python-module parse.
@@ -53,7 +59,7 @@
      (python_statement) (return_statement) (say_statement)
      (scene_statement) (screen_statement) (show_statement)
      (style_statement) (transform_statement) (translate_statement)
-     (while_statement) (with_statement)
+     (unknown_statement) (while_statement) (with_statement)
    ]+ @injection.content)
  (#set! injection.language "python")
  (#set! injection.combined))
@@ -68,7 +74,7 @@
      (python_statement) (return_statement) (say_statement)
      (scene_statement) (screen_statement) (show_statement)
      (style_statement) (transform_statement) (translate_statement)
-     (while_statement) (with_statement)
+     (unknown_statement) (while_statement) (with_statement)
    ]+ @injection.content)
  (#set! injection.language "python")
  (#set! injection.combined))

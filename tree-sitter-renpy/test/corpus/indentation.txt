@@ -50,3 +50,19 @@ label a:
     (jump_statement target: (identifier))
     (comment)
     (jump_statement target: (identifier))))
+
+==================================================================
+C4: a bracket-led line at column 0 is not swallowed into the previous block
+==================================================================
+label s:
+    return
+
+(1)
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (return_statement))
+  (expression_statement (expression)))

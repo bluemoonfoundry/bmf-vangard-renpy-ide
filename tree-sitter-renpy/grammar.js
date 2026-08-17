@@ -28,8 +28,16 @@ module.exports = grammar({
   // whenever both are viable, matching real Ren'Py semantics: an inline
   // `with` immediately after a say's string always belongs to that say
   // statement, never to a following statement.
+  // Final-review fix C3 added a lone-`identifier` alternative to
+  // `property`, which makes `action Start()` reducible either as one
+  // `name value` pair or as two separate properties (`repeat($.property)`
+  // in `screen_language_statement` allows both). That's a genuine
+  // LR conflict, not a lexical one, so it must be declared here and let
+  // GLR explore both; the `prec.dynamic` weights on `property`'s
+  // alternatives then pick the `name value` reading whenever it's viable.
   conflicts: $ => [
     [$.say_statement],
+    [$.property],
   ],
 
   rules: {
@@ -69,6 +77,10 @@ module.exports = grammar({
       $.layeredimage_statement,
       $.nvl_statement,
       $.expression_statement,
+      // Final-review fix I4: MUST stay last — it is the honest-failure
+      // catch-all for keyword-led lines nothing above claims. See its rule
+      // definition at the bottom of this file.
+      $.unknown_statement,
     ),
 
     comment: $ => token(seq('#', /.*/)),
@@ -77,10 +89,39 @@ module.exports = grammar({
 
     // Opaque Python-ish expression — content is handed to the injected
     // tree-sitter-python grammar via injections.scm (Task 9), not
-    // decomposed here per the spec's Q1-B granularity decision. Excludes
-    // ':' as well as '\n'/'#' so it never swallows the trailing colon that
-    // introduces a `_block` body (label/if/menu-choice/while/for headers
-    // all end in ':' immediately after their expression).
+    // decomposed here per the spec's Q1-B granularity decision.
+    //
+    // Final-review fix C1: this regex used to be `/[^\n#:]+/`, excluding
+    // ':' outright so the token could never swallow the trailing colon
+    // that introduces a `_block` body (`if x:`, `while x:`, a menu
+    // choice's condition, ...). That exclusion was correct for those
+    // condition positions but catastrophic for the many *value* positions
+    // that reuse this same token (`define`/`default`/`image` values,
+    // `$` statements, screen/ATL property values, and — via
+    // `expression_statement` — every line inside a `python:` block, the
+    // grammar's headline injection point): colons are pervasive in real
+    // Python values (`{"a": 1}` dicts, `lambda x: x`, slices `a[1:2]`,
+    // annotations), and excluding them turned all of that into ERROR
+    // nodes.
+    //
+    // Rather than fork into two tokens (one colon-excluding for
+    // conditions, one colon-permitting for values) — which puts two
+    // equal-precedence, heavily-overlapping greedy regexes in direct
+    // lexical competition wherever both happen to be valid — the regex
+    // now permits ':' *inside* the match but forbids it as the match's
+    // final character (`/[^\n#]*[^\n#:]/`). Tree-sitter's lexer takes the
+    // longest match that satisfies the pattern, so:
+    //   - `if d == {1: 2}:`   -> expression = ` d == {1: 2}`, the block's
+    //     ':' is left for `_block`, exactly as before the fix;
+    //   - `$ x = {"a": 1}`    -> expression = ` x = {"a": 1}`, previously
+    //     an ERROR;
+    //   - `f = lambda x: x`   -> the whole value, previously an ERROR.
+    // A value that genuinely *ends* in ':' is by construction a
+    // block-opening header (`def foo(a):`, `class C:`, `try:`) and is
+    // handled by `unknown_statement`'s optional `_block` instead.
+    //
+    // The one thing this must never do is end on a ':' — that colon is
+    // always the grammar's, never the expression's.
     //
     // Explicit `prec(-1, ...)`: this task added `expression_statement` as
     // a last-resort `_statement` fallback (see below) plus `choice($.identifier,
@@ -101,7 +142,7 @@ module.exports = grammar({
     // match, and `expression` is only actually chosen when it's the sole
     // viable token at that position — which is every other place it's
     // used in this grammar.
-    expression: $ => token(prec(-1, /[^\n#:]+/)),
+    expression: $ => token(prec(-1, /[^\n#]*[^\n#:]/)),
 
     // Shared block body used by every block-taking statement: `label foo:`
     // / `if x:` / `menu:` etc.
@@ -347,12 +388,19 @@ module.exports = grammar({
     // field before this fix). A comma-list token naturally stops at the
     // first following space that isn't part of a `, name` continuation,
     // which is exactly the boundary we need here.
+    // Final-review fix I5: both rules used to end in a bare, required
+    // `$._newline`, so an *inline* ATL block attached directly to the
+    // statement — `show eileen:` / `    xalign 0.5`, extremely common real
+    // Ren'Py that avoids needing a separate named `transform` — produced a
+    // whole-statement ERROR. `_atl_block` (shared with
+    // `transform_statement`, whose body shape it was factored out of) is
+    // now offered as an alternative terminator to the plain newline.
     scene_statement: $ => seq(
       'scene',
       optional(field('image', repeat1($.identifier))),
       optional(seq('at', field('at_expr', alias($._at_expr_blob, $.expression)))),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      choice($._newline, field('atl', $._atl_block)),
     ),
 
     show_statement: $ => seq(
@@ -361,7 +409,7 @@ module.exports = grammar({
       optional(seq('at', field('at_expr', alias($._at_expr_blob, $.expression)))),
       optional(seq('as', field('as_name', $.identifier))),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      choice($._newline, field('atl', $._atl_block)),
     ),
 
     _at_expr_blob: $ => token(seq(
@@ -467,10 +515,36 @@ module.exports = grammar({
     // one opaque expression, matching real Ren'Py semantics: only
     // `if`/`for`/bare-positional tags take a single expression, and they
     // have no notion of a `name` sub-field to split into.
+    // Final-review fix C3: a property that is a *single lone identifier*
+    // with nothing after it on the line had no matching alternative at all
+    // — `seq(name, value)` needs a following value, `_bare_expr_head`
+    // needs at least one more immediately-adjacent character (`repeat1`),
+    // and plain `$.expression` (prec -1) always loses the lexical contest
+    // to `identifier` (prec 0) at that position. That made `use
+    // other_screen`, `add some_displayable`, `text some_var`,
+    // `style_prefix some_prefix` and a bare-variable screen condition
+    // (`if x:`) unparseable — all extremely common real screen-language.
+    //
+    // The `alias($.identifier, $.expression)` alternative below fills that
+    // gap, keeping the exposed node type `expression` per this grammar's
+    // opaque-value convention (so `injections.scm`'s `(property
+    // (expression))` pattern picks it up unchanged).
+    //
+    // `prec.dynamic` is required, not decorative: `action Start()` is now
+    // genuinely ambiguous at the parser level — it can reduce either as one
+    // `property(name: action, value: " Start()")` or as the three-property
+    // sequence `property(action) property(Start) property("()")`, since
+    // `screen_language_statement` holds a `repeat($.property)`. Both are
+    // complete valid parses, so only a dynamic precedence can pick one.
+    // The higher precedence on the `name value` pair makes the
+    // keyword-argument reading win whenever it is viable, matching real
+    // Ren'Py semantics; the lone-identifier reading is then only taken
+    // when there is nothing left on the line to be a value.
     property: $ => choice(
-      seq(field('name', $.identifier), field('value', $.expression)),
+      prec.dynamic(2, seq(field('name', $.identifier), field('value', $.expression))),
       alias($._bare_expr_head, $.expression),
       $.expression,
+      prec.dynamic(1, alias($.identifier, $.expression)),
     ),
 
     _bare_expr_head: $ => token(seq(
@@ -494,6 +568,14 @@ module.exports = grammar({
       'transform',
       field('name', $.identifier),
       optional(field('parameters', $.parameter_list)),
+      $._atl_block,
+    ),
+
+    // Shared ATL body — factored out of `transform_statement` (unchanged in
+    // shape) by final-review fix I5 so `show`/`scene` can take the exact
+    // same inline ATL block. Hidden, so it contributes no node of its own
+    // and `transform_statement`'s tree shape is byte-for-byte what it was.
+    _atl_block: $ => seq(
       ':',
       $._newline,
       $._indent,
@@ -593,6 +675,58 @@ module.exports = grammar({
         $.expression,
       ),
       $._newline,
+    ),
+
+    // Final-review fix I4: honest catch-all for a keyword-led line that no
+    // other statement rule claims.
+    //
+    // Before this rule existed, such a line was *silently fabricated* into
+    // dialogue: `stop sound` parsed as `(say_statement character:
+    // (identifier) attributes: (identifier) text: (string (MISSING
+    // "string_token1")))` — tree-sitter's error recovery synthesized a
+    // zero-width string so `say_statement` could complete. A downstream
+    // symbol-table/diagnostics consumer has no cheap way to tell that
+    // phantom dialogue apart from real dialogue, which makes it strictly
+    // worse than an honest `ERROR`.
+    //
+    // Two deliberate shape constraints keep this from stealing parses from
+    // rules that *should* win:
+    //
+    // 1. The repeated middle only accepts `$.identifier`, never
+    //    `$.string`. Allowing strings would make `eileen happy "hi"` a
+    //    fully valid `unknown_statement` as well as a fully valid
+    //    `say_statement` — a real, unresolvable ambiguity. Restricted to
+    //    bare words, this rule can never complete on a line containing a
+    //    string literal, so every genuine say-statement is still parsed as
+    //    one.
+    // 2. The `_newline`-terminated branch requires at least *two* bare
+    //    words (`repeat1`), so it can't shadow `expression_statement`
+    //    (which is `identifier` + optional expression + newline and would
+    //    otherwise be a strict subset of this rule). `stop sound` /
+    //    `window show` have two words and land here; `total = points * 2`
+    //    has one word plus an expression and still lands in
+    //    `expression_statement`.
+    //
+    // The `_block`-terminated branch additionally makes colon-opened
+    // Python headers inside `python:` blocks parseable — `def foo(a):`,
+    // `class C:`, `try:`, `with open(p) as f:` — which, combined with fix
+    // C1's colon-permitting `expression`, is what lets a real `def` with a
+    // nested `if` body parse instead of ERRORing. Its indented body is
+    // ordinary `_statement`s via `_block`, matching how every other
+    // block-taking statement in this grammar handles nesting.
+    unknown_statement: $ => choice(
+      seq(
+        $.identifier,
+        repeat1($.identifier),
+        optional($.expression),
+        $._newline,
+      ),
+      seq(
+        $.identifier,
+        repeat($.identifier),
+        optional($.expression),
+        $._block,
+      ),
     ),
 
     // `scope` is either an arbitrary namespace identifier (`translate french

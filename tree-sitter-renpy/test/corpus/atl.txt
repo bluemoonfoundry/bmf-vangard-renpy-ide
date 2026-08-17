@@ -16,3 +16,30 @@ transform bounce:
     (atl_block_statement
       (atl_transform_property property: (identifier) value: (expression))
       (atl_time_statement duration: (expression)))))
+
+==================================================================
+I5: inline ATL block attached to show/scene
+==================================================================
+label s:
+    show eileen happy:
+        xalign 0.5
+        linear 1.0 yalign 0.2
+    scene bg room:
+        zoom 1.5
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      image: (identifier)
+      atl: (atl_transform_property property: (identifier) value: (expression))
+      atl: (atl_transform_property property: (identifier) value: (expression)))
+    (scene_statement
+      image: (identifier)
+      image: (identifier)
+      atl: (atl_transform_property property: (identifier) value: (expression)))
+    (return_statement)))

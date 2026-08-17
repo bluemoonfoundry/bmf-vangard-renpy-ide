@@ -13,14 +13,12 @@ enum TokenType {
 typedef struct {
   uint32_t indent_stack[MAX_INDENT_DEPTH];
   uint16_t indent_stack_len;
-  int32_t bracket_depth;
 } Scanner;
 
 void *tree_sitter_renpy_external_scanner_create() {
   Scanner *scanner = calloc(1, sizeof(Scanner));
   scanner->indent_stack[0] = 0;
   scanner->indent_stack_len = 1;
-  scanner->bracket_depth = 0;
   return scanner;
 }
 
@@ -34,8 +32,6 @@ unsigned tree_sitter_renpy_external_scanner_serialize(void *payload, char *buffe
   buffer[size++] = (char)scanner->indent_stack_len;
   memcpy(&buffer[size], scanner->indent_stack, scanner->indent_stack_len * sizeof(uint32_t));
   size += scanner->indent_stack_len * sizeof(uint32_t);
-  memcpy(&buffer[size], &scanner->bracket_depth, sizeof(int32_t));
-  size += sizeof(int32_t);
   return (unsigned)size;
 }
 
@@ -43,7 +39,6 @@ void tree_sitter_renpy_external_scanner_deserialize(void *payload, const char *b
   Scanner *scanner = (Scanner *)payload;
   scanner->indent_stack[0] = 0;
   scanner->indent_stack_len = 1;
-  scanner->bracket_depth = 0;
   if (length == 0) return;
   size_t size = 0;
   // Read through unsigned char: indent_stack_len can legitimately reach
@@ -51,8 +46,6 @@ void tree_sitter_renpy_external_scanner_deserialize(void *payload, const char *b
   // read through a (possibly signed) plain `char` first.
   scanner->indent_stack_len = (uint16_t)(unsigned char)buffer[size++];
   memcpy(scanner->indent_stack, &buffer[size], scanner->indent_stack_len * sizeof(uint32_t));
-  size += scanner->indent_stack_len * sizeof(uint32_t);
-  memcpy(&scanner->bracket_depth, &buffer[size], sizeof(int32_t));
 }
 
 static void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
@@ -60,17 +53,32 @@ static void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
 bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 
-  // Track bracket depth on every scan pass so multi-line ( [ { calls
-  // don't trigger NEWLINE/INDENT/DEDENT mid-expression.
-  if (lexer->lookahead == '(' || lexer->lookahead == '[' || lexer->lookahead == '{') {
-    scanner->bracket_depth++;
-  } else if (lexer->lookahead == ')' || lexer->lookahead == ']' || lexer->lookahead == '}') {
-    if (scanner->bracket_depth > 0) scanner->bracket_depth--;
-  }
-
-  if (scanner->bracket_depth > 0) {
-    return false; // let the grammar's normal tokenization handle bracketed content
-  }
+  // NOTE (final-review fix C4): this scanner used to carry a
+  // `bracket_depth` counter here, incremented/decremented from
+  // `lexer->lookahead` on every scan pass, intended to suppress
+  // NEWLINE/INDENT/DEDENT inside a multi-line bracket-continued logical
+  // line (e.g. a `define e = Character(...)` call whose arguments are
+  // spread across three physical lines).
+  // It was removed because it could not work and was actively harmful:
+  //
+  //  - Tree-sitter only invokes an external scanner at positions where one
+  //    of its tokens is a valid next symbol, which for this grammar means
+  //    essentially only at line boundaries. The counter therefore almost
+  //    never observed the mid-line `(`/`[`/`{` characters it was supposed
+  //    to be counting, so multi-line bracket continuation stayed broken
+  //    regardless.
+  //  - On the rare occasion it *did* fire — a line whose very first
+  //    character is a bracket — the early `return false` suppressed a
+  //    DEDENT that was genuinely owed, producing a *silent* misparse
+  //    (`hasError === false`, wrong tree shape): given `label s:` /
+  //    `    return` / blank / `(1)`, the top-level `(1)` was placed inside
+  //    `label s`'s body.
+  //
+  // A correct implementation would have to scan forward through line
+  // content on every call (the way tree-sitter-python's scanner tracks its
+  // own parenthesis state), which is out of scope here. Multi-line bracket
+  // continuation remaining unsupported is an accepted known limitation;
+  // silently misplacing statements was not.
 
   // Only consume real whitespace here (spaces/tabs/CRs/newlines). Comment
   // text is deliberately NOT consumed by the scanner: comments are the
