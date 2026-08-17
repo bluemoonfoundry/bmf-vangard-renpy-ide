@@ -4,13 +4,13 @@
 ![In Development](https://img.shields.io/badge/in--development-1.0.0-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
-# Vangard Studio : The Ren'Py Visual Designer
+# Vangard Studio : The Ren'Py Project Organizer
 
 > **The IDE that lets you see your story.**
 
 > _Formerly known as Ren'IDE._
 
-Vangard Studio is a desktop IDE for Ren'Py visual novel development. It is designed a tool to help your organize and manage your Ren'py project as it grows. Built on a "code first" philosophy, it helps you visualize your story structure, see your project from every angle: file structure, control flow, and the player's choice experience. A full Monaco code editor, a visual drag-and-drop scene composer, an image map composer, image and audio asset managers, translation dashboard, statistics, diagnostics, and a color picker, and more are all built in.
+Vangard Studio is a desktop IDE that helps you organize and manage your Ren'Py project as it grows. Built on a "code first" philosophy, it tracks your characters, variables, screens, and assets automatically, catches broken jumps and missing files before they bite you, and gives you a full Monaco code editor with Ren'Py-aware tooling to help you write better `.rpy` code — not write it for you. Visual tools for building scenes and image maps, translation and statistics dashboards, and three complementary canvases for seeing your project's structure, flow, and player experience are all built in.
 
 ## Getting Started 
 
@@ -66,41 +66,9 @@ Vangard Studio is a open-source, community-driven project licensed under the **A
 
 ## Features
 
-### Three Canvases
-
-#### Project Canvas
-
-Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Redraw" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors. Blocks with diagnostics display a colored outer glow — red for errors, amber for warnings — so problem areas are visible even when fully zoomed out.
-
-Use `Ctrl+G` (or `Cmd+G`) to open the **Go-to-Label** command palette at any time. Type a label name and press `Enter` to jump directly to that node. The toolbox also has a persistent "Go to Label" search box for the same purpose. Both zoom the canvas in to at least 100% so the target is always clearly visible.
-
-#### Flow Canvas
-
-A label-by-label narrative flow graph. Every `label` becomes a node; every `jump`, `call`, and implicit fall-through becomes an edge. Highlight specific routes with distinct colors. Unreachable labels are flagged. Hover over menu nodes to inspect all choices and their destinations. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette, with zoom-on-navigate consistent with the Project Canvas.
-
-#### Choices Canvas
-
-The player's view. Where the Flow Canvas shows code structure, the Choices Canvas shows the player experience. Menu nodes fan out to destinations via color-coded choice pills. Each pill shows the player-visible choice text and any `if` condition guard as a badge — so you can trace exactly what the player sees and where each choice leads, even when paths cross. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette.
-
----
-
-### Code Editor
-
-A full Monaco editor (the VS Code engine) built right in. Split panes let you edit two files side by side. Drag tabs between panes.
-
-- **TextMate syntax highlighting** — accurate, context-aware Ren'Py coloring with semantic token support for labels, variables, and screen references
-- **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables
-- **Go to Definition** — `Ctrl+Click` a `jump`/`call` target to jump to its label definition
-- **Dialogue Preview** — an inline "Player View" panel below the editor shows a mock Ren'Py textbox (or choice menu) that updates in real time as the cursor moves through dialogue lines
-- **33 built-in Ren'Py snippets** with tab-stop placeholders
-- **User-defined snippets** — create custom snippets with trigger prefixes that integrate with IntelliSense
-- Cursor position (Ln/Col) in status bar
-
----
-
 ### Story Elements
 
-The right sidebar analyzes your entire project continuously. Tabs are organized in a two-level layout — primary category tabs across the top, then sub-tabs within each category — for efficient use of vertical space.
+The right sidebar analyzes your entire project continuously, so your characters, variables, screens, and assets are always tracked and cross-referenced — no manual bookkeeping. Tabs are organized in a two-level layout — primary category tabs across the top, then sub-tabs within each category — for efficient use of vertical space.
 
 | Category | Sub-tabs | What it shows |
 |----------|----------|---------------|
@@ -114,16 +82,6 @@ The right sidebar analyzes your entire project continuously. Tabs are organized 
 | **Tools** | Snippets | Grid-browsable snippet library with fuzzy search and category filters. Built-in snippets + user global + project-specific. |
 | | Menus | Visual menu and choice designer with custom code block support. |
 | | Colors | Color picker with four built-in palettes (Ren'Py Standard, HTML Named, Material 500, Pastel) and a live Project Theme palette scanned from your `.rpy` files. Insert at cursor, wrap in `{color}` tags, or copy hex. |
-
-### Asset Managers
-
-#### Image Assets
-
-Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage. Double-click to manage Ren'Py tags and metadata.
-
-#### Audio Assets
-
-Same workflow for audio. Browse, scan external directories, and right-click to copy `play music`, `play sound`, or `queue audio` statements. **Custom audio player** with Web Audio API integration, 64-bar equalizer visualization (cyan→blue→violet gradient with peak dots and scanline overlay), and volume control.
 
 ---
 
@@ -141,7 +99,7 @@ Draw clickable hotspot rectangles over a ground image (with optional hover overl
 
 ### Diagnostics
 
-A dedicated panel surfaces issues across every file in the project.
+A dedicated panel surfaces issues across every file in the project, so problems surface before you run the game.
 
 - **Invalid jumps** — `jump` or `call` to a label that doesn't exist
 - **Missing images / audio** — assets referenced in code but not found in the project
@@ -154,13 +112,16 @@ Click any issue to jump directly to the source. Filter by severity (error / warn
 
 ---
 
-### Warp to Label
+### Project Statistics
 
-Jump straight into any point in your game without playing through from the start. Press `Ctrl+Shift+G` (or click the toolbar button) to open a label picker, select a target, and Vangard Studio launches the game at that label using Ren'Py's `--warp` flag.
+Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores. Statistics are computed asynchronously after the tab opens — each metric shows an inline spinner until ready, so the Stats tab appears instantly even for large projects. An **IDE Performance** section at the bottom of the Stats tab shows live diagnostics: project load time, analysis worker duration, asset scan time, canvas FPS, and JS heap memory.
 
-Before warping, a **Variable Overrides** modal lets you set values for any `default` variables and interpolated text variables (like `[mc_name]`) that the game would normally set during earlier scenes. Vangard Studio writes a temporary `_ide_after_warp.rpy` that applies these overrides in Ren'Py's `after_warp` hook, then removes the file automatically when the game stops. If your project already defines its own `label after_warp`, the IDE detects it and avoids creating a conflicting label.
+---
 
-You can also warp from within the code editor — right-click a label line and choose **"Warp to here"** — or from any canvas node's context menu.
+### Project Explorer & Search
+
+- **Project Explorer** — file tree with create, rename, delete, cut/copy/paste, and drag-drop. Right-click an `.rpy` file → "Center on Canvas" to locate its block. **Refresh Project** option (File menu, context menu) reconciles all files and assets with disk state.
+- **Project-wide Search & Replace** — full-text search with regex. Replace individually or bulk with confirmation.
 
 ---
 
@@ -177,16 +138,64 @@ The parser automatically detects languages from `tl/<language>/` directories, ma
 
 ---
 
-### Project Statistics
+### Code Editor
 
-Word counts, estimated play time, lines of dialogue, per-character dialogue breakdown (bar chart), scene and route counts, and branching complexity scores. Statistics are computed asynchronously after the tab opens — each metric shows an inline spinner until ready, so the Stats tab appears instantly even for large projects. An **IDE Performance** section at the bottom of the Stats tab shows live diagnostics: project load time, analysis worker duration, asset scan time, canvas FPS, and JS heap memory.
+A full Monaco editor (the VS Code engine) built right in, with Ren'Py-aware tooling designed to help you write your own code better, not write it for you. Split panes let you edit two files side by side. Drag tabs between panes.
+
+- **TextMate syntax highlighting** — accurate, context-aware Ren'Py coloring with semantic token support for labels, variables, and screen references
+- **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables
+- **Go to Definition** — `Ctrl+Click` a `jump`/`call` target to jump to its label definition
+- **Dialogue Preview** — an inline "Player View" panel below the editor shows a mock Ren'Py textbox (or choice menu) that updates in real time as the cursor moves through dialogue lines
+- **33 built-in Ren'Py snippets** with tab-stop placeholders
+- **User-defined snippets** — create custom snippets with trigger prefixes that integrate with IntelliSense
+- Cursor position (Ln/Col) in status bar
+
+---
+
+### Asset Managers
+
+#### Image Assets
+
+Browse all project images organized by folder, with visual thumbnails. Scan external directories without copying files in. Right-click any image to copy a `scene` or `show` statement directly to your clipboard. Drag images onto the Scene Composer stage. Double-click to manage Ren'Py tags and metadata.
+
+#### Audio Assets
+
+Same workflow for audio. Browse, scan external directories, and right-click to copy `play music`, `play sound`, or `queue audio` statements. **Custom audio player** with Web Audio API integration, 64-bar equalizer visualization (cyan→blue→violet gradient with peak dots and scanline overlay), and volume control.
+
+---
+
+### Three Canvases
+
+Three ways to see your project's organization at a glance — not for building your story by dragging nodes, but for navigating and understanding a codebase that keeps growing.
+
+#### Project Canvas
+
+Your `.rpy` files as draggable blocks. `jump` and `call` connections auto-draw as arrows. Drag blocks to organize, click "Redraw" to auto-layout, or filter by character to focus on a single storyline. Role tinting colors blocks by which characters appear in them. A legend overlay explains arrow types and colors. Blocks with diagnostics display a colored outer glow — red for errors, amber for warnings — so problem areas are visible even when fully zoomed out.
+
+Use `Ctrl+G` (or `Cmd+G`) to open the **Go-to-Label** command palette at any time. Type a label name and press `Enter` to jump directly to that node. The toolbox also has a persistent "Go to Label" search box for the same purpose. Both zoom the canvas in to at least 100% so the target is always clearly visible.
+
+#### Flow Canvas
+
+A label-by-label narrative flow graph. Every `label` becomes a node; every `jump`, `call`, and implicit fall-through becomes an edge. Highlight specific routes with distinct colors. Unreachable labels are flagged. Hover over menu nodes to inspect all choices and their destinations. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette, with zoom-on-navigate consistent with the Project Canvas.
+
+#### Choices Canvas
+
+The player's view. Where the Flow Canvas shows code structure, the Choices Canvas shows the player experience. Menu nodes fan out to destinations via color-coded choice pills. Each pill shows the player-visible choice text and any `if` condition guard as a badge — so you can trace exactly what the player sees and where each choice leads, even when paths cross. Includes a "Go to Label" toolbox search and responds to the global `Ctrl+G` palette.
+
+---
+
+### Warp to Label
+
+Jump straight into any point in your game without playing through from the start. Press `Ctrl+Shift+G` (or click the toolbar button) to open a label picker, select a target, and Vangard Studio launches the game at that label using Ren'Py's `--warp` flag.
+
+Before warping, a **Variable Overrides** modal lets you set values for any `default` variables and interpolated text variables (like `[mc_name]`) that the game would normally set during earlier scenes. Vangard Studio writes a temporary `_ide_after_warp.rpy` that applies these overrides in Ren'Py's `after_warp` hook, then removes the file automatically when the game stops. If your project already defines its own `label after_warp`, the IDE detects it and avoids creating a conflicting label.
+
+You can also warp from within the code editor — right-click a label line and choose **"Warp to here"** — or from any canvas node's context menu.
 
 ---
 
 ### More
 
-- **Project Explorer** — file tree with create, rename, delete, cut/copy/paste, and drag-drop. Right-click an `.rpy` file → "Center on Canvas" to locate its block. **Refresh Project** option (File menu, context menu) reconciles all files and assets with disk state.
-- **Project-wide Search & Replace** — full-text search with regex. Replace individually or bulk with confirmation.
 - **New Project Wizard** — 3-step flow: name + location, resolution presets, theme + color picker. Generates a complete SDK-compatible Ren'Py project.
 - **Markdown Preview** — double-click any `.md` file for GitHub-style rendered preview with toggle to Monaco edit mode.
 - **First-run Tutorial** — a 6-step guided tour on first launch with SVG spotlight effects and keyboard navigation. Replay at any time via **Help → Show Tutorial**.
