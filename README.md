@@ -90,7 +90,7 @@ A full Monaco editor (the VS Code engine) built right in. Split panes let you ed
 
 - **TextMate syntax highlighting** — accurate, context-aware Ren'Py coloring with semantic token support for labels, variables, and screen references
 - **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables
-- **Go to Definition** — `Ctrl+Click` on a label, character, or screen reference to jump to its definition
+- **Go to Definition** — `Ctrl+Click` a `jump`/`call` target to jump to its label definition
 - **Dialogue Preview** — an inline "Player View" panel below the editor shows a mock Ren'Py textbox (or choice menu) that updates in real time as the cursor moves through dialogue lines
 - **33 built-in Ren'Py snippets** with tab-stop placeholders
 - **User-defined snippets** — create custom snippets with trigger prefixes that integrate with IntelliSense
@@ -235,7 +235,7 @@ Word counts, estimated play time, lines of dialogue, per-character dialogue brea
 
 ### Install (Recommended)
 
-Go to the **[releases page](https://github.com/bluemoonfoundry/vangard-renpy-ide/releases/latest)** and download the appropriate package for your operating system.
+Go to the **[releases page](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/latest)** and download the appropriate package for your operating system.
 
 #### Windows
 
