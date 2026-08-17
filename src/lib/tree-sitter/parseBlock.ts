@@ -34,20 +34,72 @@ import Parser, { Language, Query, Tree, type SyntaxNode } from 'web-tree-sitter'
 import renpyWasmUrl from '../../../tree-sitter-renpy/renpy.wasm?url';
 import pythonWasmUrl from './vendor/tree-sitter-python.wasm?url';
 import injectionsQuerySource from '../../../tree-sitter-renpy/queries/injections.scm?raw';
+import { extractSymbolTable, type RenpySymbolTable } from '@/lib/tree-sitter/symbolTable';
 
 export interface PythonInjection {
+  /** `[startIndex, endIndex]` of the injected span within the original Ren'Py source. */
   range: [number, number];
+  /**
+   * Parsed Python tree for this span.
+   *
+   * OWNERSHIP: WASM-heap allocated. The caller of {@link parseBlock} owns
+   * it and must free it — call {@link disposeParsedBlock} on the owning
+   * `ParsedBlock` rather than deleting injection trees individually.
+   */
   tree: Tree;
   kind: 'python-block' | 'dollar-statement' | 'screen-expression';
 }
 
 export interface ParsedBlock {
+  /**
+   * The Ren'Py parse tree.
+   *
+   * OWNERSHIP: WASM-heap allocated (see {@link disposeParsedBlock}).
+   */
   tree: Tree;
   pythonInjections: PythonInjection[];
+  /**
+   * Symbol table extracted from `tree` (spec Section 6).
+   *
+   * NOTE: every symbol carries a `node: SyntaxNode` pointing into `tree`,
+   * so the table is only valid for as long as `tree` is — reading it after
+   * {@link disposeParsedBlock} is a use-after-free.
+   */
+  symbolTable: RenpySymbolTable;
   parseTimeMs: number;
 }
 
-/** Module-level parser/language singletons — initialized once, reused across calls. */
+/**
+ * Frees every WASM-heap allocation owned by a {@link ParsedBlock}: the
+ * Ren'Py tree and each injection's Python tree.
+ *
+ * `web-tree-sitter`'s `Tree` objects live in the WASM heap and are NOT
+ * garbage-collected by the JS engine — `parseBlock()` allocates one Ren'Py
+ * tree plus one Python tree per injection on every call, so a caller that
+ * parses repeatedly (e.g. on every keystroke-debounced re-analysis) without
+ * disposing will grow the WASM heap without bound.
+ *
+ * Call this once you are done reading the trees (and `symbolTable`, whose
+ * `node` references point into `tree`). It is safe to call at most once per
+ * `ParsedBlock`; `Tree.delete()` is not idempotent, so do not call twice.
+ */
+export function disposeParsedBlock(block: ParsedBlock): void {
+  for (const injection of block.pythonInjections) {
+    injection.tree.delete();
+  }
+  block.tree.delete();
+}
+
+/**
+ * Module-level parser/language singletons — initialized once, reused across
+ * calls.
+ *
+ * These are deliberately never `.delete()`d, unlike the per-call `Tree`s that
+ * {@link disposeParsedBlock} frees: `Parser`, `Language` and `Query` are all
+ * WASM-heap allocated, but exactly one of each is ever created and it stays
+ * live for the whole process. Disposing them would only force a re-init on the
+ * next `parseBlock()` call.
+ */
 let renpyParser: Parser | null = null;
 let pythonParser: Parser | null = null;
 let injectionsQuery: Query | null = null;
@@ -194,6 +246,8 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
     });
   }
 
+  const symbolTable = extractSymbolTable(tree);
+
   const parseTimeMs = performance.now() - start;
-  return { tree, pythonInjections, parseTimeMs };
+  return { tree, pythonInjections, symbolTable, parseTimeMs };
 }

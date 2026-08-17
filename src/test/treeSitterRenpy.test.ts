@@ -42,8 +42,12 @@ describe('tree-sitter-renpy full-surface regression', () => {
   });
 
   it('produces a symbol table covering every construct in the sample', async () => {
-    const { tree } = await parseBlock(SAMPLE_RPY);
+    // Final-review fix I1: `parseBlock` now returns the symbol table itself.
+    // `extractSymbolTable` remains a supported standalone export, so this
+    // test asserts both paths agree.
+    const { tree, symbolTable } = await parseBlock(SAMPLE_RPY);
     const table = extractSymbolTable(tree);
+    expect(symbolTable.labels.map((l) => l.name)).toEqual(table.labels.map((l) => l.name));
 
     expect(table.characters.map((c) => c.name)).toContain('e');
     expect(table.variables.map((v) => v.name)).toContain('trust');
