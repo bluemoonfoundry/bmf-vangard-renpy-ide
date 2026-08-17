@@ -1,4 +1,3 @@
-
 [![Build/Release](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
 ![Version](https://img.shields.io/badge/version-0.8.0-blue)
@@ -25,6 +24,8 @@ Vangard Studio is a desktop IDE for Ren'Py visual novel development. It is desig
 <img width="1582" height="1030" alt="story_graph" src="https://github.com/user-attachments/assets/8150b09c-1c04-4d3f-9a1e-0845a5834567" />
 
 <img width="1582" height="1030" alt="stats_pane" src="https://github.com/user-attachments/assets/29f9a3a4-ea28-457f-a817-50e8e9d5081c" />
+
+<img width="2931" height="1958" alt="Screenshot 2026-08-16 235042" src="https://github.com/user-attachments/assets/47c0a0a9-faa5-4c1b-937b-8621c2efcd57" />
 
 <img width="1582" height="1030" alt="file_graph" src="https://github.com/user-attachments/assets/1f57a679-4d4b-4358-a7d7-a42716ca0812" />
 
