@@ -1,11 +1,12 @@
 # Seeing Your Story — The Three Canvases
 
-The canvases are the heart of Vangard Studio. They take the invisible structure of your visual
-novel -- the web of labels, jumps, calls, and choices buried across `.rpy` files -- and
-make it something you can see, navigate, and rearrange. Each of the three canvases shows
-your project from a different angle. Together, they answer the three fundamental questions
-of visual novel development: *How are my files organized?* *How does the narrative flow?*
-and *What does the player experience?*
+The canvases are one of Vangard Studio's ways of helping you organize a growing project --
+not a tool for building your story by dragging nodes around, but a way to see and navigate
+structure that would otherwise stay invisible across dozens of `.rpy` files: the web of
+labels, jumps, calls, and choices. Each of the three canvases shows your project from a
+different angle. Together, they answer three questions that get harder to hold in your head
+as a project grows: *How are my files organized?* *How does the narrative flow?* and *What
+does the player experience?*
 
 ## Project Canvas
 

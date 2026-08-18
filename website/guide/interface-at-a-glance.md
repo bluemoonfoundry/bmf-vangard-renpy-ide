@@ -102,7 +102,7 @@ features:
 
 You can have multiple files open in tabs simultaneously. Tabs are lazy-loaded on first
 activation and stay mounted in the background to preserve your scroll position and cursor
-state when you switch between them. [Chapter 6](/guide/writing-code) covers the editor in full depth.
+state when you switch between them. [Chapter 8](/guide/writing-code) covers the editor in full depth.
 
 ## The Story Elements Sidebar
 

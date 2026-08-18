@@ -20,13 +20,13 @@ block with arrows drawn between them based on your `jump` and `call` statements.
 paths through the narrative. The **Choices Canvas** flips the perspective entirely,
 showing what the *player* sees: the choice text, the conditions that hide or reveal
 options, and where each decision leads. You will find these canvases covered in depth in
-[Chapter 5](/guide/three-canvases).
+[Chapter 10](/guide/three-canvases).
 
 Beyond visualization, the sidebar's Characters tab tracks every character you have
 defined -- their dialogue count, their color, everywhere they appear. The Menu Constructor
 lets you design branching choices visually without writing `menu:` blocks by hand. And the
 diagnostics system catches broken jumps and unreachable labels before you waste time
-testing manually. See [Chapter 5](/guide/three-canvases) and [Chapter 6](/guide/writing-code) for the full story.
+testing manually. See [Chapter 10](/guide/three-canvases) and [Chapter 8](/guide/writing-code) for the full story.
 
 ## Artists
 
@@ -62,7 +62,7 @@ placeholders. The **Screen Preview** panel renders your hand-written `screen` bl
 to you as you edit, resolving named styles and `gui.*` variables so you can see the
 layout without leaving the editor. The **Diagnostics** panel is
 your project-wide linter: it catches syntax errors, undefined references, and unused
-definitions across every file simultaneously. See [Chapter 6](/guide/writing-code), [Chapter 7](/guide/managing-story-elements), and [Chapter 10](/guide/diagnostics-and-quality) for the
+definitions across every file simultaneously. See [Chapter 8](/guide/writing-code), [Chapter 5](/guide/managing-story-elements), and [Chapter 7](/guide/diagnostics-and-quality) for the
 technical details.
 
 ## Solo Creators
