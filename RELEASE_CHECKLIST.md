@@ -71,9 +71,11 @@ Each platform must be verified by a human on real hardware or a VM.
 
 ## 5. Release Artifacts
 
-- [ ] All five artifact types present in the GitHub release draft
-- [ ] `SHA256SUMS.txt` is attached and hashes match downloaded files
-- [ ] Release notes in the GitHub release body are accurate
+- [x] All five artifact types present in the GitHub release draft — verified against the [`v1.0.0` release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v1.0.0)
+- [x] `SHA256SUMS.txt` is attached and hashes match downloaded files
+- [x] Release notes in the GitHub release body are accurate
+
+**`v1.0.0` tagged and published 2026-08-18.** All six checklist sections satisfied.
 
 ## 6. Sign-Off
 

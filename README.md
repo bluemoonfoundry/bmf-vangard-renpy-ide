@@ -1,7 +1,6 @@
 [![Build/Release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/build.yml/badge.svg)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/build.yml)
 [![CodeQL](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/workflows/github-code-scanning/codeql)
 [![Latest Release](https://img.shields.io/github/v/release/bluemoonfoundry/bmf-vangard-renpy-ide?label=latest%20release&color=blue)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/latest)
-![In Development](https://img.shields.io/badge/in--development-1.0.0-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows_%7C_macOS_%7C_Linux-lightgrey)
 
 # Vangard Studio : The Ren'Py Project Organizer
