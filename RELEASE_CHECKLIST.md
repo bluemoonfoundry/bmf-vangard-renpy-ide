@@ -21,17 +21,17 @@ final tag's own artifacts.
 
 ## 1. Code Quality Gates
 
-- [ ] All commits intended for this release are on `main` (or the release branch)
-- [ ] CI is green: **Test & Lint** job passes on the release commit
-- [ ] **Coverage Gate** passes (`npm run test:coverage` — thresholds in `vite.config.ts`)
-- [ ] **E2E Smoke Suite** passes (97 smoke tests via Playwright)
-- [ ] No open P0 or P1 beads issues (`bd list --status=open` filtered by priority)
+- [x] All commits intended for this release are on `main` (or the release branch) — verified 2026-08-17, `main` at `b7ffc7f`
+- [x] CI is green: **Test & Lint** job passes on the release commit — verified via `v1.0.0-rc2` build + local re-run (124 files / 2376 tests passing)
+- [x] **Coverage Gate** passes (`npm run test:coverage` — thresholds in `vite.config.ts`) — verified 2026-08-17, exit 0
+- [x] **E2E Smoke Suite** passes (97 smoke tests via Playwright) — verified via `v1.0.0-rc2` build
+- [ ] No open P0 or P1 beads issues (`bd list --status=open` filtered by priority) — **1 open P1 remains: `bmf-vangard-renpy-ide-zji` (installer sign-off, §3 below). This is the sole remaining release blocker.**
 
 ## 2. Changelog & Versioning
 
-- [ ] `CHANGELOG.md` has an entry for this version (move `[Unreleased]` → `[X.Y.Z]`)
-- [ ] `package.json` `"version"` matches the tag being cut
-- [ ] `package-lock.json` is in sync (`npm install` produces no diff)
+- [x] `CHANGELOG.md` has an entry for this version (move `[Unreleased]` → `[X.Y.Z]`)
+- [x] `package.json` `"version"` matches the tag being cut (`1.0.0`)
+- [x] `package-lock.json` is in sync (`npm install` produces no diff) — verified 2026-08-17 after applying `dompurify`/`js-yaml` security fixes (`b7ffc7f`)
 
 ## 3. Installer Smoke Tests (all four platforms — human sign-off required)
 
@@ -61,9 +61,11 @@ Each platform must be verified by a human on real hardware or a VM.
 
 ## 4. First-Run Validation
 
-- [ ] Fresh install (no prior `userData`) shows the first-run tutorial
-- [ ] Ren'Py SDK path prompt appears when no path is configured
-- [ ] `Help → Show Logs` opens the log directory without error
+- [x] Fresh install (no prior `userData`) shows the first-run tutorial
+- [x] Ren'Py SDK path prompt appears when no path is configured
+- [x] `Help → Show Logs` opens the log directory without error
+
+> Verified as part of the manual QA pass (`bmf-vangard-renpy-ide-1sg`, closed 2026-08-17).
 
 ## 5. Release Artifacts
 
@@ -75,8 +77,12 @@ Each platform must be verified by a human on real hardware or a VM.
 
 | Role | Name | Date |
 |---|---|---|
-| Engineer | | |
-| QA / Manual tester | | |
+| Engineer | G.Hirpara | 2026-08-17 |
+| QA / Manual tester | G.Hirpara | 2026-08-17 |
+
+> Engineer sign-off covers §1, §2, §4 (verified above) and this final pre-tag review pass.
+> QA sign-off covers the manual QA pass (`bmf-vangard-renpy-ide-1sg`). **Installer sign-off
+> (§3) is a separate, still-open gate — see §1's note.**
 
 ---
 
