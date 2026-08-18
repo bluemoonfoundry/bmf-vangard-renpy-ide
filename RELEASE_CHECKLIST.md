@@ -17,7 +17,7 @@ final tag's own artifacts.
 | Tag | Commit | Date | Test & Lint | E2E Smoke (97) | Win / macOS ARM / macOS Intel / Linux builds | Notes |
 |---|---|---|---|---|---|---|
 | `v1.0.0-rc1` | — | 2026-07-20 | ✅ | ✅ | ✅ / ✅ / ✅ / ✅ | [run](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/actions/runs/29711195126) |
-| `v1.0.0-rc2` | `9d97314` | 2026-08-17 | ✅ | ✅ | ✅ / ✅ / ✅ / ✅ | All 4 platform installers + `SHA256SUMS.txt` published to [the pre-release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v1.0.0-rc2). Manual installer sign-off (§3) still outstanding — tracked as `bmf-vangard-renpy-ide-zji`. |
+| `v1.0.0-rc2` | `9d97314` | 2026-08-17 | ✅ | ✅ | ✅ / ✅ / ✅ / ✅ | All 4 platform installers + `SHA256SUMS.txt` published to [the pre-release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/v1.0.0-rc2). Manual installer sign-off (§3) completed 2026-08-17 — `bmf-vangard-renpy-ide-zji` closed. |
 
 ## 1. Code Quality Gates
 
@@ -25,7 +25,7 @@ final tag's own artifacts.
 - [x] CI is green: **Test & Lint** job passes on the release commit — verified via `v1.0.0-rc2` build + local re-run (124 files / 2376 tests passing)
 - [x] **Coverage Gate** passes (`npm run test:coverage` — thresholds in `vite.config.ts`) — verified 2026-08-17, exit 0
 - [x] **E2E Smoke Suite** passes (97 smoke tests via Playwright) — verified via `v1.0.0-rc2` build
-- [ ] No open P0 or P1 beads issues (`bd list --status=open` filtered by priority) — **1 open P1 remains: `bmf-vangard-renpy-ide-zji` (installer sign-off, §3 below). This is the sole remaining release blocker.**
+- [x] No open P0 or P1 beads issues (`bd list --status=open` filtered by priority) — verified 2026-08-17 after closing `bmf-vangard-renpy-ide-zji` (installer sign-off, §3 below)
 
 ## 2. Changelog & Versioning
 
@@ -39,11 +39,13 @@ Each platform must be verified by a human on real hardware or a VM.
 
 | Platform | Artifact | Checklist |
 |---|---|---|
-| **Windows** | `Vangard_Studio_Windows_X.Y.Z.exe` | [ ] Installs silently, [ ] App launches, [ ] Opens test project, [ ] Auto-update check fires without crash |
-| **macOS ARM** | `Vangard_Studio_macOS_X.Y.Z-macos-arm64.dmg` | [ ] DMG mounts, [ ] `xattr -r -d com.apple.quarantine` then app launches (see note below — do NOT sign off on a bare double-click launch), [ ] Opens test project |
-| **macOS Intel** | `Vangard_Studio_macOS_X.Y.Z-macos-intel.dmg` | [ ] DMG mounts, [ ] `xattr -r -d com.apple.quarantine` then app launches, [ ] Opens test project |
-| **Linux AppImage** | `Vangard_Studio_Linux_X.Y.Z.AppImage` | [ ] `chmod +x` + run works, [ ] App launches, [ ] Opens test project |
-| **Linux deb** | `Vangard_Studio_Linux_X.Y.Z.deb` | [ ] `dpkg -i` installs, [ ] App launches, [ ] Opens test project |
+| **Windows** | `Vangard_Studio_Windows_X.Y.Z.exe` | [x] Installs silently, [x] App launches, [x] Opens test project, [x] Auto-update check fires without crash |
+| **macOS ARM** | `Vangard_Studio_macOS_X.Y.Z-macos-arm64.dmg` | [x] DMG mounts, [x] `xattr -r -d com.apple.quarantine` then app launches (see note below — do NOT sign off on a bare double-click launch), [x] Opens test project |
+| **macOS Intel** | `Vangard_Studio_macOS_X.Y.Z-macos-intel.dmg` | [x] DMG mounts, [x] `xattr -r -d com.apple.quarantine` then app launches, [x] Opens test project |
+| **Linux AppImage** | `Vangard_Studio_Linux_X.Y.Z.AppImage` | [x] `chmod +x` + run works, [x] App launches, [x] Opens test project |
+| **Linux deb** | `Vangard_Studio_Linux_X.Y.Z.deb` | [x] `dpkg -i` installs, [x] App launches, [x] Opens test project |
+
+> **Sign-off recorded 2026-08-17** by G.Hirpara — all five artifacts verified on real hardware/VM per the checklist above.
 
 > **Test project**: use `e2e/fixtures/test-project/` — it has two labels and exercises canvas rendering.
 
@@ -81,8 +83,10 @@ Each platform must be verified by a human on real hardware or a VM.
 | QA / Manual tester | G.Hirpara | 2026-08-17 |
 
 > Engineer sign-off covers §1, §2, §4 (verified above) and this final pre-tag review pass.
-> QA sign-off covers the manual QA pass (`bmf-vangard-renpy-ide-1sg`). **Installer sign-off
-> (§3) is a separate, still-open gate — see §1's note.**
+> QA sign-off covers the manual QA pass (`bmf-vangard-renpy-ide-1sg`) and installer
+> sign-off across all four platforms (`bmf-vangard-renpy-ide-zji`, §3). **All checklist
+> gates are now satisfied except §5 (Release Artifacts), which can only be verified
+> against the real `v1.0.0` tag's own GitHub release once cut.**
 
 ---
 
