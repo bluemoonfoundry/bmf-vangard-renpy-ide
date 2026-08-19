@@ -1,114 +1,101 @@
 import { describe, it, expect } from 'vitest';
 import { generateATLFromTimeline, transformNameFor } from './atlCodeGenerator';
-import type { SpriteAnimation } from '@/types';
+import type { SpriteAnimation, SpriteTimeline } from '@/types';
+
+function timeline(overrides: Partial<SpriteTimeline> = {}): SpriteTimeline {
+  return { id: 't1', name: 'Timeline', properties: [], keyframes: [], duration: 2, loop: false, ...overrides };
+}
 
 function anim(overrides: Partial<SpriteAnimation> = {}): SpriteAnimation {
-  return {
-    id: 'a1',
-    spriteId: 'eileen',
-    name: 'Entrance',
-    duration: 2,
-    loop: false,
-    tracks: [],
-    ...overrides,
-  };
+  return { spriteId: 'eileen', combineMode: 'parallel', timelines: [], ...overrides };
 }
 
 describe('transformNameFor', () => {
-  it('slugifies the animation name and prefixes it with the sprite id', () => {
-    expect(transformNameFor(anim({ name: 'Entrance' }))).toBe('eileen_entrance');
-    expect(transformNameFor(anim({ name: 'Main Loop!' }))).toBe('eileen_main_loop');
-  });
-
-  it('falls back to "animation" for an empty/symbols-only name', () => {
-    expect(transformNameFor(anim({ name: '###' }))).toBe('eileen_animation');
+  it('derives the transform name from the sprite id alone', () => {
+    expect(transformNameFor('eileen')).toBe('eileen_animation');
+    expect(transformNameFor('background')).toBe('background_animation');
   });
 });
 
 describe('generateATLFromTimeline', () => {
-  it('generates a pass-only transform for an animation with no keyframes', () => {
-    expect(generateATLFromTimeline(anim())).toBe('transform eileen_entrance:\n    pass\n');
+  it('falls back to a pass-only transform when no timeline has keyframes', () => {
+    expect(generateATLFromTimeline(anim({ timelines: [timeline()] }))).toBe('transform eileen_animation:\n    pass\n');
   });
 
-  it('generates a single-property linear transform matching the plan\'s example shape', () => {
-    const a = anim({
-      spriteId: 'eileen',
-      name: 'Entrance',
-      tracks: [
-        { property: 'x', keyframes: [
-          { id: 'k1', time: 0, value: 0.0, easing: 'linear' },
-          { id: 'k2', time: 1, value: 0.5, easing: 'linear' },
-        ] },
+  it('generates a single combined warp line for a single timeline covering multiple properties', () => {
+    const t = timeline({
+      properties: ['x', 'alpha'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { x: 0, alpha: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { x: 0.5, alpha: 1 }, easing: 'easein' },
       ],
     });
-    expect(generateATLFromTimeline(a)).toBe(
-      'transform eileen_entrance:\n    xcenter 0\n    linear 1 xcenter 0.5\n'
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
+      'transform eileen_animation:\n    xcenter 0\n    alpha 0\n    easein 1 xcenter 0.5 alpha 1\n'
     );
   });
 
-  it('maps x/y to xcenter/ycenter and rotation to rotate', () => {
-    const a = anim({
-      tracks: [
-        { property: 'y', keyframes: [{ id: 'k1', time: 0, value: 0.2, easing: 'linear' }, { id: 'k2', time: 1, value: 0.8, easing: 'easeout' }] },
+  it('emits properties in canonical order (x, y, zoom, alpha, rotation, blur) regardless of the properties array order', () => {
+    const t = timeline({
+      properties: ['alpha', 'x'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { alpha: 1, x: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { alpha: 0, x: 1 }, easing: 'linear' },
       ],
     });
-    const code = generateATLFromTimeline(a);
-    expect(code).toContain('ycenter 0.2');
-    expect(code).toContain('easeout 1 ycenter 0.8');
+    const code = generateATLFromTimeline(anim({ timelines: [t] }));
+    expect(code).toContain('xcenter 0\n    alpha 1\n');
+    expect(code).toContain('linear 1 xcenter 1 alpha 0\n');
   });
 
-  it('wraps multiple animated tracks in parallel', () => {
-    const a = anim({
-      tracks: [
-        { property: 'x', keyframes: [{ id: 'k1', time: 0, value: 0, easing: 'linear' }, { id: 'k2', time: 1, value: 1, easing: 'linear' }] },
-        { property: 'alpha', keyframes: [{ id: 'k3', time: 0, value: 0, easing: 'linear' }, { id: 'k4', time: 1, value: 1, easing: 'linear' }] },
-      ],
-    });
-    const code = generateATLFromTimeline(a);
-    expect(code).toContain('parallel:');
-    expect(code).toContain('        xcenter 0\n        linear 1 xcenter 1');
-    expect(code).toContain('        alpha 0\n        linear 1 alpha 1');
-  });
-
-  it('emits a static-only line for a track with exactly one keyframe', () => {
-    const a = anim({ tracks: [{ property: 'zoom', keyframes: [{ id: 'k1', time: 0, value: 1.5, easing: 'linear' }] }] });
-    expect(generateATLFromTimeline(a)).toBe('transform eileen_entrance:\n    zoom 1.5\n');
+  it('emits a static-only line (no warp) for a timeline with exactly one keyframe', () => {
+    const t = timeline({ properties: ['zoom'], keyframes: [{ id: 'k1', time: 0, values: { zoom: 1.5 }, easing: 'linear' }] });
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe('transform eileen_animation:\n    zoom 1.5\n');
   });
 
   it('sorts keyframes by time regardless of input order', () => {
-    const a = anim({
-      tracks: [
-        { property: 'alpha', keyframes: [
-          { id: 'k2', time: 1, value: 1, easing: 'linear' },
-          { id: 'k1', time: 0, value: 0, easing: 'linear' },
-        ] },
+    const t = timeline({
+      properties: ['alpha'],
+      keyframes: [
+        { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' },
+        { id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' },
       ],
     });
-    expect(generateATLFromTimeline(a)).toBe('transform eileen_entrance:\n    alpha 0\n    linear 1 alpha 1\n');
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n');
   });
 
-  it('appends "repeat" when the animation loops', () => {
-    const a = anim({
+  it('appends "repeat" per-timeline when that timeline loops', () => {
+    const t = timeline({
       loop: true,
-      tracks: [{ property: 'rotation', keyframes: [{ id: 'k1', time: 0, value: 0, easing: 'linear' }, { id: 'k2', time: 1, value: 360, easing: 'linear' }] }],
+      properties: ['rotation'],
+      keyframes: [{ id: 'k1', time: 0, values: { rotation: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { rotation: 360 }, easing: 'linear' }],
     });
-    expect(generateATLFromTimeline(a)).toBe('transform eileen_entrance:\n    rotate 0\n    linear 1 rotate 360\n    repeat\n');
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe('transform eileen_animation:\n    rotate 0\n    linear 1 rotate 360\n    repeat\n');
   });
 
-  it('handles a 3-keyframe sequence with mixed easing (entrance verification example)', () => {
-    const a = anim({
-      spriteId: 'eileen',
-      name: 'Slide',
-      tracks: [
-        { property: 'x', keyframes: [
-          { id: 'k1', time: 0, value: 0.0, easing: 'linear' },
-          { id: 'k2', time: 1, value: 0.5, easing: 'linear' },
-          { id: 'k3', time: 2, value: 1.0, easing: 'easeinout_quad' },
-        ] },
-      ],
-    });
-    expect(generateATLFromTimeline(a)).toBe(
-      'transform eileen_slide:\n    xcenter 0\n    linear 1 xcenter 0.5\n    easeinout_quad 1 xcenter 1\n'
+  it('wraps two timelines in nested parallel: branches when combineMode is parallel', () => {
+    const t1 = timeline({ id: 't1', properties: ['x'], keyframes: [{ id: 'k1', time: 0, values: { x: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { x: 1 }, easing: 'linear' }] });
+    const t2 = timeline({ id: 't2', properties: ['alpha'], keyframes: [{ id: 'k3', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k4', time: 1, values: { alpha: 1 }, easing: 'easein' }] });
+    const code = generateATLFromTimeline(anim({ combineMode: 'parallel', timelines: [t1, t2] }));
+    expect(code).toBe(
+      'transform eileen_animation:\n    parallel:\n        xcenter 0\n        linear 1 xcenter 1\n    parallel:\n        alpha 0\n        easein 1 alpha 1\n'
     );
+  });
+
+  it('concatenates two timelines directly with no parallel: wrapper when combineMode is sequential', () => {
+    const t1 = timeline({ id: 't1', properties: ['alpha'], keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] });
+    const t2 = timeline({ id: 't2', properties: ['alpha'], keyframes: [{ id: 'k3', time: 0, values: { alpha: 1 }, easing: 'linear' }, { id: 'k4', time: 1, values: { alpha: 0 }, easing: 'easeout' }] });
+    const code = generateATLFromTimeline(anim({ combineMode: 'sequential', timelines: [t1, t2] }));
+    expect(code).toBe(
+      'transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n    alpha 1\n    easeout 1 alpha 0\n'
+    );
+    expect(code).not.toContain('parallel:');
+  });
+
+  it('skips timelines with zero keyframes entirely, even alongside animated ones', () => {
+    const empty = timeline({ id: 'empty', properties: ['blur'], keyframes: [] });
+    const t = timeline({ id: 't1', properties: ['alpha'], keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] });
+    const code = generateATLFromTimeline(anim({ timelines: [empty, t] }));
+    expect(code).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n');
   });
 });
