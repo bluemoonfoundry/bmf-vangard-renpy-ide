@@ -13,8 +13,6 @@ Vangard Studio is a desktop IDE that helps you organize and manage your Ren'Py p
 
 ## Getting Started 
 
-**[Watch the Full Beta 4 Walkthrough Video @ YouTube →](https://youtu.be/PNgV-JjFNag)**
-
 **[Download the latest stable release](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/latest)**
 
 **[Download the latest nightly release (bleeding edge, tread carefully!)](https://github.com/bluemoonfoundry/bmf-vangard-renpy-ide/releases/tag/nightly)**
