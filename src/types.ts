@@ -957,6 +957,38 @@ export interface SceneComposition {
   background: SceneSprite | null;
   sprites: SceneSprite[];
   resolution?: { width: number; height: number };
+  animations?: SpriteAnimation[];
+}
+
+/** Ren'Py's standard ATL easing/warp functions. */
+export type EasingFunction = 'linear' | 'ease' | 'easein' | 'easeout' | 'easein_quad' | 'easeout_quad' | 'easeinout_quad';
+
+/** A single sprite property value pinned at a point in time on a `KeyframeTrack`. */
+export interface Keyframe {
+  id: string;
+  /** Seconds from the start of the animation. */
+  time: number;
+  /** Value of the track's property at this time (0-1 fraction for x/y/alpha, degrees for rotation, etc. -- same units as the matching `SceneSprite` field). */
+  value: number;
+  /** Easing applied to the transition arriving at this keyframe from the previous one. Ignored on a track's first keyframe. */
+  easing: EasingFunction;
+}
+
+/** One animated `SceneSprite` property (e.g. `alpha`) across time. */
+export interface KeyframeTrack {
+  /** Matches a `SceneSprite` field: x/y are the same 0-1 alignment fractions, zoom/alpha/rotation/blur the same units. */
+  property: 'x' | 'y' | 'zoom' | 'alpha' | 'rotation' | 'blur';
+  keyframes: Keyframe[];
+}
+
+/** A named, timed animation for one sprite (by `SceneSprite.id`, or `'background'`). */
+export interface SpriteAnimation {
+  id: string;
+  spriteId: string;
+  name: string;
+  tracks: KeyframeTrack[];
+  duration: number;
+  loop: boolean;
 }
 
 /**
@@ -1427,6 +1459,7 @@ export interface SerializedSceneComposition {
   background: SerializedSprite | null;
   sprites: SerializedSprite[];
   resolution?: { width: number; height: number };
+  animations?: SpriteAnimation[];
 }
 
 /** File path reference used when serializing image map compositions for persistence. */
