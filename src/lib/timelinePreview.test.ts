@@ -115,6 +115,14 @@ describe('interpolateSpriteAnimation', () => {
     expect(interpolateSpriteAnimation(anim, 1.5).alpha).toBeCloseTo(0.5, 5);
   });
 
+  it('holds forward the true final pose of an earlier LOOPING timeline, not its first keyframe', () => {
+    const loopingFirst: SpriteTimeline = { id: 't1', name: 'Loop', properties: ['alpha'], duration: 1, loop: true, keyframes: [{ id: 'k1', time: 0, values: { alpha: 0.2 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 0.9 }, easing: 'linear' }] };
+    const second: SpriteTimeline = { id: 't2', name: 'Second', properties: ['zoom'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { zoom: 1 }, easing: 'linear' }, { id: 'k2', time: 1, values: { zoom: 2 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [loopingFirst, second] };
+    // At t=1.5, `second` is active; `loopingFirst` should hold at its true final value (0.9), not wrap back to its first keyframe's 0.2
+    expect(interpolateSpriteAnimation(anim, 1.5).alpha).toBe(0.9);
+  });
+
   it('returns an empty object for a sprite animation with no timelines', () => {
     expect(interpolateSpriteAnimation({ spriteId: 's', combineMode: 'parallel', timelines: [] }, 1)).toEqual({});
   });

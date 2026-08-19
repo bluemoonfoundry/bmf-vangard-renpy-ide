@@ -130,6 +130,31 @@ describe('SpriteAnimationPanel', () => {
     expect(props.onPreviewUpdate).toHaveBeenCalledWith(expect.objectContaining({ alpha: expect.closeTo(0.5, 5) }));
   });
 
+  it('disables the Parallel radio when timelines have overlapping properties', () => {
+    const overlapping = anim({
+      combineMode: 'sequential',
+      timelines: [
+        timeline({ id: 't1', name: 'bob0', properties: ['alpha'] }),
+        timeline({ id: 't2', name: 'bob1', properties: ['alpha'] }),
+      ],
+    });
+    renderPanel({ animation: overlapping });
+    expect(screen.getByRole('radio', { name: 'Parallel' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Sequential' })).not.toBeDisabled();
+  });
+
+  it('leaves the Parallel radio enabled when timelines do not overlap', () => {
+    const nonOverlapping = anim({
+      combineMode: 'sequential',
+      timelines: [
+        timeline({ id: 't1', name: 'bob0', properties: ['alpha'] }),
+        timeline({ id: 't2', name: 'bob1', properties: ['zoom'] }),
+      ],
+    });
+    renderPanel({ animation: nonOverlapping });
+    expect(screen.getByRole('radio', { name: 'Parallel' })).not.toBeDisabled();
+  });
+
   it('toggles the Play button label when clicked', async () => {
     const user = userEvent.setup();
     renderPanel();

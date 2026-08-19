@@ -43,7 +43,13 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
   }, []);
 
   // Stop playback and clear the live preview override whenever the selected sprite's animation changes/unmounts.
-  useEffect(() => () => { playbackRef.current?.stop(); onPreviewUpdate(null); }, [animation?.spriteId, onPreviewUpdate]);
+  useEffect(() => () => {
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    setIsPlaying(false);
+    setPlayheadTime(0);
+    onPreviewUpdate(null);
+  }, [animation?.spriteId, onPreviewUpdate]);
 
   if (!animation) {
     return (
@@ -57,6 +63,17 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
   }
 
   const totalDuration = getTotalDuration(animation);
+
+  const hasOverlappingProperties = (() => {
+    const seen = new Set<AnimatableProperty>();
+    for (const t of animation.timelines) {
+      for (const p of t.properties) {
+        if (seen.has(p)) return true;
+        seen.add(p);
+      }
+    }
+    return false;
+  })();
 
   const handlePlay = () => {
     if (isPlaying) { stopPlayback(); return; }
@@ -110,7 +127,15 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
       {animation.timelines.length >= 2 && (
         <div className="flex items-center gap-3 text-xs">
           <label className="flex items-center gap-1">
-            <input type="radio" name="combine-mode" value="parallel" checked={animation.combineMode === 'parallel'} onChange={() => setCombineMode('parallel')} />
+            <input
+              type="radio"
+              name="combine-mode"
+              value="parallel"
+              checked={animation.combineMode === 'parallel'}
+              disabled={hasOverlappingProperties}
+              title={hasOverlappingProperties ? 'Cannot switch to Parallel: two or more timelines share a property. Remove the overlap first.' : undefined}
+              onChange={() => setCombineMode('parallel')}
+            />
             Parallel
           </label>
           <label className="flex items-center gap-1">
@@ -148,6 +173,7 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
             key={timeline.id}
             timeline={timeline}
             combineMode={animation.combineMode}
+            canLoop={animation.combineMode === 'parallel' || index === animation.timelines.length - 1}
             propertiesClaimedBySiblings={animation.timelines.filter((_, i) => i !== index).flatMap(t => t.properties)}
             currentValues={currentValues}
             onChangeTimeline={(updater) => handleChangeTimeline(timeline.id, updater)}

@@ -17,6 +17,8 @@ interface TimelineRowProps {
   /** Properties already claimed by a sibling timeline on the same sprite -- disabled in the picker only when `combineMode === 'parallel'`. */
   propertiesClaimedBySiblings: AnimatableProperty[];
   combineMode: 'parallel' | 'sequential';
+  /** False disables the Loop checkbox: only the last timeline in a sequential sequence may safely loop (an earlier one would repeat forever and block every timeline after it — see atlCodeGenerator.ts's sequential honorLoop logic). Always true in parallel mode. */
+  canLoop: boolean;
   /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
   currentValues: Record<AnimatableProperty, number>;
   onChangeTimeline: (updater: (prev: SpriteTimeline) => SpriteTimeline) => void;
@@ -37,7 +39,7 @@ const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
 };
 
 const TimelineRow: React.FC<TimelineRowProps> = ({
-  timeline, propertiesClaimedBySiblings, combineMode, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
+  timeline, propertiesClaimedBySiblings, combineMode, canLoop, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
 }) => {
   const [editingKeyframeId, setEditingKeyframeId] = useState<string | null>(null);
   const [draggingKeyframeId, setDraggingKeyframeId] = useState<string | null>(null);
@@ -149,7 +151,13 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
           s
         </label>
         <label className="flex items-center gap-1 text-xs text-secondary">
-          <input type="checkbox" checked={timeline.loop} onChange={e => setLoop(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={timeline.loop}
+            disabled={!canLoop}
+            title={!canLoop ? 'Only the last timeline in a sequential sequence can loop.' : undefined}
+            onChange={e => setLoop(e.target.checked)}
+          />
           Loop
         </label>
       </div>

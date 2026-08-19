@@ -98,4 +98,30 @@ describe('generateATLFromTimeline', () => {
     const code = generateATLFromTimeline(anim({ timelines: [empty, t] }));
     expect(code).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n');
   });
+
+  it('excludes a timeline with keyframes but zero selected properties (falls back to pass if it is the only one)', () => {
+    const brokenTimeline = timeline({ properties: [], keyframes: [{ id: 'k1', time: 0, values: {}, easing: 'linear' }, { id: 'k2', time: 1, values: {}, easing: 'linear' }] });
+    expect(generateATLFromTimeline(anim({ timelines: [brokenTimeline] }))).toBe('transform eileen_animation:\n    pass\n');
+  });
+
+  it('excludes a timeline with keyframes but zero selected properties even alongside a valid one', () => {
+    const brokenTimeline = timeline({ id: 'broken', properties: [], keyframes: [{ id: 'k1', time: 0, values: {}, easing: 'linear' }, { id: 'k2', time: 1, values: {}, easing: 'linear' }] });
+    const validTimeline = timeline({ id: 'valid', properties: ['alpha'], keyframes: [{ id: 'k3', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k4', time: 1, values: { alpha: 1 }, easing: 'linear' }] });
+    expect(generateATLFromTimeline(anim({ timelines: [brokenTimeline, validTimeline] }))).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n');
+  });
+
+  it('does not repeat mid-sequence when a non-last sequential timeline loops (would restart the whole block)', () => {
+    const first = timeline({ id: 't1', loop: true, properties: ['alpha'], keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] });
+    const second = timeline({ id: 't2', loop: false, properties: ['zoom'], keyframes: [{ id: 'k3', time: 0, values: { zoom: 1 }, easing: 'linear' }, { id: 'k4', time: 1, values: { zoom: 2 }, easing: 'linear' }] });
+    const code = generateATLFromTimeline(anim({ combineMode: 'sequential', timelines: [first, second] }));
+    expect(code).not.toContain('repeat');
+    expect(code).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n    zoom 1\n    linear 1 zoom 2\n');
+  });
+
+  it('honors loop on the last sequential timeline, trailing the whole output', () => {
+    const first = timeline({ id: 't1', loop: false, properties: ['alpha'], keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] });
+    const second = timeline({ id: 't2', loop: true, properties: ['zoom'], keyframes: [{ id: 'k3', time: 0, values: { zoom: 1 }, easing: 'linear' }, { id: 'k4', time: 1, values: { zoom: 2 }, easing: 'linear' }] });
+    const code = generateATLFromTimeline(anim({ combineMode: 'sequential', timelines: [first, second] }));
+    expect(code).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n    zoom 1\n    linear 1 zoom 2\n    repeat\n');
+  });
 });

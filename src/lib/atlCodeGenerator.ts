@@ -37,11 +37,12 @@ function formatValue(value: number): string {
  * every property in `timeline.properties`, in canonical order. Appends a
  * trailing `repeat` line if the timeline loops.
  */
-function generateTimelineCode(timeline: SpriteTimeline, indent: string): string {
+function generateTimelineCode(timeline: SpriteTimeline, indent: string, honorLoop = true): string {
   const kfs = [...timeline.keyframes].sort((a, b) => a.time - b.time);
   if (kfs.length === 0) return '';
 
   const orderedProps = PROPERTY_ORDER.filter(p => timeline.properties.includes(p));
+  if (orderedProps.length === 0) return '';
 
   let code = orderedProps.map(p => `${indent}${ATL_PROPERTY_NAME[p]} ${formatValue(kfs[0].values[p] ?? 0)}`).join('\n') + '\n';
   for (let i = 1; i < kfs.length; i++) {
@@ -50,7 +51,7 @@ function generateTimelineCode(timeline: SpriteTimeline, indent: string): string 
     code += `${indent}${kfs[i].easing} ${formatValue(duration)} ${parts}\n`;
   }
 
-  if (timeline.loop) code += `${indent}repeat\n`;
+  if (timeline.loop && honorLoop) code += `${indent}repeat\n`;
 
   return code;
 }
@@ -65,7 +66,7 @@ function generateTimelineCode(timeline: SpriteTimeline, indent: string): string 
  */
 export function generateATLFromTimeline(anim: SpriteAnimation): string {
   const name = transformNameFor(anim.spriteId);
-  const active = anim.timelines.filter(t => t.keyframes.length > 0);
+  const active = anim.timelines.filter(t => t.keyframes.length > 0 && t.properties.length > 0);
 
   if (active.length === 0) {
     return `transform ${name}:\n    pass\n`;
@@ -79,7 +80,7 @@ export function generateATLFromTimeline(anim: SpriteAnimation): string {
       body = generateTimelineCode(active[0], '    ');
     }
   } else {
-    body = active.map(t => generateTimelineCode(t, '    ')).join('');
+    body = active.map((t, i) => generateTimelineCode(t, '    ', i === active.length - 1)).join('');
   }
 
   return `transform ${name}:\n${body}`;

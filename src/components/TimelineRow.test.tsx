@@ -22,6 +22,7 @@ function renderRow(overrides: Partial<Parameters<typeof TimelineRow>[0]> = {}) {
     timeline: emptyTimeline(),
     propertiesClaimedBySiblings: [] as AnimatableProperty[],
     combineMode: 'parallel' as const,
+    canLoop: true,
     currentValues,
     onChangeTimeline,
     onRemoveTimeline,
@@ -94,7 +95,7 @@ describe('TimelineRow', () => {
     const withOneProp: SpriteTimeline = { ...emptyTimeline(), properties: ['alpha'] };
     const onChangeTimeline = vi.fn();
     const { rerender } = render(
-      <TimelineRow timeline={withOneProp} propertiesClaimedBySiblings={[]} combineMode="parallel" currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
+      <TimelineRow timeline={withOneProp} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Add keyframe' }), { clientX: 100 }); // 100/200 * 2s = 1.0s
 
@@ -105,7 +106,7 @@ describe('TimelineRow', () => {
     expect(result.keyframes[0].values).toEqual({ alpha: 1 });
 
     rerender(
-      <TimelineRow timeline={result} propertiesClaimedBySiblings={[]} combineMode="parallel" currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
+      <TimelineRow timeline={result} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
     );
     expect(await screen.findByRole('heading', { name: 'Keyframe' })).toBeInTheDocument();
   });
@@ -145,6 +146,24 @@ describe('TimelineRow', () => {
     renderRow({ onRemoveTimeline });
     await user.click(screen.getByRole('button', { name: 'Remove' }));
     expect(onRemoveTimeline).toHaveBeenCalled();
+  });
+
+  it('disables the Loop checkbox when canLoop is false, and enables it when true', () => {
+    const { rerender } = renderRow({ canLoop: false });
+    expect(screen.getByLabelText('Loop')).toBeDisabled();
+
+    rerender(
+      <TimelineRow
+        timeline={emptyTimeline()}
+        propertiesClaimedBySiblings={[]}
+        combineMode="parallel"
+        canLoop={true}
+        currentValues={currentValues}
+        onChangeTimeline={() => {}}
+        onRemoveTimeline={() => {}}
+      />
+    );
+    expect(screen.getByLabelText('Loop')).not.toBeDisabled();
   });
 
   it('calls onMoveUp/onMoveDown when provided, and omits the buttons when not', async () => {

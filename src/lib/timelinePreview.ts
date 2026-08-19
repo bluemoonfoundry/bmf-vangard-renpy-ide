@@ -107,7 +107,10 @@ export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number):
 
   const result: Partial<Record<AnimatableProperty, number>> = {};
   for (let i = 0; i < activeIndex; i++) {
-    Object.assign(result, interpolateTimeline(anim.timelines[i], anim.timelines[i].duration));
+    const priorTimeline = anim.timelines[i];
+    if (priorTimeline.keyframes.length === 0) continue;
+    const lastKeyframe = [...priorTimeline.keyframes].sort((a, b) => a.time - b.time).at(-1)!;
+    Object.assign(result, lastKeyframe.values);
   }
   Object.assign(result, interpolateTimeline(anim.timelines[activeIndex], localTime));
   return result;
