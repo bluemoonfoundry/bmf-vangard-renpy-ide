@@ -1673,6 +1673,19 @@ const App: React.FC = () => {
       editor.focus();
   }, [getActiveEditor, addToast]);
 
+  const handleInsertATLPreset = useCallback((code: string) => {
+      const editor = getActiveEditor();
+      if (!editor) { addToast('Open a file in the editor to insert an animation.', 'warning'); return; }
+      const pos = editor.getPosition();
+      if (!pos) return;
+      editor.executeEdits('atl-preset', [{
+          range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+          text: code,
+          forceMoveMarkers: true,
+      }]);
+      editor.focus();
+  }, [getActiveEditor, addToast]);
+
   const handleWrapSelectionWithColor = useCallback((hex: string) => {
       const editor = getActiveEditor();
       if (!editor) { addToast('Open a file in the editor to wrap text with a color tag.', 'warning'); return; }
@@ -2460,6 +2473,7 @@ const App: React.FC = () => {
                 onEditMenuTemplate={(template) => openMenuConstructorModal(template)}
                 onDeleteMenuTemplate={handleDeleteMenuTemplate}
                 // Color Picker
+                onInsertATLPresetAtCursor={handleInsertATLPreset}
                 onInsertColorAtCursor={handleInsertColor}
                 onWrapColorSelection={handleWrapSelectionWithColor}
                 onCopyColorHex={handleCopyColorHex}

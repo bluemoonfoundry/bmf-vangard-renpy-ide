@@ -824,6 +824,30 @@ export interface SnippetCategory {
   snippets: Snippet[];
 }
 
+/** A single tunable value on an `ATLPreset`'s template. */
+export interface ATLPresetParameter {
+  name: string;
+  type: 'duration' | 'easing' | 'repeat' | 'offset' | 'intensity';
+  defaultValue: number | string;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Selectable values for `type: 'easing'`. */
+  options?: string[];
+}
+
+/**
+ * A parameterized ATL (Animation & Transform Language) snippet, browsed and
+ * configured via `ATLPresetBrowser`. `atlTemplate` holds `{paramName}`
+ * placeholders substituted by `instantiatePreset`; `code` holds the template
+ * pre-filled with each parameter's `defaultValue`, so a preset is still a
+ * valid, copyable `Snippet` on its own.
+ */
+export interface ATLPreset extends Snippet {
+  parameters: ATLPresetParameter[];
+  atlTemplate: string;
+}
+
 /** On-disk shape of default-snippets.json, custom.json, .vangard/snippets.json, and exported packs. */
 export interface SnippetPackFile {
   version: string;
@@ -1200,7 +1224,7 @@ export interface ProjectSettings {
   scannedAudioPaths?: string[];
   storyElementsTabState?: {
     activeTab: 'storyData' | 'assets' | 'composers' | 'tools';
-    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'snippets' | 'menuTemplates' | 'colorPalette';
+    activeSubTab?: 'characters' | 'variables' | 'screens' | 'images' | 'audio' | 'scenes' | 'imagemaps' | 'snippets' | 'animations' | 'menuTemplates' | 'colorPalette';
   };
   dismissedImplicitVariableHint?: boolean;
   completedMilestones?: string[];
