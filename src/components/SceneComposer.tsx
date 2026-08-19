@@ -8,10 +8,10 @@
  */
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { logger } from '@/lib/logger';
-import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite, SpriteAnimation, KeyframeTrack } from '@/types';
+import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite, SpriteAnimation, SpriteTimeline, AnimatableProperty } from '@/types';
 import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
-import SpriteTimeline from './SpriteTimeline';
+import SpriteAnimationPanel from './SpriteAnimationPanel';
 import { generateATLFromTimeline, transformNameFor } from '@/lib/atlCodeGenerator';
 import { createId } from '@/lib/createId';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -204,7 +204,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     const [editName, setEditName] = useState(sceneName);
     const [isExporting, setIsExporting] = useState(false);
     const [showTimeline, setShowTimeline] = useState(false);
-    const [timelinePreviewValues, setTimelinePreviewValues] = useState<Partial<Record<KeyframeTrack['property'], number>> | null>(null);
+    const [timelinePreviewValues, setTimelinePreviewValues] = useState<Partial<Record<AnimatableProperty, number>> | null>(null);
 
     // Undo / Redo
     const [undoStack, setUndoStack] = useState<SceneComposition[]>([]);
@@ -705,12 +705,12 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
         }
     };
 
-    // Timeline animations: only ones with at least one animated (2+ keyframe) track produce a
-    // usable `transform`; a spriteId maps to at most one, since the UI only supports one per sprite.
+    // Timeline animations: only ones with at least one timeline that has keyframes produce a
+    // usable `transform`; a spriteId maps to at most one, since a sprite has one SpriteAnimation.
     const animatedAnimationBySpriteId = useMemo(() => {
         const map = new Map<string, SpriteAnimation>();
         for (const anim of scene.animations ?? []) {
-            if (anim.tracks.some(t => t.keyframes.length > 0)) map.set(anim.spriteId, anim);
+            if (anim.timelines.some(t => t.keyframes.length > 0)) map.set(anim.spriteId, anim);
         }
         return map;
     }, [scene.animations]);
@@ -737,7 +737,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             if (bg.blur > 0) transforms.push(`blur ${bg.blur}`);
 
             const bgAnim = animatedAnimationBySpriteId.get('background');
-            const bgAtClause = bgAnim ? ` at ${transformNameFor(bgAnim)}` : '';
+            const bgAtClause = bgAnim ? ` at ${transformNameFor(bgAnim.spriteId)}` : '';
 
             const bgEffects = spriteEffectCode(bg, ind);
             let bgCode: string;
@@ -775,7 +775,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
 
             const zStr = ` zorder ${index + 1}`;
             const spriteAnim = animatedAnimationBySpriteId.get(sprite.id);
-            const atClause = spriteAnim ? ` at ${transformNameFor(spriteAnim)}` : '';
+            const atClause = spriteAnim ? ` at ${transformNameFor(spriteAnim.spriteId)}` : '';
 
             const effectCode = spriteEffectCode(sprite, ind);
             let spriteCode = `show ${tag}${zStr}${atClause}:\n${ind}xcenter ${x} ycenter ${y}${zoomStr}${xzoomStr}${yzoomStr}${rotateStr}${alphaStr}${blurStr}\n${effectCode}`;
@@ -800,19 +800,21 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     }, [scene.animations, selectedSpriteId]);
 
     const handleCreateAnimation = useCallback(() => {
-        if (!selectedSpriteId) return;
+        if (!selectedSpriteId || !activeSprite) return;
         saveUndo();
-        const newAnimation: SpriteAnimation = {
-            id: createId('anim'), spriteId: selectedSpriteId, name: 'Animation', duration: 1, loop: false, tracks: [],
+        const spriteLabel = selectedSpriteId === 'background' ? 'background' : getRenpyTag(activeSprite.image);
+        const starterTimeline: SpriteTimeline = {
+            id: createId('tl'), name: `${spriteLabel}0`, properties: [], keyframes: [], duration: 1, loop: false,
         };
+        const newAnimation: SpriteAnimation = { spriteId: selectedSpriteId, combineMode: 'parallel', timelines: [starterTimeline] };
         onSceneChange(prev => ({ ...prev, animations: [...(prev.animations ?? []), newAnimation] }));
-    }, [selectedSpriteId, saveUndo, onSceneChange]);
+    }, [selectedSpriteId, activeSprite, getRenpyTag, saveUndo, onSceneChange]);
 
     const handleChangeAnimation = useCallback((updater: (prev: SpriteAnimation) => SpriteAnimation) => {
         if (!activeAnimation) return;
         onSceneChange(prev => ({
             ...prev,
-            animations: (prev.animations ?? []).map(a => a.id === activeAnimation.id ? updater(a) : a),
+            animations: (prev.animations ?? []).map(a => a.spriteId === activeAnimation.spriteId ? updater(a) : a),
         }));
     }, [activeAnimation, onSceneChange]);
 
@@ -820,7 +822,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
         if (!activeAnimation) return;
         saveUndo();
         setTimelinePreviewValues(null);
-        onSceneChange(prev => ({ ...prev, animations: (prev.animations ?? []).filter(a => a.id !== activeAnimation.id) }));
+        onSceneChange(prev => ({ ...prev, animations: (prev.animations ?? []).filter(a => a.spriteId !== activeAnimation.spriteId) }));
     }, [activeAnimation, saveUndo, onSceneChange]);
 
     const layersReversed = useMemo(() => {
@@ -1067,7 +1069,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             {showTimeline && (
                 <div className="h-64 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-y-auto p-3">
                     {activeSprite ? (
-                        <SpriteTimeline
+                        <SpriteAnimationPanel
                             spriteLabel={selectedSpriteId === 'background' ? 'Background' : getRenpyTag(activeSprite.image)}
                             animation={activeAnimation}
                             currentValues={{
