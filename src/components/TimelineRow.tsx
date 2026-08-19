@@ -1,0 +1,213 @@
+/**
+ * @file TimelineRow.tsx
+ * @description One `SpriteTimeline` in `SpriteAnimationPanel`: an editable
+ * name, a property picker, duration/loop controls, and a ruler spanning the
+ * timeline's duration with a dot per keyframe. Click empty ruler space to
+ * add a keyframe there (values default to `currentValues`); click a dot to
+ * open `PoseKeyframeEditor`; drag a dot to reposition it in time (native
+ * pointer events, per this repo's canvas convention -- see CLAUDE.md).
+ */
+import React, { useState, useRef } from 'react';
+import type { AnimatableProperty, PoseKeyframe, SpriteTimeline } from '@/types';
+import PoseKeyframeEditor, { VALUE_RANGE_BY_PROPERTY } from './PoseKeyframeEditor';
+import { createId } from '@/lib/createId';
+
+interface TimelineRowProps {
+  timeline: SpriteTimeline;
+  /** Properties already claimed by a sibling timeline on the same sprite -- disabled in the picker only when `combineMode === 'parallel'`. */
+  propertiesClaimedBySiblings: AnimatableProperty[];
+  combineMode: 'parallel' | 'sequential';
+  /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
+  currentValues: Record<AnimatableProperty, number>;
+  onChangeTimeline: (updater: (prev: SpriteTimeline) => SpriteTimeline) => void;
+  onRemoveTimeline: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+}
+
+const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur'];
+
+const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
+  x: 'X Position',
+  y: 'Y Position',
+  zoom: 'Zoom',
+  alpha: 'Alpha',
+  rotation: 'Rotation',
+  blur: 'Blur',
+};
+
+const TimelineRow: React.FC<TimelineRowProps> = ({
+  timeline, propertiesClaimedBySiblings, combineMode, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
+}) => {
+  const [editingKeyframeId, setEditingKeyframeId] = useState<string | null>(null);
+  const [draggingKeyframeId, setDraggingKeyframeId] = useState<string | null>(null);
+  const rulerRef = useRef<HTMLDivElement>(null);
+
+  const editingKeyframe = timeline.keyframes.find(kf => kf.id === editingKeyframeId) ?? null;
+  const isFirstKeyframe = editingKeyframe
+    ? [...timeline.keyframes].sort((a, b) => a.time - b.time)[0]?.id === editingKeyframe.id
+    : false;
+
+  const toggleProperty = (property: AnimatableProperty) => {
+    onChangeTimeline(prev => {
+      const has = prev.properties.includes(property);
+      if (has) {
+        return {
+          ...prev,
+          properties: prev.properties.filter(p => p !== property),
+          keyframes: prev.keyframes.map(kf => {
+            const values = { ...kf.values };
+            delete values[property];
+            return { ...kf, values };
+          }),
+        };
+      }
+      const backfillValue = currentValues[property];
+      return {
+        ...prev,
+        properties: [...prev.properties, property],
+        keyframes: prev.keyframes.map(kf => ({ ...kf, values: { ...kf.values, [property]: backfillValue } })),
+      };
+    });
+  };
+
+  const setName = (name: string) => onChangeTimeline(prev => ({ ...prev, name }));
+  const setDuration = (duration: number) => onChangeTimeline(prev => ({ ...prev, duration: Math.max(0.1, duration) }));
+  const setLoop = (loop: boolean) => onChangeTimeline(prev => ({ ...prev, loop }));
+
+  const timeFromClientX = (clientX: number): number => {
+    const rect = rulerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return 0;
+    const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round(fraction * timeline.duration * 20) / 20; // snap to 0.05s
+  };
+
+  const handleRulerClick = (e: React.MouseEvent) => {
+    if (e.target !== rulerRef.current) return; // ignore clicks that landed on a dot
+    const time = timeFromClientX(e.clientX);
+    const values: Partial<Record<AnimatableProperty, number>> = {};
+    for (const property of timeline.properties) values[property] = currentValues[property];
+    const newKeyframe: PoseKeyframe = { id: createId('pk'), time, values, easing: 'linear' };
+    onChangeTimeline(prev => ({ ...prev, keyframes: [...prev.keyframes, newKeyframe] }));
+    setEditingKeyframeId(newKeyframe.id);
+  };
+
+  const handleDotPointerDown = (e: React.PointerEvent, keyframeId: string) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggingKeyframeId(keyframeId);
+  };
+
+  const handleDotPointerMove = (e: React.PointerEvent) => {
+    if (!draggingKeyframeId) return;
+    const time = timeFromClientX(e.clientX);
+    onChangeTimeline(prev => ({
+      ...prev,
+      keyframes: prev.keyframes.map(kf => kf.id === draggingKeyframeId ? { ...kf, time } : kf),
+    }));
+  };
+
+  const handleDotPointerUp = (e: React.PointerEvent) => {
+    if (draggingKeyframeId) {
+      const target = e.target as HTMLElement;
+      if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
+      setDraggingKeyframeId(null);
+    }
+  };
+
+  return (
+    <div className="p-3 rounded-md border border-primary bg-secondary space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={timeline.name}
+          onChange={e => setName(e.target.value)}
+          className="flex-1 text-sm font-semibold rounded border border-primary bg-secondary text-primary px-2 py-1"
+        />
+        {onMoveUp && <button onClick={onMoveUp} aria-label="Move up" className="text-xs text-secondary hover:text-primary">&uarr;</button>}
+        {onMoveDown && <button onClick={onMoveDown} aria-label="Move down" className="text-xs text-secondary hover:text-primary">&darr;</button>}
+        <button onClick={onRemoveTimeline} aria-label="Remove" className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {PROPERTY_ORDER.map(property => {
+          const isSelected = timeline.properties.includes(property);
+          const isDisabled = combineMode === 'parallel' && !isSelected && propertiesClaimedBySiblings.includes(property);
+          return (
+            <label key={property} className={`flex items-center gap-1 text-xs ${isDisabled ? 'text-secondary opacity-50' : 'text-primary'}`}>
+              <input type="checkbox" checked={isSelected} disabled={isDisabled} onChange={() => toggleProperty(property)} aria-label={PROPERTY_LABEL[property]} />
+              {PROPERTY_LABEL[property]}
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-1 text-xs text-secondary">
+          Duration
+          <input type="number" min={0.1} step={0.1} value={timeline.duration} onChange={e => setDuration(Number(e.target.value))} className="w-16 text-xs rounded border border-primary bg-secondary text-primary px-1 py-0.5" />
+          s
+        </label>
+        <label className="flex items-center gap-1 text-xs text-secondary">
+          <input type="checkbox" checked={timeline.loop} onChange={e => setLoop(e.target.checked)} />
+          Loop
+        </label>
+      </div>
+
+      {timeline.properties.length === 0 ? (
+        <p className="text-xs text-secondary italic py-2">Pick at least one property to start keyframing</p>
+      ) : (
+        <div
+          ref={rulerRef}
+          role="button"
+          aria-label="Add keyframe"
+          onClick={handleRulerClick}
+          onPointerMove={handleDotPointerMove}
+          onPointerUp={handleDotPointerUp}
+          className="relative h-6 rounded bg-tertiary border border-primary cursor-pointer"
+        >
+          {timeline.keyframes.map(kf => (
+            <button
+              key={kf.id}
+              type="button"
+              aria-label={`keyframe at ${kf.time.toFixed(2)}s`}
+              onPointerDown={(e) => handleDotPointerDown(e, kf.id)}
+              onClick={(e) => { e.stopPropagation(); setEditingKeyframeId(kf.id); }}
+              style={{ left: `${timeline.duration > 0 ? (kf.time / timeline.duration) * 100 : 0}%` }}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-accent border-2 border-white dark:border-gray-800 shadow cursor-grab active:cursor-grabbing"
+            />
+          ))}
+        </div>
+      )}
+
+      {editingKeyframe && (
+        <PoseKeyframeEditor
+          keyframe={editingKeyframe}
+          properties={timeline.properties}
+          duration={timeline.duration}
+          isFirstKeyframe={isFirstKeyframe}
+          onClose={() => setEditingKeyframeId(null)}
+          onSave={(updated) => {
+            const clampedValues: Partial<Record<AnimatableProperty, number>> = {};
+            for (const property of timeline.properties) {
+              const range = VALUE_RANGE_BY_PROPERTY[property];
+              const raw = updated.values[property] ?? 0;
+              clampedValues[property] = Math.max(range.min, Math.min(range.max, raw));
+            }
+            onChangeTimeline(prev => ({
+              ...prev,
+              keyframes: prev.keyframes.map(kf => kf.id === updated.id ? { ...updated, values: clampedValues } : kf),
+            }));
+            setEditingKeyframeId(null);
+          }}
+          onDelete={() => {
+            onChangeTimeline(prev => ({ ...prev, keyframes: prev.keyframes.filter(kf => kf.id !== editingKeyframe.id) }));
+            setEditingKeyframeId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default TimelineRow;
