@@ -1,80 +1,121 @@
 import { describe, it, expect } from 'vitest';
-import { interpolateTrack, interpolateAnimation } from './timelinePreview';
-import type { KeyframeTrack, SpriteAnimation } from '@/types';
+import { interpolateTimeline, interpolateSpriteAnimation, getTotalDuration } from './timelinePreview';
+import type { SpriteAnimation, SpriteTimeline } from '@/types';
 
-const track: KeyframeTrack = {
-  property: 'x',
+const xTimeline: SpriteTimeline = {
+  id: 't-x', name: 'Position', properties: ['x'], duration: 2, loop: false,
   keyframes: [
-    { id: 'k1', time: 0, value: 0, easing: 'linear' },
-    { id: 'k2', time: 1, value: 1, easing: 'linear' },
-    { id: 'k3', time: 2, value: 0.5, easing: 'linear' },
+    { id: 'k1', time: 0, values: { x: 0 }, easing: 'linear' },
+    { id: 'k2', time: 1, values: { x: 1 }, easing: 'linear' },
+    { id: 'k3', time: 2, values: { x: 0.5 }, easing: 'linear' },
   ],
 };
 
-describe('interpolateTrack', () => {
-  it('returns undefined for an empty track', () => {
-    expect(interpolateTrack({ property: 'x', keyframes: [] }, 0.5)).toBeUndefined();
+describe('interpolateTimeline', () => {
+  it('returns an empty object for a timeline with no keyframes', () => {
+    expect(interpolateTimeline({ ...xTimeline, keyframes: [] }, 0.5)).toEqual({});
   });
 
-  it('returns the single value for a one-keyframe track at any time', () => {
-    const single: KeyframeTrack = { property: 'alpha', keyframes: [{ id: 'k1', time: 1, value: 0.7, easing: 'linear' }] };
-    expect(interpolateTrack(single, 0)).toBe(0.7);
-    expect(interpolateTrack(single, 5)).toBe(0.7);
+  it('returns the single pose for a one-keyframe timeline at any time', () => {
+    const single: SpriteTimeline = { ...xTimeline, keyframes: [{ id: 'k1', time: 1, values: { x: 0.7 }, easing: 'linear' }] };
+    expect(interpolateTimeline(single, 0)).toEqual({ x: 0.7 });
+    expect(interpolateTimeline(single, 5)).toEqual({ x: 0.7 });
   });
 
-  it('holds the first value before the first keyframe', () => {
-    expect(interpolateTrack(track, -1)).toBe(0);
+  it('clamps to the first pose before the first keyframe, and the last pose after the last (non-looping)', () => {
+    expect(interpolateTimeline(xTimeline, -1)).toEqual({ x: 0 });
+    expect(interpolateTimeline(xTimeline, 10)).toEqual({ x: 0.5 });
   });
 
-  it('holds the last value after the last keyframe', () => {
-    expect(interpolateTrack(track, 10)).toBe(0.5);
+  it('wraps around when the timeline loops', () => {
+    const looping: SpriteTimeline = { ...xTimeline, loop: true };
+    // 2.5s wraps to 0.5s within a 2s duration
+    expect(interpolateTimeline(looping, 2.5).x).toBeCloseTo(0.5, 5);
   });
 
-  it('returns exact keyframe values at their own time', () => {
-    expect(interpolateTrack(track, 0)).toBe(0);
-    expect(interpolateTrack(track, 1)).toBe(1);
-    expect(interpolateTrack(track, 2)).toBe(0.5);
+  it('linearly interpolates between two keyframes for every covered property', () => {
+    expect(interpolateTimeline(xTimeline, 0.5)).toEqual({ x: 0.5 });
   });
 
-  it('linearly interpolates between two keyframes', () => {
-    expect(interpolateTrack(track, 0.5)).toBeCloseTo(0.5, 5);
-    expect(interpolateTrack(track, 1.5)).toBeCloseTo(0.75, 5);
-  });
-
-  it('applies the arriving keyframe\'s easing, not the departing one', () => {
-    const eased: KeyframeTrack = {
-      property: 'alpha',
+  it('applies the arriving keyframe\'s easing', () => {
+    const eased: SpriteTimeline = {
+      ...xTimeline,
       keyframes: [
-        { id: 'k1', time: 0, value: 0, easing: 'linear' },
-        { id: 'k2', time: 1, value: 1, easing: 'easein' }, // slow start: below the linear diagonal at t=0.5
+        { id: 'k1', time: 0, values: { x: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { x: 1 }, easing: 'easein' },
       ],
     };
-    expect(interpolateTrack(eased, 0.5)).toBeLessThan(0.5);
+    expect(interpolateTimeline(eased, 0.5).x).toBeLessThan(0.5);
+  });
+
+  it('interpolates every property in the timeline independently at the same instant', () => {
+    const multi: SpriteTimeline = {
+      ...xTimeline,
+      properties: ['x', 'alpha'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { x: 0, alpha: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { x: 1, alpha: 1 }, easing: 'linear' },
+      ],
+    };
+    expect(interpolateTimeline(multi, 0.5)).toEqual({ x: 0.5, alpha: 0.5 });
   });
 });
 
-describe('interpolateAnimation', () => {
-  const anim: SpriteAnimation = {
-    id: 'a1',
-    spriteId: 's1',
-    name: 'Test',
-    duration: 2,
-    loop: false,
-    tracks: [
-      track,
-      { property: 'alpha', keyframes: [{ id: 'k1', time: 0, value: 1, easing: 'linear' }] },
-      { property: 'zoom', keyframes: [] },
-    ],
-  };
-
-  it('returns interpolated values for every track that has keyframes', () => {
-    const result = interpolateAnimation(anim, 0.5);
-    expect(result.x).toBeCloseTo(0.5, 5);
-    expect(result.alpha).toBe(1);
+describe('getTotalDuration', () => {
+  it('is the max of the timelines\' durations in parallel mode', () => {
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'parallel', timelines: [{ ...xTimeline, duration: 2 }, { ...xTimeline, id: 't2', duration: 5 }] };
+    expect(getTotalDuration(anim)).toBe(5);
   });
 
-  it('omits tracks with no keyframes', () => {
-    const result = interpolateAnimation(anim, 0.5);
-    expect(result.zoom).toBeUndefined();
+  it('is the sum of the timelines\' durations in sequential mode', () => {
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [{ ...xTimeline, duration: 2 }, { ...xTimeline, id: 't2', duration: 1.5 }] };
+    expect(getTotalDuration(anim)).toBe(3.5);
+  });
+
+  it('is 0 for a sprite animation with no timelines', () => {
+    expect(getTotalDuration({ spriteId: 's', combineMode: 'parallel', timelines: [] })).toBe(0);
+  });
+});
+
+describe('interpolateSpriteAnimation', () => {
+  it('merges independent parallel timelines at the same instant', () => {
+    const alphaTimeline: SpriteTimeline = { id: 't-a', name: 'Fade', properties: ['alpha'], duration: 2, loop: false, keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 2, values: { alpha: 1 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'parallel', timelines: [xTimeline, alphaTimeline] };
+    expect(interpolateSpriteAnimation(anim, 1)).toEqual({ x: 1, alpha: 0.5 });
+  });
+
+  it('a single timeline behaves identically in both combine modes', () => {
+    const anim = (mode: 'parallel' | 'sequential'): SpriteAnimation => ({ spriteId: 's', combineMode: mode, timelines: [xTimeline] });
+    expect(interpolateSpriteAnimation(anim('parallel'), 0.5)).toEqual(interpolateSpriteAnimation(anim('sequential'), 0.5));
+  });
+
+  it('selects the active timeline by cumulative offset in sequential mode', () => {
+    const first: SpriteTimeline = { id: 't1', name: 'First', properties: ['x'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { x: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { x: 1 }, easing: 'linear' }] };
+    const second: SpriteTimeline = { id: 't2', name: 'Second', properties: ['x'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { x: 1 }, easing: 'linear' }, { id: 'k2', time: 1, values: { x: 0 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [first, second] };
+    // t=0.5 is inside `first`'s [0,1) window; t=1.5 is inside `second`'s [1,2) window, local time 0.5
+    expect(interpolateSpriteAnimation(anim, 0.5).x).toBeCloseTo(0.5, 5);
+    expect(interpolateSpriteAnimation(anim, 1.5).x).toBeCloseTo(0.5, 5);
+  });
+
+  it('holds a property\'s last value forward from an earlier timeline when the active timeline doesn\'t cover it', () => {
+    const alphaOnly: SpriteTimeline = { id: 't1', name: 'Fade', properties: ['alpha'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] };
+    const zoomOnly: SpriteTimeline = { id: 't2', name: 'Zoom', properties: ['zoom'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { zoom: 1 }, easing: 'linear' }, { id: 'k2', time: 1, values: { zoom: 2 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [alphaOnly, zoomOnly] };
+    // At t=1.5, `zoomOnly` is active (local time 0.5) but doesn't cover alpha -- alpha should hold at 1 (alphaOnly's final value)
+    const result = interpolateSpriteAnimation(anim, 1.5);
+    expect(result.alpha).toBe(1);
+    expect(result.zoom).toBeCloseTo(1.5, 5);
+  });
+
+  it('a later timeline\'s coverage of a shared property wins over an earlier one\'s held-forward value', () => {
+    const first: SpriteTimeline = { id: 't1', name: 'FadeIn', properties: ['alpha'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { alpha: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 1 }, easing: 'linear' }] };
+    const second: SpriteTimeline = { id: 't2', name: 'FadeOut', properties: ['alpha'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { alpha: 1 }, easing: 'linear' }, { id: 'k2', time: 1, values: { alpha: 0 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [first, second] };
+    expect(interpolateSpriteAnimation(anim, 1.5).alpha).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns an empty object for a sprite animation with no timelines', () => {
+    expect(interpolateSpriteAnimation({ spriteId: 's', combineMode: 'parallel', timelines: [] }, 1)).toEqual({});
   });
 });
