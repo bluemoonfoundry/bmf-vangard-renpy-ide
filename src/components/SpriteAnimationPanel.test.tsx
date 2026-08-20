@@ -19,6 +19,7 @@ function renderPanel(overrides: Partial<Parameters<typeof SpriteAnimationPanel>[
     spriteLabel: 'bob',
     animation: anim(),
     currentValues,
+    hasStaticTint: false,
     onCreateAnimation: vi.fn(),
     onChangeAnimation: vi.fn(),
     onDeleteAnimation: vi.fn(),
@@ -52,7 +53,7 @@ describe('SpriteAnimationPanel', () => {
 
   it('hides the combine-mode toggle with only one timeline, and shows it with two or more', () => {
     const { rerender } = render(
-      <SpriteAnimationPanel spriteLabel="bob" animation={anim()} currentValues={currentValues} onCreateAnimation={() => {}} onChangeAnimation={() => {}} onDeleteAnimation={() => {}} onPreviewUpdate={() => {}} />
+      <SpriteAnimationPanel spriteLabel="bob" animation={anim()} currentValues={currentValues} hasStaticTint={false} onCreateAnimation={() => {}} onChangeAnimation={() => {}} onDeleteAnimation={() => {}} onPreviewUpdate={() => {}} />
     );
     expect(screen.queryByRole('radio', { name: 'Parallel' })).not.toBeInTheDocument();
 
@@ -61,6 +62,7 @@ describe('SpriteAnimationPanel', () => {
         spriteLabel="bob"
         animation={anim({ timelines: [timeline({ id: 't1' }), timeline({ id: 't2' })] })}
         currentValues={currentValues}
+        hasStaticTint={false}
         onCreateAnimation={() => {}}
         onChangeAnimation={() => {}}
         onDeleteAnimation={() => {}}
@@ -163,5 +165,16 @@ describe('SpriteAnimationPanel', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Pause' }));
     expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+  });
+
+  it('passes hasStaticTint through to every TimelineRow it renders', () => {
+    const twoTimelines = anim({ timelines: [timeline({ id: 't1', name: 'bob0' }), timeline({ id: 't2', name: 'bob1' })] });
+    renderPanel({ animation: twoTimelines, hasStaticTint: true });
+    for (const label of ['Saturation', 'Brightness', 'Contrast', 'Invert']) {
+      // Two rows -> two checkboxes per label; both must be disabled.
+      const checkboxes = screen.getAllByLabelText(label);
+      expect(checkboxes).toHaveLength(2);
+      for (const checkbox of checkboxes) expect(checkbox).toBeDisabled();
+    }
   });
 });

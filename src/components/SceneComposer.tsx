@@ -885,6 +885,10 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
             alpha: timelinePreviewValues.alpha ?? sprite.alpha,
             rotation: timelinePreviewValues.rotation ?? sprite.rotation,
             blur: timelinePreviewValues.blur ?? sprite.blur,
+            saturation: timelinePreviewValues.saturation ?? sprite.saturation,
+            brightness: timelinePreviewValues.brightness ?? sprite.brightness,
+            contrast: timelinePreviewValues.contrast ?? sprite.contrast,
+            invert: timelinePreviewValues.invert ?? sprite.invert,
         };
     }, [showTimeline, selectedSpriteId, timelinePreviewValues]);
 
@@ -1075,8 +1079,10 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                             currentValues={{
                                 x: activeSprite.x, y: activeSprite.y, zoom: activeSprite.zoom,
                                 alpha: activeSprite.alpha, rotation: activeSprite.rotation, blur: activeSprite.blur,
-                                saturation: 1, brightness: 0, contrast: 1, invert: 0,
+                                saturation: activeSprite.saturation ?? 1.0, brightness: activeSprite.brightness ?? 0,
+                                contrast: activeSprite.contrast ?? 1.0, invert: activeSprite.invert ?? 0,
                             }}
+                            hasStaticTint={(activeSprite.colorMode === 'tint' && !!activeSprite.tintColor) || activeSprite.colorMode === 'colorize'}
                             onCreateAnimation={handleCreateAnimation}
                             onChangeAnimation={handleChangeAnimation}
                             onDeleteAnimation={handleDeleteAnimation}

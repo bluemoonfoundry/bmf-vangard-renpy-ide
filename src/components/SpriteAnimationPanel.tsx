@@ -18,6 +18,8 @@ interface SpriteAnimationPanelProps {
   animation: SpriteAnimation | null;
   /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
   currentValues: Record<AnimatableProperty, number>;
+  /** True disables the four matrix-factor checkboxes on every TimelineRow: the sprite has a static tint/colorize applied. */
+  hasStaticTint: boolean;
   onCreateAnimation: () => void;
   onChangeAnimation: (updater: (prev: SpriteAnimation) => SpriteAnimation) => void;
   onDeleteAnimation: () => void;
@@ -30,7 +32,7 @@ function createTimeline(spriteLabel: string, index: number): SpriteTimeline {
 }
 
 const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
-  spriteLabel, animation, currentValues, onCreateAnimation, onChangeAnimation, onDeleteAnimation, onPreviewUpdate,
+  spriteLabel, animation, currentValues, hasStaticTint, onCreateAnimation, onChangeAnimation, onDeleteAnimation, onPreviewUpdate,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playheadTime, setPlayheadTime] = useState(0);
@@ -175,6 +177,7 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
             combineMode={animation.combineMode}
             canLoop={animation.combineMode === 'parallel' || index === animation.timelines.length - 1}
             propertiesClaimedBySiblings={animation.timelines.filter((_, i) => i !== index).flatMap(t => t.properties)}
+            hasStaticTint={hasStaticTint}
             currentValues={currentValues}
             onChangeTimeline={(updater) => handleChangeTimeline(timeline.id, updater)}
             onRemoveTimeline={() => handleRemoveTimeline(timeline.id)}
