@@ -19,6 +19,8 @@ interface TimelineRowProps {
   combineMode: 'parallel' | 'sequential';
   /** False disables the Loop checkbox: only the last timeline in a sequential sequence may safely loop (an earlier one would repeat forever and block every timeline after it — see atlCodeGenerator.ts's sequential honorLoop logic). Always true in parallel mode. */
   canLoop: boolean;
+  /** True disables the four matrix-factor checkboxes (saturation/brightness/contrast/invert): this sprite has a static tint/colorize applied, and animating color together with a static tint isn't supported. */
+  hasStaticTint: boolean;
   /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
   currentValues: Record<AnimatableProperty, number>;
   onChangeTimeline: (updater: (prev: SpriteTimeline) => SpriteTimeline) => void;
@@ -42,8 +44,10 @@ const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
   invert: 'Invert',
 };
 
+const MATRIX_FACTOR_PROPERTIES: AnimatableProperty[] = ['saturation', 'brightness', 'contrast', 'invert'];
+
 const TimelineRow: React.FC<TimelineRowProps> = ({
-  timeline, propertiesClaimedBySiblings, combineMode, canLoop, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
+  timeline, propertiesClaimedBySiblings, combineMode, canLoop, hasStaticTint, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
 }) => {
   const [editingKeyframeId, setEditingKeyframeId] = useState<string | null>(null);
   const [draggingKeyframeId, setDraggingKeyframeId] = useState<string | null>(null);
@@ -138,10 +142,19 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
       <div className="flex flex-wrap gap-3">
         {PROPERTY_ORDER.map(property => {
           const isSelected = timeline.properties.includes(property);
-          const isDisabled = combineMode === 'parallel' && !isSelected && propertiesClaimedBySiblings.includes(property);
+          const isDisabledBySibling = combineMode === 'parallel' && !isSelected && propertiesClaimedBySiblings.includes(property);
+          const isDisabledByTint = hasStaticTint && !isSelected && MATRIX_FACTOR_PROPERTIES.includes(property);
+          const isDisabled = isDisabledBySibling || isDisabledByTint;
           return (
             <label key={property} className={`flex items-center gap-1 text-xs ${isDisabled ? 'text-secondary opacity-50' : 'text-primary'}`}>
-              <input type="checkbox" checked={isSelected} disabled={isDisabled} onChange={() => toggleProperty(property)} aria-label={PROPERTY_LABEL[property]} />
+              <input
+                type="checkbox"
+                checked={isSelected}
+                disabled={isDisabled}
+                title={isDisabledByTint ? "Disabled: this sprite has a static tint/colorize applied — animating color together with a static tint isn't supported." : undefined}
+                onChange={() => toggleProperty(property)}
+                aria-label={PROPERTY_LABEL[property]}
+              />
               {PROPERTY_LABEL[property]}
             </label>
           );

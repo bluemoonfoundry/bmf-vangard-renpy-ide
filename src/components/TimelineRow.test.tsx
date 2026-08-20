@@ -23,6 +23,7 @@ function renderRow(overrides: Partial<Parameters<typeof TimelineRow>[0]> = {}) {
     propertiesClaimedBySiblings: [] as AnimatableProperty[],
     combineMode: 'parallel' as const,
     canLoop: true,
+    hasStaticTint: false,
     currentValues,
     onChangeTimeline,
     onRemoveTimeline,
@@ -95,7 +96,7 @@ describe('TimelineRow', () => {
     const withOneProp: SpriteTimeline = { ...emptyTimeline(), properties: ['alpha'] };
     const onChangeTimeline = vi.fn();
     const { rerender } = render(
-      <TimelineRow timeline={withOneProp} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
+      <TimelineRow timeline={withOneProp} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} hasStaticTint={false} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Add keyframe' }), { clientX: 100 }); // 100/200 * 2s = 1.0s
 
@@ -106,7 +107,7 @@ describe('TimelineRow', () => {
     expect(result.keyframes[0].values).toEqual({ alpha: 1 });
 
     rerender(
-      <TimelineRow timeline={result} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
+      <TimelineRow timeline={result} propertiesClaimedBySiblings={[]} combineMode="parallel" canLoop={true} hasStaticTint={false} currentValues={currentValues} onChangeTimeline={onChangeTimeline} onRemoveTimeline={() => {}} />
     );
     expect(await screen.findByRole('heading', { name: 'Keyframe' })).toBeInTheDocument();
   });
@@ -158,6 +159,7 @@ describe('TimelineRow', () => {
         propertiesClaimedBySiblings={[]}
         combineMode="parallel"
         canLoop={true}
+        hasStaticTint={false}
         currentValues={currentValues}
         onChangeTimeline={() => {}}
         onRemoveTimeline={() => {}}
@@ -173,5 +175,38 @@ describe('TimelineRow', () => {
     await user.click(screen.getByRole('button', { name: 'Move up' }));
     expect(onMoveUp).toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Move down' })).not.toBeInTheDocument();
+  });
+
+  it('disables the four matrix-factor checkboxes (with a tooltip) when hasStaticTint is true', () => {
+    renderRow({ hasStaticTint: true });
+    for (const label of ['Saturation', 'Brightness', 'Contrast', 'Invert']) {
+      const checkbox = screen.getByLabelText(label);
+      expect(checkbox).toBeDisabled();
+      expect(checkbox).toHaveAttribute('title', "Disabled: this sprite has a static tint/colorize applied — animating color together with a static tint isn't supported.");
+    }
+  });
+
+  it('leaves the four matrix-factor checkboxes enabled when hasStaticTint is false', () => {
+    renderRow({ hasStaticTint: false });
+    for (const label of ['Saturation', 'Brightness', 'Contrast', 'Invert']) {
+      expect(screen.getByLabelText(label)).not.toBeDisabled();
+    }
+  });
+
+  it('does not disable a matrix-factor property already selected by this timeline, even when hasStaticTint is true', () => {
+    const withSaturation: SpriteTimeline = { ...emptyTimeline(), properties: ['saturation'] };
+    renderRow({ timeline: withSaturation, hasStaticTint: true });
+    expect(screen.getByLabelText('Saturation')).not.toBeDisabled();
+  });
+
+  it('hasStaticTint disabling is independent of the parallel-mode sibling-conflict disabling', () => {
+    renderRow({ combineMode: 'sequential', hasStaticTint: true, propertiesClaimedBySiblings: ['saturation'] });
+    // Sequential mode alone would not disable Saturation (sibling rule only applies in parallel), but hasStaticTint still does.
+    expect(screen.getByLabelText('Saturation')).toBeDisabled();
+  });
+
+  it('leaves simple properties (e.g. Alpha) unaffected by hasStaticTint', () => {
+    renderRow({ hasStaticTint: true });
+    expect(screen.getByLabelText('Alpha')).not.toBeDisabled();
   });
 });
