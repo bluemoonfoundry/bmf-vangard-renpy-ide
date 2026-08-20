@@ -177,4 +177,15 @@ describe('SpriteAnimationPanel', () => {
       for (const checkbox of checkboxes) expect(checkbox).toBeDisabled();
     }
   });
+
+  it('disables the Parallel radio when two timelines each animate a different matrix-factor property', () => {
+    const differentMatrixFactors = anim({
+      timelines: [
+        timeline({ id: 't1', name: 'bob0', properties: ['saturation'] }),
+        timeline({ id: 't2', name: 'bob1', properties: ['brightness'] }),
+      ],
+    });
+    renderPanel({ animation: differentMatrixFactors });
+    expect(screen.getByRole('radio', { name: 'Parallel' })).toBeDisabled();
+  });
 });

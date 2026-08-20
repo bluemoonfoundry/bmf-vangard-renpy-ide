@@ -209,4 +209,25 @@ describe('TimelineRow', () => {
     renderRow({ hasStaticTint: true });
     expect(screen.getByLabelText('Alpha')).not.toBeDisabled();
   });
+
+  it('disables a matrix-factor property when a sibling claims a DIFFERENT matrix-factor property, in parallel mode', () => {
+    renderRow({ combineMode: 'parallel', propertiesClaimedBySiblings: ['brightness'] });
+    expect(screen.getByLabelText('Saturation')).toBeDisabled();
+  });
+
+  it('disables a matrix-factor property when a sibling claims a DIFFERENT matrix-factor property, in sequential mode too (unlike the simple-property sibling rule)', () => {
+    renderRow({ combineMode: 'sequential', propertiesClaimedBySiblings: ['brightness'] });
+    expect(screen.getByLabelText('Saturation')).toBeDisabled();
+  });
+
+  it('does not disable a matrix-factor property already selected by this timeline, even when a sibling claims a different matrix-factor property', () => {
+    const withSaturation: SpriteTimeline = { ...emptyTimeline(), properties: ['saturation'] };
+    renderRow({ timeline: withSaturation, combineMode: 'parallel', propertiesClaimedBySiblings: ['brightness'] });
+    expect(screen.getByLabelText('Saturation')).not.toBeDisabled();
+  });
+
+  it('does not disable simple properties when a sibling claims a matrix-factor property', () => {
+    renderRow({ combineMode: 'parallel', propertiesClaimedBySiblings: ['brightness'] });
+    expect(screen.getByLabelText('Alpha')).not.toBeDisabled();
+  });
 });

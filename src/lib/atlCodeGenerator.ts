@@ -23,6 +23,13 @@ const ATL_PROPERTY_NAME: Partial<Record<AnimatableProperty, string>> = {
  * own -- they compose into a single `matrixcolor <expr>` token (matching
  * SceneComposer.tsx's spriteEffectCode(), which does the same composition
  * for the non-animated/static case).
+ *
+ * Note: Ren'Py's `matrixcolor` interpolates the composed PRODUCT matrix
+ * entry-wise between keyframes, not each factor independently -- so the
+ * generated ATL's blend of e.g. SaturationMatrix(...) * ContrastMatrix(...)
+ * over time is not guaranteed to numerically match this app's own
+ * per-property linear preview in timelinePreview.ts. Both are smooth and
+ * visually plausible, just not identical curves.
  */
 const MATRIX_FACTOR_CONSTRUCTOR: Partial<Record<AnimatableProperty, (value: number) => string>> = {
   saturation: (v) => `SaturationMatrix(${formatValue(v)})`,
@@ -30,6 +37,26 @@ const MATRIX_FACTOR_CONSTRUCTOR: Partial<Record<AnimatableProperty, (value: numb
   contrast: (v) => `ContrastMatrix(${formatValue(v)})`,
   invert: (v) => `InvertMatrix(${formatValue(v)})`,
 };
+
+/** Neutral (identity) value per matrix-factor property, used as a defensive fallback if a keyframe is ever missing a value it should have. */
+const MATRIX_FACTOR_NEUTRAL_VALUE: Partial<Record<AnimatableProperty, number>> = {
+  saturation: 1,
+  brightness: 0,
+  contrast: 1,
+  invert: 0,
+};
+
+/**
+ * The four properties that collapse into one shared `matrixcolor` ATL token
+ * instead of getting their own (see MATRIX_FACTOR_CONSTRUCTOR above).
+ * Exported so the UI can treat them as a mutually-exclusive group across a
+ * sprite's sibling timelines -- splitting them across timelines still only
+ * produces one matrixcolor slot per transform, so unlike simple properties
+ * they can't be safely divided between timelines even when combined
+ * sequentially (a later timeline's matrixcolor assignment replaces an
+ * earlier one's rather than combining with it).
+ */
+export const MATRIX_FACTOR_PROPERTIES: AnimatableProperty[] = ['saturation', 'brightness', 'contrast', 'invert'];
 
 /** Canonical property order for all generated ATL lines, regardless of picker selection order. */
 const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
@@ -54,7 +81,7 @@ function buildPropertyTokens(orderedProperties: AnimatableProperty[], values: Pa
   const tokens: string[] = [];
   const matrixFactorTerms: string[] = [];
   for (const property of orderedProperties) {
-    const value = values[property] ?? 0;
+    const value = values[property] ?? MATRIX_FACTOR_NEUTRAL_VALUE[property] ?? 0;
     const atlName = ATL_PROPERTY_NAME[property];
     if (atlName) {
       tokens.push(`${atlName} ${formatValue(value)}`);

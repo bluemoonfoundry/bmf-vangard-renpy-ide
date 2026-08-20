@@ -14,6 +14,7 @@ import SceneSpriteProperties from './SceneSpriteProperties';
 import SpriteAnimationPanel from './SpriteAnimationPanel';
 import { generateATLFromTimeline, transformNameFor } from '@/lib/atlCodeGenerator';
 import { createId } from '@/lib/createId';
+import { currentValuesForSprite } from '@/lib/spriteCurrentValues';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 // Returns the hue-rotate degrees needed to tint an image from sepia baseline (~38°) to the target hex color
@@ -1076,13 +1077,15 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                         <SpriteAnimationPanel
                             spriteLabel={selectedSpriteId === 'background' ? 'Background' : getRenpyTag(activeSprite.image)}
                             animation={activeAnimation}
-                            currentValues={{
-                                x: activeSprite.x, y: activeSprite.y, zoom: activeSprite.zoom,
-                                alpha: activeSprite.alpha, rotation: activeSprite.rotation, blur: activeSprite.blur,
-                                saturation: activeSprite.saturation ?? 1.0, brightness: activeSprite.brightness ?? 0,
-                                contrast: activeSprite.contrast ?? 1.0, invert: activeSprite.invert ?? 0,
-                            }}
-                            hasStaticTint={(activeSprite.colorMode === 'tint' && !!activeSprite.tintColor) || activeSprite.colorMode === 'colorize'}
+                            currentValues={currentValuesForSprite(activeSprite)}
+                            hasStaticTint={
+                                (activeSprite.colorMode === 'tint' && !!activeSprite.tintColor) ||
+                                activeSprite.colorMode === 'colorize' ||
+                                (activeSprite.saturation ?? 1.0) !== 1.0 ||
+                                (activeSprite.brightness ?? 0) !== 0 ||
+                                (activeSprite.contrast ?? 1.0) !== 1.0 ||
+                                (activeSprite.invert ?? 0) !== 0
+                            }
                             onCreateAnimation={handleCreateAnimation}
                             onChangeAnimation={handleChangeAnimation}
                             onDeleteAnimation={handleDeleteAnimation}

@@ -12,13 +12,14 @@ import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/type
 import TimelineRow from './TimelineRow';
 import { startPlayback, interpolateSpriteAnimation, getTotalDuration, type PlaybackHandle } from '@/lib/timelinePreview';
 import { createId } from '@/lib/createId';
+import { MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
 
 interface SpriteAnimationPanelProps {
   spriteLabel: string;
   animation: SpriteAnimation | null;
   /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
   currentValues: Record<AnimatableProperty, number>;
-  /** True disables the four matrix-factor checkboxes on every TimelineRow: the sprite has a static tint/colorize applied. */
+  /** True disables the four matrix-factor checkboxes on every TimelineRow: this sprite already has a static color effect applied (tint/colorize, or a non-default saturation/brightness/contrast/invert), and animating color together with an existing static effect isn't supported. */
   hasStaticTint: boolean;
   onCreateAnimation: () => void;
   onChangeAnimation: (updater: (prev: SpriteAnimation) => SpriteAnimation) => void;
@@ -68,13 +69,15 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
 
   const hasOverlappingProperties = (() => {
     const seen = new Set<AnimatableProperty>();
+    let timelinesWithAMatrixFactor = 0;
     for (const t of animation.timelines) {
+      if (t.properties.some(p => MATRIX_FACTOR_PROPERTIES.includes(p))) timelinesWithAMatrixFactor++;
       for (const p of t.properties) {
         if (seen.has(p)) return true;
         seen.add(p);
       }
     }
-    return false;
+    return timelinesWithAMatrixFactor > 1;
   })();
 
   const handlePlay = () => {
@@ -135,7 +138,7 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
               value="parallel"
               checked={animation.combineMode === 'parallel'}
               disabled={hasOverlappingProperties}
-              title={hasOverlappingProperties ? 'Cannot switch to Parallel: two or more timelines share a property. Remove the overlap first.' : undefined}
+              title={hasOverlappingProperties ? 'Cannot switch to Parallel: two or more timelines share a property, or multiple timelines each animate a color property (saturation/brightness/contrast/invert) that shares one ATL value. Remove the overlap first.' : undefined}
               onChange={() => setCombineMode('parallel')}
             />
             Parallel

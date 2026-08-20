@@ -11,15 +11,16 @@ import React, { useState, useRef } from 'react';
 import type { AnimatableProperty, PoseKeyframe, SpriteTimeline } from '@/types';
 import PoseKeyframeEditor, { VALUE_RANGE_BY_PROPERTY } from './PoseKeyframeEditor';
 import { createId } from '@/lib/createId';
+import { MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
 
 interface TimelineRowProps {
   timeline: SpriteTimeline;
-  /** Properties already claimed by a sibling timeline on the same sprite -- disabled in the picker only when `combineMode === 'parallel'`. */
+  /** Properties already claimed by a sibling timeline on the same sprite -- disabled in the picker when `combineMode === 'parallel'` for simple properties, or unconditionally (both combine modes) for matrix-factor properties (saturation/brightness/contrast/invert), since those always share one ATL matrixcolor value regardless of combine mode. */
   propertiesClaimedBySiblings: AnimatableProperty[];
   combineMode: 'parallel' | 'sequential';
   /** False disables the Loop checkbox: only the last timeline in a sequential sequence may safely loop (an earlier one would repeat forever and block every timeline after it — see atlCodeGenerator.ts's sequential honorLoop logic). Always true in parallel mode. */
   canLoop: boolean;
-  /** True disables the four matrix-factor checkboxes (saturation/brightness/contrast/invert): this sprite has a static tint/colorize applied, and animating color together with a static tint isn't supported. */
+  /** True disables the four matrix-factor checkboxes: this sprite already has a static color effect applied (tint/colorize, or a non-default saturation/brightness/contrast/invert), and animating color together with an existing static effect isn't supported. */
   hasStaticTint: boolean;
   /** Current static value of each property on the underlying sprite, used as the default for new/backfilled keyframe values. */
   currentValues: Record<AnimatableProperty, number>;
@@ -43,8 +44,6 @@ const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
   contrast: 'Contrast',
   invert: 'Invert',
 };
-
-const MATRIX_FACTOR_PROPERTIES: AnimatableProperty[] = ['saturation', 'brightness', 'contrast', 'invert'];
 
 const TimelineRow: React.FC<TimelineRowProps> = ({
   timeline, propertiesClaimedBySiblings, combineMode, canLoop, hasStaticTint, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
@@ -142,16 +141,25 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
       <div className="flex flex-wrap gap-3">
         {PROPERTY_ORDER.map(property => {
           const isSelected = timeline.properties.includes(property);
-          const isDisabledBySibling = combineMode === 'parallel' && !isSelected && propertiesClaimedBySiblings.includes(property);
-          const isDisabledByTint = hasStaticTint && !isSelected && MATRIX_FACTOR_PROPERTIES.includes(property);
+          const isMatrixFactor = MATRIX_FACTOR_PROPERTIES.includes(property);
+          const isDisabledBySibling = !isSelected && (
+            (combineMode === 'parallel' && propertiesClaimedBySiblings.includes(property)) ||
+            (isMatrixFactor && propertiesClaimedBySiblings.some(p => MATRIX_FACTOR_PROPERTIES.includes(p)))
+          );
+          const isDisabledByTint = hasStaticTint && !isSelected && isMatrixFactor;
           const isDisabled = isDisabledBySibling || isDisabledByTint;
+          const title = isDisabledByTint
+            ? "Disabled: this sprite has a static tint/colorize applied — animating color together with a static tint isn't supported."
+            : (isMatrixFactor && isDisabledBySibling)
+            ? "Disabled: another timeline on this sprite already animates a color property (saturation/brightness/contrast/invert) — they all share one ATL matrixcolor value, so only one timeline can own them."
+            : undefined;
           return (
             <label key={property} className={`flex items-center gap-1 text-xs ${isDisabled ? 'text-secondary opacity-50' : 'text-primary'}`}>
               <input
                 type="checkbox"
                 checked={isSelected}
                 disabled={isDisabled}
-                title={isDisabledByTint ? "Disabled: this sprite has a static tint/colorize applied — animating color together with a static tint isn't supported." : undefined}
+                title={title}
                 onChange={() => toggleProperty(property)}
                 aria-label={PROPERTY_LABEL[property]}
               />
