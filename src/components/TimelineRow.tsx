@@ -27,7 +27,7 @@ interface TimelineRowProps {
   onMoveDown?: () => void;
 }
 
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur'];
+const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
 
 const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
   x: 'X Position',
@@ -36,6 +36,10 @@ const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
   alpha: 'Alpha',
   rotation: 'Rotation',
   blur: 'Blur',
+  saturation: 'Saturation',
+  brightness: 'Brightness',
+  contrast: 'Contrast',
+  invert: 'Invert',
 };
 
 const TimelineRow: React.FC<TimelineRowProps> = ({

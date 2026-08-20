@@ -16,7 +16,7 @@ interface ValueRange {
   step: number;
 }
 
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur'];
+const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
 
 /** Slider bounds per property, matching the corresponding `SceneSprite` field's expected range. */
 export const VALUE_RANGE_BY_PROPERTY: Record<AnimatableProperty, ValueRange> = {
@@ -26,6 +26,10 @@ export const VALUE_RANGE_BY_PROPERTY: Record<AnimatableProperty, ValueRange> = {
   alpha: { min: 0, max: 1, step: 0.01 },
   rotation: { min: -360, max: 360, step: 1 },
   blur: { min: 0, max: 50, step: 1 },
+  saturation: { min: 0, max: 2, step: 0.05 },
+  brightness: { min: -1, max: 1, step: 0.05 },
+  contrast: { min: 0.1, max: 3, step: 0.05 },
+  invert: { min: 0, max: 1, step: 0.1 },
 };
 
 const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
@@ -35,6 +39,10 @@ const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
   alpha: 'Alpha',
   rotation: 'Rotation',
   blur: 'Blur',
+  saturation: 'Saturation',
+  brightness: 'Brightness',
+  contrast: 'Contrast',
+  invert: 'Invert',
 };
 
 interface PoseKeyframeEditorProps {

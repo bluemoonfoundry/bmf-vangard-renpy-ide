@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SpriteAnimationPanel from './SpriteAnimationPanel';
 import type { SpriteAnimation, SpriteTimeline } from '@/types';
 
-const currentValues = { x: 0.5, y: 0.5, zoom: 1, alpha: 1, rotation: 0, blur: 0 };
+const currentValues = { x: 0.5, y: 0.5, zoom: 1, alpha: 1, rotation: 0, blur: 0, saturation: 1, brightness: 0, contrast: 1, invert: 0 };
 
 function timeline(overrides: Partial<SpriteTimeline> = {}): SpriteTimeline {
   return { id: 't1', name: 'bob0', properties: [], keyframes: [], duration: 2, loop: false, ...overrides };

@@ -963,7 +963,7 @@ export interface SceneComposition {
 /** Ren'Py's standard ATL easing/warp functions. */
 export type EasingFunction = 'linear' | 'ease' | 'easein' | 'easeout' | 'easein_quad' | 'easeout_quad' | 'easeinout_quad';
 
-export type AnimatableProperty = 'x' | 'y' | 'zoom' | 'alpha' | 'rotation' | 'blur';
+export type AnimatableProperty = 'x' | 'y' | 'zoom' | 'alpha' | 'rotation' | 'blur' | 'saturation' | 'brightness' | 'contrast' | 'invert';
 
 /** A full pose snapshot for a timeline's covered properties, at a point in time. */
 export interface PoseKeyframe {

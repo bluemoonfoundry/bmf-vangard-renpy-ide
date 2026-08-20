@@ -1075,6 +1075,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                             currentValues={{
                                 x: activeSprite.x, y: activeSprite.y, zoom: activeSprite.zoom,
                                 alpha: activeSprite.alpha, rotation: activeSprite.rotation, blur: activeSprite.blur,
+                                saturation: 1, brightness: 0, contrast: 1, invert: 0,
                             }}
                             onCreateAnimation={handleCreateAnimation}
                             onChangeAnimation={handleChangeAnimation}

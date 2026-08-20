@@ -15,10 +15,14 @@ const ATL_PROPERTY_NAME: Record<AnimatableProperty, string> = {
   alpha: 'alpha',
   rotation: 'rotate',
   blur: 'blur',
+  saturation: 'saturation',
+  brightness: 'brightness',
+  contrast: 'contrast',
+  invert: 'invert',
 };
 
 /** Canonical property order for all generated ATL lines, regardless of picker selection order. */
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur'];
+const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
 
 /** A valid Ren'Py transform name for the sprite's (single) animation, e.g. `eileen_animation`. */
 export function transformNameFor(spriteId: string): string {
