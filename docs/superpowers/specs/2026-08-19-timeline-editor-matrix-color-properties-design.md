@@ -149,9 +149,11 @@ Example: a timeline covering `alpha` and `saturation`, going from `{alpha:
 
 ```
     alpha 0
-    matrixcolor SaturationMatrix(1.000)
-    linear 1 alpha 1 matrixcolor SaturationMatrix(1.500)
+    matrixcolor SaturationMatrix(1)
+    linear 1 alpha 1 matrixcolor SaturationMatrix(1.5)
 ```
+
+(`formatValue` collapses trailing zeros via `Number(x.toFixed(3)).toString()`, so `1.0` renders as `1`, not `1.000` — shown here as the function actually behaves.)
 
 `transformNameFor` and the parallel/sequential combination logic in
 `generateATLFromTimeline` are unchanged — this only affects how one
