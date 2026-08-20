@@ -8,17 +8,27 @@
  */
 import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/types';
 
-const ATL_PROPERTY_NAME: Record<AnimatableProperty, string> = {
+/** ATL property names for the six "simple" properties -- each gets its own token in generated code. */
+const ATL_PROPERTY_NAME: Partial<Record<AnimatableProperty, string>> = {
   x: 'xcenter',
   y: 'ycenter',
   zoom: 'zoom',
   alpha: 'alpha',
   rotation: 'rotate',
   blur: 'blur',
-  saturation: 'saturation',
-  brightness: 'brightness',
-  contrast: 'contrast',
-  invert: 'invert',
+};
+
+/**
+ * The four "matrix factor" properties have no ATL property name of their
+ * own -- they compose into a single `matrixcolor <expr>` token (matching
+ * SceneComposer.tsx's spriteEffectCode(), which does the same composition
+ * for the non-animated/static case).
+ */
+const MATRIX_FACTOR_CONSTRUCTOR: Partial<Record<AnimatableProperty, (value: number) => string>> = {
+  saturation: (v) => `SaturationMatrix(${formatValue(v)})`,
+  brightness: (v) => `BrightnessMatrix(${formatValue(v)})`,
+  contrast: (v) => `ContrastMatrix(${formatValue(v)})`,
+  invert: (v) => `InvertMatrix(${formatValue(v)})`,
 };
 
 /** Canonical property order for all generated ATL lines, regardless of picker selection order. */
@@ -35,11 +45,34 @@ function formatValue(value: number): string {
 }
 
 /**
+ * The ATL tokens for one keyframe's pose, in canonical property order: each
+ * simple property gets its own `<atlName> <value>` token; any matrix-factor
+ * properties present are composed into one `matrixcolor <expr>` token,
+ * appended last.
+ */
+function buildPropertyTokens(orderedProperties: AnimatableProperty[], values: Partial<Record<AnimatableProperty, number>>): string[] {
+  const tokens: string[] = [];
+  const matrixFactorTerms: string[] = [];
+  for (const property of orderedProperties) {
+    const value = values[property] ?? 0;
+    const atlName = ATL_PROPERTY_NAME[property];
+    if (atlName) {
+      tokens.push(`${atlName} ${formatValue(value)}`);
+      continue;
+    }
+    const constructor = MATRIX_FACTOR_CONSTRUCTOR[property];
+    if (constructor) matrixFactorTerms.push(constructor(value));
+  }
+  if (matrixFactorTerms.length > 0) tokens.push(`matrixcolor ${matrixFactorTerms.join(' * ')}`);
+  return tokens;
+}
+
+/**
  * ATL body lines for one timeline (its keyframes, in time order), indented
- * by `indent`. The first keyframe emits one plain property line per
- * property; each subsequent keyframe emits one combined warp line covering
- * every property in `timeline.properties`, in canonical order. Appends a
- * trailing `repeat` line if the timeline loops.
+ * by `indent`. The first keyframe emits one token per line; each subsequent
+ * keyframe emits one combined warp line covering every property in
+ * `timeline.properties`, in canonical order. Appends a trailing `repeat`
+ * line if the timeline loops.
  */
 function generateTimelineCode(timeline: SpriteTimeline, indent: string, honorLoop = true): string {
   const kfs = [...timeline.keyframes].sort((a, b) => a.time - b.time);
@@ -48,11 +81,12 @@ function generateTimelineCode(timeline: SpriteTimeline, indent: string, honorLoo
   const orderedProps = PROPERTY_ORDER.filter(p => timeline.properties.includes(p));
   if (orderedProps.length === 0) return '';
 
-  let code = orderedProps.map(p => `${indent}${ATL_PROPERTY_NAME[p]} ${formatValue(kfs[0].values[p] ?? 0)}`).join('\n') + '\n';
+  const firstTokens = buildPropertyTokens(orderedProps, kfs[0].values);
+  let code = firstTokens.map(t => `${indent}${t}`).join('\n') + '\n';
   for (let i = 1; i < kfs.length; i++) {
     const duration = kfs[i].time - kfs[i - 1].time;
-    const parts = orderedProps.map(p => `${ATL_PROPERTY_NAME[p]} ${formatValue(kfs[i].values[p] ?? 0)}`).join(' ');
-    code += `${indent}${kfs[i].easing} ${formatValue(duration)} ${parts}\n`;
+    const tokens = buildPropertyTokens(orderedProps, kfs[i].values);
+    code += `${indent}${kfs[i].easing} ${formatValue(duration)} ${tokens.join(' ')}\n`;
   }
 
   if (timeline.loop && honorLoop) code += `${indent}repeat\n`;

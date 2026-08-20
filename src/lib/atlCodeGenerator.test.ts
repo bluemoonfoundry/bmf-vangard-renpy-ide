@@ -124,4 +124,54 @@ describe('generateATLFromTimeline', () => {
     const code = generateATLFromTimeline(anim({ combineMode: 'sequential', timelines: [first, second] }));
     expect(code).toBe('transform eileen_animation:\n    alpha 0\n    linear 1 alpha 1\n    zoom 1\n    linear 1 zoom 2\n    repeat\n');
   });
+
+  it('composes matrix-factor properties into one matrixcolor token, placed last, alongside a simple property', () => {
+    const t = timeline({
+      properties: ['alpha', 'saturation'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { alpha: 0, saturation: 1 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { alpha: 1, saturation: 1.5 }, easing: 'linear' },
+      ],
+    });
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
+      'transform eileen_animation:\n    alpha 0\n    matrixcolor SaturationMatrix(1)\n    linear 1 alpha 1 matrixcolor SaturationMatrix(1.5)\n'
+    );
+  });
+
+  it('composes only the selected matrix-factor properties, in canonical order, with no other tokens when a timeline covers only matrix factors', () => {
+    const t = timeline({
+      properties: ['invert', 'saturation', 'contrast'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { saturation: 1, contrast: 1, invert: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { saturation: 2, contrast: 0.5, invert: 1 }, easing: 'easein' },
+      ],
+    });
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
+      'transform eileen_animation:\n    matrixcolor SaturationMatrix(1) * ContrastMatrix(1) * InvertMatrix(0)\n    easein 1 matrixcolor SaturationMatrix(2) * ContrastMatrix(0.5) * InvertMatrix(1)\n'
+    );
+  });
+
+  it('produces no matrixcolor token when zero matrix-factor properties are selected', () => {
+    const t = timeline({
+      properties: ['x', 'alpha'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { x: 0, alpha: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { x: 1, alpha: 1 }, easing: 'linear' },
+      ],
+    });
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).not.toContain('matrixcolor');
+  });
+
+  it('composes brightness and invert into matrixcolor in canonical order (brightness before invert)', () => {
+    const t = timeline({
+      properties: ['invert', 'brightness'],
+      keyframes: [
+        { id: 'k1', time: 0, values: { brightness: 0, invert: 0 }, easing: 'linear' },
+        { id: 'k2', time: 1, values: { brightness: 0.5, invert: 1 }, easing: 'linear' },
+      ],
+    });
+    expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
+      'transform eileen_animation:\n    matrixcolor BrightnessMatrix(0) * InvertMatrix(0)\n    linear 1 matrixcolor BrightnessMatrix(0.5) * InvertMatrix(1)\n'
+    );
+  });
 });
