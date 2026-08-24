@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useProjectLoad, hydrateFromProjectData } from '@/hooks/useProjectLoad';
 import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
-import { createBlock } from '@/test/mocks/sampleData';
+import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { ProjectSnapshot, HydrateSetters } from '@/hooks/useProjectLoad';
 import type { EditorTab } from '@/types';
 
@@ -23,6 +23,8 @@ function createMinimalSnapshot(overrides: Partial<ProjectSnapshot> = {}): Projec
     stickyNotes: [],
     routeStickyNotes: [],
     choiceStickyNotes: [],
+    notecards: [],
+    notecardLinks: [],
     characterProfiles: {},
     punchlistMetadata: {},
     diagnosticsTasks: [],
@@ -79,6 +81,8 @@ function createMockHydrateSetters(): HydrateSetters {
     setStickyNotes: vi.fn(),
     setRouteStickyNotes: vi.fn(),
     setChoiceStickyNotes: vi.fn(),
+    setNotecards: vi.fn(),
+    setNotecardLinks: vi.fn(),
     setCharacterProfiles: vi.fn(),
     setPunchlistMetadata: vi.fn(),
     setDiagnosticsTasks: vi.fn(),
@@ -212,6 +216,18 @@ describe('hydrateFromProjectData', () => {
     const setters = createMockHydrateSetters();
     hydrateFromProjectData(snapshot, setters);
     expect(setters.setRouteStickyNotes).toHaveBeenCalledWith(notes);
+  });
+
+  it('hydrates notecards and notecardLinks from the snapshot', () => {
+    const setNotecards = vi.fn();
+    const setNotecardLinks = vi.fn();
+    const notecards = [createNotecard()];
+    const notecardLinks = [createNotecardLink()];
+    const snapshot = createMinimalSnapshot({ notecards, notecardLinks });
+    const setters = { ...createMockHydrateSetters(), setNotecards, setNotecardLinks };
+    hydrateFromProjectData(snapshot, setters);
+    expect(setNotecards).toHaveBeenCalledWith(notecards);
+    expect(setNotecardLinks).toHaveBeenCalledWith(notecardLinks);
   });
 });
 

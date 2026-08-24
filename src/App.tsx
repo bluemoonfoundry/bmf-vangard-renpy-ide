@@ -100,7 +100,8 @@ import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  UserSnippet, MenuTemplate
+  UserSnippet, MenuTemplate,
+  Notecard, NotecardLink,
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -406,6 +407,10 @@ const App: React.FC = () => {
     storyCanvasTransform,
     onStickyNoteChange: () => setHasUnsavedSettings(true),
   });
+
+  // Notecard Canvas board (persistence wiring; UI wiring lands in a later task)
+  const [notecards, setNotecards] = useImmer<Notecard[]>([]);
+  const [notecardLinks, setNotecardLinks] = useImmer<NotecardLink[]>([]);
 
   // --- State: Misc ---
   const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
@@ -907,7 +912,8 @@ const App: React.FC = () => {
           setBlocks,
           setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
           setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
+          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks,
+          setCharacterProfiles,
           setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
           setSceneCompositions, setSceneNames, setImagemapCompositions,
           setRouteNodeLayoutCache,
@@ -928,7 +934,7 @@ const App: React.FC = () => {
       projectSettings,
       blocks, setBlocks,
       setImages, setAudios, imageScanDirectories, audioScanDirectories,
-      stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles,
+      stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, characterProfiles,
       punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
       sceneCompositions, sceneNames, imagemapCompositions,
       routeNodeLayoutCache,
