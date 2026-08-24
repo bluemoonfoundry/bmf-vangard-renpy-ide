@@ -88,59 +88,88 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     return () => window.removeEventListener('pointerdown', close);
   }, [contextMenu]);
 
+  // Each pointerdown handler below defines its own local handlePointerMove/handlePointerUp
+  // closures and adds/removes exactly those closures (never a separately-memoized
+  // top-level callback). This guarantees add and remove always reference the identical
+  // function instance even if transform.scale (or other deps) changes mid-gesture —
+  // matching the established pattern in StoryCanvas.tsx. A prior version used top-level
+  // useCallbacks for these, which could leak a stale pointermove listener if the memoized
+  // identity drifted between pointerdown and pointerup (e.g. a zoom mid-drag).
   const handleCardPointerDown = useCallback((e: React.PointerEvent, card: NotecardType) => {
     const target = e.target as HTMLElement;
+
     if (target.closest('.resize-handle')) {
       e.stopPropagation();
-      interactionRef.current = { type: 'resizing-card', id: card.id, startX: e.clientX, startY: e.clientY, startWidth: card.width, startHeight: card.height };
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = card.width;
+      const startHeight = card.height;
+      interactionRef.current = { type: 'resizing-card', id: card.id, startX, startY, startWidth, startHeight };
       setSelectedId(card.id);
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const dx = (moveEvent.clientX - startX) / transform.scale;
+        const dy = (moveEvent.clientY - startY) / transform.scale;
+        updateNotecard(card.id, { width: Math.max(140, startWidth + dx), height: Math.max(100, startHeight + dy) });
+      };
+      const handlePointerUp = () => {
+        interactionRef.current = { type: 'idle' };
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       return;
     }
+
     if (target.closest('.link-handle')) return; // handled by Notecard's onStartLinkDrag
+
     setSelectedId(card.id);
     if (!target.closest('.drag-handle')) return;
+
     e.stopPropagation();
-    interactionRef.current = { type: 'dragging-card', id: card.id, startX: e.clientX, startY: e.clientY, originX: card.position.x, originY: card.position.y };
-    setSelectedId(card.id);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const originX = card.position.x;
+    const originY = card.position.y;
+    interactionRef.current = { type: 'dragging-card', id: card.id, startX, startY, originX, originY };
     setDraggingId(card.id);
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = (moveEvent.clientX - startX) / transform.scale;
+      const dy = (moveEvent.clientY - startY) / transform.scale;
+      updateNotecard(card.id, { position: { x: originX + dx, y: originY + dy } });
+    };
+    const handlePointerUp = () => {
+      interactionRef.current = { type: 'idle' };
+      setDraggingId(null);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transform.scale]);
-
-  const handlePointerMove = useCallback((e: PointerEvent) => {
-    const state = interactionRef.current;
-    if (state.type === 'panning') {
-      onTransformChange(t => ({ ...t, x: state.originX + (e.clientX - state.startX), y: state.originY + (e.clientY - state.startY) }));
-    } else if (state.type === 'dragging-card') {
-      const dx = (e.clientX - state.startX) / transform.scale;
-      const dy = (e.clientY - state.startY) / transform.scale;
-      updateNotecard(state.id, { position: { x: state.originX + dx, y: state.originY + dy } });
-    } else if (state.type === 'resizing-card') {
-      const dx = (e.clientX - state.startX) / transform.scale;
-      const dy = (e.clientY - state.startY) / transform.scale;
-      updateNotecard(state.id, { width: Math.max(140, state.startWidth + dx), height: Math.max(100, state.startHeight + dy) });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transform.scale, updateNotecard, onTransformChange]);
-
-  const handlePointerUp = useCallback(() => {
-    interactionRef.current = { type: 'idle' };
-    setDraggingId(null);
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [transform.scale, updateNotecard]);
 
   const handleSurfacePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.target !== surfaceRef.current) return;
     setSelectedId(null);
-    interactionRef.current = { type: 'panning', startX: e.clientX, startY: e.clientY, originX: transform.x, originY: transform.y };
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const originX = transform.x;
+    const originY = transform.y;
+    interactionRef.current = { type: 'panning', startX, startY, originX, originY };
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      onTransformChange(t => ({ ...t, x: originX + (moveEvent.clientX - startX), y: originY + (moveEvent.clientY - startY) }));
+    };
+    const handlePointerUp = () => {
+      interactionRef.current = { type: 'idle' };
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [transform.x, transform.y, handlePointerMove, handlePointerUp]);
+  }, [transform.x, transform.y, onTransformChange]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
