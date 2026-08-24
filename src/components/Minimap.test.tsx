@@ -69,3 +69,19 @@ describe('Minimap', () => {
     expect(leftsScrolledFarRight).toEqual(leftsAtOrigin);
   });
 });
+
+describe('Minimap notecard items', () => {
+  it('renders a notecard item using its own NoteColor', () => {
+    const { container } = render(
+      <Minimap
+        items={[{ id: 'nc-1', position: { x: 0, y: 0 }, width: 220, height: 160, type: 'notecard', color: 'blue' }]}
+        transform={{ x: 0, y: 0, scale: 1 }}
+        canvasDimensions={{ width: 800, height: 600 }}
+        onTransformChange={() => {}}
+      />
+    );
+    const dot = container.querySelector('.absolute.rounded-sm') as HTMLElement;
+    expect(dot).toBeTruthy();
+    expect(dot.style.backgroundColor).toBe('rgba(59, 130, 246, 0.6)');
+  });
+});

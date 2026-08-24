@@ -21,7 +21,7 @@ export interface MinimapItem {
   position: { x: number; y: number };
   width: number;
   height: number;
-  type: 'block' | 'group' | 'note' | 'label' | 'screen' | 'config';
+  type: 'block' | 'group' | 'note' | 'notecard' | 'label' | 'screen' | 'config';
   color?: NoteColor;
 }
 
@@ -40,6 +40,7 @@ const ITEM_COLORS: Record<MinimapItem['type'], string> = {
   block: 'rgba(107, 114, 128, 0.7)',
   group: 'rgba(99, 102, 241, 0.4)',
   note: 'rgba(234, 179, 8, 0.6)',
+  notecard: 'rgba(234, 179, 8, 0.6)',
   label: 'rgba(147, 197, 253, 0.8)',
   screen: 'rgba(45, 212, 191, 0.7)',
   config: 'rgba(248, 113, 113, 0.7)',
@@ -161,7 +162,7 @@ const Minimap: React.FC<MinimapProps> = ({ items, transform, canvasDimensions, o
       <div className="relative w-full h-full overflow-hidden">
         {items.map(item => {
           let color = ITEM_COLORS[item.type];
-          if (item.type === 'note' && item.color) {
+          if ((item.type === 'note' || item.type === 'notecard') && item.color) {
             const noteColorMap: Record<NoteColor, string> = {
               yellow: 'rgba(234, 179, 8, 0.6)', blue: 'rgba(59, 130, 246, 0.6)',
               green: 'rgba(34, 197, 94, 0.6)',  pink: 'rgba(236, 72, 153, 0.6)',
