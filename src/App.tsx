@@ -57,7 +57,8 @@ import { useToasts } from '@/hooks/useToasts';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useModalState } from '@/hooks/useModalState';
 import { useTabManagement } from '@/hooks/useTabManagement';
-import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
+import { useCanvasInteraction, type CanvasTransform } from '@/hooks/useCanvasInteraction';
+import { useNotecards } from '@/hooks/useNotecards';
 import { useAssetManagement } from '@/hooks/useAssetManagement';
 import { useDraftingArtifacts } from '@/hooks/useDraftingArtifacts';
 import { useCompositionState } from '@/hooks/useCompositionState';
@@ -101,7 +102,6 @@ import type {
   Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
   UserSnippet, MenuTemplate,
-  Notecard, NotecardLink,
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -262,6 +262,7 @@ const App: React.FC = () => {
     selectGroups: _selectGroups,
     toggleBlockSelection: _toggleBlockSelection,
   } = useCanvasInteraction();
+  const [notecardCanvasTransform, setNotecardCanvasTransform] = useState<CanvasTransform>({ x: 0, y: 0, scale: 1 });
   // Punchlist State (kept for migration — not written on save)
   const [punchlistMetadata, setPunchlistMetadata] = useImmer<Record<string, PunchlistMetadata>>({});
   // Diagnostics Tasks State
@@ -408,9 +409,16 @@ const App: React.FC = () => {
     onStickyNoteChange: () => setHasUnsavedSettings(true),
   });
 
-  // Notecard Canvas board (persistence wiring; UI wiring lands in a later task)
-  const [notecards, setNotecards] = useImmer<Notecard[]>([]);
-  const [notecardLinks, setNotecardLinks] = useImmer<NotecardLink[]>([]);
+  // Notecard Canvas board
+  const {
+    notecards, notecardLinks, setNotecards, setNotecardLinks,
+    addNotecard, updateNotecard, deleteNotecard,
+    addNotecardLink, updateNotecardLink, deleteNotecardLink,
+  } = useNotecards({
+    appSettings,
+    notecardCanvasTransform,
+    onNotecardChange: () => setHasUnsavedSettings(true),
+  });
 
   // --- State: Misc ---
   const [editorCursorPosition, setEditorCursorPosition] = useState<{ line: number; column: number } | null>(null);
@@ -1784,6 +1792,9 @@ const App: React.FC = () => {
     routeStickyNotes, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote,
     choiceStickyNotes, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote,
     allStickyNotes,
+    notecards, notecardLinks, updateNotecard, deleteNotecard, addNotecard,
+    addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     storyCanvasTransform, setStoryCanvasTransform, routeCanvasTransform, setRouteCanvasTransform,
@@ -1819,9 +1830,10 @@ const App: React.FC = () => {
   const focusedTabId = activePaneId === 'secondary' && splitLayout !== 'none'
     ? secondaryActiveTabId
     : activeTabId;
-  const activeCanvasType: 'story' | 'route' | 'choice' | null =
+  const activeCanvasType: 'story' | 'route' | 'choice' | 'notecard' | null =
     focusedTabId === 'route-canvas' ? 'route' :
     focusedTabId === 'choice-canvas' ? 'choice' :
+    focusedTabId === 'notecard-canvas' ? 'notecard' :
     focusedTabId === 'canvas' ? 'story' : null;
   const activeCanvasLayoutMode = activeCanvasType === 'route'
     ? (projectSettings.routeCanvasLayoutMode ?? 'flow-lr')
@@ -1915,7 +1927,7 @@ const App: React.FC = () => {
         handleSave={handleSaveAll}
         onOpenSettings={() => openSettingsModal()}
         onOpenShortcuts={() => openShortcutsModal()}
-        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
+        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}

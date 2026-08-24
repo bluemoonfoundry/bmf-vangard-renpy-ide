@@ -297,6 +297,15 @@ describe('Toolbar', () => {
     expect(props.onOpenStaticTab).toHaveBeenCalledWith('choice-canvas');
   });
 
+  it('calls onOpenStaticTab with "notecard-canvas" when Notecard Canvas button is clicked', async () => {
+    const props = createProps();
+    const user = userEvent.setup();
+    render(<Toolbar {...props} />);
+
+    await user.click(screen.getByLabelText('Notecard Canvas'));
+    expect(props.onOpenStaticTab).toHaveBeenCalledWith('notecard-canvas');
+  });
+
   it('disables New Scene button when active canvas is not story', () => {
     render(<Toolbar {...createProps({ activeCanvasType: 'route' })} />);
     const btn = screen.getByTitle('Switch to Project Canvas to add scenes');

@@ -17,7 +17,7 @@ export interface UseTabOpenersProps {
 
 export interface UseTabOpenersReturn {
   handleOpenEditor: (blockId: string, line?: number) => void;
-  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
+  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
   handleOpenRouteCanvasTab: () => void;
   handleOpenChoiceCanvasTab: () => void;
   handleOpenImageEditorTab: (filePath: string) => void;
@@ -35,7 +35,7 @@ export function useTabOpeners({
   setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
 }: UseTabOpenersProps): UseTabOpenersReturn {
 
-  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
+  const handleOpenStaticTab = useCallback((type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => {
     const id = type;
     if (openTabs.find(t => t.id === id)) {
       setActiveTabId(id);
