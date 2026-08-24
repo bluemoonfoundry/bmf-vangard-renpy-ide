@@ -44,6 +44,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   addNotecardLink, updateNotecardLink, deleteNotecardLink,
   transform, onTransformChange,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<InteractionState>({ type: 'idle' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,7 +87,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       const target = e.target as HTMLElement | null;
-      const targetCardEl = (target?.closest('[data-notecard-id]') ?? target?.querySelector('[data-notecard-id]')) as HTMLElement | null;
+      const targetCardEl = target?.closest('[data-notecard-id]') as HTMLElement | null;
       const toId = targetCardEl?.getAttribute('data-notecard-id');
       setLinkDraft(null);
       if (toId && toId !== cardId) addNotecardLink(cardId, toId);
@@ -146,6 +147,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   // identity drifted between pointerdown and pointerup (e.g. a zoom mid-drag).
   const handleCardPointerDown = useCallback((e: React.PointerEvent, card: NotecardType) => {
     const target = e.target as HTMLElement;
+    containerRef.current?.focus();
 
     if (target.closest('.resize-handle')) {
       e.stopPropagation();
@@ -200,7 +202,9 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   }, [transform.scale, updateNotecard]);
 
   const handleSurfacePointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.target !== surfaceRef.current) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-notecard-id]') || target.closest('[data-notecard-link-id]')) return;
+    containerRef.current?.focus();
     setSelectedId(null);
     const startX = e.clientX;
     const startY = e.clientY;
@@ -220,15 +224,33 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     window.addEventListener('pointerup', handlePointerUp);
   }, [transform.x, transform.y, onTransformChange]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-      if (selectedId) deleteNotecard(selectedId);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!surfaceRef.current) return;
+    e.preventDefault();
+    const rect = surfaceRef.current.getBoundingClientRect();
+    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const sensitivity = 1.0;
+    const direction = 1;
+    onTransformChange(t => {
+      const zoom = 1 - e.deltaY * 0.002 * sensitivity * direction;
+      const newScale = Math.max(0.2, Math.min(3, t.scale * zoom));
+      const worldX = (pointer.x - t.x) / t.scale;
+      const worldY = (pointer.y - t.y) / t.scale;
+      const newX = pointer.x - worldX * newScale;
+      const newY = pointer.y - worldY * newScale;
+      return { x: newX, y: newY, scale: newScale };
+    });
+  }, [onTransformChange]);
+
+  // Scoped to this instance's own container (not window) so a background/inactive
+  // split-pane NotecardCanvas doesn't steal Delete keystrokes meant for the foreground
+  // pane. Requires the container to actually hold focus — see the .focus() calls in
+  // handleSurfacePointerDown/handleCardPointerDown below.
+  const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    if (selectedId) deleteNotecard(selectedId);
   }, [selectedId, deleteNotecard]);
 
   const minimapItems: MinimapItem[] = notecards.map(card => ({
@@ -236,7 +258,12 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   }));
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      className="relative w-full h-full overflow-hidden bg-gray-50 dark:bg-gray-900 focus:outline-none"
+      onKeyDown={handleContainerKeyDown}
+    >
       <div
         ref={surfaceRef}
         data-testid="notecard-canvas-surface"
@@ -244,6 +271,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
         onDoubleClick={handleSurfaceDoubleClick}
         onContextMenu={handleSurfaceContextMenu}
         onPointerDown={handleSurfacePointerDown}
+        onWheel={handleWheel}
       >
         <div className="absolute inset-0" style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}>
           <svg className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, width: 1, height: 1 }}>
@@ -307,6 +335,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
             <div
               key={card.id}
               data-testid={`notecard-${card.id}`}
+              data-notecard-id={card.id}
               className={isMatch(card) ? '' : 'opacity-30 transition-opacity'}
               onPointerDown={(e) => handleCardPointerDown(e, card)}
             >
@@ -326,7 +355,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1"
+          className="fixed z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button

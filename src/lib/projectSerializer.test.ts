@@ -176,6 +176,18 @@ describe('deserializeProjectData', () => {
     expect(snap.primaryTabs.find(t => t.type === 'scene-composer')).toBeUndefined();
   });
 
+  it('keeps a notecard-canvas tab (does not need a file/asset reference to stay valid)', () => {
+    const data = makeResult({
+      settings: {
+        openTabs: [{ id: 'notecard-canvas', type: 'notecard-canvas' }],
+        activeTabId: 'notecard-canvas',
+        draftingMode: false,
+      },
+    });
+    const snap = deserializeProjectData(data, []);
+    expect(snap.primaryTabs).toContainEqual({ id: 'notecard-canvas', type: 'notecard-canvas' });
+  });
+
   it('falls back to canvas tab when no settings', () => {
     const snap = deserializeProjectData(makeResult({ settings: null }), []);
     expect(snap.primaryTabs).toEqual([{ id: 'canvas', type: 'canvas' }]);

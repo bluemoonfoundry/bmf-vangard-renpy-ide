@@ -113,7 +113,7 @@ function deserializeTabs(
     if (tab.type === 'character' && tab.characterTag) return true;
     if (tab.type === 'scene-composer' && tab.sceneId) return true;
     if (tab.type === 'markdown' && tab.filePath) return true;
-    return ['canvas', 'route-canvas', 'choice-canvas', 'punchlist', 'diagnostics', 'stats', 'translations', 'screen-preview'].includes(tab.type);
+    return ['canvas', 'route-canvas', 'choice-canvas', 'notecard-canvas', 'punchlist', 'diagnostics', 'stats', 'translations', 'screen-preview'].includes(tab.type);
   };
 
   const migrateTab = (tab: EditorTab): EditorTab => {

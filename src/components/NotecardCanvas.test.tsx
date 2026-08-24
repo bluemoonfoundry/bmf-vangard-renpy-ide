@@ -35,6 +35,17 @@ describe('NotecardCanvas', () => {
     expect(props.addNotecard).toHaveBeenCalledWith({ x: 200, y: 80 });
   });
 
+  it('positions the context menu with viewport-fixed coordinates, not container-relative', () => {
+    const props = baseProps();
+    render(<NotecardCanvas {...props} />);
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    fireEvent.contextMenu(surface, { clientX: 200, clientY: 80 });
+    const menuItem = screen.getByText('New Notecard');
+    const menu = menuItem.closest('div[style]') as HTMLElement;
+    expect(menu.className).toContain('fixed');
+    expect(menu.className).not.toContain('absolute');
+  });
+
   it('clicking "New Notecard" in the context menu creates a card, surviving the pointerdown-then-click sequence a real mouse click produces', () => {
     const props = baseProps();
     render(<NotecardCanvas {...props} />);
@@ -53,19 +64,32 @@ describe('NotecardCanvas', () => {
     expect(screen.getAllByText('New Notecard')).toHaveLength(2);
   });
 
-  it('deletes the selected notecard on Delete key', () => {
+  it('deletes the selected notecard on Delete key when the canvas container has focus', () => {
     const card = createNotecard({ id: 'a' });
     const props = { ...baseProps(), notecards: [card] };
     render(<NotecardCanvas {...props} />);
     fireEvent.pointerDown(screen.getByTestId('notecard-a'));
-    fireEvent.keyDown(window, { key: 'Delete' });
+    const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
+    fireEvent.keyDown(container, { key: 'Delete' });
     expect(props.deleteNotecard).toHaveBeenCalledWith('a');
+  });
+
+  it('does not delete the selected notecard on Delete key when the canvas container lacks focus (background split-pane instance)', () => {
+    const card = createNotecard({ id: 'a' });
+    const props = { ...baseProps(), notecards: [card] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.pointerDown(screen.getByTestId('notecard-a'));
+    // Simulate a Delete keystroke handled elsewhere in the app (e.g. the foreground
+    // split-pane), which should NOT reach this backgrounded instance's handler.
+    fireEvent.keyDown(window, { key: 'Delete' });
+    expect(props.deleteNotecard).not.toHaveBeenCalled();
   });
 
   it('renders the minimap with one item per notecard', () => {
     const props = { ...baseProps(), notecards: [createNotecard({ id: 'a' })] };
     const { container } = render(<NotecardCanvas {...props} />);
-    expect(container.querySelectorAll('[data-notecard-id]')).toHaveLength(1);
+    // One [data-notecard-id] on the canvas's own hit-area wrapper, one on Notecard's root.
+    expect(container.querySelectorAll('[data-notecard-id]')).toHaveLength(2);
   });
 
   it('renders one arrow per notecardLink', () => {
@@ -88,6 +112,52 @@ describe('NotecardCanvas', () => {
     const bCard = screen.getByTestId('notecard-b');
     fireEvent.pointerUp(bCard, { clientX: 400, clientY: 300 });
     expect(props.addNotecardLink).toHaveBeenCalledWith('a', 'b');
+  });
+
+  it('aborts a link drag without creating a link when released over genuinely empty canvas (not an arbitrary other card)', () => {
+    // Drag starts from card 'b' (NOT the first card in DOM order) and releases directly
+    // on the surface. A `target?.querySelector('[data-notecard-id]')` fallback would search
+    // downward from the surface and find card 'a' (the first card in DOM), silently linking
+    // b -> a. The correct behavior is: closest-only lookup from the actual drop target finds
+    // no card, and the drag is aborted with no link created.
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    const bCard = screen.getByTestId('notecard-b');
+    const handle = bCard.querySelector('.link-handle') as HTMLElement;
+    fireEvent.pointerDown(handle, { clientX: 620, clientY: 380 });
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    fireEvent.pointerUp(surface, { clientX: 900, clientY: 900 });
+    expect(props.addNotecardLink).not.toHaveBeenCalled();
+  });
+
+  it('pans the canvas when dragging on empty surface with no card underneath', () => {
+    // Pointerdown must be fired on the transformed content layer (surface's actual child
+    // that covers the canvas in production), not on the surface ref element itself — an
+    // `e.target !== surfaceRef.current` identity check would never see a pointerdown whose
+    // target is this child, since surfaceRef.current is never itself the event target.
+    const props = baseProps();
+    const { container } = render(<NotecardCanvas {...props} />);
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    const transformLayer = surface.firstElementChild as HTMLElement;
+    expect(transformLayer).not.toBe(surface);
+    void container;
+    fireEvent.pointerDown(transformLayer, { clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { clientX: 140, clientY: 160 });
+    fireEvent.pointerUp(window, { clientX: 140, clientY: 160 });
+    expect(props.onTransformChange).toHaveBeenCalled();
+  });
+
+  it('zooms the canvas on wheel over the surface', () => {
+    const props = baseProps();
+    render(<NotecardCanvas {...props} />);
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    fireEvent.wheel(surface, { clientX: 100, clientY: 100, deltaY: -100 });
+    expect(props.onTransformChange).toHaveBeenCalled();
+    const updater = props.onTransformChange.mock.calls[0][0];
+    const result = typeof updater === 'function' ? updater(props.transform) : updater;
+    expect(result.scale).not.toBe(props.transform.scale);
   });
 
   it('opens a label editor on double-click of a link and commits the label', () => {
