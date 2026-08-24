@@ -265,6 +265,8 @@ export function deserializeProjectData(
     stickyNotes: data.settings?.stickyNotes ?? [],
     routeStickyNotes: data.settings?.routeStickyNotes ?? [],
     choiceStickyNotes: data.settings?.choiceStickyNotes ?? [],
+    notecards: data.settings?.notecards ?? [],
+    notecardLinks: data.settings?.notecardLinks ?? [],
     characterProfiles: data.settings?.characterProfiles ?? {},
     punchlistMetadata: data.settings?.punchlistMetadata ?? {},
     diagnosticsTasks,

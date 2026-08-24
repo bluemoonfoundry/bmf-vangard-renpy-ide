@@ -18,6 +18,8 @@ import type {
   AppSettings,
   ProjectSettings,
   StickyNote,
+  Notecard,
+  NotecardLink,
   EditorTab,
   FileSystemTreeNode,
   LabelNode,
@@ -121,6 +123,28 @@ export function createStickyNote(overrides: Partial<StickyNote> = {}): StickyNot
     width: 200,
     height: 150,
     color: 'yellow',
+    ...overrides,
+  };
+}
+
+export function createNotecard(overrides: Partial<Notecard> = {}): Notecard {
+  return {
+    id: `notecard-${Math.random().toString(36).slice(2, 9)}`,
+    title: 'New Notecard',
+    content: '',
+    position: { x: 0, y: 0 },
+    width: 220,
+    height: 160,
+    color: 'yellow',
+    ...overrides,
+  };
+}
+
+export function createNotecardLink(overrides: Partial<NotecardLink> = {}): NotecardLink {
+  return {
+    id: `notecard-link-${Math.random().toString(36).slice(2, 9)}`,
+    fromId: 'notecard-1',
+    toId: 'notecard-2',
     ...overrides,
   };
 }

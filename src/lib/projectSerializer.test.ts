@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { deserializeProjectData } from './projectSerializer';
 import type { ProjectLoadResult, Block } from '@/types';
+import { createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 
 function makeResult(overrides: Partial<ProjectLoadResult> = {}): ProjectLoadResult {
   return {
@@ -242,5 +243,22 @@ describe('deserializeProjectData', () => {
     const snap = deserializeProjectData(data, []);
     expect(snap.imageScanPaths).toEqual(['/external/images']);
     expect(snap.audioScanPaths).toEqual(['/external/audio']);
+  });
+
+  it('defaults notecards and notecardLinks to empty arrays when absent from settings', () => {
+    const data = makeResult();
+    const snap = deserializeProjectData(data, []);
+    expect(snap.notecards).toEqual([]);
+    expect(snap.notecardLinks).toEqual([]);
+  });
+
+  it('carries notecards and notecardLinks through when present in settings', () => {
+    const card = createNotecard({ id: 'nc-1' });
+    const link = createNotecardLink({ id: 'ncl-1', fromId: 'nc-1', toId: 'nc-2' });
+    const data = makeResult();
+    data.settings = { ...data.settings, notecards: [card], notecardLinks: [link] };
+    const snap = deserializeProjectData(data, []);
+    expect(snap.notecards).toEqual([card]);
+    expect(snap.notecardLinks).toEqual([link]);
   });
 });
