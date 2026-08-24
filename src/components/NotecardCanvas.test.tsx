@@ -90,4 +90,26 @@ describe('NotecardCanvas', () => {
     fireEvent.blur(input);
     expect(props.updateNotecardLink).toHaveBeenCalledWith('l1', { label: 'foreshadows' });
   });
+
+  it('dims notecards that do not match the search query', () => {
+    const a = createNotecard({ id: 'a', title: 'Letter reveal' });
+    const b = createNotecard({ id: 'b', title: 'Market scene' });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.change(screen.getByPlaceholderText('Search notecards…'), { target: { value: 'letter' } });
+    expect(screen.getByTestId('notecard-a').className).not.toContain('opacity-30');
+    expect(screen.getByTestId('notecard-b').className).toContain('opacity-30');
+  });
+
+  it('clearing the search query removes dimming from all cards', () => {
+    const a = createNotecard({ id: 'a', title: 'Letter reveal' });
+    const b = createNotecard({ id: 'b', title: 'Market scene' });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    const input = screen.getByPlaceholderText('Search notecards…');
+    fireEvent.change(input, { target: { value: 'letter' } });
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByTestId('notecard-a').className).not.toContain('opacity-30');
+    expect(screen.getByTestId('notecard-b').className).not.toContain('opacity-30');
+  });
 });

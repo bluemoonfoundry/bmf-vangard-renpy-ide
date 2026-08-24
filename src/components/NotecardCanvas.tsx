@@ -50,6 +50,10 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const isMatch = (card: NotecardType) =>
+    !normalizedQuery || card.title.toLowerCase().includes(normalizedQuery) || card.content.toLowerCase().includes(normalizedQuery);
 
   useEffect(() => {
     const el = surfaceRef.current;
@@ -114,6 +118,20 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     window.addEventListener('pointerdown', close);
     return () => window.removeEventListener('pointerdown', close);
   }, [contextMenu]);
+
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    const first = notecards.find(isMatch);
+    if (!first || !canvasDimensions.width || !canvasDimensions.height) return;
+    const centerX = first.position.x + first.width / 2;
+    const centerY = first.position.y + first.height / 2;
+    onTransformChange(t => ({
+      ...t,
+      x: canvasDimensions.width / 2 - centerX * t.scale,
+      y: canvasDimensions.height / 2 - centerY * t.scale,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedQuery]);
 
   // Each pointerdown handler below defines its own local handlePointerMove/handlePointerUp
   // closures and adds/removes exactly those closures (never a separately-memoized
@@ -282,7 +300,12 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
             );
           })()}
           {notecards.map(card => (
-            <div key={card.id} data-testid={`notecard-${card.id}`} onPointerDown={(e) => handleCardPointerDown(e, card)}>
+            <div
+              key={card.id}
+              data-testid={`notecard-${card.id}`}
+              className={isMatch(card) ? '' : 'opacity-30 transition-opacity'}
+              onPointerDown={(e) => handleCardPointerDown(e, card)}
+            >
               <Notecard
                 card={card}
                 updateCard={updateNotecard}
@@ -309,6 +332,16 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
           </button>
         </div>
       )}
+
+      <div className="absolute top-4 left-4 z-40">
+        <input
+          type="text"
+          placeholder="Search notecards…"
+          className="w-56 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
 
       <div className="absolute bottom-4 right-4">
         <Minimap items={minimapItems} transform={transform} canvasDimensions={canvasDimensions} onTransformChange={onTransformChange} />
