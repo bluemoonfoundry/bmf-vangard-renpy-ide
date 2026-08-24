@@ -55,4 +55,39 @@ describe('NotecardCanvas', () => {
     const { container } = render(<NotecardCanvas {...props} />);
     expect(container.querySelectorAll('[data-notecard-id]')).toHaveLength(1);
   });
+
+  it('renders one arrow per notecardLink', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const link = { id: 'l1', fromId: 'a', toId: 'b' };
+    const props = { ...baseProps(), notecards: [a, b], notecardLinks: [link] };
+    const { container } = render(<NotecardCanvas {...props} />);
+    expect(container.querySelectorAll('[data-notecard-link-id]')).toHaveLength(1);
+  });
+
+  it('completes a link when dragging from one card link-handle and releasing over another card', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    const aCard = screen.getByTestId('notecard-a');
+    const handle = aCard.querySelector('.link-handle') as HTMLElement;
+    fireEvent.pointerDown(handle, { clientX: 220, clientY: 80 });
+    const bCard = screen.getByTestId('notecard-b');
+    fireEvent.pointerUp(bCard, { clientX: 400, clientY: 300 });
+    expect(props.addNotecardLink).toHaveBeenCalledWith('a', 'b');
+  });
+
+  it('opens a label editor on double-click of a link and commits the label', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const link = { id: 'l1', fromId: 'a', toId: 'b' };
+    const props = { ...baseProps(), notecards: [a, b], notecardLinks: [link] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.doubleClick(screen.getByTestId('notecard-link-l1'));
+    const input = screen.getByPlaceholderText('Link label…');
+    fireEvent.change(input, { target: { value: 'foreshadows' } });
+    fireEvent.blur(input);
+    expect(props.updateNotecardLink).toHaveBeenCalledWith('l1', { label: 'foreshadows' });
+  });
 });

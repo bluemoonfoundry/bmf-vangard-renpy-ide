@@ -1,8 +1,8 @@
 /**
  * @file NotecardCanvas.tsx
  * @description Twine-like freeform scratchpad canvas: pan/zoom, create/select/drag/resize
- * notecards, delete via keyboard, minimap. Link-drawing wired in a follow-up task via
- * onStartLinkDrag; search wired in a follow-up task via the toolbar slot below.
+ * notecards, delete via keyboard, minimap, drag-to-link connectors with an SVG overlay and
+ * a click-to-edit label popup. Search wired in a follow-up task via the toolbar slot below.
  * Structurally mirrors StoryCanvas/RouteCanvas/ChoiceCanvas's self-contained pointer-event
  * state machine — no shared base canvas component exists in this codebase to inherit from.
  */
@@ -61,10 +61,37 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // eslint-disable-next-line no-unused-vars
-  const startLinkDrag = useCallback((_cardId: string, _clientX: number, _clientY: number) => {
-    // Wired up in the link-drawing task; intentionally a no-op stub until then.
-  }, []);
+  const [linkDraft, setLinkDraft] = useState<{ fromId: string; x: number; y: number } | null>(null);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState('');
+
+  const startLinkDrag = useCallback((cardId: string, clientX: number, clientY: number) => {
+    if (!surfaceRef.current) return;
+    const rect = surfaceRef.current.getBoundingClientRect();
+    const world = toWorld(clientX, clientY, rect, transform);
+    setLinkDraft({ fromId: cardId, x: world.x, y: world.y });
+
+    const onMove = (e: PointerEvent) => {
+      const r = surfaceRef.current;
+      if (!r) return;
+      const w = toWorld(e.clientX, e.clientY, r.getBoundingClientRect(), transform);
+      setLinkDraft(prev => (prev ? { ...prev, x: w.x, y: w.y } : prev));
+    };
+    const onUp = (e: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const target = e.target as HTMLElement | null;
+      const targetCardEl = (target?.closest('[data-notecard-id]') ?? target?.querySelector('[data-notecard-id]')) as HTMLElement | null;
+      const toId = targetCardEl?.getAttribute('data-notecard-id');
+      setLinkDraft(null);
+      if (toId && toId !== cardId) addNotecardLink(cardId, toId);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [transform, addNotecardLink]);
+
+  const cardCenter = useCallback((card: NotecardType) => ({ x: card.position.x + card.width / 2, y: card.position.y + card.height / 2 }), []);
+  const cardById = useCallback((id: string) => notecards.find(c => c.id === id), [notecards]);
 
   const handleSurfaceDoubleClick = useCallback((e: React.MouseEvent) => {
     if (!surfaceRef.current) return;
@@ -197,6 +224,63 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
         onPointerDown={handleSurfacePointerDown}
       >
         <div className="absolute inset-0" style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}>
+          <svg className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, width: 1, height: 1 }}>
+            <defs>
+              <marker id="notecard-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" className="fill-indigo-500" />
+              </marker>
+            </defs>
+            {notecardLinks.map(link => {
+              const from = cardById(link.fromId);
+              const to = cardById(link.toId);
+              if (!from || !to) return null;
+              const a = cardCenter(from);
+              const b = cardCenter(to);
+              const midX = (a.x + b.x) / 2;
+              const midY = (a.y + b.y) / 2;
+              return (
+                <g
+                  key={link.id}
+                  data-notecard-link-id={link.id}
+                  data-testid={`notecard-link-${link.id}`}
+                  className="pointer-events-auto cursor-pointer"
+                  onDoubleClick={() => { setLabelDraft(link.label ?? ''); setEditingLinkId(link.id); }}
+                >
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="stroke-indigo-500" strokeWidth={2} markerEnd="url(#notecard-arrow)" />
+                  {link.label && (
+                    <text x={midX} y={midY - 6} className="fill-indigo-700 dark:fill-indigo-300 text-xs" textAnchor="middle">{link.label}</text>
+                  )}
+                </g>
+              );
+            })}
+            {linkDraft && (() => {
+              const from = cardById(linkDraft.fromId);
+              if (!from) return null;
+              const a = cardCenter(from);
+              return <line x1={a.x} y1={a.y} x2={linkDraft.x} y2={linkDraft.y} className="stroke-indigo-400" strokeWidth={2} strokeDasharray="4 4" />;
+            })()}
+          </svg>
+          {editingLinkId && (() => {
+            const link = notecardLinks.find(l => l.id === editingLinkId);
+            if (!link) return null;
+            const from = cardById(link.fromId);
+            const to = cardById(link.toId);
+            if (!from || !to) return null;
+            const a = cardCenter(from);
+            const b = cardCenter(to);
+            return (
+              <input
+                autoFocus
+                className="absolute z-40 text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800"
+                placeholder="Link label…"
+                style={{ left: (a.x + b.x) / 2, top: (a.y + b.y) / 2 }}
+                value={labelDraft}
+                onChange={(e) => setLabelDraft(e.target.value)}
+                onBlur={() => { updateNotecardLink(editingLinkId, { label: labelDraft }); setEditingLinkId(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              />
+            );
+          })()}
           {notecards.map(card => (
             <div key={card.id} data-testid={`notecard-${card.id}`} onPointerDown={(e) => handleCardPointerDown(e, card)}>
               <Notecard
