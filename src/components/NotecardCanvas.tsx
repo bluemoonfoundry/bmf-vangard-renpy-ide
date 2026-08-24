@@ -49,6 +49,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -114,7 +115,10 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
+    const close = (e: PointerEvent) => {
+      if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) return;
+      setContextMenu(null);
+    };
     window.addEventListener('pointerdown', close);
     return () => window.removeEventListener('pointerdown', close);
   }, [contextMenu]);
@@ -321,6 +325,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           className="absolute z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >

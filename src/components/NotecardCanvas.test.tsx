@@ -35,6 +35,18 @@ describe('NotecardCanvas', () => {
     expect(props.addNotecard).toHaveBeenCalledWith({ x: 200, y: 80 });
   });
 
+  it('clicking "New Notecard" in the context menu creates a card, surviving the pointerdown-then-click sequence a real mouse click produces', () => {
+    const props = baseProps();
+    render(<NotecardCanvas {...props} />);
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    fireEvent.contextMenu(surface, { clientX: 200, clientY: 80 });
+    const menuItem = screen.getByText('New Notecard');
+    // A real click fires pointerdown (bubbles to window, previously closed+unmounted the menu) before click.
+    fireEvent.pointerDown(menuItem);
+    fireEvent.click(menuItem);
+    expect(props.addNotecard).toHaveBeenCalledWith({ x: 200, y: 80 });
+  });
+
   it('renders one Notecard per item in notecards[]', () => {
     const props = { ...baseProps(), notecards: [createNotecard({ id: 'a' }), createNotecard({ id: 'b' })] };
     render(<NotecardCanvas {...props} />);
