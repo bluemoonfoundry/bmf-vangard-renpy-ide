@@ -17,6 +17,13 @@ import type {
   IgnoredDiagnosticRule,
 } from '@/types';
 import { createIgnoredDiagnosticRule } from '@/lib/diagnosticIgnores';
+import {
+  diagnosticIssuesToMarkdown,
+  diagnosticIssuesToCSV,
+  diagnosticsTasksToMarkdown,
+  diagnosticsTasksToCSV,
+} from '@/lib/exportReport';
+import ExportMenu from '@/components/ExportMenu';
 
 interface DiagnosticsPanelProps {
   diagnostics: DiagnosticsResult;
@@ -357,6 +364,22 @@ const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
             className="w-full pl-7 pr-2 py-1 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         </div>
+
+        {/* Export */}
+        <ExportMenu
+          filenameBase={activeView === 'issues' ? 'diagnostics-issues' : 'diagnostics-tasks'}
+          disabled={activeView === 'issues' ? filteredIssues.length === 0 : filteredTasks.length === 0}
+          getMarkdown={() =>
+            activeView === 'issues'
+              ? diagnosticIssuesToMarkdown(filteredIssues, blocks)
+              : diagnosticsTasksToMarkdown(filteredTasks, blocks)
+          }
+          getCSV={() =>
+            activeView === 'issues'
+              ? diagnosticIssuesToCSV(filteredIssues, blocks)
+              : diagnosticsTasksToCSV(filteredTasks, blocks)
+          }
+        />
       </div>
 
       {/* Issues view */}

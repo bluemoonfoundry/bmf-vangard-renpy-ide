@@ -15,6 +15,8 @@ import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 import { useCanvasFps } from '@/hooks/useCanvasFps';
 import { buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 import { groupUsageLocations, type UsageLocationGroup } from '@/lib/usageLocations';
+import { statsToMarkdown, statsToCSV, type StatsReportData } from '@/lib/exportReport';
+import ExportMenu from '@/components/ExportMenu';
 
 interface StatsViewProps {
   blocks: Block[];
@@ -768,9 +770,44 @@ const StatsView: React.FC<StatsViewProps> = ({
   const estimatedMinutes = totalWords !== null ? Math.round(totalWords / 200) : null;
   const branchRatioPercent = Math.round((branchingBlockIds.size / Math.max(1, blocks.length)) * 100);
 
+  const statsReportData: StatsReportData = {
+    totalWords,
+    estimatedMinutes,
+    dialogueWords,
+    narrationWords,
+    scriptFiles: blocks.length,
+    totalCharacters: characters.size,
+    speakingCharacters: charChartData?.length ?? null,
+    labelCount,
+    branchingFiles: branchingBlockIds.size,
+    identifiedRoutes: identifiedRoutes.length,
+    routesTruncated,
+    unreachableLabels: unreachableLabels.length,
+    complexity,
+    distinctEndings: pathStats?.endingCount ?? null,
+    shortestPath: pathStats?.shortestPath ?? null,
+    longestPath: pathStats?.longestPath ?? null,
+    imageAssets: projectImages.size,
+    imageReferenced: coverageData?.imageReferenced ?? null,
+    audioAssets: projectAudios.size,
+    audioReferenced: coverageData?.audioReferenced ?? null,
+    scriptErrors: diagnosticsErrorCount,
+    characterWordCounts: charChartData?.map(c => ({ name: c.name, words: c.words })) ?? null,
+    assetIssues: (coverageData?.rows ?? [])
+      .filter((r): r is typeof r & { status: 'missing' | 'orphaned' } => r.status === 'missing' || r.status === 'orphaned')
+      .map(r => ({ name: r.name, type: r.type, status: r.status })),
+  };
+
   return (
     <div className="h-full overflow-y-auto p-6 text-primary">
-      <h1 className="text-2xl font-bold mb-6">Script Statistics</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Script Statistics</h1>
+        <ExportMenu
+          filenameBase="script-statistics"
+          getMarkdown={() => statsToMarkdown(statsReportData)}
+          getCSV={() => statsToCSV(statsReportData)}
+        />
+      </div>
 
       {/* Writing */}
       <SectionLabel>Writing</SectionLabel>
