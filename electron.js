@@ -1143,6 +1143,8 @@ app.whenReady().then(() => {
         event.sender.send('project:load-progress', value, message);
       }
     });
+    // Surface the project in the macOS Dock's "Recent" menu / Windows taskbar Jump List
+    app.addRecentDocument(rootPath);
     // Start watching the project for external file changes
     startProjectWatcher(rootPath);
     return result;
