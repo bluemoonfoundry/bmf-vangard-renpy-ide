@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
-import type { EditorTab } from '@/types';
+import type { ClosedTabEntry, EditorTab } from '@/types';
 
 function makeTab(id: string): EditorTab {
   return { id, type: 'editor' } as EditorTab;
@@ -25,6 +25,8 @@ function makeProps(overrides: Partial<Parameters<typeof useTabLifecycle>[0]> = {
     setSplitPrimarySize: vi.fn(),
     setDraggedTabId: vi.fn(),
     setDragSourcePaneId: vi.fn(),
+    closedTabsStack: [] as ClosedTabEntry[],
+    setClosedTabsStack: vi.fn(),
     dirtyBlockIds: new Set<string>(),
     dirtyEditors: new Set<string>(),
     setDirtyBlockIds: vi.fn(),
@@ -57,6 +59,74 @@ describe('useTabLifecycle', () => {
       const { result } = renderHook(() => useTabLifecycle(props));
       act(() => result.current.handleCloseTab('sec-tab', 'secondary'));
       expect(props.setSecondaryOpenTabs).toHaveBeenCalled();
+    });
+
+    it('pushes the closed tab onto the closed-tabs stack with its pane and index', () => {
+      const setClosedTabsStack = vi.fn();
+      const props = makeProps({ setClosedTabsStack });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseTab('block-1', 'primary'));
+      expect(setClosedTabsStack).toHaveBeenCalled();
+      const updater = setClosedTabsStack.mock.calls[0][0];
+      expect(updater([])).toEqual([{ tab: makeTab('block-1'), paneId: 'primary', index: 1 }]);
+    });
+
+    it('does not push untitled tabs onto the closed-tabs stack', () => {
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), { id: 'untitled-1', type: 'untitled' } as EditorTab],
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleCloseTab('untitled-1', 'primary'));
+      expect(props.setClosedTabsStack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleReopenClosedTab', () => {
+    it('does nothing when the stack is empty', () => {
+      const props = makeProps({ closedTabsStack: [] });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleReopenClosedTab());
+      expect(props.setOpenTabs).not.toHaveBeenCalled();
+      expect(props.setClosedTabsStack).not.toHaveBeenCalled();
+    });
+
+    it('reinserts the most recently closed tab at its original index and focuses it', () => {
+      const entry: ClosedTabEntry = { tab: makeTab('block-2'), paneId: 'primary', index: 1 };
+      const setClosedTabsStack = vi.fn();
+      const setOpenTabs = vi.fn();
+      const props = makeProps({ closedTabsStack: [entry], setClosedTabsStack, setOpenTabs });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleReopenClosedTab());
+
+      const popUpdater = setClosedTabsStack.mock.calls[0][0];
+      expect(popUpdater([entry])).toEqual([]);
+
+      const insertUpdater = setOpenTabs.mock.calls[0][0];
+      expect(insertUpdater(props.openTabs)).toEqual([makeTab('canvas'), makeTab('block-2'), makeTab('block-1')]);
+      expect(props.setActiveTabId).toHaveBeenCalledWith('block-2');
+      expect(props.setActivePaneId).toHaveBeenCalledWith('primary');
+    });
+
+    it('just focuses the tab instead of duplicating it if already reopened elsewhere', () => {
+      const entry: ClosedTabEntry = { tab: makeTab('block-1'), paneId: 'primary', index: 1 };
+      const props = makeProps({ closedTabsStack: [entry] }); // block-1 is already in openTabs
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleReopenClosedTab());
+
+      expect(props.setOpenTabs).not.toHaveBeenCalled();
+      expect(props.setActiveTabId).toHaveBeenCalledWith('block-1');
+    });
+
+    it('falls back to the primary pane when the closed tab came from a since-closed split', () => {
+      const entry: ClosedTabEntry = { tab: makeTab('sec-tab'), paneId: 'secondary', index: 0 };
+      const setOpenTabs = vi.fn();
+      const props = makeProps({ closedTabsStack: [entry], splitLayout: 'none', setOpenTabs });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleReopenClosedTab());
+
+      const insertUpdater = setOpenTabs.mock.calls[0][0];
+      expect(insertUpdater(props.openTabs)).toEqual([makeTab('sec-tab'), makeTab('canvas'), makeTab('block-1')]);
+      expect(props.setActivePaneId).toHaveBeenCalledWith('primary');
     });
   });
 
@@ -126,6 +196,19 @@ describe('useTabLifecycle', () => {
       act(() => result.current.processTabCloseRequest([makeTab('block-1')], 'canvas'));
       expect(props.openUnsavedChangesModal).not.toHaveBeenCalled();
       expect(props.setOpenTabs).toHaveBeenCalled();
+    });
+
+    it('pushes each closed tab onto the closed-tabs stack, skipping untitled tabs', () => {
+      const untitledTab: EditorTab = { id: 'untitled-1', type: 'untitled', title: 'Untitled-1' } as EditorTab;
+      const setClosedTabsStack = vi.fn();
+      const props = makeProps({
+        openTabs: [makeTab('canvas'), makeTab('block-1'), untitledTab],
+        setClosedTabsStack,
+      });
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.processTabCloseRequest([makeTab('block-1'), untitledTab], 'canvas'));
+      const updater = setClosedTabsStack.mock.calls[0][0];
+      expect(updater([])).toEqual([{ tab: makeTab('block-1'), paneId: 'primary', index: 1 }]);
     });
 
     it('opens unsaved changes modal when dirtyEditors contains the blockId', () => {

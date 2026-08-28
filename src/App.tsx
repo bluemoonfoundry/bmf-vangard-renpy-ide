@@ -205,6 +205,8 @@ const App: React.FC = () => {
     dragSourcePaneId,
     setDraggedTabId,
     setDragSourcePaneId,
+    closedTabsStack,
+    setClosedTabsStack,
     openTab: _openTab,
     closeTab: _closeTab,
     switchTab: _switchTab,
@@ -1163,11 +1165,13 @@ const App: React.FC = () => {
     handleTabDragStart,
     handleTabDragOver,
     handleTabDrop,
+    handleReopenClosedTab,
   } = useTabLifecycle({
     openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, splitLayout,
     draggedTabId, dragSourcePaneId,
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
     setSplitLayout, setSplitPrimarySize, setDraggedTabId, setDragSourcePaneId,
+    closedTabsStack, setClosedTabsStack,
     dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
     untitledFiles, saveUntitledFile, discardUntitledFile,
     openUnsavedChangesModal, closeUnsavedChangesModal,
@@ -1267,6 +1271,29 @@ const App: React.FC = () => {
       }
   }, [blocks, analysisResult, addToast, stickyNotes, canvasFilters.notes, setActiveTabId, setCanvasFilters, setCenterOnBlockRequest]);
 
+  const handleRevealInFileManager = useCallback(async (relativePath: string) => {
+      if (!projectRootPath || !window.electronAPI) return;
+      try {
+          const absPath = await window.electronAPI.path.join(projectRootPath, relativePath) as string;
+          await window.electronAPI.showItemInFolder?.(absPath);
+      } catch (err) {
+          logger.error('Failed to reveal item in file manager', err);
+          addToast('Could not reveal file', 'error');
+      }
+  }, [projectRootPath, addToast]);
+
+  const handleCopyPath = useCallback(async (relativePath: string) => {
+      if (!projectRootPath || !window.electronAPI) return;
+      try {
+          const absPath = await window.electronAPI.path.join(projectRootPath, relativePath) as string;
+          await navigator.clipboard.writeText(absPath);
+          addToast('Path copied to clipboard', 'success');
+      } catch (err) {
+          logger.error('Failed to copy path', err);
+          addToast('Could not copy path', 'error');
+      }
+  }, [projectRootPath, addToast]);
+
   // ── Go-to-label (Ctrl+G) ─────────────────────────────────────────────────────
 
   const activeCanvasTabId = activeTabId === 'canvas' || activeTabId === 'route-canvas' || activeTabId === 'choice-canvas'
@@ -1340,6 +1367,13 @@ const App: React.FC = () => {
           handleCloseTab(currentTabId, currentPaneId);
         }
       }
+      if (isMetaShortcut && e.shiftKey && e.key.toLowerCase() === 't') {
+        // Reopen the most recently closed tab
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        handleReopenClosedTab();
+      }
       // Canvas-level Undo/Redo. Skip when focus is in an editable field (text input,
       // Monaco editor) or inside Scene Composer, which each maintain their own undo stack.
       const key = e.key.toLowerCase();
@@ -1365,7 +1399,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal, canUndo, canRedo, undo, redo]);
+  }, [activeCanvasTabId, activePaneId, activeTabId, handleCloseTab, handleReopenClosedTab, projectRootPath, resetWarpLaunchState, secondaryActiveTabId, closeGoToLabelModal, closeWarpToLabelModal, isGoToLabelOpen, openGoToLabelModal, openWarpToLabelModal, canUndo, canRedo, undo, redo]);
 
 
   const handleFindUsages = useCallback((id: string, type: 'character' | 'variable') => {
@@ -1863,6 +1897,7 @@ const App: React.FC = () => {
     activePaneId, setActivePaneId,
     splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
     draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
+    closedTabsStack, setClosedTabsStack,
     openTab: _openTab, closeTab: _closeTab, switchTab: _switchTab, updateTab: _updateTab,
     closeTabs: _closeTabs, setTabs,
     createSplit: _createSplit, closeSplit: _closeSplit, setSplitSize: _setSplitSize,
@@ -1875,7 +1910,7 @@ const App: React.FC = () => {
     handleCloseLeftRequest, handleCloseRightRequest,
     handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
     handleCloseSecondaryPane, handleClosePrimaryPane,
-    handleTabDragStart, handleTabDragOver, handleTabDrop,
+    handleTabDragStart, handleTabDragOver, handleTabDrop, handleReopenClosedTab,
     handleTabContextMenu,
     handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
     handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
@@ -1885,6 +1920,7 @@ const App: React.FC = () => {
     activePaneId, setActivePaneId,
     splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
     draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
+    closedTabsStack, setClosedTabsStack,
     _openTab, _closeTab, _switchTab, _updateTab, _closeTabs, setTabs,
     _createSplit, _closeSplit, _setSplitSize, _moveTabToPane,
     _startTabDrag, _endTabDrag, _findTab, _getActiveTab,
@@ -1894,7 +1930,7 @@ const App: React.FC = () => {
     handleCloseLeftRequest, handleCloseRightRequest,
     handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
     handleCloseSecondaryPane, handleClosePrimaryPane,
-    handleTabDragStart, handleTabDragOver, handleTabDrop, handleTabContextMenu,
+    handleTabDragStart, handleTabDragOver, handleTabDrop, handleReopenClosedTab, handleTabContextMenu,
     handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
     handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
   ]);
@@ -1993,6 +2029,8 @@ const App: React.FC = () => {
                     onPaste={handlePaste}
                     onCenterOnBlock={handleCenterOnBlock}
                     onRefresh={handleRefreshProject}
+                    onRevealInFileManager={handleRevealInFileManager}
+                    onCopyPath={handleCopyPath}
                     selectedPaths={explorerSelectedPaths}
                     setSelectedPaths={setExplorerSelectedPaths}
                     lastClickedPath={explorerLastClickedPath}
@@ -2346,6 +2384,14 @@ const App: React.FC = () => {
               y={contextMenuInfo.y}
               tabId={contextMenuInfo.tabId}
               paneId={contextMenuInfo.paneId}
+              filePath={(() => {
+                  const tabs = contextMenuInfo.paneId === 'secondary' ? secondaryOpenTabs : openTabs;
+                  const tab = tabs.find(t => t.id === contextMenuInfo.tabId);
+                  if (!tab) return undefined;
+                  return tab.type === 'editor'
+                      ? blocks.find(b => b.id === tab.blockId)?.filePath
+                      : tab.filePath;
+              })()}
               onClose={() => closeContextMenu()}
               onCloseTab={(id) => handleCloseTab(id, contextMenuInfo.paneId)}
               onCloseOthers={(id) => handleCloseOthersRequest(id, contextMenuInfo.paneId)}
@@ -2355,6 +2401,8 @@ const App: React.FC = () => {
               onSplitRight={(id) => handleOpenInSplit(id, 'right')}
               onSplitBottom={(id) => handleOpenInSplit(id, 'bottom')}
               onMoveToOtherPane={(id) => handleMoveToOtherPane(id, contextMenuInfo.paneId)}
+              onRevealInFileManager={handleRevealInFileManager}
+              onCopyPath={handleCopyPath}
           />,
           document.body
       )}

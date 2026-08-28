@@ -8,7 +8,7 @@
  */
 
 import React, { useState, forwardRef } from 'react';
-import { marked } from 'marked';
+import { renderSanitizedMarkdown } from '@/lib/renderSanitizedMarkdown';
 import type { Notecard as NotecardType, NoteColor } from '@/types';
 
 interface NotecardProps {
@@ -127,7 +127,7 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
           className={`w-full h-full overflow-auto ${PAPER_BG} rounded-b-sm pl-3 pr-2 py-2 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none cursor-text`}
           onDoubleClick={(e) => { e.stopPropagation(); setBodyDraft(card.content); setIsEditingBody(true); }}
           onPointerDown={(e) => e.stopPropagation()}
-          dangerouslySetInnerHTML={{ __html: card.content ? marked.parse(card.content, { async: false }) as string : '<span class="opacity-40">Double-click to add notes…</span>' }}
+          dangerouslySetInnerHTML={{ __html: card.content ? renderSanitizedMarkdown(card.content) : '<span class="opacity-40">Double-click to add notes…</span>' }}
         />
       )}
 

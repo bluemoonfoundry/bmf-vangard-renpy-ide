@@ -105,6 +105,7 @@ export interface MockElectronAPI {
 
   // Shell
   openExternal: Mock<(url: string) => Promise<void>>;
+  showItemInFolder: Mock<(filePath: string) => Promise<void>>;
 
   // Search & dialogs
   searchInProject: Mock<(args: SearchInProjectArgs) => Promise<ProjectSearchOutcome>>;
@@ -183,6 +184,7 @@ export function createMockElectronAPI(): MockElectronAPI {
 
     // Shell
     openExternal: vi.fn().mockResolvedValue(undefined),
+    showItemInFolder: vi.fn().mockResolvedValue(undefined),
 
     // Search & dialogs
     searchInProject: vi.fn().mockResolvedValue({ results: [], truncated: false, cancelled: false, skipped: [], regexError: null }),

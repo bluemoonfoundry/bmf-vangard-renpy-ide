@@ -7,10 +7,9 @@
  * `window.electronAPI.readFile` / `writeFile` IPC calls.
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import Editor from '@monaco-editor/react';
 import { logger } from '@/lib/logger';
+import { renderSanitizedMarkdown } from '@/lib/renderSanitizedMarkdown';
 
 interface MarkdownPreviewViewProps {
   filePath: string;
@@ -84,17 +83,7 @@ const MarkdownPreviewView: React.FC<MarkdownPreviewViewProps> = ({ filePath, pro
   // Parse markdown with sanitization
   const renderedHtml = useMemo(() => {
     try {
-      const parsed = marked.parse(content, { gfm: true, breaks: true }) as string;
-      // Sanitize HTML to prevent XSS attacks
-      return DOMPurify.sanitize(parsed, {
-        ALLOWED_TAGS: [
-          'p', 'br', 'strong', 'em', 'a', 'code', 'pre', 'ul', 'ol', 'li',
-          'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody',
-          'tr', 'th', 'td', 'blockquote', 'hr', 'img', 'span', 'div', 'del',
-          'input'
-        ],
-        ALLOWED_ATTR: ['href', 'class', 'src', 'alt', 'title', 'id', 'type', 'checked', 'disabled']
-      });
+      return renderSanitizedMarkdown(content, { gfm: true, breaks: true });
     } catch (e) {
       logger.error('Failed to parse markdown', e);
       return '<p>Failed to parse markdown.</p>';

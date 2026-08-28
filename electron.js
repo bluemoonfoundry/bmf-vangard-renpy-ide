@@ -829,7 +829,54 @@ async function createWindow() {
 
   await updateApplicationMenu();
 
+  applyContentSecurityPolicy(mainWindow.webContents.session);
   mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+}
+
+/**
+ * Installs a Content-Security-Policy header on every response in this session.
+ *
+ * Renderer scripts run with contextIsolation, but window.electronAPI (the
+ * contextBridge surface) is intentionally reachable from page scripts — so any
+ * script that ends up executing in the renderer (e.g. via an HTML-injection bug
+ * in a Markdown/notecard renderer that a future change reintroduces) can call
+ * fs read/write, shell.openExternal, etc. Without a CSP, that same script could
+ * also `fetch()`/`XMLHttpRequest` to any attacker-controlled host to exfiltrate
+ * whatever it read — `connect-src` closes that off to just this app's own
+ * origin plus the one CDN Monaco's default loader currently depends on.
+ *
+ * `media:` is deliberately left OUT of connect-src: nothing in the renderer
+ * ever fetch()s a media:// URL (it's only ever used as <img>/<audio> src), so
+ * omitting it means that even if the media:// protocol handler's project-root
+ * guard (see guardProjectPath call in the 'media' protocol.handle above) were
+ * ever bypassed or regressed, a script-based read via fetch('media:///...')
+ * is still blocked by CSP as a second, independent layer.
+ */
+function applyContentSecurityPolicy(session) {
+  const MONACO_CDN = 'https://cdn.jsdelivr.net';
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'wasm-unsafe-eval' ${MONACO_CDN}`,
+    `style-src 'self' 'unsafe-inline' ${MONACO_CDN}`,
+    "img-src 'self' media: data: blob:",
+    "media-src 'self' media: blob:",
+    `font-src 'self' data: ${MONACO_CDN}`,
+    `connect-src 'self' ${MONACO_CDN}`,
+    `worker-src 'self' blob: ${MONACO_CDN}`,
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-src 'none'",
+  ].join('; ');
+
+  session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    });
+  });
 }
 
 app.whenReady().then(() => {
@@ -861,7 +908,13 @@ app.whenReady().then(() => {
             }
             filePath = pathPart;
         }
-        
+
+        // Same containment check as every fs:* IPC handler — this protocol is
+        // registered with bypassCSP/corsEnabled/supportFetchAPI so it's directly
+        // fetchable from renderer script; without this it would be an arbitrary
+        // local file read primitive reachable from any renderer-side script.
+        await guardProjectPath(filePath);
+
         // Use fs.stat to get size and createReadStream for streaming
         const stats = await fs.stat(filePath);
         const mimeType = getMimeType(filePath);
@@ -1143,6 +1196,8 @@ app.whenReady().then(() => {
         event.sender.send('project:load-progress', value, message);
       }
     });
+    // Surface the project in the macOS Dock's "Recent" menu / Windows taskbar Jump List
+    app.addRecentDocument(rootPath);
     // Start watching the project for external file changes
     startProjectWatcher(rootPath);
     return result;
@@ -1557,6 +1612,15 @@ app.whenReady().then(() => {
       await shell.openExternal(url);
     } catch (error) {
       logger.error('Failed to open external URL', error);
+    }
+  });
+
+  ipcMain.handle('shell:showItemInFolder', async (_event, filePath) => {
+    try {
+      await guardProjectPath(filePath);
+      shell.showItemInFolder(filePath);
+    } catch (error) {
+      logger.error('Failed to reveal item in folder', error);
     }
   });
 

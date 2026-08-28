@@ -128,6 +128,8 @@ describe('FileExplorerPanel', () => {
     onPaste: vi.fn(),
     onCenterOnBlock: vi.fn(),
     onRefresh: vi.fn(),
+    onRevealInFileManager: vi.fn(),
+    onCopyPath: vi.fn(),
     selectedPaths: new Set<string>(),
     setSelectedPaths: vi.fn(),
     lastClickedPath: null,

@@ -30,6 +30,11 @@ describe('useTabManagement', () => {
     expect(result.current.splitLayout).toBe('none');
   });
 
+  it('starts with an empty closed-tabs stack', () => {
+    const { result } = renderHook(() => useTabManagement());
+    expect(result.current.closedTabsStack).toHaveLength(0);
+  });
+
   describe('openTab', () => {
     it('adds a new tab to the primary pane', () => {
       const { result } = renderHook(() => useTabManagement());

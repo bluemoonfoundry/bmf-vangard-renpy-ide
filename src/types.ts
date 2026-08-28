@@ -684,6 +684,19 @@ export interface EditorTab {
 }
 
 /**
+ * A recently-closed tab, kept on a LIFO stack so it can be reopened (Ctrl+Shift+T).
+ * @interface ClosedTabEntry
+ * @property {EditorTab} tab - The tab as it existed at close time
+ * @property {'primary' | 'secondary'} paneId - Which pane it was closed from
+ * @property {number} index - Its position within that pane's tab list, used to reinsert it in roughly the same spot
+ */
+export interface ClosedTabEntry {
+  tab: EditorTab;
+  paneId: 'primary' | 'secondary';
+  index: number;
+}
+
+/**
  * Represents a node in the file explorer tree hierarchy.
  * Used to display the project's folder structure in the left panel.
  * @interface FileSystemTreeNode
@@ -1482,6 +1495,7 @@ declare global {
           onUpdateDownloaded?: (callback: (version: string) => void) => () => void;
           installUpdate?: () => void;
           openExternal?: (url: string) => Promise<void>;
+          showItemInFolder?: (filePath: string) => Promise<void>;
           updateExplorerMenuState?: (state: { canNewFile?: boolean; canNewFolder?: boolean; canRename?: boolean; canDelete?: boolean; canRefresh?: boolean; hasScreenshots?: boolean; canNewUntitledFile?: boolean }) => void;
           captureScreenshot?: () => Promise<{ success: boolean; filename?: string; filepath?: string; error?: string }>;
           getScreenshotCount?: () => Promise<number>;

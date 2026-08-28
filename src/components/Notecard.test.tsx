@@ -47,4 +47,17 @@ describe('Notecard', () => {
     expect(container.querySelector('.resize-handle')).toBeTruthy();
     expect(container.querySelector('.link-handle')).toBeTruthy();
   });
+
+  it('sanitizes HTML in notecard content instead of rendering it raw', () => {
+    // A malicious project file (e.g. a shared/downloaded template) could set this
+    // via game/project.ide.json — must not execute as script in the renderer.
+    const card = createNotecard({ content: '<img src=x onerror="window.__pwned = true">malicious' });
+    const { container } = render(
+      <Notecard card={card} updateCard={vi.fn()} deleteCard={vi.fn()} isSelected={false} isDragging={false} onStartLinkDrag={vi.fn()} />
+    );
+    const img = container.querySelector('img');
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('onerror')).toBeNull();
+    expect(container.innerHTML).not.toContain('onerror');
+  });
 });

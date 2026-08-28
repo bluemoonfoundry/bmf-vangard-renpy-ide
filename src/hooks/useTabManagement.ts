@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { EditorTab } from '@/types';
+import type { ClosedTabEntry, EditorTab } from '@/types';
 
 export interface UseTabManagementReturn {
   // Primary pane state
@@ -36,6 +36,10 @@ export interface UseTabManagementReturn {
   dragSourcePaneId: 'primary' | 'secondary';
   setDraggedTabId: React.Dispatch<React.SetStateAction<string | null>>;
   setDragSourcePaneId: React.Dispatch<React.SetStateAction<'primary' | 'secondary'>>;
+
+  // Recently-closed tabs (LIFO stack, for Ctrl+Shift+T reopen)
+  closedTabsStack: ClosedTabEntry[];
+  setClosedTabsStack: React.Dispatch<React.SetStateAction<ClosedTabEntry[]>>;
 
   // Tab lifecycle handlers
   openTab: (tab: EditorTab, paneId?: 'primary' | 'secondary') => void;
@@ -104,6 +108,9 @@ export function useTabManagement(): UseTabManagementReturn {
   // --- Drag state ---
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [dragSourcePaneId, setDragSourcePaneId] = useState<'primary' | 'secondary'>('primary');
+
+  // --- Recently-closed tabs stack ---
+  const [closedTabsStack, setClosedTabsStack] = useState<ClosedTabEntry[]>([]);
 
   /**
    * Find a tab across both panes
@@ -394,6 +401,8 @@ export function useTabManagement(): UseTabManagementReturn {
     dragSourcePaneId,
     setDraggedTabId,
     setDragSourcePaneId,
+    closedTabsStack,
+    setClosedTabsStack,
 
     // Lifecycle
     openTab,
