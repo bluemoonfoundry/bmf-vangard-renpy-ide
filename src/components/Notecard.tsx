@@ -1,8 +1,10 @@
 /**
  * @file Notecard.tsx
- * @description Draggable, resizable, colorable card rendered on NotecardCanvas.
- * Mirrors StickyNote.tsx's structure (six color themes, inline edit, color popover,
- * delete, resize handle) plus a title field and a link-drag connector handle.
+ * @description Draggable, resizable, colorable card rendered on NotecardCanvas, styled as a
+ * traditional index card (cream paper, red top rule) rather than
+ * StickyNote.tsx's solid-color post-it look, so the two canvases read as visually distinct at
+ * a glance. The per-note color still exists (picker, persisted field) but shows up as a
+ * left-edge tab stripe instead of a full-card color wash.
  */
 
 import React, { useState, forwardRef } from 'react';
@@ -18,21 +20,15 @@ interface NotecardProps {
   onStartLinkDrag: (cardId: string, clientX: number, clientY: number) => void;
 }
 
-const COLORS: Record<NoteColor, { bg: string; header: string; border: string }> = {
-  yellow: { bg: 'bg-yellow-100 dark:bg-yellow-900/80', header: 'bg-yellow-200 dark:bg-yellow-800/80', border: 'border-yellow-300 dark:border-yellow-700' },
-  blue: { bg: 'bg-blue-100 dark:bg-blue-900/80', header: 'bg-blue-200 dark:bg-blue-800/80', border: 'border-blue-300 dark:border-blue-700' },
-  green: { bg: 'bg-green-100 dark:bg-green-900/80', header: 'bg-green-200 dark:bg-green-800/80', border: 'border-green-300 dark:border-green-700' },
-  pink: { bg: 'bg-pink-100 dark:bg-pink-900/80', header: 'bg-pink-200 dark:bg-pink-800/80', border: 'border-pink-300 dark:border-pink-700' },
-  purple: { bg: 'bg-purple-100 dark:bg-purple-900/80', header: 'bg-purple-200 dark:bg-purple-800/80', border: 'border-purple-300 dark:border-purple-700' },
-  red: { bg: 'bg-red-100 dark:bg-red-900/80', header: 'bg-red-200 dark:bg-red-800/80', border: 'border-red-300 dark:border-red-700' },
+// Solid, medium-saturation swatches for the left tab stripe and color-picker toggle — needs to
+// read clearly as a small accent against the cream/dark paper background in both themes.
+const TAB_COLORS: Record<NoteColor, string> = {
+  yellow: '#f59e0b', blue: '#3b82f6', green: '#22c55e', pink: '#ec4899', purple: '#a855f7', red: '#ef4444',
 };
 
-const SWATCH_PREVIEW: Record<NoteColor, string> = {
-  yellow: '#fef3c7', blue: '#dbeafe', green: '#dcfce7', pink: '#fce7f3', purple: '#f3e8ff', red: '#fee2e2',
-};
+const PAPER_BG = 'bg-[#fdfbf3] dark:bg-[#2a2823]';
 
 const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, updateCard, deleteCard, isSelected, isDragging, onStartLinkDrag }, ref) => {
-  const styles = COLORS[card.color];
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingBody, setIsEditingBody] = useState(false);
@@ -58,25 +54,29 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
     <div
       ref={ref}
       data-notecard-id={card.id}
-      className={`notecard-wrapper absolute rounded-lg shadow-lg border-2 flex flex-col transition-shadow duration-200 group ${styles.bg} ${styles.border} ${isSelected ? 'ring-2 ring-indigo-500 z-30' : 'z-20'} ${isDragging ? 'shadow-xl opacity-90' : ''}`}
+      className={`notecard-wrapper absolute rounded-sm shadow-md border flex flex-col transition-shadow duration-200 group border-[#e2d9bd] dark:border-[#4a4638] ${isSelected ? 'ring-2 ring-indigo-500 z-30' : 'z-20'} ${isDragging ? 'shadow-xl opacity-90' : ''}`}
       style={{ left: card.position.x, top: card.position.y, width: card.width, height: card.height }}
     >
-      <div className={`drag-handle h-7 ${styles.header} rounded-t-md flex items-center justify-between px-2 cursor-grab flex-shrink-0 group`}>
+      <div
+        className="absolute inset-y-0 left-0 w-1 rounded-l-sm pointer-events-none"
+        style={{ backgroundColor: TAB_COLORS[card.color] }}
+      />
+      <div className={`drag-handle h-7 ${PAPER_BG} rounded-t-sm border-b-2 border-red-400/70 dark:border-red-500/60 flex items-center justify-between pl-3 pr-2 cursor-grab flex-shrink-0 group`}>
         <div className="relative flex items-center gap-1 min-w-0">
           <button
-            className="w-3 h-3 rounded-full border border-black/10 hover:scale-125 transition-transform flex-shrink-0"
-            style={{ backgroundColor: 'currentColor', opacity: 0.5 }}
+            className="w-3 h-3 rounded-full border border-black/20 hover:scale-125 transition-transform flex-shrink-0"
+            style={{ backgroundColor: TAB_COLORS[card.color] }}
             onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
             title="Change Color"
             aria-label="Change notecard color"
           />
           {isColorPickerOpen && (
             <div className="absolute top-5 left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded p-1 flex gap-1 z-50">
-              {(Object.keys(COLORS) as NoteColor[]).map(c => (
+              {(Object.keys(TAB_COLORS) as NoteColor[]).map(c => (
                 <button
                   key={c}
                   className={`w-4 h-4 rounded-full border border-gray-300 ${c === card.color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
-                  style={{ backgroundColor: SWATCH_PREVIEW[c] }}
+                  style={{ backgroundColor: TAB_COLORS[c] }}
                   aria-label={c.charAt(0).toUpperCase() + c.slice(1)}
                   onClick={(e) => { e.stopPropagation(); handleColorChange(c); }}
                 />
@@ -115,7 +115,7 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
       {isEditingBody ? (
         <textarea
           autoFocus
-          className="w-full h-full bg-transparent p-2 resize-none focus:outline-none text-gray-800 dark:text-gray-100 text-sm leading-relaxed"
+          className={`w-full h-full ${PAPER_BG} rounded-b-sm pl-3 pr-2 py-2 resize-none focus:outline-none text-gray-800 dark:text-gray-100 text-sm leading-relaxed`}
           value={bodyDraft}
           onChange={(e) => setBodyDraft(e.target.value)}
           onBlur={commitBody}
@@ -124,7 +124,7 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
         />
       ) : (
         <div
-          className="w-full h-full overflow-auto p-2 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none cursor-text"
+          className={`w-full h-full overflow-auto ${PAPER_BG} rounded-b-sm pl-3 pr-2 py-2 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none cursor-text`}
           onDoubleClick={(e) => { e.stopPropagation(); setBodyDraft(card.content); setIsEditingBody(true); }}
           onPointerDown={(e) => e.stopPropagation()}
           dangerouslySetInnerHTML={{ __html: card.content ? marked.parse(card.content, { async: false }) as string : '<span class="opacity-40">Double-click to add notes…</span>' }}
