@@ -100,6 +100,8 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const cardById = useCallback((id: string) => notecards.find(c => c.id === id), [notecards]);
 
   const handleSurfaceDoubleClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-notecard-id]') || target.closest('[data-notecard-link-id]')) return;
     if (!surfaceRef.current) return;
     const rect = surfaceRef.current.getBoundingClientRect();
     const world = toWorld(e.clientX, e.clientY, rect, transform);

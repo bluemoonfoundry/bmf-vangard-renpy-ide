@@ -25,6 +25,14 @@ describe('NotecardCanvas', () => {
     expect(props.addNotecard).toHaveBeenCalledWith({ x: 150, y: 120 });
   });
 
+  it('does not call addNotecard when double-clicking an existing card to edit it', () => {
+    const card = createNotecard({ id: 'a', title: 'Plot Beat' });
+    const props = { ...baseProps(), notecards: [card] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.doubleClick(screen.getByText('Plot Beat'));
+    expect(props.addNotecard).not.toHaveBeenCalled();
+  });
+
   it('shows a context menu with "New Notecard" on right-click of empty canvas, which calls addNotecard', () => {
     const props = baseProps();
     render(<NotecardCanvas {...props} />);

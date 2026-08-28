@@ -96,7 +96,7 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
           ) : (
             <span
               className="text-sm font-semibold truncate cursor-text"
-              onDoubleClick={() => { setTitleDraft(card.title); setIsEditingTitle(true); }}
+              onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(card.title); setIsEditingTitle(true); }}
             >
               {card.title}
             </span>
@@ -125,7 +125,7 @@ const Notecard = React.memo(forwardRef<HTMLDivElement, NotecardProps>(({ card, u
       ) : (
         <div
           className="w-full h-full overflow-auto p-2 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none cursor-text"
-          onDoubleClick={() => { setBodyDraft(card.content); setIsEditingBody(true); }}
+          onDoubleClick={(e) => { e.stopPropagation(); setBodyDraft(card.content); setIsEditingBody(true); }}
           onPointerDown={(e) => e.stopPropagation()}
           dangerouslySetInnerHTML={{ __html: card.content ? marked.parse(card.content, { async: false }) as string : '<span class="opacity-40">Double-click to add notes…</span>' }}
         />
