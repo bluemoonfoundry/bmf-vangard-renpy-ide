@@ -19,6 +19,7 @@ import type { Updater } from 'use-immer';
 import StoryCanvas from '@/components/StoryCanvas';
 import RouteCanvas from '@/components/RouteCanvas';
 import ChoiceCanvas from '@/components/ChoiceCanvas';
+import NotecardCanvas from '@/components/NotecardCanvas';
 import DiagnosticsPanel from '@/components/DiagnosticsPanel';
 import StatsView from '@/components/StatsView';
 import TranslationDashboard from '@/components/TranslationDashboard';
@@ -38,6 +39,7 @@ import type {
   SceneComposition, ImageMapComposition, DiagnosticsTask, IgnoredDiagnosticRule,
   StickyNote, RenpyAnalysisResult, DiagnosticsResult, LabelNode, RouteLink,
   IdentifiedRoute, StoryCanvasGroupingMode, StoryCanvasLayoutMode, MenuTemplate,
+  Notecard, NotecardLink,
 } from '@/types';
 
 type ProjectSettingsState = PersistedProjectSettings;
@@ -102,6 +104,18 @@ export interface UseTabContentRendererParams {
   updateChoiceStickyNote: (id: string, data: Partial<StickyNote>) => void;
   deleteChoiceStickyNote: (id: string) => void;
   allStickyNotes: StickyNote[];
+  notecards: Notecard[];
+  notecardLinks: NotecardLink[];
+  updateNotecard: (id: string, data: Partial<Notecard>) => void;
+  deleteNotecard: (id: string) => void;
+  deleteNotecards: (ids: string[]) => void;
+  restoreNotecards: (cards: Notecard[], links: NotecardLink[]) => void;
+  addNotecard: (initialPosition?: Position) => void;
+  addNotecardLink: (fromId: string, toId: string) => void;
+  updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
+  deleteNotecardLink: (id: string) => void;
+  notecardCanvasTransform: CanvasTransform;
+  setNotecardCanvasTransform: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 
   // Canvas interaction
   canvasInteractionEnd: () => void;
@@ -161,7 +175,7 @@ export interface UseTabContentRendererParams {
   // Tab opener handlers
   handleOpenEditor: (blockId: string, line?: number) => void;
   handleOpenRouteCanvasTab: () => void;
-  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
+  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
 
   // Assets
   images: Map<string, ProjectImage>;
@@ -239,6 +253,9 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     routeStickyNotes, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote,
     choiceStickyNotes, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote,
     allStickyNotes,
+    notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
+    addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     storyCanvasTransform, setStoryCanvasTransform, routeCanvasTransform, setRouteCanvasTransform,
@@ -274,6 +291,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     if (tab.id === 'canvas') return 'Project Canvas';
     if (tab.id === 'route-canvas') return 'Flow Canvas';
     if (tab.id === 'choice-canvas') return 'Choices Canvas';
+    if (tab.id === 'notecard-canvas') return 'Notecard Canvas';
     if (tab.id === 'diagnostics' || tab.id === 'punchlist') return 'Diagnostics';
     if (tab.id === 'stats') return 'Stats';
     if (tab.id === 'translations') return 'Translations';
@@ -345,6 +363,15 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         onWarpToLabel={handleWarpToLabel}
         centerOnStartRequest={centerOnChoiceStartRequest}
         centerOnNodeRequest={centerOnChoiceNodeRequest}
+      />;
+    }
+    if (tab.type === 'notecard-canvas') {
+      return <NotecardCanvas
+        notecards={notecards} notecardLinks={notecardLinks}
+        updateNotecard={updateNotecard} deleteNotecard={deleteNotecard} deleteNotecards={deleteNotecards}
+        restoreNotecards={restoreNotecards} addNotecard={addNotecard}
+        addNotecardLink={addNotecardLink} updateNotecardLink={updateNotecardLink} deleteNotecardLink={deleteNotecardLink}
+        transform={notecardCanvasTransform} onTransformChange={setNotecardCanvasTransform}
       />;
     }
     if (tab.type === 'diagnostics' || tab.type === 'punchlist') {

@@ -6,6 +6,7 @@ import type {
   Block, Position, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
   AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
+  Notecard, NotecardLink,
   ProjectSnapshot,
 } from '@/types';
 
@@ -36,6 +37,8 @@ export interface HydrateSetters {
   setStickyNotes: Updater<StickyNote[]>;
   setRouteStickyNotes: Updater<StickyNote[]>;
   setChoiceStickyNotes: Updater<StickyNote[]>;
+  setNotecards: Updater<Notecard[]>;
+  setNotecardLinks: Updater<NotecardLink[]>;
   setCharacterProfiles: Updater<Record<string, string>>;
   setPunchlistMetadata: Updater<Record<string, PunchlistMetadata>>;
   setDiagnosticsTasks: Updater<DiagnosticsTask[]>;
@@ -68,7 +71,8 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
     setProjectRootPath, setFileSystemTree, updateProjectSettings, setBlocks,
     setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
     setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-    setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
+    setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks,
+    setCharacterProfiles,
     setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
     setSceneCompositions, setSceneNames, setImagemapCompositions,
     setRouteNodeLayoutCache,
@@ -111,6 +115,8 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
   setStickyNotes(snapshot.stickyNotes);
   setRouteStickyNotes(snapshot.routeStickyNotes);
   setChoiceStickyNotes(snapshot.choiceStickyNotes);
+  setNotecards(snapshot.notecards);
+  setNotecardLinks(snapshot.notecardLinks);
   setCharacterProfiles(snapshot.characterProfiles);
   setPunchlistMetadata(snapshot.punchlistMetadata);
   setDiagnosticsTasks(snapshot.diagnosticsTasks);

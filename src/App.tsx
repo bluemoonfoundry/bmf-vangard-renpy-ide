@@ -57,7 +57,8 @@ import { useToasts } from '@/hooks/useToasts';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useModalState } from '@/hooks/useModalState';
 import { useTabManagement } from '@/hooks/useTabManagement';
-import { useCanvasInteraction } from '@/hooks/useCanvasInteraction';
+import { useCanvasInteraction, type CanvasTransform } from '@/hooks/useCanvasInteraction';
+import { useNotecards } from '@/hooks/useNotecards';
 import { useAssetManagement } from '@/hooks/useAssetManagement';
 import { useDraftingArtifacts } from '@/hooks/useDraftingArtifacts';
 import { useCompositionState } from '@/hooks/useCompositionState';
@@ -100,7 +101,7 @@ import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  UserSnippet, MenuTemplate
+  UserSnippet, MenuTemplate,
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -261,6 +262,7 @@ const App: React.FC = () => {
     selectGroups: _selectGroups,
     toggleBlockSelection: _toggleBlockSelection,
   } = useCanvasInteraction();
+  const [notecardCanvasTransform, setNotecardCanvasTransform] = useState<CanvasTransform>({ x: 0, y: 0, scale: 1 });
   // Punchlist State (kept for migration — not written on save)
   const [punchlistMetadata, setPunchlistMetadata] = useImmer<Record<string, PunchlistMetadata>>({});
   // Diagnostics Tasks State
@@ -405,6 +407,17 @@ const App: React.FC = () => {
     appSettings,
     storyCanvasTransform,
     onStickyNoteChange: () => setHasUnsavedSettings(true),
+  });
+
+  // Notecard Canvas board
+  const {
+    notecards, notecardLinks, setNotecards, setNotecardLinks,
+    addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
+    addNotecardLink, updateNotecardLink, deleteNotecardLink,
+  } = useNotecards({
+    appSettings,
+    notecardCanvasTransform,
+    onNotecardChange: () => setHasUnsavedSettings(true),
   });
 
   // --- State: Misc ---
@@ -907,7 +920,8 @@ const App: React.FC = () => {
           setBlocks,
           setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
           setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setCharacterProfiles,
+          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks,
+          setCharacterProfiles,
           setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
           setSceneCompositions, setSceneNames, setImagemapCompositions,
           setRouteNodeLayoutCache,
@@ -928,7 +942,7 @@ const App: React.FC = () => {
       projectSettings,
       blocks, setBlocks,
       setImages, setAudios, imageScanDirectories, audioScanDirectories,
-      stickyNotes, routeStickyNotes, choiceStickyNotes, characterProfiles,
+      stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, characterProfiles,
       punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
       sceneCompositions, sceneNames, imagemapCompositions,
       routeNodeLayoutCache,
@@ -1778,6 +1792,9 @@ const App: React.FC = () => {
     routeStickyNotes, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote,
     choiceStickyNotes, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote,
     allStickyNotes,
+    notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
+    addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
     storyCanvasTransform, setStoryCanvasTransform, routeCanvasTransform, setRouteCanvasTransform,
@@ -1813,9 +1830,10 @@ const App: React.FC = () => {
   const focusedTabId = activePaneId === 'secondary' && splitLayout !== 'none'
     ? secondaryActiveTabId
     : activeTabId;
-  const activeCanvasType: 'story' | 'route' | 'choice' | null =
+  const activeCanvasType: 'story' | 'route' | 'choice' | 'notecard' | null =
     focusedTabId === 'route-canvas' ? 'route' :
     focusedTabId === 'choice-canvas' ? 'choice' :
+    focusedTabId === 'notecard-canvas' ? 'notecard' :
     focusedTabId === 'canvas' ? 'story' : null;
   const activeCanvasLayoutMode = activeCanvasType === 'route'
     ? (projectSettings.routeCanvasLayoutMode ?? 'flow-lr')
@@ -1909,7 +1927,7 @@ const App: React.FC = () => {
         handleSave={handleSaveAll}
         onOpenSettings={() => openSettingsModal()}
         onOpenShortcuts={() => openShortcutsModal()}
-        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
+        onOpenStaticTab={handleOpenStaticTab as (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void}
         diagnosticsErrorCount={diagnosticsResult.errorCount}
         onAddStickyNote={activeCanvasOnAddStickyNote}
         isGameRunning={isGameRunning}

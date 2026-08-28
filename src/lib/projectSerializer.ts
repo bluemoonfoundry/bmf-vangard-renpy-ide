@@ -113,7 +113,7 @@ function deserializeTabs(
     if (tab.type === 'character' && tab.characterTag) return true;
     if (tab.type === 'scene-composer' && tab.sceneId) return true;
     if (tab.type === 'markdown' && tab.filePath) return true;
-    return ['canvas', 'route-canvas', 'choice-canvas', 'punchlist', 'diagnostics', 'stats', 'translations', 'screen-preview'].includes(tab.type);
+    return ['canvas', 'route-canvas', 'choice-canvas', 'notecard-canvas', 'punchlist', 'diagnostics', 'stats', 'translations', 'screen-preview'].includes(tab.type);
   };
 
   const migrateTab = (tab: EditorTab): EditorTab => {
@@ -265,6 +265,8 @@ export function deserializeProjectData(
     stickyNotes: data.settings?.stickyNotes ?? [],
     routeStickyNotes: data.settings?.routeStickyNotes ?? [],
     choiceStickyNotes: data.settings?.choiceStickyNotes ?? [],
+    notecards: data.settings?.notecards ?? [],
+    notecardLinks: data.settings?.notecardLinks ?? [],
     characterProfiles: data.settings?.characterProfiles ?? {},
     punchlistMetadata: data.settings?.punchlistMetadata ?? {},
     diagnosticsTasks,

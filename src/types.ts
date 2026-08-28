@@ -89,6 +89,32 @@ export interface StickyNote {
 }
 
 /**
+ * Represents a freeform notecard on the Notecard Canvas — an unstructured
+ * scratchpad element, never parsed or referenced by Ren'Py analysis.
+ * @interface Notecard
+ */
+export interface Notecard {
+  id: string;
+  title: string;
+  content: string;
+  position: Position;
+  width: number;
+  height: number;
+  color: NoteColor;
+}
+
+/**
+ * A directional link between two notecards on the Notecard Canvas.
+ * @interface NotecardLink
+ */
+export interface NotecardLink {
+  id: string;
+  fromId: string;
+  toId: string;
+  label?: string;
+}
+
+/**
  * Metadata associated with punchlist items for task tracking.
  * @interface PunchlistMetadata
  * @property {string} [notes] - Additional notes for the task
@@ -644,7 +670,7 @@ export interface RenpyAnalysisResult {
  */
 export interface EditorTab {
   id: string;
-  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations' | 'untitled';
+  type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'punchlist' | 'diagnostics' | 'editor' | 'image' | 'audio' | 'character' | 'scene-composer' | 'imagemap-composer' | 'screen-preview' | 'stats' | 'markdown' | 'translations' | 'untitled';
   blockId?: string;
   filePath?: string;
   characterTag?: string;
@@ -1132,6 +1158,8 @@ export interface ProjectSettings {
   stickyNotes?: StickyNote[];
   routeStickyNotes?: StickyNote[];
   choiceStickyNotes?: StickyNote[];
+  notecards?: Notecard[];
+  notecardLinks?: NotecardLink[];
   characterProfiles?: Record<string, string>;
   punchlistMetadata?: Record<string, PunchlistMetadata>;
   diagnosticsTasks?: DiagnosticsTask[];
@@ -1289,6 +1317,8 @@ export interface ProjectSnapshot {
   stickyNotes: StickyNote[];
   routeStickyNotes: StickyNote[];
   choiceStickyNotes: StickyNote[];
+  notecards: Notecard[];
+  notecardLinks: NotecardLink[];
   characterProfiles: Record<string, string>;
   punchlistMetadata: Record<string, PunchlistMetadata>;
   diagnosticsTasks: DiagnosticsTask[];

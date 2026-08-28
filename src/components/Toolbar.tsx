@@ -12,7 +12,7 @@ import { useDualPane } from '@/contexts/DualPaneContext';
 type SaveStatus = 'saving' | 'saved' | 'error';
 
 interface ToolbarProps {
-  activeCanvasType: 'story' | 'route' | 'choice' | null;
+  activeCanvasType: 'story' | 'route' | 'choice' | 'notecard' | null;
   projectRootPath: string | null;
   hasUnsavedSettings: boolean;
   saveStatus: SaveStatus;
@@ -25,7 +25,7 @@ interface ToolbarProps {
   handleSave: () => void;
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
-  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void;
+  onOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'stats' | 'diagnostics' | 'translations' | 'screen-preview') => void;
   diagnosticsErrorCount: number;
   /** null = disabled (no canvas active that supports notes) */
   onAddStickyNote: (() => void) | null;
@@ -258,6 +258,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18a2.25 2.25 0 002.25 2.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => onOpenStaticTab('notecard-canvas')}
+            className={canvasBtn(activeCanvasType === 'notecard')}
+            title="Notecard Canvas — freeform scratchpad, not tied to your script"
+            aria-label="Notecard Canvas"
+            aria-pressed={activeCanvasType === 'notecard'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 3.75h7.5l4.5 4.5v12a1.5 1.5 0 01-1.5 1.5h-10.5a1.5 1.5 0 01-1.5-1.5V5.25a1.5 1.5 0 011.5-1.5zM13.5 3.75v4.5h4.5M8.25 13.5h7.5M8.25 16.5h4.5" />
             </svg>
           </button>
         </div>

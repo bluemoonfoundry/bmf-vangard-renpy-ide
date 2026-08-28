@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useProjectIO } from '@/hooks/useProjectIO';
 import { installElectronAPI, createMockElectronAPI } from '@/test/mocks/electronAPI';
-import { createBlock } from '@/test/mocks/sampleData';
+import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { UseProjectIOParams } from '@/hooks/useProjectIO';
 
 function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOParams {
@@ -43,6 +43,8 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
     stickyNotes: [],
     routeStickyNotes: [],
     choiceStickyNotes: [],
+    notecards: [],
+    notecardLinks: [],
     characterProfiles: {},
     punchlistMetadata: {},
     diagnosticsTasks: [],
@@ -174,6 +176,18 @@ describe('useProjectIO', () => {
     await act(async () => { await result.current.handleSaveProjectSettings(); });
     const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
     expect(written.sceneCompositions['scene-1'].background.image).toEqual({ filePath: 'game/images/bg.png' });
+  });
+
+  it('includes notecards and notecardLinks in the saved settings payload', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const notecards = [createNotecard({ id: 'nc-1' })];
+    const notecardLinks = [createNotecardLink({ id: 'ncl-1', fromId: 'nc-1', toId: 'nc-2' })];
+    const { result } = renderHook(() => useProjectIO(makeParams({ notecards, notecardLinks })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
+    expect(written.notecards).toEqual(notecards);
+    expect(written.notecardLinks).toEqual(notecardLinks);
   });
 
   // ---------------------------------------------------------------------------
