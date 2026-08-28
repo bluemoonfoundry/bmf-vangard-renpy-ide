@@ -1,7 +1,10 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { EditorTab } from '@/types';
+import type { ClosedTabEntry, EditorTab } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
+
+// Caps unbounded growth from long sessions with lots of tab churn.
+const MAX_CLOSED_TABS_STACK = 20;
 
 export interface UseTabLifecycleProps {
   // Tab state
@@ -22,6 +25,9 @@ export interface UseTabLifecycleProps {
   setSplitPrimarySize: Dispatch<SetStateAction<number>>;
   setDraggedTabId: Dispatch<SetStateAction<string | null>>;
   setDragSourcePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
+  // Recently-closed tabs
+  closedTabsStack: ClosedTabEntry[];
+  setClosedTabsStack: Dispatch<SetStateAction<ClosedTabEntry[]>>;
   // Dirty tracking
   dirtyBlockIds: Set<string>;
   dirtyEditors: Set<string>;
@@ -62,6 +68,12 @@ export interface UseTabLifecycleReturn {
   handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
   handleTabDrop: (e: React.DragEvent<HTMLDivElement>, targetTabId: string | null, targetPaneId: 'primary' | 'secondary') => void;
+  handleReopenClosedTab: () => void;
+}
+
+/** Tabs whose content isn't recoverable once closed (an untitled draft's text is gone) are excluded from the stack. */
+function isReopenable(tab: EditorTab): boolean {
+  return tab.type !== 'untitled';
 }
 
 export function useTabLifecycle({
@@ -72,14 +84,26 @@ export function useTabLifecycle({
   setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
   setSplitLayout, setSplitPrimarySize,
   setDraggedTabId, setDragSourcePaneId,
+  closedTabsStack, setClosedTabsStack,
   dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
   untitledFiles, saveUntitledFile, discardUntitledFile,
   openUnsavedChangesModal, closeUnsavedChangesModal,
   handleSaveAll, setHasUnsavedSettings,
 }: UseTabLifecycleProps): UseTabLifecycleReturn {
 
+  const pushClosedTabs = useCallback((entries: ClosedTabEntry[]) => {
+    if (entries.length === 0) return;
+    setClosedTabsStack(prev => [...prev, ...entries].slice(-MAX_CLOSED_TABS_STACK));
+  }, [setClosedTabsStack]);
+
   const handleCloseTab = useCallback((tabId: string, paneId: 'primary' | 'secondary', e?: React.MouseEvent) => {
     e?.stopPropagation();
+    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
+    const index = tabs.findIndex(t => t.id === tabId);
+    const tab = tabs[index];
+    if (tab && isReopenable(tab)) {
+      pushClosedTabs([{ tab, paneId, index }]);
+    }
     if (paneId === 'primary') {
       setOpenTabs(prev => {
         const next = prev.filter(t => t.id !== tabId);
@@ -103,7 +127,7 @@ export function useTabLifecycle({
         return next;
       });
     }
-  }, [activeTabId, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
+  }, [activeTabId, secondaryActiveTabId, openTabs, secondaryOpenTabs, pushClosedTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const processTabCloseRequest = useCallback((tabsToClose: EditorTab[], fallbackTabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     if (tabsToClose.length === 0) return;
@@ -115,6 +139,12 @@ export function useTabLifecycle({
 
     const performClose = (idsOverride?: Set<string>) => {
       const idsToClose = idsOverride ?? new Set(tabsToClose.map(t => t.id));
+      const paneTabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
+      pushClosedTabs(
+        paneTabs
+          .map((tab, index) => ({ tab, paneId, index }))
+          .filter(({ tab }) => idsToClose.has(tab.id) && isReopenable(tab))
+      );
       if (paneId === 'primary') {
         setOpenTabs(prev => {
           const next = prev.filter(t => !idsToClose.has(t.id));
@@ -180,7 +210,7 @@ export function useTabLifecycle({
     } else {
       performClose();
     }
-  }, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setDirtyBlockIds, setDirtyEditors, untitledFiles, saveUntitledFile, discardUntitledFile]);
+  }, [dirtyBlockIds, dirtyEditors, activeTabId, secondaryActiveTabId, openTabs, secondaryOpenTabs, pushClosedTabs, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout, setDirtyBlockIds, setDirtyEditors, untitledFiles, saveUntitledFile, discardUntitledFile]);
 
   const handleCloseOthersRequest = useCallback((tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
@@ -385,6 +415,44 @@ export function useTabLifecycle({
     setDraggedTabId(null);
   }, [draggedTabId, dragSourcePaneId, openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setSplitLayout, setActivePaneId, setDraggedTabId, setHasUnsavedSettings]);
 
+  const handleReopenClosedTab = useCallback(() => {
+    if (closedTabsStack.length === 0) return;
+    const entry = closedTabsStack[closedTabsStack.length - 1];
+    setClosedTabsStack(prev => prev.slice(0, -1));
+
+    // Reopened some other way in the meantime (e.g. double-clicked the file again) — just focus it.
+    if (openTabs.some(t => t.id === entry.tab.id)) {
+      setActiveTabId(entry.tab.id);
+      setActivePaneId('primary');
+      return;
+    }
+    if (secondaryOpenTabs.some(t => t.id === entry.tab.id)) {
+      setSecondaryActiveTabId(entry.tab.id);
+      setActivePaneId('secondary');
+      return;
+    }
+
+    // The split pane it was closed from may no longer exist — fall back to primary.
+    const targetPane = entry.paneId === 'secondary' && splitLayout !== 'none' ? 'secondary' : 'primary';
+    if (targetPane === 'secondary') {
+      setSecondaryOpenTabs(prev => {
+        const next = [...prev];
+        next.splice(Math.min(entry.index, next.length), 0, entry.tab);
+        return next;
+      });
+      setSecondaryActiveTabId(entry.tab.id);
+      setActivePaneId('secondary');
+    } else {
+      setOpenTabs(prev => {
+        const next = [...prev];
+        next.splice(Math.min(entry.index, next.length), 0, entry.tab);
+        return next;
+      });
+      setActiveTabId(entry.tab.id);
+      setActivePaneId('primary');
+    }
+  }, [closedTabsStack, openTabs, secondaryOpenTabs, splitLayout, setClosedTabsStack, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId]);
+
   return {
     handleCloseTab,
     processTabCloseRequest,
@@ -401,5 +469,6 @@ export function useTabLifecycle({
     handleTabDragStart,
     handleTabDragOver,
     handleTabDrop,
+    handleReopenClosedTab,
   };
 }
