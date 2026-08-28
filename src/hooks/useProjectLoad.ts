@@ -307,7 +307,7 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
       // Update recent projects (app-level, not project-level state)
       updateAppSettings(draft => {
         const filtered = draft.recentProjects.filter(p => p !== projectData.rootPath);
-        draft.recentProjects = [projectData.rootPath, ...filtered].slice(0, 25);
+        draft.recentProjects = [projectData.rootPath, ...filtered].slice(0, 10);
       });
 
       setLoadingProgress(99);
