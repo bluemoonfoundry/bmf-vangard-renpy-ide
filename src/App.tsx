@@ -412,7 +412,7 @@ const App: React.FC = () => {
   // Notecard Canvas board
   const {
     notecards, notecardLinks, setNotecards, setNotecardLinks,
-    addNotecard, updateNotecard, deleteNotecard,
+    addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
   } = useNotecards({
     appSettings,
@@ -1792,7 +1792,7 @@ const App: React.FC = () => {
     routeStickyNotes, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote,
     choiceStickyNotes, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote,
     allStickyNotes,
-    notecards, notecardLinks, updateNotecard, deleteNotecard, addNotecard,
+    notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,

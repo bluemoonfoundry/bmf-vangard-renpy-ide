@@ -18,6 +18,8 @@ export interface NotecardCanvasProps {
   notecardLinks: NotecardLink[];
   updateNotecard: (id: string, data: Partial<NotecardType>) => void;
   deleteNotecard: (id: string) => void;
+  deleteNotecards: (ids: string[]) => void;
+  restoreNotecards: (cards: NotecardType[], links: NotecardLink[]) => void;
   addNotecard: (position?: { x: number; y: number }) => void;
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
@@ -29,8 +31,16 @@ export interface NotecardCanvasProps {
 type InteractionState =
   | { type: 'idle' }
   | { type: 'panning'; startX: number; startY: number; originX: number; originY: number }
+  | { type: 'rubber-band'; startWorld: { x: number; y: number } }
   | { type: 'dragging-card'; id: string; startX: number; startY: number; originX: number; originY: number }
   | { type: 'resizing-card'; id: string; startX: number; startY: number; startWidth: number; startHeight: number };
+
+const RubberBand: React.FC<{ rect: { x: number; y: number; width: number; height: number } }> = ({ rect }) => (
+  <div
+    className="absolute border-2 border-indigo-500 bg-indigo-500 bg-opacity-20 pointer-events-none z-40"
+    style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+  />
+);
 
 function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: CanvasTransform) {
   return {
@@ -40,14 +50,19 @@ function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: Can
 }
 
 const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
-  notecards, notecardLinks, updateNotecard, deleteNotecard, addNotecard,
+  notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
   addNotecardLink, updateNotecardLink, deleteNotecardLink,
   transform, onTransformChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<InteractionState>({ type: 'idle' });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rubberBandRect, setRubberBandRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  // Local, single-canvas undo stack for bulk-delete only (this app has no app-wide undo
+  // for notecards the way blocks[] does via useHistory — see CLAUDE.md's state table).
+  // Each entry is the exact set of cards/links removed by one Delete-key press.
+  const deletedStackRef = useRef<Array<{ cards: NotecardType[]; links: NotecardLink[] }>>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -158,7 +173,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
       const startWidth = card.width;
       const startHeight = card.height;
       interactionRef.current = { type: 'resizing-card', id: card.id, startX, startY, startWidth, startHeight };
-      setSelectedId(card.id);
+      setSelectedIds(new Set([card.id]));
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         const dx = (moveEvent.clientX - startX) / transform.scale;
@@ -177,7 +192,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
     if (target.closest('.link-handle')) return; // handled by Notecard's onStartLinkDrag
 
-    setSelectedId(card.id);
+    setSelectedIds(new Set([card.id]));
     if (!target.closest('.drag-handle')) return;
 
     e.stopPropagation();
@@ -207,24 +222,79 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     const target = e.target as HTMLElement;
     if (target.closest('[data-notecard-id]') || target.closest('[data-notecard-link-id]')) return;
     containerRef.current?.focus();
-    setSelectedId(null);
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const originX = transform.x;
-    const originY = transform.y;
-    interactionRef.current = { type: 'panning', startX, startY, originX, originY };
+
+    // Ctrl+drag pans; a plain drag on empty canvas rubber-band selects instead (Cmd/Ctrl+A,
+    // Delete, and rubber-band selection all needed a modifier-free gesture free for
+    // selecting, so panning moved behind Ctrl).
+    if (e.ctrlKey) {
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const originX = transform.x;
+      const originY = transform.y;
+      interactionRef.current = { type: 'panning', startX, startY, originX, originY };
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        onTransformChange(t => ({ ...t, x: originX + (moveEvent.clientX - startX), y: originY + (moveEvent.clientY - startY) }));
+      };
+      const handlePointerUp = () => {
+        interactionRef.current = { type: 'idle' };
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      return;
+    }
+
+    if (!surfaceRef.current) return;
+    const startRect = surfaceRef.current.getBoundingClientRect();
+    const startWorld = toWorld(e.clientX, e.clientY, startRect, transform);
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    interactionRef.current = { type: 'rubber-band', startWorld };
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      onTransformChange(t => ({ ...t, x: originX + (moveEvent.clientX - startX), y: originY + (moveEvent.clientY - startY) }));
+      const r = surfaceRef.current;
+      if (!r) return;
+      const currentWorld = toWorld(moveEvent.clientX, moveEvent.clientY, r.getBoundingClientRect(), transform);
+      setRubberBandRect({
+        x: Math.min(startWorld.x, currentWorld.x),
+        y: Math.min(startWorld.y, currentWorld.y),
+        width: Math.abs(currentWorld.x - startWorld.x),
+        height: Math.abs(currentWorld.y - startWorld.y),
+      });
     };
-    const handlePointerUp = () => {
-      interactionRef.current = { type: 'idle' };
+    const handlePointerUp = (upEvent: PointerEvent) => {
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      interactionRef.current = { type: 'idle' };
+      setRubberBandRect(null);
+
+      const distance = Math.hypot(upEvent.clientX - startClientX, upEvent.clientY - startClientY);
+      if (distance <= 5) {
+        setSelectedIds(new Set());
+        return;
+      }
+      const r = surfaceRef.current;
+      if (!r) return;
+      const endWorld = toWorld(upEvent.clientX, upEvent.clientY, r.getBoundingClientRect(), transform);
+      const rect = {
+        x: Math.min(startWorld.x, endWorld.x),
+        y: Math.min(startWorld.y, endWorld.y),
+        width: Math.abs(endWorld.x - startWorld.x),
+        height: Math.abs(endWorld.y - startWorld.y),
+      };
+      const idsInRect = notecards.filter(c =>
+        c.position.x < rect.x + rect.width &&
+        c.position.x + c.width > rect.x &&
+        c.position.y < rect.y + rect.height &&
+        c.position.y + c.height > rect.y,
+      ).map(c => c.id);
+      setSelectedIds(prev => upEvent.shiftKey ? new Set([...prev, ...idsInRect]) : new Set(idsInRect));
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [transform.x, transform.y, onTransformChange]);
+  }, [transform, onTransformChange, notecards]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!surfaceRef.current) return;
@@ -245,15 +315,45 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   }, [onTransformChange]);
 
   // Scoped to this instance's own container (not window) so a background/inactive
-  // split-pane NotecardCanvas doesn't steal Delete keystrokes meant for the foreground
+  // split-pane NotecardCanvas doesn't steal these keystrokes meant for the foreground
   // pane. Requires the container to actually hold focus — see the .focus() calls in
   // handleSurfacePointerDown/handleCardPointerDown below.
   const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-    if (selectedId) deleteNotecard(selectedId);
-  }, [selectedId, deleteNotecard]);
+    const isMetaShortcut = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+      e.preventDefault();
+      const deletedCards = notecards.filter(c => selectedIds.has(c.id));
+      const deletedLinks = notecardLinks.filter(l => selectedIds.has(l.fromId) || selectedIds.has(l.toId));
+      deletedStackRef.current.push({ cards: deletedCards, links: deletedLinks });
+      deleteNotecards(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      return;
+    }
+
+    if (isMetaShortcut && key === 'a') {
+      e.preventDefault();
+      setSelectedIds(new Set(notecards.map(c => c.id)));
+      return;
+    }
+
+    // Undoes only this canvas's own bulk-deletes (see deletedStackRef above), not the
+    // app-wide blocks[] undo stack. Stops propagation so App.tsx's window-level Cmd/Ctrl+Z
+    // handler (which only knows about blocks[]) doesn't also fire for the same keystroke.
+    // If there's nothing local to undo, we deliberately let it bubble so that handler can run.
+    if (isMetaShortcut && key === 'z' && !e.shiftKey) {
+      const last = deletedStackRef.current.pop();
+      if (last) {
+        e.preventDefault();
+        e.stopPropagation();
+        restoreNotecards(last.cards, last.links);
+        setSelectedIds(new Set(last.cards.map(c => c.id)));
+      }
+    }
+  }, [selectedIds, notecards, notecardLinks, deleteNotecards, restoreNotecards]);
 
   const minimapItems: MinimapItem[] = notecards.map(card => ({
     id: card.id, position: card.position, width: card.width, height: card.height, type: 'notecard', color: card.color,
@@ -333,6 +433,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
               />
             );
           })()}
+          {rubberBandRect && <RubberBand rect={rubberBandRect} />}
           {notecards.map(card => (
             <div
               key={card.id}
@@ -345,7 +446,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
                 card={card}
                 updateCard={updateNotecard}
                 deleteCard={deleteNotecard}
-                isSelected={selectedId === card.id}
+                isSelected={selectedIds.has(card.id)}
                 isDragging={draggingId === card.id}
                 onStartLinkDrag={startLinkDrag}
               />

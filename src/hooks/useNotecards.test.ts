@@ -42,6 +42,36 @@ describe('useNotecards', () => {
     expect(result.current.notecardLinks).toHaveLength(0);
   });
 
+  it('deletes multiple notecards at once and any links touching them', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 100, y: 100 });
+      result.current.addNotecard({ x: 200, y: 200 });
+    });
+    const [a, b, c] = result.current.notecards;
+    act(() => result.current.addNotecardLink(a.id, c.id));
+    act(() => result.current.deleteNotecards([a.id, b.id]));
+    expect(result.current.notecards).toEqual([c]);
+    expect(result.current.notecardLinks).toHaveLength(0);
+  });
+
+  it('restores previously-deleted notecards and links verbatim (undo)', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 100, y: 100 });
+    });
+    const [a, b] = result.current.notecards;
+    act(() => result.current.addNotecardLink(a.id, b.id));
+    const link = result.current.notecardLinks[0];
+    act(() => result.current.deleteNotecards([a.id, b.id]));
+    expect(result.current.notecards).toHaveLength(0);
+    act(() => result.current.restoreNotecards([a, b], [link]));
+    expect(result.current.notecards).toEqual(expect.arrayContaining([a, b]));
+    expect(result.current.notecardLinks).toEqual([link]);
+  });
+
   it('adds, updates, and deletes a link', () => {
     const { result } = renderHook(() => useNotecards(baseParams()));
     act(() => {

@@ -18,6 +18,8 @@ export interface UseNotecardsReturn {
   addNotecard: (initialPosition?: Position) => void;
   updateNotecard: (id: string, data: Partial<Notecard>) => void;
   deleteNotecard: (id: string) => void;
+  deleteNotecards: (ids: string[]) => void;
+  restoreNotecards: (cards: Notecard[], links: NotecardLink[]) => void;
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
@@ -93,6 +95,35 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
     onNotecardChange?.();
   }, [setNotecards, setNotecardLinks, onNotecardChange]);
 
+  const deleteNotecards = useCallback((ids: string[]) => {
+    const idSet = new Set(ids);
+    setNotecards(draft => {
+      for (let i = draft.length - 1; i >= 0; i--) {
+        if (idSet.has(draft[i].id)) draft.splice(i, 1);
+      }
+    });
+    setNotecardLinks(draft => {
+      for (let i = draft.length - 1; i >= 0; i--) {
+        if (idSet.has(draft[i].fromId) || idSet.has(draft[i].toId)) draft.splice(i, 1);
+      }
+    });
+    onNotecardChange?.();
+  }, [setNotecards, setNotecardLinks, onNotecardChange]);
+
+  // Re-inserts previously-deleted cards/links verbatim (same ids), so link references and
+  // undo semantics stay correct. Used to undo deleteNotecards from the Notecard Canvas's
+  // own local undo stack — see NotecardCanvas.tsx.
+  const restoreNotecards = useCallback((cards: Notecard[], links: NotecardLink[]) => {
+    if (cards.length === 0 && links.length === 0) return;
+    setNotecards(draft => {
+      draft.push(...cards);
+    });
+    setNotecardLinks(draft => {
+      draft.push(...links);
+    });
+    onNotecardChange?.();
+  }, [setNotecards, setNotecardLinks, onNotecardChange]);
+
   const addNotecardLink = useCallback((fromId: string, toId: string) => {
     if (fromId === toId) return;
     const id = createId('notecard-link');
@@ -120,7 +151,7 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
 
   return {
     notecards, notecardLinks, setNotecards, setNotecardLinks,
-    addNotecard, updateNotecard, deleteNotecard,
+    addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
   };
 }

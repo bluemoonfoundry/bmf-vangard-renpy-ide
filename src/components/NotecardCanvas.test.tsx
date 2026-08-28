@@ -8,6 +8,8 @@ const baseProps = () => ({
   notecardLinks: [],
   updateNotecard: vi.fn(),
   deleteNotecard: vi.fn(),
+  deleteNotecards: vi.fn(),
+  restoreNotecards: vi.fn(),
   addNotecard: vi.fn(),
   addNotecardLink: vi.fn(),
   updateNotecardLink: vi.fn(),
@@ -79,7 +81,7 @@ describe('NotecardCanvas', () => {
     fireEvent.pointerDown(screen.getByTestId('notecard-a'));
     const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
     fireEvent.keyDown(container, { key: 'Delete' });
-    expect(props.deleteNotecard).toHaveBeenCalledWith('a');
+    expect(props.deleteNotecards).toHaveBeenCalledWith(['a']);
   });
 
   it('does not delete the selected notecard on Delete key when the canvas container lacks focus (background split-pane instance)', () => {
@@ -90,7 +92,7 @@ describe('NotecardCanvas', () => {
     // Simulate a Delete keystroke handled elsewhere in the app (e.g. the foreground
     // split-pane), which should NOT reach this backgrounded instance's handler.
     fireEvent.keyDown(window, { key: 'Delete' });
-    expect(props.deleteNotecard).not.toHaveBeenCalled();
+    expect(props.deleteNotecards).not.toHaveBeenCalled();
   });
 
   it('renders the minimap with one item per notecard', () => {
@@ -140,7 +142,7 @@ describe('NotecardCanvas', () => {
     expect(props.addNotecardLink).not.toHaveBeenCalled();
   });
 
-  it('pans the canvas when dragging on empty surface with no card underneath', () => {
+  it('pans the canvas when Ctrl-dragging on empty surface with no card underneath', () => {
     // Pointerdown must be fired on the transformed content layer (surface's actual child
     // that covers the canvas in production), not on the surface ref element itself — an
     // `e.target !== surfaceRef.current` identity check would never see a pointerdown whose
@@ -151,10 +153,90 @@ describe('NotecardCanvas', () => {
     const transformLayer = surface.firstElementChild as HTMLElement;
     expect(transformLayer).not.toBe(surface);
     void container;
-    fireEvent.pointerDown(transformLayer, { clientX: 100, clientY: 100 });
+    fireEvent.pointerDown(transformLayer, { clientX: 100, clientY: 100, ctrlKey: true });
     fireEvent.pointerMove(window, { clientX: 140, clientY: 160 });
     fireEvent.pointerUp(window, { clientX: 140, clientY: 160 });
     expect(props.onTransformChange).toHaveBeenCalled();
+  });
+
+  it('rubber-band selects notecards fully inside the drag rect on a plain (non-Ctrl) empty-canvas drag, without panning', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    const transformLayer = surface.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(transformLayer, { clientX: -10, clientY: -10 });
+    fireEvent.pointerMove(window, { clientX: 250, clientY: 200 });
+    fireEvent.pointerUp(window, { clientX: 250, clientY: 200 });
+    expect(props.onTransformChange).not.toHaveBeenCalled();
+    // Card 'a' (0,0 220x160) is inside the (-10,-10)-(250,200) rect; card 'b' (400,300) is not.
+    expect(screen.getByTestId('notecard-a').querySelector('.notecard-wrapper')?.className).toContain('ring-2');
+    expect(screen.getByTestId('notecard-b').querySelector('.notecard-wrapper')?.className).not.toContain('ring-2');
+  });
+
+  it('a plain click (no drag) on empty canvas clears the selection', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const props = { ...baseProps(), notecards: [a] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.pointerDown(screen.getByTestId('notecard-a'));
+    const surface = screen.getByTestId('notecard-canvas-surface');
+    const transformLayer = surface.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(transformLayer, { clientX: 900, clientY: 900 });
+    fireEvent.pointerUp(window, { clientX: 900, clientY: 900 });
+    expect(screen.getByTestId('notecard-a').querySelector('.notecard-wrapper')?.className).not.toContain('ring-2');
+  });
+
+  it('selects all notecards on Cmd/Ctrl+A when the canvas container has focus', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
+    fireEvent.keyDown(container, { key: 'a', ctrlKey: true });
+    expect(screen.getByTestId('notecard-a').querySelector('.notecard-wrapper')?.className).toContain('ring-2');
+    expect(screen.getByTestId('notecard-b').querySelector('.notecard-wrapper')?.className).toContain('ring-2');
+  });
+
+  it('deletes every selected notecard (and links touching them) on Delete', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const link = { id: 'l1', fromId: 'a', toId: 'b' };
+    const props = { ...baseProps(), notecards: [a, b], notecardLinks: [link] };
+    render(<NotecardCanvas {...props} />);
+    const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
+    fireEvent.keyDown(container, { key: 'a', ctrlKey: true });
+    fireEvent.keyDown(container, { key: 'Delete' });
+    expect(props.deleteNotecards).toHaveBeenCalledWith(expect.arrayContaining(['a', 'b']));
+    expect((props.deleteNotecards as ReturnType<typeof vi.fn>).mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('restores the last bulk-deleted cards and links on Cmd/Ctrl+Z', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
+    const link = { id: 'l1', fromId: 'a', toId: 'b' };
+    const props = { ...baseProps(), notecards: [a, b], notecardLinks: [link] };
+    render(<NotecardCanvas {...props} />);
+    const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
+    fireEvent.keyDown(container, { key: 'a', ctrlKey: true });
+    fireEvent.keyDown(container, { key: 'Delete' });
+    fireEvent.keyDown(container, { key: 'z', ctrlKey: true });
+    expect(props.restoreNotecards).toHaveBeenCalledWith(
+      expect.arrayContaining([a, b]),
+      expect.arrayContaining([link]),
+    );
+  });
+
+  it('does not intercept Cmd/Ctrl+Z when there is nothing local to undo, letting it bubble to the app-level handler', () => {
+    const a = createNotecard({ id: 'a' });
+    const props = { ...baseProps(), notecards: [a] };
+    render(<NotecardCanvas {...props} />);
+    const container = screen.getByTestId('notecard-canvas-surface').parentElement as HTMLElement;
+    const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+    container.dispatchEvent(event);
+    expect(stopPropagationSpy).not.toHaveBeenCalled();
+    expect(props.restoreNotecards).not.toHaveBeenCalled();
   });
 
   it('zooms the canvas on wheel over the surface', () => {

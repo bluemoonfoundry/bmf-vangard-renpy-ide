@@ -108,6 +108,8 @@ export interface UseTabContentRendererParams {
   notecardLinks: NotecardLink[];
   updateNotecard: (id: string, data: Partial<Notecard>) => void;
   deleteNotecard: (id: string) => void;
+  deleteNotecards: (ids: string[]) => void;
+  restoreNotecards: (cards: Notecard[], links: NotecardLink[]) => void;
   addNotecard: (initialPosition?: Position) => void;
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
@@ -251,7 +253,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     routeStickyNotes, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote,
     choiceStickyNotes, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote,
     allStickyNotes,
-    notecards, notecardLinks, updateNotecard, deleteNotecard, addNotecard,
+    notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
@@ -366,7 +368,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     if (tab.type === 'notecard-canvas') {
       return <NotecardCanvas
         notecards={notecards} notecardLinks={notecardLinks}
-        updateNotecard={updateNotecard} deleteNotecard={deleteNotecard} addNotecard={addNotecard}
+        updateNotecard={updateNotecard} deleteNotecard={deleteNotecard} deleteNotecards={deleteNotecards}
+        restoreNotecards={restoreNotecards} addNotecard={addNotecard}
         addNotecardLink={addNotecardLink} updateNotecardLink={updateNotecardLink} deleteNotecardLink={deleteNotecardLink}
         transform={notecardCanvasTransform} onTransformChange={setNotecardCanvasTransform}
       />;
