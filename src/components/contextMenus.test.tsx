@@ -259,6 +259,8 @@ describe('FileExplorerContextMenu', () => {
     onCopy: vi.fn(),
     onPaste: vi.fn(),
     onCenterOnBlock: vi.fn(),
+    onRevealInFileManager: vi.fn(),
+    onCopyPath: vi.fn(),
   };
 
   beforeEach(() => {
@@ -270,6 +272,30 @@ describe('FileExplorerContextMenu', () => {
     expect(container.firstChild).toBeTruthy();
   });
 
+  it('shows Reveal and Copy Path actions', () => {
+    render(<FileExplorerContextMenu {...baseProps} />);
+    expect(screen.getByText(/Reveal in/)).toBeTruthy();
+    expect(screen.getByText('Copy Path')).toBeTruthy();
+  });
+
+  it('calls onRevealInFileManager with node.path when Reveal is clicked', () => {
+    const onRevealInFileManager = vi.fn();
+    const onClose = vi.fn();
+    render(<FileExplorerContextMenu {...baseProps} onRevealInFileManager={onRevealInFileManager} onClose={onClose} />);
+    fireEvent.click(screen.getByText(/Reveal in/));
+    expect(onRevealInFileManager).toHaveBeenCalledWith('/project/game/script.rpy');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls onCopyPath with node.path when Copy Path is clicked', () => {
+    const onCopyPath = vi.fn();
+    const onClose = vi.fn();
+    render(<FileExplorerContextMenu {...baseProps} onCopyPath={onCopyPath} onClose={onClose} />);
+    fireEvent.click(screen.getByText('Copy Path'));
+    expect(onCopyPath).toHaveBeenCalledWith('/project/game/script.rpy');
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('shows all core action buttons', () => {
     render(<FileExplorerContextMenu {...baseProps} />);
     expect(screen.getByText('Refresh')).toBeTruthy();
@@ -277,7 +303,7 @@ describe('FileExplorerContextMenu', () => {
     expect(screen.getByText('New Folder...')).toBeTruthy();
     expect(screen.getByText('Rename')).toBeTruthy();
     expect(screen.getByText('Cut')).toBeTruthy();
-    expect(screen.getByText(/Copy/)).toBeTruthy();
+    expect(screen.getByText('Copy')).toBeTruthy();
     expect(screen.getByText('Paste')).toBeTruthy();
   });
 
@@ -634,6 +660,40 @@ describe('TabContextMenu', () => {
     const onClose = vi.fn();
     renderWithDualPane(<TabContextMenu {...baseProps} onClose={onClose} />);
     fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not show Reveal/Copy Path actions when filePath is not provided', () => {
+    renderWithDualPane(<TabContextMenu {...baseProps} />);
+    expect(screen.queryByText(/Reveal in/)).toBeNull();
+    expect(screen.queryByText('Copy Path')).toBeNull();
+  });
+
+  it('shows Reveal/Copy Path actions when filePath is provided', () => {
+    renderWithDualPane(<TabContextMenu {...baseProps} filePath="game/script.rpy" />);
+    expect(screen.getByText(/Reveal in/)).toBeTruthy();
+    expect(screen.getByText('Copy Path')).toBeTruthy();
+  });
+
+  it('calls onRevealInFileManager with filePath when Reveal is clicked', () => {
+    const onRevealInFileManager = vi.fn();
+    const onClose = vi.fn();
+    renderWithDualPane(
+      <TabContextMenu {...baseProps} filePath="game/script.rpy" onRevealInFileManager={onRevealInFileManager} onClose={onClose} />
+    );
+    fireEvent.click(screen.getByText(/Reveal in/));
+    expect(onRevealInFileManager).toHaveBeenCalledWith('game/script.rpy');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls onCopyPath with filePath when Copy Path is clicked', () => {
+    const onCopyPath = vi.fn();
+    const onClose = vi.fn();
+    renderWithDualPane(
+      <TabContextMenu {...baseProps} filePath="game/script.rpy" onCopyPath={onCopyPath} onClose={onClose} />
+    );
+    fireEvent.click(screen.getByText('Copy Path'));
+    expect(onCopyPath).toHaveBeenCalledWith('game/script.rpy');
     expect(onClose).toHaveBeenCalled();
   });
 });

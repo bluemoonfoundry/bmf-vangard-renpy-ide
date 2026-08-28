@@ -1560,6 +1560,15 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('shell:showItemInFolder', async (_event, filePath) => {
+    try {
+      await guardProjectPath(filePath);
+      shell.showItemInFolder(filePath);
+    } catch (error) {
+      logger.error('Failed to reveal item in folder', error);
+    }
+  });
+
   // Logging IPC handlers
   ipcMain.handle('app:get-log-path', () => {
     try {

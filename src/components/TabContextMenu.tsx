@@ -14,6 +14,8 @@ interface TabContextMenuProps {
   y: number;
   tabId: string;
   paneId: 'primary' | 'secondary';
+  /** App-relative path of the tab's underlying file, if it has one (undefined for canvas/punchlist/etc. tabs). */
+  filePath?: string;
   onClose: () => void;
   onCloseTab: (tabId: string) => void;
   onCloseOthers: (tabId: string) => void;
@@ -23,12 +25,17 @@ interface TabContextMenuProps {
   onSplitRight?: (tabId: string) => void;
   onSplitBottom?: (tabId: string) => void;
   onMoveToOtherPane?: (tabId: string) => void;
+  onRevealInFileManager?: (filePath: string) => void;
+  onCopyPath?: (filePath: string) => void;
 }
 
+const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const revealLabel = isMac ? 'Reveal in Finder' : 'Reveal in File Explorer';
+
 const TabContextMenu: React.FC<TabContextMenuProps> = ({
-  x, y, tabId, paneId, onClose,
+  x, y, tabId, paneId, filePath, onClose,
   onCloseTab, onCloseOthers, onCloseLeft, onCloseRight, onCloseAll,
-  onSplitRight, onSplitBottom, onMoveToOtherPane,
+  onSplitRight, onSplitBottom, onMoveToOtherPane, onRevealInFileManager, onCopyPath,
 }) => {
   const { splitLayout } = useDualPane();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,6 +122,23 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
           >
             {moveLabel}
           </button>
+        )}
+        {filePath && (
+          <>
+            <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+            <button
+              onClick={() => handleAction(() => onRevealInFileManager?.(filePath))}
+              className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded"
+            >
+              {revealLabel}
+            </button>
+            <button
+              onClick={() => handleAction(() => onCopyPath?.(filePath))}
+              className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded"
+            >
+              Copy Path
+            </button>
+          </>
         )}
       </div>
     </div>

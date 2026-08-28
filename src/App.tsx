@@ -1267,6 +1267,29 @@ const App: React.FC = () => {
       }
   }, [blocks, analysisResult, addToast, stickyNotes, canvasFilters.notes, setActiveTabId, setCanvasFilters, setCenterOnBlockRequest]);
 
+  const handleRevealInFileManager = useCallback(async (relativePath: string) => {
+      if (!projectRootPath || !window.electronAPI) return;
+      try {
+          const absPath = await window.electronAPI.path.join(projectRootPath, relativePath) as string;
+          await window.electronAPI.showItemInFolder?.(absPath);
+      } catch (err) {
+          logger.error('Failed to reveal item in file manager', err);
+          addToast('Could not reveal file', 'error');
+      }
+  }, [projectRootPath, addToast]);
+
+  const handleCopyPath = useCallback(async (relativePath: string) => {
+      if (!projectRootPath || !window.electronAPI) return;
+      try {
+          const absPath = await window.electronAPI.path.join(projectRootPath, relativePath) as string;
+          await navigator.clipboard.writeText(absPath);
+          addToast('Path copied to clipboard', 'success');
+      } catch (err) {
+          logger.error('Failed to copy path', err);
+          addToast('Could not copy path', 'error');
+      }
+  }, [projectRootPath, addToast]);
+
   // ── Go-to-label (Ctrl+G) ─────────────────────────────────────────────────────
 
   const activeCanvasTabId = activeTabId === 'canvas' || activeTabId === 'route-canvas' || activeTabId === 'choice-canvas'
@@ -1993,6 +2016,8 @@ const App: React.FC = () => {
                     onPaste={handlePaste}
                     onCenterOnBlock={handleCenterOnBlock}
                     onRefresh={handleRefreshProject}
+                    onRevealInFileManager={handleRevealInFileManager}
+                    onCopyPath={handleCopyPath}
                     selectedPaths={explorerSelectedPaths}
                     setSelectedPaths={setExplorerSelectedPaths}
                     lastClickedPath={explorerLastClickedPath}
@@ -2346,6 +2371,14 @@ const App: React.FC = () => {
               y={contextMenuInfo.y}
               tabId={contextMenuInfo.tabId}
               paneId={contextMenuInfo.paneId}
+              filePath={(() => {
+                  const tabs = contextMenuInfo.paneId === 'secondary' ? secondaryOpenTabs : openTabs;
+                  const tab = tabs.find(t => t.id === contextMenuInfo.tabId);
+                  if (!tab) return undefined;
+                  return tab.type === 'editor'
+                      ? blocks.find(b => b.id === tab.blockId)?.filePath
+                      : tab.filePath;
+              })()}
               onClose={() => closeContextMenu()}
               onCloseTab={(id) => handleCloseTab(id, contextMenuInfo.paneId)}
               onCloseOthers={(id) => handleCloseOthersRequest(id, contextMenuInfo.paneId)}
@@ -2355,6 +2388,8 @@ const App: React.FC = () => {
               onSplitRight={(id) => handleOpenInSplit(id, 'right')}
               onSplitBottom={(id) => handleOpenInSplit(id, 'bottom')}
               onMoveToOtherPane={(id) => handleMoveToOtherPane(id, contextMenuInfo.paneId)}
+              onRevealInFileManager={handleRevealInFileManager}
+              onCopyPath={handleCopyPath}
           />,
           document.body
       )}

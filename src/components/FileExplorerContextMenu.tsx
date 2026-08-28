@@ -29,11 +29,16 @@ interface ContextMenuProps {
   onCopy: () => void;
   onPaste: (targetPath: string) => void;
   onCenterOnBlock: (path: string) => void;
+  onRevealInFileManager: (path: string) => void;
+  onCopyPath: (path: string) => void;
 }
+
+const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const revealLabel = isMac ? 'Reveal in Finder' : 'Reveal in File Explorer';
 
 const FileExplorerContextMenu: React.FC<ContextMenuProps> = ({
     x, y, node, clipboard, selectionSize, onClose, onRefresh, onNewFile, onNewFolder,
-    onRename, onDelete, onCut, onCopy, onPaste, onCenterOnBlock
+    onRename, onDelete, onCut, onCopy, onPaste, onCenterOnBlock, onRevealInFileManager, onCopyPath
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -130,6 +135,21 @@ const FileExplorerContextMenu: React.FC<ContextMenuProps> = ({
           className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Paste
+        </button>
+        <div className="border-t border-gray-200 dark:border-gray-700 -mx-1 my-1"></div>
+        <button
+          onClick={() => handleAction(() => onRevealInFileManager(node.path))}
+          disabled={!node.path}
+          className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {revealLabel}
+        </button>
+        <button
+          onClick={() => handleAction(() => onCopyPath(node.path))}
+          disabled={!node.path}
+          className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Copy Path
         </button>
       </div>
     </div>
