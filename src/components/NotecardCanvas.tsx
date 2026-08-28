@@ -114,6 +114,24 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const cardCenter = useCallback((card: NotecardType) => ({ x: card.position.x + card.width / 2, y: card.position.y + card.height / 2 }), []);
   const cardById = useCallback((id: string) => notecards.find(c => c.id === id), [notecards]);
 
+  // Where a ray from a card's center toward `toward` exits the card's rectangle. Cards paint
+  // above the link SVG (positioned boxes stack above static ones), so a line drawn all the way
+  // to the target's *center* — including its arrowhead — renders completely hidden underneath
+  // the card body. Clipping both ends to the card edges puts the arrow in the visible gap
+  // between cards instead.
+  const cardEdgePoint = useCallback((card: NotecardType, toward: { x: number; y: number }) => {
+    const center = cardCenter(card);
+    const dx = toward.x - center.x;
+    const dy = toward.y - center.y;
+    if (dx === 0 && dy === 0) return center;
+    const halfW = card.width / 2;
+    const halfH = card.height / 2;
+    const scaleX = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+    const scaleY = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+    const t = Math.min(scaleX, scaleY);
+    return { x: center.x + dx * t, y: center.y + dy * t };
+  }, [cardCenter]);
+
   const handleSurfaceDoubleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('[data-notecard-id]') || target.closest('[data-notecard-link-id]')) return;
@@ -298,6 +316,9 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!surfaceRef.current) return;
+    // Let the wheel scroll a notecard's own (overflow-auto) content instead of zooming the
+    // whole canvas when the pointer is over a card.
+    if ((e.target as HTMLElement).closest('[data-notecard-id]')) return;
     e.preventDefault();
     const rect = surfaceRef.current.getBoundingClientRect();
     const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -378,16 +399,20 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
         <div className="absolute inset-0" style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}>
           <svg className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, width: 1, height: 1 }}>
             <defs>
-              <marker id="notecard-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                <path d="M0,0 L8,4 L0,8 Z" className="fill-indigo-500" />
+              <marker id="notecard-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                <path d="M0,0 L10,5 L0,10 Z" className="fill-indigo-500" />
               </marker>
             </defs>
             {notecardLinks.map(link => {
               const from = cardById(link.fromId);
               const to = cardById(link.toId);
               if (!from || !to) return null;
-              const a = cardCenter(from);
-              const b = cardCenter(to);
+              const fromCenter = cardCenter(from);
+              const toCenter = cardCenter(to);
+              // Clip to card edges, not centers — the target card renders above this SVG, so
+              // an arrowhead aimed at its center would be drawn invisibly underneath it.
+              const a = cardEdgePoint(from, toCenter);
+              const b = cardEdgePoint(to, fromCenter);
               const midX = (a.x + b.x) / 2;
               const midY = (a.y + b.y) / 2;
               return (
@@ -408,8 +433,8 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
             {linkDraft && (() => {
               const from = cardById(linkDraft.fromId);
               if (!from) return null;
-              const a = cardCenter(from);
-              return <line x1={a.x} y1={a.y} x2={linkDraft.x} y2={linkDraft.y} className="stroke-indigo-400" strokeWidth={2} strokeDasharray="4 4" />;
+              const a = cardEdgePoint(from, linkDraft);
+              return <line x1={a.x} y1={a.y} x2={linkDraft.x} y2={linkDraft.y} className="stroke-indigo-400" strokeWidth={2} strokeDasharray="4 4" markerEnd="url(#notecard-arrow)" />;
             })()}
           </svg>
           {editingLinkId && (() => {

@@ -111,6 +111,27 @@ describe('NotecardCanvas', () => {
     expect(container.querySelectorAll('[data-notecard-link-id]')).toHaveLength(1);
   });
 
+  it('clips the link arrow to the card edges, not centers, so it is not hidden underneath the target card', () => {
+    // Cards paint above the link SVG, so a line drawn to the target card's *center* — where
+    // the arrowhead marker sits — would render completely invisible underneath the card body.
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 }, width: 220, height: 160 });
+    const b = createNotecard({ id: 'b', position: { x: 400, y: 300 }, width: 220, height: 160 });
+    const link = { id: 'l1', fromId: 'a', toId: 'b' };
+    const props = { ...baseProps(), notecards: [a, b], notecardLinks: [link] };
+    const { container } = render(<NotecardCanvas {...props} />);
+    const line = container.querySelector('[data-notecard-link-id="l1"] line') as SVGLineElement;
+    const aCenter = { x: 110, y: 80 };
+    const bCenter = { x: 510, y: 380 };
+    expect(Number(line.getAttribute('x1'))).not.toBeCloseTo(aCenter.x, 0);
+    expect(Number(line.getAttribute('y1'))).not.toBeCloseTo(aCenter.y, 0);
+    expect(Number(line.getAttribute('x2'))).not.toBeCloseTo(bCenter.x, 0);
+    expect(Number(line.getAttribute('y2'))).not.toBeCloseTo(bCenter.y, 0);
+    // The clipped start point should sit exactly on card a's bottom edge (y=160).
+    expect(Number(line.getAttribute('y1'))).toBeCloseTo(160, 5);
+    // The clipped end point should sit exactly on card b's top edge (y=300).
+    expect(Number(line.getAttribute('y2'))).toBeCloseTo(300, 5);
+  });
+
   it('completes a link when dragging from one card link-handle and releasing over another card', () => {
     const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
     const b = createNotecard({ id: 'b', position: { x: 400, y: 300 } });
@@ -248,6 +269,14 @@ describe('NotecardCanvas', () => {
     const updater = props.onTransformChange.mock.calls[0][0];
     const result = typeof updater === 'function' ? updater(props.transform) : updater;
     expect(result.scale).not.toBe(props.transform.scale);
+  });
+
+  it('does not zoom the canvas on wheel over a notecard, letting the card scroll its own content instead', () => {
+    const a = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
+    const props = { ...baseProps(), notecards: [a] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.wheel(screen.getByTestId('notecard-a'), { clientX: 100, clientY: 100, deltaY: -100 });
+    expect(props.onTransformChange).not.toHaveBeenCalled();
   });
 
   it('opens a label editor on double-click of a link and commits the label', () => {
