@@ -15,6 +15,8 @@ import type {
 import { validateRenpyCode } from '@/lib/renpyValidator';
 import { matchesIgnoredDiagnostic } from '@/lib/diagnosticIgnores';
 import { STATEMENT_KEYWORDS, buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
+import { findTrappedCycles } from '@/lib/graphLayout';
+import { findClosestMatch } from '@/lib/didYouMean';
 
 // Regex for character dialogue lines: indented <tag> "<text>"
 const RE_CHAR_DIALOGUE = /^\s+([a-zA-Z_]\w*)\s+"/;
@@ -66,16 +68,20 @@ export function useDiagnostics(
     // -----------------------------------------------------------------------
     // Source 1: Invalid jump/call targets
     // -----------------------------------------------------------------------
+    const knownLabelNames = Object.keys(analysisResult.labels);
     for (const [blockId, targets] of Object.entries(analysisResult.invalidJumps)) {
       const block = blocks.find(b => b.id === blockId);
       for (const target of targets) {
         // Find line number from analysisResult.jumps
         const jump = analysisResult.jumps[blockId]?.find(j => j.target === target);
+        const suggestion = findClosestMatch(target, knownLabelNames);
         issues.push({
           id: `invalid-jump:${blockId}:${target}`,
           severity: 'error',
           category: 'invalid-jump',
-          message: `Undefined label "${target}"`,
+          message: suggestion
+            ? `Undefined label "${target}" — did you mean "${suggestion}"?`
+            : `Undefined label "${target}"`,
           blockId,
           filePath: block?.filePath,
           line: jump?.line,
@@ -191,6 +197,7 @@ export function useDiagnostics(
     // Source 5: Undefined characters in dialogue
     // -----------------------------------------------------------------------
     const seenUndefinedChars = new Set<string>();
+    const knownCharacterTags = Array.from(analysisResult.characters.keys());
     for (const block of blocks) {
       if (!block.content) continue;
       const lines = block.content.split('\n');
@@ -200,11 +207,14 @@ export function useDiagnostics(
           const tag = m[1];
           if (!STATEMENT_KEYWORDS.has(tag) && !analysisResult.characters.has(tag) && !seenUndefinedChars.has(tag)) {
             seenUndefinedChars.add(tag);
+            const suggestion = findClosestMatch(tag, knownCharacterTags);
             issues.push({
               id: `undefined-character:${tag}`,
               severity: 'warning',
               category: 'undefined-character',
-              message: `Character "${tag}" used in dialogue but never defined`,
+              message: suggestion
+                ? `Character "${tag}" used in dialogue but never defined — did you mean "${suggestion}"?`
+                : `Character "${tag}" used in dialogue but never defined`,
               blockId: block.id,
               filePath: block.filePath,
               line: index + 1,
@@ -246,6 +256,7 @@ export function useDiagnostics(
     // referencing a name that never appears in a define/default/$ statement)
     // -----------------------------------------------------------------------
     const knownIdentifiers = buildKnownIdentifierSet(analysisResult);
+    const knownVariableNames = Array.from(analysisResult.variables.keys());
     const seenUndefinedVars = new Set<string>();
     for (const block of blocks) {
       if (!block.content) continue;
@@ -253,11 +264,14 @@ export function useDiagnostics(
       for (const ref of refs) {
         if (seenUndefinedVars.has(ref.name)) continue;
         seenUndefinedVars.add(ref.name);
+        const suggestion = findClosestMatch(ref.name, knownVariableNames);
         issues.push({
           id: `undefined-variable:${ref.name}`,
           severity: 'warning',
           category: 'undefined-variable',
-          message: `Variable "${ref.name}" is used but never defined`,
+          message: suggestion
+            ? `Variable "${ref.name}" is used but never defined — did you mean "${suggestion}"?`
+            : `Variable "${ref.name}" is used but never defined`,
           blockId: block.id,
           filePath: block.filePath,
           line: ref.line,
@@ -451,6 +465,34 @@ export function useDiagnostics(
         blockId: node.blockId,
         filePath: block?.filePath,
         line: node.startLine,
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Source 15: Trapped jump cycles
+    // A strongly-connected group of labels with no edge leaving it — the
+    // player can never progress past it. Distinct from the common "hub"
+    // pattern (a menu looping back to a hub the player can still leave from
+    // via another choice), which always has an exit edge and is correctly
+    // not flagged.
+    // -----------------------------------------------------------------------
+    const labelNodeById = new Map(analysisResult.labelNodes.map(n => [n.id, n]));
+    for (const trap of findTrappedCycles(analysisResult.labelNodes, analysisResult.routeLinks)) {
+      const pathLabels = trap.path.map(id => labelNodeById.get(id)?.label ?? id).join(' → ');
+      const loopSize = trap.path.length - 1;
+      const extra = trap.componentSize > loopSize
+        ? ` (+${trap.componentSize - loopSize} more label${trap.componentSize - loopSize === 1 ? '' : 's'} in this trap)`
+        : '';
+      const firstNode = labelNodeById.get(trap.path[0]);
+      const block = blocks.find(b => b.id === firstNode?.blockId);
+      issues.push({
+        id: `jump-cycle:${trap.path.slice(0, -1).slice().sort().join(',')}`,
+        severity: 'warning',
+        category: 'jump-cycle',
+        message: `Jump cycle detected: ${pathLabels} — no jump/call leads out of this loop${extra}`,
+        blockId: firstNode?.blockId,
+        filePath: block?.filePath,
+        line: firstNode?.startLine,
       });
     }
 

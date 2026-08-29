@@ -21,6 +21,8 @@ export function useGameExecution({
 }: UseGameExecutionParams) {
   const [isGameRunning, setIsGameRunning] = useState(false);
   const [screenshotCount, setScreenshotCount] = useState(0);
+  const [crashLog, setCrashLog] = useState<string | null>(null);
+  const dismissCrashLog = useCallback(() => setCrashLog(null), []);
 
   const refreshScreenshotCount = useCallback(async () => {
     if (!window.electronAPI?.getScreenshotCount) return;
@@ -93,12 +95,16 @@ export function useGameExecution({
       setIsGameRunning(false);
       void cleanupWarpTempFile();
     });
-    const removeError = window.electronAPI.onGameError(() => {
+    const removeError = window.electronAPI.onGameError((error) => {
       setIsGameRunning(false);
+      addToast(error, 'error');
       void cleanupWarpTempFile();
     });
-    return () => { removeStarted(); removeStopped(); removeError(); };
-  }, [cleanupWarpTempFile]);
+    const removeCrashLog = window.electronAPI.onGameCrashLog((tracebackText) => {
+      setCrashLog(tracebackText);
+    });
+    return () => { removeStarted(); removeStopped(); removeError(); removeCrashLog(); };
+  }, [cleanupWarpTempFile, addToast]);
 
   // Auto-update notifications
   useEffect(() => {
@@ -126,6 +132,8 @@ export function useGameExecution({
   return {
     isGameRunning,
     screenshotCount,
+    crashLog,
+    dismissCrashLog,
     handleRunGame,
     handleOpenScreenshotsFolder,
     handleClearScreenshots,

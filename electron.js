@@ -1459,6 +1459,7 @@ app.whenReady().then(() => {
             RENPY_SKIP_SPLASHSCREEN: '1',
           }
         : process.env;
+      const launchedAt = Date.now();
       gameProcess = spawn(executable, args, {
         env,
       });
@@ -1469,6 +1470,27 @@ app.whenReady().then(() => {
         gameProcess = null;
         event.sender.send('game-stopped');
         setGameRunningMenuState(false);
+
+        // Ren'Py writes traceback.txt to the project's base directory on an
+        // unhandled exception. Surface it if it's fresh (written during this
+        // run) -- a stale file from a previous session should stay silent.
+        const tracebackPath = path.join(projectPath, 'traceback.txt');
+        fs.stat(tracebackPath)
+          .then((stat) => {
+            if (stat.mtimeMs < launchedAt - 1000) return;
+            return fs.readFile(tracebackPath, 'utf-8');
+          })
+          .then((content) => {
+            // Ren'Py writes traceback.txt with a UTF-8 BOM; strip it so it
+            // doesn't render as a stray character in the crash modal.
+            const clean = content?.replace(/^\uFEFF/, '');
+            if (clean && !event.sender.isDestroyed()) {
+              event.sender.send('game-crash-log', clean);
+            }
+          })
+          .catch(() => {
+            // traceback.txt not present -- normal clean exit, nothing to surface
+          });
       });
 
       gameProcess.on('error', (err) => {

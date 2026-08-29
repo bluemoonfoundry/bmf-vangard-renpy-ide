@@ -33,6 +33,7 @@ import Toast from '@/components/Toast';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import AnalysisOverlay from '@/components/AnalysisOverlay';
 import WarpVariablesModal from '@/components/WarpVariablesModal';
+import CrashLogModal from '@/components/CrashLogModal';
 import { useDiagnostics } from '@/hooks/useDiagnostics';
 import { useDebounce } from '@/hooks/useDebounce';
 import TabContextMenu from '@/components/TabContextMenu';
@@ -1322,6 +1323,8 @@ const App: React.FC = () => {
   const {
     isGameRunning,
     screenshotCount,
+    crashLog,
+    dismissCrashLog,
     handleRunGame,
     handleOpenScreenshotsFolder,
     handleClearScreenshots,
@@ -2502,6 +2505,11 @@ const App: React.FC = () => {
         warpLabelName={pendingWarpLabelName ?? undefined}
         onClose={resetWarpLaunchState}
         onConfirm={handleConfirmWarpVariables}
+      />
+      <CrashLogModal
+        isOpen={!!crashLog}
+        tracebackText={crashLog ?? ''}
+        onClose={dismissCrashLog}
       />
 
       <FirstRunTutorial

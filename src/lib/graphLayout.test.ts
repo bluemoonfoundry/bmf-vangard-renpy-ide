@@ -4,6 +4,7 @@ import {
   computeLayeredLayoutGeneric,
   buildClustersGeneric,
   buildRouteGraph,
+  findTrappedCycles,
   type LayoutConfig,
   type LayoutNode,
   type LayoutEdge,
@@ -68,6 +69,67 @@ describe('getConnectedComponents', () => {
     const nodes = [node('a'), node('b'), node('c')];
     const components = getConnectedComponents(nodes, []);
     expect(components).toHaveLength(3);
+  });
+});
+
+describe('findTrappedCycles', () => {
+  it('returns nothing for a linear chain', () => {
+    const nodes = [node('a'), node('b'), node('c')];
+    const edges = [edge('a', 'b'), edge('b', 'c')];
+    expect(findTrappedCycles(nodes, edges)).toEqual([]);
+  });
+
+  it('flags a two-node cycle with no exit', () => {
+    const nodes = [node('a'), node('b')];
+    const edges = [edge('a', 'b'), edge('b', 'a')];
+    const traps = findTrappedCycles(nodes, edges);
+    expect(traps).toHaveLength(1);
+    expect(traps[0].componentSize).toBe(2);
+    expect(new Set(traps[0].path)).toEqual(new Set(['a', 'b']));
+    expect(traps[0].path[0]).toBe(traps[0].path[traps[0].path.length - 1]);
+  });
+
+  it('flags a self-loop as a trapped cycle of size 1', () => {
+    const nodes = [node('a')];
+    const edges = [edge('a', 'a')];
+    const traps = findTrappedCycles(nodes, edges);
+    expect(traps).toHaveLength(1);
+    expect(traps[0].componentSize).toBe(1);
+    expect(traps[0].path).toEqual(['a', 'a']);
+  });
+
+  it('flags a larger cycle with no exit, tracing the full loop', () => {
+    const nodes = [node('a'), node('b'), node('c')];
+    const edges = [edge('a', 'b'), edge('b', 'c'), edge('c', 'a')];
+    const traps = findTrappedCycles(nodes, edges);
+    expect(traps).toHaveLength(1);
+    expect(traps[0].componentSize).toBe(3);
+    expect(traps[0].path).toHaveLength(4);
+    expect(new Set(traps[0].path.slice(0, -1))).toEqual(new Set(['a', 'b', 'c']));
+  });
+
+  it('does not flag a hub-and-return pattern with an exit edge', () => {
+    // hub <-> talk_bob loop, but hub also has an exit to "next" — a common,
+    // intentional VN pattern (talk to a character, return to the hub, leave).
+    const nodes = [node('hub'), node('talk_bob'), node('next')];
+    const edges = [edge('hub', 'talk_bob'), edge('talk_bob', 'hub'), edge('hub', 'next')];
+    expect(findTrappedCycles(nodes, edges)).toEqual([]);
+  });
+
+  it('ignores isolated nodes with no self-loop', () => {
+    const nodes = [node('a'), node('b')];
+    expect(findTrappedCycles(nodes, [])).toEqual([]);
+  });
+
+  it('reports only the trapped component when mixed with a safe hub', () => {
+    const nodes = [node('a'), node('b'), node('hub'), node('talk'), node('exit')];
+    const edges = [
+      edge('a', 'b'), edge('b', 'a'), // trapped
+      edge('hub', 'talk'), edge('talk', 'hub'), edge('hub', 'exit'), // safe hub
+    ];
+    const traps = findTrappedCycles(nodes, edges);
+    expect(traps).toHaveLength(1);
+    expect(new Set(traps[0].path)).toEqual(new Set(['a', 'b']));
   });
 });
 

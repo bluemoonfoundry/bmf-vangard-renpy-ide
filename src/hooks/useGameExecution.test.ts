@@ -93,4 +93,33 @@ describe('useGameExecution', () => {
     act(() => stoppedCb?.());
     expect(result.current.isGameRunning).toBe(false);
   });
+
+  it('calls addToast with the error message when onGameError fires', () => {
+    let errorCb: ((error: string) => void) | undefined;
+    api.onGameError.mockImplementation((cb: (error: string) => void) => { errorCb = cb; return () => {}; });
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useGameExecution(makeParams({ addToast })));
+    act(() => errorCb?.('spawn ENOENT'));
+    expect(addToast).toHaveBeenCalledWith('spawn ENOENT', 'error');
+    expect(result.current.isGameRunning).toBe(false);
+  });
+
+  it('sets crashLog when onGameCrashLog fires', () => {
+    let crashLogCb: ((tracebackText: string) => void) | undefined;
+    api.onGameCrashLog.mockImplementation((cb: (tracebackText: string) => void) => { crashLogCb = cb; return () => {}; });
+    const { result } = renderHook(() => useGameExecution(makeParams()));
+    expect(result.current.crashLog).toBeNull();
+    act(() => crashLogCb?.('Traceback (most recent call last): ...'));
+    expect(result.current.crashLog).toBe('Traceback (most recent call last): ...');
+  });
+
+  it('dismissCrashLog clears crashLog back to null', () => {
+    let crashLogCb: ((tracebackText: string) => void) | undefined;
+    api.onGameCrashLog.mockImplementation((cb: (tracebackText: string) => void) => { crashLogCb = cb; return () => {}; });
+    const { result } = renderHook(() => useGameExecution(makeParams()));
+    act(() => crashLogCb?.('some traceback'));
+    expect(result.current.crashLog).toBe('some traceback');
+    act(() => result.current.dismissCrashLog());
+    expect(result.current.crashLog).toBeNull();
+  });
 });

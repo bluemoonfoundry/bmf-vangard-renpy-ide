@@ -140,7 +140,7 @@ export interface DiagnosticIssue {
   severity: DiagnosticSeverity;
   category: string;         // "invalid-jump" | "syntax" | "missing-image" | "missing-audio"
                             // | "undefined-character" | "undefined-screen"
-                            // | "unused-character" | "unreachable-label"
+                            // | "unused-character" | "unreachable-label" | "jump-cycle"
   message: string;
   blockId?: string;
   filePath?: string;
@@ -1458,6 +1458,7 @@ declare global {
           onGameStarted: (callback: () => void) => () => void;
           onGameStopped: (callback: () => void) => () => void;
           onGameError: (callback: (error: string) => void) => () => void;
+          onGameCrashLog: (callback: (tracebackText: string) => void) => () => void;
           onSaveIdeStateBeforeQuit: (callback: () => void) => () => void;
           ideStateSavedForQuit: () => void;
           path: {
