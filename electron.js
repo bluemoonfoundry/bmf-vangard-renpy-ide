@@ -36,7 +36,7 @@ import { spawn } from 'child_process';
 import { Worker } from 'worker_threads';
 import { deriveGuiColors } from './src/lib/colorUtils.js';
 import { updateGuiRpy, updateOptionsRpy, generateSaveDirectory } from './src/lib/templateProcessor.js';
-import { validateProjectPath, validateExternalUrl } from './src/lib/ipcSecurity.js';
+import { validateProjectPath, validateExternalUrl, canonicalize } from './src/lib/ipcSecurity.js';
 import { scanDirectoryForAssets } from './src/lib/assetScanner.js';
 import { searchInDirectory } from './src/lib/projectSearch.js';
 import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
@@ -104,6 +104,64 @@ async function guardProjectPath(filePath) {
     if (err) {
         logger.warn(`IPC path guard blocked: ${err} — path: ${filePath}`);
         throw new Error(`ACCESS_DENIED: ${err}`);
+    }
+}
+
+// --- Vetted Project Roots ---
+// guardProjectPath (above) only contains fs:* access to *whatever* root is
+// currently open -- it does nothing to stop a compromised renderer from
+// simply calling electronAPI.loadProject('/anywhere') to repoint that root
+// at an attacker-chosen directory and then read/write anywhere the OS user
+// can access. This set closes that gap: project:load/refresh/refresh-tree
+// and dialog:checkRenpyProject only accept a *new* root (one that isn't
+// already currentProjectRoot) if it was vetted by a real user-mediated,
+// main-process-owned event -- a native file dialog result, a native "Open
+// Recent" menu click, or the --project startup flag -- never a bare string
+// the renderer passed in on its own.
+const vettedProjectRoots = new Set();
+
+async function vetProjectRoot(rootPath) {
+    if (!rootPath || typeof rootPath !== 'string') return;
+    try {
+        vettedProjectRoots.add(await canonicalize(rootPath));
+    } catch {
+        // Path doesn't exist / inaccessible -- nothing to vet.
+    }
+}
+
+async function isVettedProjectRoot(rootPath) {
+    if (!rootPath || typeof rootPath !== 'string') return false;
+    try {
+        const target = await canonicalize(rootPath);
+        const targetKey = process.platform === 'win32' ? target.toLowerCase() : target;
+
+        if (currentProjectRoot) {
+            const current = await canonicalize(currentProjectRoot);
+            const currentKey = process.platform === 'win32' ? current.toLowerCase() : current;
+            if (targetKey === currentKey) return true;
+        }
+
+        if (process.platform === 'win32') {
+            for (const v of vettedProjectRoots) {
+                if (v.toLowerCase() === targetKey) return true;
+            }
+            return false;
+        }
+        return vettedProjectRoots.has(target);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Throws ACCESS_DENIED if rootPath was never vetted (see vettedProjectRoots
+ * above) and isn't the already-open project root. Applied to project:load,
+ * project:refresh, project:refresh-tree, and dialog:checkRenpyProject.
+ */
+async function guardVettedProjectRoot(rootPath) {
+    if (!(await isVettedProjectRoot(rootPath))) {
+        logger.warn(`Project root guard blocked unvetted path: ${rootPath}`);
+        throw new Error('ACCESS_DENIED: path was not opened via a dialog, the recent-projects list, or --project');
     }
 }
 
@@ -484,7 +542,8 @@ async function updateApplicationMenu() {
   const openRecentSubmenu = recentProjects.length > 0
     ? recentProjects.map(p => ({
         label: p,
-        click: (item, focusedWindow) => {
+        click: async (item, focusedWindow) => {
+          await vetProjectRoot(p);
           if (focusedWindow) focusedWindow.webContents.send('menu-command', { command: 'open-recent', path: p });
         }
       }))
@@ -879,7 +938,11 @@ function applyContentSecurityPolicy(session) {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Trust the --project CLI flag as a vetted root up front (see
+  // vettedProjectRoots above) -- it's process.argv, not renderer input.
+  await vetProjectRoot(startupProjectPath);
+
   // Robust 'media' protocol handler for serving local files with streaming support
   protocol.handle('media', async (request) => {
     try {
@@ -946,6 +1009,7 @@ app.whenReady().then(() => {
       if (canceled) {
         return null;
       } else {
+        await vetProjectRoot(filePaths[0]);
         return filePaths[0];
       }
     } catch (error) {
@@ -1046,6 +1110,7 @@ app.whenReady().then(() => {
     try {
         await fs.mkdir(path.join(filePath, 'game', 'images'), { recursive: true });
         await fs.mkdir(path.join(filePath, 'game', 'audio'), { recursive: true });
+        await vetProjectRoot(filePath);
         return filePath;
     } catch (error) {
         logger.error('Failed to create project directory:', error);
@@ -1155,6 +1220,7 @@ app.whenReady().then(() => {
       await fs.mkdir(path.join(gameDir, 'audio'), { recursive: true });
 
       logger.info('Project created successfully');
+      await vetProjectRoot(projectDir);
       return { success: true, path: projectDir };
     } catch (error) {
       logger.error('Failed to create project from template:', error);
@@ -1174,6 +1240,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('dialog:checkRenpyProject', async (event, rootPath) => {
+    await guardVettedProjectRoot(rootPath);
     return await checkRenpyProject(rootPath);
   });
 
@@ -1186,6 +1253,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('project:load', async (event, rootPath) => {
+    await guardVettedProjectRoot(rootPath);
     currentProjectRoot = rootPath; // Track for screenshots
     // Best-effort: remove any atomic-write temp files stranded by a previous
     // crashed/killed session. The files they were meant to replace were never
@@ -1204,11 +1272,13 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('project:refresh-tree', async (event, rootPath) => {
+    await guardVettedProjectRoot(rootPath);
     const result = await readProjectFiles(rootPath, { readContent: false });
     return result.tree;
   });
 
   ipcMain.handle('project:refresh', async (event, rootPath) => {
+    await guardVettedProjectRoot(rootPath);
     return await readProjectFiles(rootPath, { readContent: true });
   });
 
@@ -1523,6 +1593,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle('app:get-settings', async () => {
     const { settings, warning } = await loadAppSettings();
+    // Re-vet persisted recent-project paths for this session (the in-memory
+    // vettedProjectRoots set above starts empty on every launch). Safe to
+    // trust unconditionally here because app:save-settings (below) only ever
+    // persists recentProjects entries that were already vetted.
+    if (Array.isArray(settings?.recentProjects)) {
+        await Promise.all(settings.recentProjects.map(vetProjectRoot));
+    }
     if (warning && mainWindowRef && !mainWindowRef.isDestroyed()) {
         mainWindowRef.webContents.send('app:settings-warning', warning);
     }
@@ -1530,6 +1607,16 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:save-settings', async (event, settings) => {
+      // recentProjects flows back from the renderer as part of this blob (it
+      // appends to it after every successful project:load). Filter out
+      // anything that isn't a vetted root before persisting, so a compromised
+      // renderer can't smuggle an arbitrary path in here and have it resurface
+      // -- trusted -- as a native "Open Recent" menu entry or in app:get-settings
+      // on a later launch.
+      if (settings && Array.isArray(settings.recentProjects)) {
+          const keep = await Promise.all(settings.recentProjects.map(async (p) => (await isVettedProjectRoot(p)) ? p : null));
+          settings = { ...settings, recentProjects: keep.filter(Boolean) };
+      }
       const result = await saveAppSettings(settings);
       if (result.success) {
           await updateApplicationMenu();

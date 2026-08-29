@@ -10,7 +10,7 @@ import path from 'path';
  * remaining path segments — those segments can't be symlinks since nothing
  * exists there yet.
  */
-async function canonicalize(filePath) {
+export async function canonicalize(filePath) {
     const resolved = path.resolve(filePath);
     try {
         return await fs.realpath(resolved);
