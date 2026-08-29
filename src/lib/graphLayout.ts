@@ -1,5 +1,5 @@
 import DirectedGraph from 'graphology';
-import { connectedComponents } from 'graphology-components';
+import { connectedComponents, stronglyConnectedComponents } from 'graphology-components';
 import { topologicalGenerations } from 'graphology-dag';
 import type { LabelNode, Position, RouteLink, StoryCanvasGroupingMode } from '@/types';
 
@@ -86,6 +86,92 @@ export function getConnectedComponents<N extends LayoutNode, E extends LayoutEdg
 ): string[][] {
   const graph = buildGraph(nodes, edges);
   return connectedComponents(graph);
+}
+
+export interface TrappedCycle {
+  /** Ordered node IDs forming one representative cycle path through the trap, ending with a repeat of the first ID. */
+  path: string[];
+  /** Total node count in the strongly-connected trap (may exceed path.length - 1 when the trap has more than one internal cycle). */
+  componentSize: number;
+}
+
+/**
+ * Finds "trapped" cycles in a route graph: strongly-connected components with
+ * no edge leaving the component, meaning nothing inside can ever reach
+ * anything outside it.
+ *
+ * This is what distinguishes a genuine stuck-forever bug from the extremely
+ * common "hub" pattern (a menu choice that loops back to a hub label the
+ * player can still leave from via another choice) — a hub's
+ * strongly-connected component always has at least one exit edge, so it is
+ * correctly excluded here.
+ *
+ * A self-loop (a label whose only path forward is back to itself) counts as
+ * a trapped cycle of size 1.
+ *
+ * @param nodes - Array of layout nodes (e.g. labelNodes)
+ * @param edges - Array of directed edges (e.g. routeLinks)
+ * @returns One TrappedCycle per strongly-connected component with no exit edge
+ *
+ * @complexity O(V + E) time via Tarjan's algorithm (graphology-components)
+ */
+export function findTrappedCycles<N extends LayoutNode, E extends LayoutEdge>(
+  nodes: N[],
+  edges: E[],
+): TrappedCycle[] {
+  const graph = buildGraph(nodes, edges);
+  const components = stronglyConnectedComponents(graph);
+  const trapped: TrappedCycle[] = [];
+
+  for (const component of components) {
+    const memberSet = new Set(component);
+    const isSelfLoop = component.length === 1 && graph.hasDirectedEdge(component[0], component[0]);
+    if (component.length === 1 && !isSelfLoop) continue; // trivial, not a cycle
+
+    let hasExit = false;
+    for (const nodeId of component) {
+      for (const target of graph.outNeighbors(nodeId)) {
+        if (!memberSet.has(target)) { hasExit = true; break; }
+      }
+      if (hasExit) break;
+    }
+    if (hasExit) continue;
+
+    trapped.push({ path: traceCyclePath(component[0], graph, memberSet), componentSize: component.length });
+  }
+
+  return trapped;
+}
+
+/**
+ * Traces one concrete cycle path through a strongly-connected component,
+ * starting and ending at `startId`, via depth-first search restricted to
+ * `memberSet`. Used to render a readable "A → B → A" trail for a trapped
+ * cycle rather than just listing its unordered member set.
+ */
+function traceCyclePath(startId: string, graph: DirectedGraph, memberSet: Set<string>): string[] {
+  const visited = new Set<string>();
+  const path: string[] = [];
+
+  function dfs(nodeId: string): boolean {
+    path.push(nodeId);
+    visited.add(nodeId);
+
+    for (const next of graph.outNeighbors(nodeId)) {
+      if (!memberSet.has(next)) continue;
+      if (next === startId) {
+        path.push(startId);
+        return true;
+      }
+      if (!visited.has(next) && dfs(next)) return true;
+    }
+
+    path.pop();
+    return false;
+  }
+
+  dfs(startId);
+  return path;
 }
 
 /**

@@ -140,7 +140,7 @@ export interface DiagnosticIssue {
   severity: DiagnosticSeverity;
   category: string;         // "invalid-jump" | "syntax" | "missing-image" | "missing-audio"
                             // | "undefined-character" | "undefined-screen"
-                            // | "unused-character" | "unreachable-label"
+                            // | "unused-character" | "unreachable-label" | "jump-cycle"
   message: string;
   blockId?: string;
   filePath?: string;

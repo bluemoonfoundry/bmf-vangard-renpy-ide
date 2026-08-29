@@ -15,6 +15,7 @@ import type {
 import { validateRenpyCode } from '@/lib/renpyValidator';
 import { matchesIgnoredDiagnostic } from '@/lib/diagnosticIgnores';
 import { STATEMENT_KEYWORDS, buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
+import { findTrappedCycles } from '@/lib/graphLayout';
 
 // Regex for character dialogue lines: indented <tag> "<text>"
 const RE_CHAR_DIALOGUE = /^\s+([a-zA-Z_]\w*)\s+"/;
@@ -451,6 +452,34 @@ export function useDiagnostics(
         blockId: node.blockId,
         filePath: block?.filePath,
         line: node.startLine,
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Source 15: Trapped jump cycles
+    // A strongly-connected group of labels with no edge leaving it — the
+    // player can never progress past it. Distinct from the common "hub"
+    // pattern (a menu looping back to a hub the player can still leave from
+    // via another choice), which always has an exit edge and is correctly
+    // not flagged.
+    // -----------------------------------------------------------------------
+    const labelNodeById = new Map(analysisResult.labelNodes.map(n => [n.id, n]));
+    for (const trap of findTrappedCycles(analysisResult.labelNodes, analysisResult.routeLinks)) {
+      const pathLabels = trap.path.map(id => labelNodeById.get(id)?.label ?? id).join(' → ');
+      const loopSize = trap.path.length - 1;
+      const extra = trap.componentSize > loopSize
+        ? ` (+${trap.componentSize - loopSize} more label${trap.componentSize - loopSize === 1 ? '' : 's'} in this trap)`
+        : '';
+      const firstNode = labelNodeById.get(trap.path[0]);
+      const block = blocks.find(b => b.id === firstNode?.blockId);
+      issues.push({
+        id: `jump-cycle:${trap.path.slice(0, -1).slice().sort().join(',')}`,
+        severity: 'warning',
+        category: 'jump-cycle',
+        message: `Jump cycle detected: ${pathLabels} — no jump/call leads out of this loop${extra}`,
+        blockId: firstNode?.blockId,
+        filePath: block?.filePath,
+        line: firstNode?.startLine,
       });
     }
 

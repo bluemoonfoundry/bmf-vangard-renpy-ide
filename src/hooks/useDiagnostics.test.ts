@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useDiagnostics, migratePunchlistToTasks } from './useDiagnostics';
-import { createBlock, createEmptyAnalysisResult, createCharacter, createVariable } from '@/test/mocks/sampleData';
+import { createBlock, createEmptyAnalysisResult, createCharacter, createVariable, createLabelNode, createRouteLink } from '@/test/mocks/sampleData';
+import { createIgnoredDiagnosticRule } from '@/lib/diagnosticIgnores';
 import type { IgnoredDiagnosticRule } from '@/types';
 
 describe('useDiagnostics', () => {
@@ -412,6 +413,91 @@ describe('useDiagnostics', () => {
       );
 
       expect(result.current.issues.filter(i => i.category === 'unreachable-label')).toHaveLength(0);
+    });
+  });
+
+  describe('jump cycles', () => {
+    it('flags a two-label loop with no exit as a warning', () => {
+      const labelNodes = [
+        createLabelNode({ id: 'b1:hub', label: 'hub', blockId: 'b1', startLine: 3 }),
+        createLabelNode({ id: 'b1:loop', label: 'loop', blockId: 'b1', startLine: 8 }),
+      ];
+      const routeLinks = [
+        createRouteLink({ id: 'l1', sourceId: 'b1:hub', targetId: 'b1:loop' }),
+        createRouteLink({ id: 'l2', sourceId: 'b1:loop', targetId: 'b1:hub' }),
+      ];
+      const blocks = [createBlock({ id: 'b1', filePath: 'game/script.rpy' })];
+      const analysis = createEmptyAnalysisResult({ labelNodes, routeLinks });
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const cycles = result.current.issues.filter(i => i.category === 'jump-cycle');
+      expect(cycles).toHaveLength(1);
+      expect(cycles[0].severity).toBe('warning');
+      expect(cycles[0].message).toContain('hub');
+      expect(cycles[0].message).toContain('loop');
+      expect(cycles[0].filePath).toBe('game/script.rpy');
+    });
+
+    it('does not flag a hub-and-return pattern that has an exit', () => {
+      const labelNodes = [
+        createLabelNode({ id: 'b1:hub', label: 'hub', blockId: 'b1' }),
+        createLabelNode({ id: 'b1:talk', label: 'talk', blockId: 'b1' }),
+        createLabelNode({ id: 'b1:leave', label: 'leave', blockId: 'b1' }),
+      ];
+      const routeLinks = [
+        createRouteLink({ id: 'l1', sourceId: 'b1:hub', targetId: 'b1:talk' }),
+        createRouteLink({ id: 'l2', sourceId: 'b1:talk', targetId: 'b1:hub' }),
+        createRouteLink({ id: 'l3', sourceId: 'b1:hub', targetId: 'b1:leave' }),
+      ];
+      const analysis = createEmptyAnalysisResult({ labelNodes, routeLinks });
+
+      const { result } = renderHook(() =>
+        useDiagnostics([], analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      expect(result.current.issues.filter(i => i.category === 'jump-cycle')).toHaveLength(0);
+    });
+
+    it('flags a label that jumps to itself', () => {
+      const labelNodes = [createLabelNode({ id: 'b1:stuck', label: 'stuck', blockId: 'b1' })];
+      const routeLinks = [createRouteLink({ id: 'l1', sourceId: 'b1:stuck', targetId: 'b1:stuck' })];
+      const analysis = createEmptyAnalysisResult({ labelNodes, routeLinks });
+
+      const { result } = renderHook(() =>
+        useDiagnostics([], analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const cycles = result.current.issues.filter(i => i.category === 'jump-cycle');
+      expect(cycles).toHaveLength(1);
+      expect(cycles[0].message).toContain('stuck');
+    });
+
+    it('can be suppressed via ignoredDiagnostics', () => {
+      const blocks = [createBlock({ id: 'b1', filePath: 'game/script.rpy' })];
+      const labelNodes = [
+        createLabelNode({ id: 'b1:hub', label: 'hub', blockId: 'b1' }),
+        createLabelNode({ id: 'b1:loop', label: 'loop', blockId: 'b1' }),
+      ];
+      const routeLinks = [
+        createRouteLink({ id: 'l1', sourceId: 'b1:hub', targetId: 'b1:loop' }),
+        createRouteLink({ id: 'l2', sourceId: 'b1:loop', targetId: 'b1:hub' }),
+      ];
+      const analysis = createEmptyAnalysisResult({ labelNodes, routeLinks });
+
+      const { result: before } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+      const cycleIssue = before.current.issues.find(i => i.category === 'jump-cycle')!;
+      const ignored: IgnoredDiagnosticRule[] = [createIgnoredDiagnosticRule(cycleIssue)];
+
+      const { result: after } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map(), ignored)
+      );
+
+      expect(after.current.issues.filter(i => i.category === 'jump-cycle')).toHaveLength(0);
     });
   });
 
