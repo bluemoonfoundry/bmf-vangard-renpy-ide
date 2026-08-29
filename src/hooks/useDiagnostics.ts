@@ -16,6 +16,7 @@ import { validateRenpyCode } from '@/lib/renpyValidator';
 import { matchesIgnoredDiagnostic } from '@/lib/diagnosticIgnores';
 import { STATEMENT_KEYWORDS, buildKnownIdentifierSet, extractUndefinedVariableReferences } from '@/lib/renpyIdentifiers';
 import { findTrappedCycles } from '@/lib/graphLayout';
+import { findClosestMatch } from '@/lib/didYouMean';
 
 // Regex for character dialogue lines: indented <tag> "<text>"
 const RE_CHAR_DIALOGUE = /^\s+([a-zA-Z_]\w*)\s+"/;
@@ -67,16 +68,20 @@ export function useDiagnostics(
     // -----------------------------------------------------------------------
     // Source 1: Invalid jump/call targets
     // -----------------------------------------------------------------------
+    const knownLabelNames = Object.keys(analysisResult.labels);
     for (const [blockId, targets] of Object.entries(analysisResult.invalidJumps)) {
       const block = blocks.find(b => b.id === blockId);
       for (const target of targets) {
         // Find line number from analysisResult.jumps
         const jump = analysisResult.jumps[blockId]?.find(j => j.target === target);
+        const suggestion = findClosestMatch(target, knownLabelNames);
         issues.push({
           id: `invalid-jump:${blockId}:${target}`,
           severity: 'error',
           category: 'invalid-jump',
-          message: `Undefined label "${target}"`,
+          message: suggestion
+            ? `Undefined label "${target}" — did you mean "${suggestion}"?`
+            : `Undefined label "${target}"`,
           blockId,
           filePath: block?.filePath,
           line: jump?.line,
@@ -192,6 +197,7 @@ export function useDiagnostics(
     // Source 5: Undefined characters in dialogue
     // -----------------------------------------------------------------------
     const seenUndefinedChars = new Set<string>();
+    const knownCharacterTags = Array.from(analysisResult.characters.keys());
     for (const block of blocks) {
       if (!block.content) continue;
       const lines = block.content.split('\n');
@@ -201,11 +207,14 @@ export function useDiagnostics(
           const tag = m[1];
           if (!STATEMENT_KEYWORDS.has(tag) && !analysisResult.characters.has(tag) && !seenUndefinedChars.has(tag)) {
             seenUndefinedChars.add(tag);
+            const suggestion = findClosestMatch(tag, knownCharacterTags);
             issues.push({
               id: `undefined-character:${tag}`,
               severity: 'warning',
               category: 'undefined-character',
-              message: `Character "${tag}" used in dialogue but never defined`,
+              message: suggestion
+                ? `Character "${tag}" used in dialogue but never defined — did you mean "${suggestion}"?`
+                : `Character "${tag}" used in dialogue but never defined`,
               blockId: block.id,
               filePath: block.filePath,
               line: index + 1,
@@ -247,6 +256,7 @@ export function useDiagnostics(
     // referencing a name that never appears in a define/default/$ statement)
     // -----------------------------------------------------------------------
     const knownIdentifiers = buildKnownIdentifierSet(analysisResult);
+    const knownVariableNames = Array.from(analysisResult.variables.keys());
     const seenUndefinedVars = new Set<string>();
     for (const block of blocks) {
       if (!block.content) continue;
@@ -254,11 +264,14 @@ export function useDiagnostics(
       for (const ref of refs) {
         if (seenUndefinedVars.has(ref.name)) continue;
         seenUndefinedVars.add(ref.name);
+        const suggestion = findClosestMatch(ref.name, knownVariableNames);
         issues.push({
           id: `undefined-variable:${ref.name}`,
           severity: 'warning',
           category: 'undefined-variable',
-          message: `Variable "${ref.name}" is used but never defined`,
+          message: suggestion
+            ? `Variable "${ref.name}" is used but never defined — did you mean "${suggestion}"?`
+            : `Variable "${ref.name}" is used but never defined`,
           blockId: block.id,
           filePath: block.filePath,
           line: ref.line,

@@ -87,6 +87,26 @@ describe('useDiagnostics', () => {
       expect(issue?.line).toBe(5);
       expect(issue?.column).toBe(3);
     });
+
+    it('suggests the closest known label for a typo\'d jump target', () => {
+      const blocks = [createBlock({ id: 'b1', content: 'label start:\n    jump chapter_on\n', filePath: 'game/script.rpy' })];
+      const analysis = createEmptyAnalysisResult({
+        invalidJumps: { b1: ['chapter_on'] },
+        jumps: {
+          b1: [{ blockId: 'b1', target: 'chapter_on', type: 'jump', isDynamic: false, line: 2, columnStart: 9, columnEnd: 19 }],
+        },
+        labels: {
+          chapter_one: { blockId: 'b2', label: 'chapter_one', line: 1, column: 7, type: 'label' },
+        },
+      });
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const issue = result.current.issues.find(i => i.category === 'invalid-jump');
+      expect(issue?.message).toContain('did you mean "chapter_one"');
+    });
   });
 
   describe('missing images', () => {
@@ -209,6 +229,24 @@ describe('useDiagnostics', () => {
       expect(result.current.issues.filter(i => i.category === 'undefined-character')).toHaveLength(0);
     });
 
+    it('suggests the closest defined character for a mistyped dialogue tag', () => {
+      const blocks = [createBlock({
+        id: 'b1',
+        content: 'label start:\n    eilene "Hi!"\n',
+        filePath: 'game/script.rpy',
+      })];
+      const analysis = createEmptyAnalysisResult({
+        characters: new Map([['eileen', createCharacter({ tag: 'eileen', name: 'Eileen' })]]),
+      });
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const issue = result.current.issues.find(i => i.category === 'undefined-character');
+      expect(issue?.message).toContain('did you mean "eileen"');
+    });
+
     it('does not flag Ren\'Py statement keywords as character tags', () => {
       const blocks = [createBlock({
         id: 'b1',
@@ -328,6 +366,24 @@ describe('useDiagnostics', () => {
       );
 
       expect(result.current.issues.filter(i => i.category === 'undefined-variable')).toHaveLength(0);
+    });
+
+    it('suggests the closest defined variable for a typo\'d interpolation', () => {
+      const blocks = [createBlock({
+        id: 'b1',
+        content: 'label start:\n    "Flag: [has_flga]"\n',
+        filePath: 'game/script.rpy',
+      })];
+      const analysis = createEmptyAnalysisResult({
+        variables: new Map([['has_flag', createVariable({ name: 'has_flag' })]]),
+      });
+
+      const { result } = renderHook(() =>
+        useDiagnostics(blocks, analysis, new Map(), new Map(), new Map(), new Map())
+      );
+
+      const issue = result.current.issues.find(i => i.category === 'undefined-variable');
+      expect(issue?.message).toContain('did you mean "has_flag"');
     });
 
     it('deduplicates repeated references to the same undefined variable', () => {
