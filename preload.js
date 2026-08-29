@@ -83,6 +83,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('game-error', subscription);
     return () => ipcRenderer.removeListener('game-error', subscription);
   },
+  onGameCrashLog: (callback) => {
+    const subscription = (_event, tracebackText) => callback(tracebackText);
+    ipcRenderer.on('game-crash-log', subscription);
+    return () => ipcRenderer.removeListener('game-crash-log', subscription);
+  },
   // --- App Settings ---
   getAppSettings: () => ipcRenderer.invoke('app:get-settings'),
   saveAppSettings: (settings) => ipcRenderer.invoke('app:save-settings', settings),

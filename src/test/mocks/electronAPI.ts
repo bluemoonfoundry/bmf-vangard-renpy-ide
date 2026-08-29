@@ -90,6 +90,7 @@ export interface MockElectronAPI {
   onGameStarted: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
   onGameStopped: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
   onGameError: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
+  onGameCrashLog: Mock<(callback: (...args: unknown[]) => unknown) => Unsubscribe>;
 
   // Settings
   getAppSettings: Mock<() => Promise<Partial<AppSettings> | null>>;
@@ -169,6 +170,7 @@ export function createMockElectronAPI(): MockElectronAPI {
     onGameStarted: vi.fn().mockReturnValue(noopUnsubscribe),
     onGameStopped: vi.fn().mockReturnValue(noopUnsubscribe),
     onGameError: vi.fn().mockReturnValue(noopUnsubscribe),
+    onGameCrashLog: vi.fn().mockReturnValue(noopUnsubscribe),
 
     // Settings
     getAppSettings: vi.fn().mockResolvedValue(null),

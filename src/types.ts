@@ -1458,6 +1458,7 @@ declare global {
           onGameStarted: (callback: () => void) => () => void;
           onGameStopped: (callback: () => void) => () => void;
           onGameError: (callback: (error: string) => void) => () => void;
+          onGameCrashLog: (callback: (tracebackText: string) => void) => () => void;
           onSaveIdeStateBeforeQuit: (callback: () => void) => () => void;
           ideStateSavedForQuit: () => void;
           path: {
