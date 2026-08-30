@@ -1,7 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotecardCanvas from '@/components/NotecardCanvas';
 import { createNotecard } from '@/test/mocks/sampleData';
+
+const enabledTimeline = { enabled: true, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} };
 
 const baseProps = () => ({
   notecards: [],
@@ -14,6 +16,11 @@ const baseProps = () => ({
   addNotecardLink: vi.fn(),
   updateNotecardLink: vi.fn(),
   deleteNotecardLink: vi.fn(),
+  timelineSettings: { enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} },
+  toggleTimeline: vi.fn(),
+  renameTimelineSlot: vi.fn(),
+  snapNotecardToTimeline: vi.fn(),
+  clearNotecardTimelineSlot: vi.fn(),
   transform: { x: 0, y: 0, scale: 1 },
   onTransformChange: vi.fn(),
 });
@@ -312,5 +319,104 @@ describe('NotecardCanvas', () => {
     fireEvent.change(input, { target: { value: '' } });
     expect(screen.getByTestId('notecard-a').className).not.toContain('opacity-30');
     expect(screen.getByTestId('notecard-b').className).not.toContain('opacity-30');
+  });
+
+  describe('timeline', () => {
+    const clipboardMock = { writeText: vi.fn().mockResolvedValue(undefined) };
+    beforeEach(() => {
+      clipboardMock.writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(window.navigator, 'clipboard', { value: clipboardMock, configurable: true });
+    });
+
+    it('does not render the rail when the timeline is disabled', () => {
+      const props = { ...baseProps(), notecards: [createNotecard({ id: 'a' })] };
+      const { container } = render(<NotecardCanvas {...props} />);
+      expect(container.querySelector('[data-testid^="timeline-slot-"]')).toBeNull();
+    });
+
+    it('renders slot tick marks with default "Scene N" labels when the timeline is enabled', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      expect(screen.getByText('Scene 1')).toBeInTheDocument();
+    });
+
+    it('clicking the Timeline toggle button calls toggleTimeline', () => {
+      const props = baseProps();
+      render(<NotecardCanvas {...props} />);
+      fireEvent.click(screen.getByTitle('Toggle scene timeline'));
+      expect(props.toggleTimeline).toHaveBeenCalled();
+    });
+
+    it('renames a slot label on blur after editing', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.click(screen.getByText('Scene 1'));
+      const input = screen.getByDisplayValue('Scene 1');
+      fireEvent.change(input, { target: { value: 'Opening' } });
+      fireEvent.blur(input);
+      expect(props.renameTimelineSlot).toHaveBeenCalledWith(0, 'Opening');
+    });
+
+    it('snaps a card onto the timeline when its drag ends within the proximity band of the rail', () => {
+      // Default card: position (30,0), height 160 -> center y=80 at drag start, within the
+      // 90-unit band of railY=0 even with zero vertical movement.
+      const card = createNotecard({ id: 'a', position: { x: 30, y: 0 } });
+      const props = { ...baseProps(), notecards: [card], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      const handle = screen.getByTestId('notecard-a').querySelector('.drag-handle') as HTMLElement;
+      fireEvent.pointerDown(handle, { clientX: 50, clientY: 50 });
+      fireEvent.pointerUp(window, { clientX: 50, clientY: 50 });
+      expect(props.snapNotecardToTimeline).toHaveBeenCalledWith('a');
+      expect(props.clearNotecardTimelineSlot).not.toHaveBeenCalled();
+    });
+
+    it('clears a card\'s timeline slot when its drag ends far from the rail', () => {
+      const card = createNotecard({ id: 'a', position: { x: 30, y: 0 }, timelineSlot: 1 });
+      const props = { ...baseProps(), notecards: [card], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      const handle = screen.getByTestId('notecard-a').querySelector('.drag-handle') as HTMLElement;
+      fireEvent.pointerDown(handle, { clientX: 50, clientY: 50 });
+      fireEvent.pointerUp(window, { clientX: 50, clientY: 500 });
+      expect(props.clearNotecardTimelineSlot).toHaveBeenCalledWith('a');
+      expect(props.snapNotecardToTimeline).not.toHaveBeenCalled();
+    });
+
+    it('does not snap or clear a timeline slot when the timeline is disabled', () => {
+      const card = createNotecard({ id: 'a', position: { x: 30, y: 0 } });
+      const props = { ...baseProps(), notecards: [card] };
+      render(<NotecardCanvas {...props} />);
+      const handle = screen.getByTestId('notecard-a').querySelector('.drag-handle') as HTMLElement;
+      fireEvent.pointerDown(handle, { clientX: 50, clientY: 50 });
+      fireEvent.pointerUp(window, { clientX: 50, clientY: 50 });
+      expect(props.snapNotecardToTimeline).not.toHaveBeenCalled();
+      expect(props.clearNotecardTimelineSlot).not.toHaveBeenCalled();
+    });
+
+    it('does not show "Copy Full Timeline" when no card is on the timeline', () => {
+      const props = { ...baseProps(), notecards: [createNotecard({ id: 'a' })], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      expect(screen.queryByText('Copy Full Timeline')).toBeNull();
+    });
+
+    it('copies every occupied slot in order via "Copy Full Timeline"', async () => {
+      const a = createNotecard({ id: 'a', title: 'Opening Beat', content: 'It begins.', timelineSlot: 0, position: { x: 0, y: 0 } });
+      const b = createNotecard({ id: 'b', title: 'Second Beat', content: 'It continues.', timelineSlot: 1, position: { x: 260, y: 0 } });
+      const props = { ...baseProps(), notecards: [a, b], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.click(screen.getByText('Copy Full Timeline'));
+      expect(clipboardMock.writeText).toHaveBeenCalledWith(
+        '# Scene 1\n\n# Opening Beat\nIt begins.\n\n# Scene 2\n\n# Second Beat\nIt continues.',
+      );
+    });
+
+    it('offers "Copy Scene Content" on right-click of a card', () => {
+      const card = createNotecard({ id: 'a', title: 'Opening Beat', content: 'It begins.' });
+      const props = { ...baseProps(), notecards: [card] };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.contextMenu(screen.getByTestId('notecard-a'));
+      const copyButton = screen.getByText('Copy Scene Content');
+      fireEvent.click(copyButton);
+      expect(clipboardMock.writeText).toHaveBeenCalledWith('# Opening Beat\nIt begins.');
+    });
   });
 });

@@ -6,7 +6,7 @@ import type {
   Block, Position, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
   AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
-  Notecard, NotecardLink,
+  Notecard, NotecardLink, NotecardTimelineSettings,
   ProjectSnapshot,
 } from '@/types';
 
@@ -39,6 +39,7 @@ export interface HydrateSetters {
   setChoiceStickyNotes: Updater<StickyNote[]>;
   setNotecards: Updater<Notecard[]>;
   setNotecardLinks: Updater<NotecardLink[]>;
+  setNotecardTimeline: Updater<NotecardTimelineSettings>;
   setCharacterProfiles: Updater<Record<string, string>>;
   setPunchlistMetadata: Updater<Record<string, PunchlistMetadata>>;
   setDiagnosticsTasks: Updater<DiagnosticsTask[]>;
@@ -71,7 +72,7 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
     setProjectRootPath, setFileSystemTree, updateProjectSettings, setBlocks,
     setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
     setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-    setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks,
+    setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
     setCharacterProfiles,
     setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
     setSceneCompositions, setSceneNames, setImagemapCompositions,
@@ -117,6 +118,7 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
   setChoiceStickyNotes(snapshot.choiceStickyNotes);
   setNotecards(snapshot.notecards);
   setNotecardLinks(snapshot.notecardLinks);
+  setNotecardTimeline(snapshot.notecardTimeline);
   setCharacterProfiles(snapshot.characterProfiles);
   setPunchlistMetadata(snapshot.punchlistMetadata);
   setDiagnosticsTasks(snapshot.diagnosticsTasks);

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { useNotecards } from '@/hooks/useNotecards';
+import { useNotecards, getTimelineSlotLabel, DEFAULT_NOTECARD_TIMELINE_SETTINGS } from '@/hooks/useNotecards';
 import { createAppSettings } from '@/test/mocks/sampleData';
 
 const baseParams = () => ({
@@ -94,5 +94,47 @@ describe('useNotecards', () => {
     const { result } = renderHook(() => useNotecards({ ...baseParams(), onNotecardChange }));
     act(() => result.current.addNotecard({ x: 0, y: 0 }));
     expect(onNotecardChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts with the timeline disabled, using the default settings', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    expect(result.current.timelineSettings).toEqual(DEFAULT_NOTECARD_TIMELINE_SETTINGS);
+  });
+
+  it('toggleTimeline flips enabled on and off', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => result.current.toggleTimeline());
+    expect(result.current.timelineSettings.enabled).toBe(true);
+    act(() => result.current.toggleTimeline());
+    expect(result.current.timelineSettings.enabled).toBe(false);
+  });
+
+  it('renameTimelineSlot sets a custom label, overriding the default "Scene N" fallback', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 2)).toBe('Scene 3');
+    act(() => result.current.renameTimelineSlot(2, 'The Confrontation'));
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 2)).toBe('The Confrontation');
+  });
+
+  it('snapNotecardToTimeline snaps X to the nearest slot center and records the slot index', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    // Default timeline: originX 0, slotSpacing 260. Card centered at x=500 -> nearest slot is
+    // round(500/260) = 2, whose center is at x=520.
+    act(() => result.current.addNotecard({ x: 500, y: 300 }));
+    const id = result.current.notecards[0].id;
+    act(() => result.current.snapNotecardToTimeline(id));
+    const card = result.current.notecards[0];
+    expect(card.timelineSlot).toBe(2);
+    expect(card.position.x + card.width / 2).toBe(520);
+  });
+
+  it('clearNotecardTimelineSlot removes the slot assignment', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => result.current.addNotecard({ x: 500, y: 300 }));
+    const id = result.current.notecards[0].id;
+    act(() => result.current.snapNotecardToTimeline(id));
+    expect(result.current.notecards[0].timelineSlot).toBe(2);
+    act(() => result.current.clearNotecardTimelineSlot(id));
+    expect(result.current.notecards[0].timelineSlot).toBeUndefined();
   });
 });

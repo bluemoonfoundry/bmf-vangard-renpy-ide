@@ -13,7 +13,7 @@ import type {
   Block, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
   PersistedProjectSettings, ProjectSettings, SceneComposition, SceneSprite, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
-  Notecard, NotecardLink,
+  Notecard, NotecardLink, NotecardTimelineSettings,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
   Position,
 } from '@/types';
@@ -56,6 +56,7 @@ export interface UseProjectIOParams {
   choiceStickyNotes: StickyNote[];
   notecards: Notecard[];
   notecardLinks: NotecardLink[];
+  notecardTimeline: NotecardTimelineSettings;
   characterProfiles: Record<string, string>;
   punchlistMetadata: Record<string, PunchlistMetadata>;
   diagnosticsTasks: DiagnosticsTask[];
@@ -127,7 +128,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     projectSettings,
     blocks, setBlocks,
     setImages, setAudios, imageScanDirectories, audioScanDirectories,
-    stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, characterProfiles,
+    stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles,
     punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
     sceneCompositions, sceneNames, imagemapCompositions,
     routeNodeLayoutCache,
@@ -186,6 +187,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         choiceStickyNotes: Array.from(choiceStickyNotes),
         notecards: Array.from(notecards),
         notecardLinks: Array.from(notecardLinks),
+        notecardTimeline,
         characterProfiles,
         punchlistMetadata,
         diagnosticsTasks,
@@ -207,7 +209,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
       return false;
     }
-  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
+  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
 
   const handleSaveAll = useCallback(async () => {
     const dirtyIds = new Set([...dirtyBlockIds, ...dirtyEditors]);

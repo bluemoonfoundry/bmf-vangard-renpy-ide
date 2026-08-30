@@ -267,6 +267,7 @@ export function deserializeProjectData(
     choiceStickyNotes: data.settings?.choiceStickyNotes ?? [],
     notecards: data.settings?.notecards ?? [],
     notecardLinks: data.settings?.notecardLinks ?? [],
+    notecardTimeline: data.settings?.notecardTimeline ?? { enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} },
     characterProfiles: data.settings?.characterProfiles ?? {},
     punchlistMetadata: data.settings?.punchlistMetadata ?? {},
     diagnosticsTasks,

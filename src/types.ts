@@ -101,6 +101,8 @@ export interface Notecard {
   width: number;
   height: number;
   color: NoteColor;
+  /** Index of the timeline slot this card is snapped to (e.g. "Scene 3"). Undefined = off the timeline, freeform. */
+  timelineSlot?: number;
 }
 
 /**
@@ -112,6 +114,24 @@ export interface NotecardLink {
   fromId: string;
   toId: string;
   label?: string;
+}
+
+/**
+ * Board-level settings for the Notecard Canvas's optional horizontal timeline —
+ * a discrete-slot rail cards can snap to for establishing scene order. Separate
+ * from any individual `Notecard`, one instance per board.
+ * @interface NotecardTimelineSettings
+ */
+export interface NotecardTimelineSettings {
+  enabled: boolean;
+  /** World-space X of slot 0's center. */
+  originX: number;
+  /** World-space Y the horizontal rail is drawn at, and the drag-proximity check is measured against. */
+  railY: number;
+  /** World-space distance between adjacent slot centers. */
+  slotSpacing: number;
+  /** Slot index -> display label (e.g. "Scene 1"). Missing entries fall back to a default label. */
+  slotLabels: Record<number, string>;
 }
 
 /**
@@ -1173,6 +1193,7 @@ export interface ProjectSettings {
   choiceStickyNotes?: StickyNote[];
   notecards?: Notecard[];
   notecardLinks?: NotecardLink[];
+  notecardTimeline?: NotecardTimelineSettings;
   characterProfiles?: Record<string, string>;
   punchlistMetadata?: Record<string, PunchlistMetadata>;
   diagnosticsTasks?: DiagnosticsTask[];
@@ -1332,6 +1353,7 @@ export interface ProjectSnapshot {
   choiceStickyNotes: StickyNote[];
   notecards: Notecard[];
   notecardLinks: NotecardLink[];
+  notecardTimeline: NotecardTimelineSettings;
   characterProfiles: Record<string, string>;
   punchlistMetadata: Record<string, PunchlistMetadata>;
   diagnosticsTasks: DiagnosticsTask[];

@@ -25,6 +25,7 @@ function createMinimalSnapshot(overrides: Partial<ProjectSnapshot> = {}): Projec
     choiceStickyNotes: [],
     notecards: [],
     notecardLinks: [],
+    notecardTimeline: { enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} },
     characterProfiles: {},
     punchlistMetadata: {},
     diagnosticsTasks: [],
@@ -83,6 +84,7 @@ function createMockHydrateSetters(): HydrateSetters {
     setChoiceStickyNotes: vi.fn(),
     setNotecards: vi.fn(),
     setNotecardLinks: vi.fn(),
+    setNotecardTimeline: vi.fn(),
     setCharacterProfiles: vi.fn(),
     setPunchlistMetadata: vi.fn(),
     setDiagnosticsTasks: vi.fn(),
@@ -228,6 +230,15 @@ describe('hydrateFromProjectData', () => {
     hydrateFromProjectData(snapshot, setters);
     expect(setNotecards).toHaveBeenCalledWith(notecards);
     expect(setNotecardLinks).toHaveBeenCalledWith(notecardLinks);
+  });
+
+  it('hydrates notecardTimeline from the snapshot', () => {
+    const setNotecardTimeline = vi.fn();
+    const notecardTimeline = { enabled: true, originX: 0, railY: 0, slotSpacing: 260, slotLabels: { 0: 'Opening' } };
+    const snapshot = createMinimalSnapshot({ notecardTimeline });
+    const setters = { ...createMockHydrateSetters(), setNotecardTimeline };
+    hydrateFromProjectData(snapshot, setters);
+    expect(setNotecardTimeline).toHaveBeenCalledWith(notecardTimeline);
   });
 });
 

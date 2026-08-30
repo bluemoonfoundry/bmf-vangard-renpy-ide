@@ -39,7 +39,7 @@ import type {
   SceneComposition, ImageMapComposition, DiagnosticsTask, IgnoredDiagnosticRule,
   StickyNote, RenpyAnalysisResult, DiagnosticsResult, LabelNode, RouteLink,
   IdentifiedRoute, StoryCanvasGroupingMode, StoryCanvasLayoutMode, MenuTemplate,
-  Notecard, NotecardLink,
+  Notecard, NotecardLink, NotecardTimelineSettings,
 } from '@/types';
 
 type ProjectSettingsState = PersistedProjectSettings;
@@ -114,6 +114,11 @@ export interface UseTabContentRendererParams {
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
+  notecardTimeline: NotecardTimelineSettings;
+  toggleNotecardTimeline: () => void;
+  renameNotecardTimelineSlot: (slot: number, label: string) => void;
+  snapNotecardToTimeline: (id: string) => void;
+  clearNotecardTimelineSlot: (id: string) => void;
   notecardCanvasTransform: CanvasTransform;
   setNotecardCanvasTransform: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 
@@ -255,6 +260,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     allStickyNotes,
     notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    notecardTimeline, toggleNotecardTimeline, renameNotecardTimelineSlot,
+    snapNotecardToTimeline, clearNotecardTimelineSlot,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
@@ -371,6 +378,9 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         updateNotecard={updateNotecard} deleteNotecard={deleteNotecard} deleteNotecards={deleteNotecards}
         restoreNotecards={restoreNotecards} addNotecard={addNotecard}
         addNotecardLink={addNotecardLink} updateNotecardLink={updateNotecardLink} deleteNotecardLink={deleteNotecardLink}
+        timelineSettings={notecardTimeline} toggleTimeline={toggleNotecardTimeline}
+        renameTimelineSlot={renameNotecardTimelineSlot}
+        snapNotecardToTimeline={snapNotecardToTimeline} clearNotecardTimelineSlot={clearNotecardTimelineSlot}
         transform={notecardCanvasTransform} onTransformChange={setNotecardCanvasTransform}
       />;
     }

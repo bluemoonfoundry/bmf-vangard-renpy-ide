@@ -10,8 +10,11 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Notecard from '@/components/Notecard';
 import Minimap, { type MinimapItem } from '@/components/Minimap';
-import type { Notecard as NotecardType, NotecardLink } from '@/types';
+import CopyButton from '@/components/CopyButton';
+import type { Notecard as NotecardType, NotecardLink, NotecardTimelineSettings } from '@/types';
 import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
+import { getTimelineSlotLabel } from '@/hooks/useNotecards';
+import { formatCard, formatSlotContent, formatFullTimeline } from '@/lib/notecardTimelineExport';
 
 export interface NotecardCanvasProps {
   notecards: NotecardType[];
@@ -24,9 +27,19 @@ export interface NotecardCanvasProps {
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
+  timelineSettings: NotecardTimelineSettings;
+  toggleTimeline: () => void;
+  renameTimelineSlot: (slot: number, label: string) => void;
+  snapNotecardToTimeline: (id: string) => void;
+  clearNotecardTimelineSlot: (id: string) => void;
   transform: CanvasTransform;
   onTransformChange: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 }
+
+// World-space distance from the rail a card's center must land within, on drag release, to
+// snap onto the timeline. Deliberately generous (a card is ~160-220px tall) so a rough drop
+// near the line reads as "on the timeline" without demanding pixel precision.
+const TIMELINE_SNAP_BAND = 90;
 
 type InteractionState =
   | { type: 'idle' }
@@ -52,6 +65,7 @@ function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: Can
 const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
   addNotecardLink, updateNotecardLink, deleteNotecardLink,
+  timelineSettings, toggleTimeline, renameTimelineSlot, snapNotecardToTimeline, clearNotecardTimelineSlot,
   transform, onTransformChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +78,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   // Each entry is the exact set of cards/links removed by one Delete-key press.
   const deletedStackRef = useRef<Array<{ cards: NotecardType[]; links: NotecardLink[] }>>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; cardId?: string } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +99,8 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const [linkDraft, setLinkDraft] = useState<{ fromId: string; x: number; y: number } | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [slotLabelDraft, setSlotLabelDraft] = useState('');
 
   const startLinkDrag = useCallback((cardId: string, clientX: number, clientY: number) => {
     if (!surfaceRef.current) return;
@@ -146,7 +162,8 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     if (!surfaceRef.current) return;
     const rect = surfaceRef.current.getBoundingClientRect();
     const world = toWorld(e.clientX, e.clientY, rect, transform);
-    setContextMenu({ x: e.clientX, y: e.clientY, worldX: world.x, worldY: world.y });
+    const cardId = (e.target as HTMLElement).closest('[data-notecard-id]')?.getAttribute('data-notecard-id') ?? undefined;
+    setContextMenu({ x: e.clientX, y: e.clientY, worldX: world.x, worldY: world.y, cardId });
   }, [transform]);
 
   useEffect(() => {
@@ -226,15 +243,23 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
       const dy = (moveEvent.clientY - startY) / transform.scale;
       updateNotecard(card.id, { position: { x: originX + dx, y: originY + dy } });
     };
-    const handlePointerUp = () => {
+    const handlePointerUp = (upEvent: PointerEvent) => {
       interactionRef.current = { type: 'idle' };
       setDraggingId(null);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+
+      if (timelineSettings.enabled) {
+        const dy = (upEvent.clientY - startY) / transform.scale;
+        const finalCenterY = originY + dy + card.height / 2;
+        const withinBand = Math.abs(finalCenterY - timelineSettings.railY) <= TIMELINE_SNAP_BAND;
+        if (withinBand) snapNotecardToTimeline(card.id);
+        else if (card.timelineSlot !== undefined) clearNotecardTimelineSlot(card.id);
+      }
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [transform.scale, updateNotecard]);
+  }, [transform.scale, updateNotecard, timelineSettings, snapNotecardToTimeline, clearNotecardTimelineSlot]);
 
   const handleSurfacePointerDown = useCallback((e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
@@ -458,6 +483,56 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
               />
             );
           })()}
+          {timelineSettings.enabled && (() => {
+            const usedSlots = notecards.map(c => c.timelineSlot).filter((s): s is number => s !== undefined);
+            const minSlot = usedSlots.length ? Math.min(...usedSlots, 0) : 0;
+            const maxSlot = usedSlots.length ? Math.max(...usedSlots, 3) : 3;
+            const fromSlot = minSlot - 1;
+            const toSlot = maxSlot + 2;
+            const { originX, railY, slotSpacing } = timelineSettings;
+            const slots = Array.from({ length: toSlot - fromSlot + 1 }, (_, i) => fromSlot + i);
+            return (
+              <>
+                <div
+                  className="absolute h-0.5 bg-indigo-400 dark:bg-indigo-500 opacity-60 pointer-events-none"
+                  style={{ left: originX + fromSlot * slotSpacing, top: railY, width: (toSlot - fromSlot) * slotSpacing }}
+                />
+                {slots.map(slot => (
+                  <div key={slot} className="absolute" style={{ left: originX + slot * slotSpacing, top: railY }} data-testid={`timeline-slot-${slot}`}>
+                    <div className="w-0.5 h-5 bg-indigo-400 dark:bg-indigo-500 opacity-70 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+                    <div className="absolute left-0 top-3 -translate-x-1/2">
+                      {editingSlot === slot ? (
+                        <input
+                          autoFocus
+                          className="text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800 w-24 text-center"
+                          value={slotLabelDraft}
+                          onChange={(e) => setSlotLabelDraft(e.target.value)}
+                          onBlur={() => { renameTimelineSlot(slot, slotLabelDraft.trim() || getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 whitespace-nowrap hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={() => { setSlotLabelDraft(getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(slot); }}
+                          >
+                            {getTimelineSlotLabel(timelineSettings, slot)}
+                          </button>
+                          {usedSlots.includes(slot) && (
+                            <div onPointerDown={(e) => e.stopPropagation()} title="Copy this slot's cards">
+                              <CopyButton text={formatSlotContent(notecards, slot)} label="" size="xs" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
           {rubberBandRect && <RubberBand rect={rubberBandRect} />}
           {notecards.map(card => (
             <div
@@ -486,16 +561,31 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
           className="fixed z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <button
-            className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-            onClick={() => { addNotecard({ x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }}
-          >
-            New Notecard
-          </button>
+          {contextMenu.cardId ? (() => {
+            const card = cardById(contextMenu.cardId as string);
+            if (!card) return null;
+            return (
+              <div className="px-1">
+                <CopyButton
+                  text={formatCard(card)}
+                  label="Copy Scene Content"
+                  size="xs"
+                  className="w-full justify-start"
+                />
+              </div>
+            );
+          })() : (
+            <button
+              className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => { addNotecard({ x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }}
+            >
+              New Notecard
+            </button>
+          )}
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-40">
+      <div className="absolute top-4 left-4 z-40 flex items-center gap-2">
         <input
           type="text"
           placeholder="Search notecards…"
@@ -503,6 +593,19 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <button
+          className={`px-2 py-1 text-xs rounded border shadow backdrop-blur-sm ${timelineSettings.enabled
+            ? 'bg-indigo-600 border-indigo-600 text-white'
+            : 'bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'}`}
+          onClick={toggleTimeline}
+          title="Toggle scene timeline"
+          aria-pressed={timelineSettings.enabled}
+        >
+          Timeline
+        </button>
+        {timelineSettings.enabled && notecards.some(c => c.timelineSlot !== undefined) && (
+          <CopyButton text={formatFullTimeline(notecards, timelineSettings)} label="Copy Full Timeline" size="xs" />
+        )}
       </div>
 
       <div className="absolute bottom-4 right-4">

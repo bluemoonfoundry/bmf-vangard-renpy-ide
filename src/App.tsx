@@ -414,9 +414,12 @@ const App: React.FC = () => {
 
   // Notecard Canvas board
   const {
-    notecards, notecardLinks, setNotecards, setNotecardLinks,
+    notecards, notecardLinks, timelineSettings: notecardTimeline,
+    setNotecards, setNotecardLinks, setTimelineSettings: setNotecardTimeline,
     addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    toggleTimeline: toggleNotecardTimeline, renameTimelineSlot: renameNotecardTimelineSlot,
+    snapNotecardToTimeline, clearNotecardTimelineSlot,
   } = useNotecards({
     appSettings,
     notecardCanvasTransform,
@@ -923,7 +926,7 @@ const App: React.FC = () => {
           setBlocks,
           setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
           setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks,
+          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
           setCharacterProfiles,
           setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
           setSceneCompositions, setSceneNames, setImagemapCompositions,
@@ -945,7 +948,7 @@ const App: React.FC = () => {
       projectSettings,
       blocks, setBlocks,
       setImages, setAudios, imageScanDirectories, audioScanDirectories,
-      stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, characterProfiles,
+      stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles,
       punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
       sceneCompositions, sceneNames, imagemapCompositions,
       routeNodeLayoutCache,
@@ -1831,6 +1834,8 @@ const App: React.FC = () => {
     allStickyNotes,
     notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
+    notecardTimeline, toggleNotecardTimeline, renameNotecardTimelineSlot,
+    snapNotecardToTimeline, clearNotecardTimelineSlot,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
