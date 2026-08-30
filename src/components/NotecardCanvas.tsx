@@ -1,17 +1,25 @@
 /**
  * @file NotecardCanvas.tsx
- * @description Twine-like freeform scratchpad canvas: pan/zoom, create/select/drag/resize
- * notecards, delete via keyboard, minimap, drag-to-link connectors with an SVG overlay and
- * a click-to-edit label popup. Search wired in a follow-up task via the toolbar slot below.
- * Structurally mirrors StoryCanvas/RouteCanvas/ChoiceCanvas's self-contained pointer-event
- * state machine — no shared base canvas component exists in this codebase to inherit from.
+ * @description Notecard Canvas shell: a permanent top/bottom split between the Timeline pane
+ * (a Kanban-style row of scene columns, cards ordered by `timelineOrder`) and the Unsorted pane
+ * (the original Twine-like freeform scratchpad: pan/zoom, drag/resize, rubber-band select,
+ * drag-to-link connectors, minimap). Both panes are independently scrollable and collapsible via
+ * a `Sash` divider, mirroring the app's existing split-pane/sidebar-collapse conventions.
+ *
+ * Card dragging is owned entirely by this shell (not by either pane) because a drag can cross
+ * the pane boundary: picking a card up in Unsorted and dropping it on a Timeline column pins it
+ * there; dragging a Timeline card down into Unsorted unpins it. Only gestures that never cross
+ * the boundary (panning, rubber-band select, zoom, resize, link-drag) stay local to the Unsorted
+ * pane's own pointer handlers.
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Notecard from '@/components/Notecard';
 import Minimap, { type MinimapItem } from '@/components/Minimap';
 import CopyButton from '@/components/CopyButton';
-import type { Notecard as NotecardType, NotecardLink, NotecardTimelineSettings } from '@/types';
+import Sash from '@/components/Sash';
+import { renderSanitizedMarkdown } from '@/lib/renderSanitizedMarkdown';
+import type { Notecard as NotecardType, NotecardLink, NotecardTimelineSettings, NoteColor, Position } from '@/types';
 import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
 import { getTimelineSlotLabel } from '@/hooks/useNotecards';
 import { formatCard, formatSlotContent, formatFullTimeline } from '@/lib/notecardTimelineExport';
@@ -28,27 +36,41 @@ export interface NotecardCanvasProps {
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
   timelineSettings: NotecardTimelineSettings;
-  toggleTimeline: () => void;
   renameTimelineSlot: (slot: number, label: string) => void;
-  snapNotecardToTimeline: (id: string) => void;
-  clearNotecardTimelineSlot: (id: string) => void;
+  moveNotecardWithinTimeline: (id: string, toSlot: number, toIndex: number) => void;
+  unassignNotecardFromTimeline: (id: string, position?: Position) => void;
   insertTimelineSlot: (beforeSlot: number) => void;
   deleteTimelineSlot: (slot: number) => void;
   transform: CanvasTransform;
   onTransformChange: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 }
 
-// World-space distance from the rail a card's center must land within, on drag release, to
-// snap onto the timeline. Deliberately generous (a card is ~160-220px tall) so a rough drop
-// near the line reads as "on the timeline" without demanding pixel precision.
-const TIMELINE_SNAP_BAND = 90;
+const TAB_COLORS: Record<NoteColor, string> = {
+  yellow: '#f59e0b', blue: '#3b82f6', green: '#22c55e', pink: '#ec4899', purple: '#a855f7', red: '#ef4444',
+};
+
+const MIN_PANE_SIZE = 120;
 
 type InteractionState =
   | { type: 'idle' }
   | { type: 'panning'; startX: number; startY: number; originX: number; originY: number }
   | { type: 'rubber-band'; startWorld: { x: number; y: number } }
-  | { type: 'dragging-card'; id: string; startX: number; startY: number; originX: number; originY: number }
   | { type: 'resizing-card'; id: string; startX: number; startY: number; startWidth: number; startHeight: number };
+
+// Bookkeeping for a card drag that might cross the Unsorted/Timeline boundary. Kept in a ref
+// (not state) because it's mutated on every pointermove; the parts that need to trigger a
+// re-render (which column is being previewed, whether the source card should hide) are
+// mirrored into `timelinePreview`/`dragOverTimeline` state alongside it.
+interface CardDragBookkeeping {
+  cardId: string;
+  width: number;
+  height: number;
+  originSlot: number | undefined;
+  unsortedStartClientX: number;
+  unsortedStartClientY: number;
+  unsortedOriginX: number;
+  unsortedOriginY: number;
+}
 
 const RubberBand: React.FC<{ rect: { x: number; y: number; width: number; height: number } }> = ({ rect }) => (
   <div
@@ -64,23 +86,131 @@ function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: Can
   };
 }
 
+const KanbanCard: React.FC<{
+  card: NotecardType;
+  isDragging: boolean;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  updateCard: (id: string, data: Partial<NotecardType>) => void;
+  deleteCard: (id: string) => void;
+}> = ({ card, isDragging, onPointerDown, onContextMenu, updateCard, deleteCard }) => {
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingBody, setIsEditingBody] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(card.title);
+  const [bodyDraft, setBodyDraft] = useState(card.content);
+
+  const commitTitle = () => { setIsEditingTitle(false); if (titleDraft !== card.title) updateCard(card.id, { title: titleDraft }); };
+  const commitBody = () => { setIsEditingBody(false); if (bodyDraft !== card.content) updateCard(card.id, { content: bodyDraft }); };
+
+  return (
+    <div
+      data-kanban-card-id={card.id}
+      data-testid={`kanban-card-${card.id}`}
+      className={`rounded-sm shadow-sm border flex flex-col bg-[#fdfbf3] dark:bg-[#2a2823] border-[#e2d9bd] dark:border-[#4a4638] flex-shrink-0 group ${isDragging ? 'opacity-40' : ''}`}
+      onContextMenu={onContextMenu}
+    >
+      <div
+        className="drag-handle h-6 border-b-2 border-red-400/70 dark:border-red-500/60 flex items-center justify-between pl-1.5 pr-1 cursor-grab flex-shrink-0"
+        onPointerDown={onPointerDown}
+      >
+        <div className="relative flex items-center gap-1 min-w-0">
+          <button
+            className="w-2.5 h-2.5 rounded-full border border-black/20 flex-shrink-0"
+            style={{ backgroundColor: TAB_COLORS[card.color] }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => setIsColorPickerOpen(o => !o)}
+            title="Change Color"
+            aria-label="Change notecard color"
+          />
+          {isColorPickerOpen && (
+            <div className="absolute top-4 left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded p-1 flex gap-1 z-50">
+              {(Object.keys(TAB_COLORS) as NoteColor[]).map(c => (
+                <button
+                  key={c}
+                  className={`w-3.5 h-3.5 rounded-full border border-gray-300 ${c === card.color ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                  style={{ backgroundColor: TAB_COLORS[c] }}
+                  aria-label={c.charAt(0).toUpperCase() + c.slice(1)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); updateCard(card.id, { color: c }); setIsColorPickerOpen(false); }}
+                />
+              ))}
+            </div>
+          )}
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              className="bg-transparent text-xs font-semibold min-w-0 flex-1 focus:outline-none"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className="text-xs font-semibold truncate cursor-text"
+              onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(card.title); setIsEditingTitle(true); }}
+            >
+              {card.title}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="text-black/30 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+          title="Delete Notecard"
+          aria-label="Delete notecard"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+        </button>
+      </div>
+      {isEditingBody ? (
+        <textarea
+          autoFocus
+          className="w-full bg-transparent px-1.5 py-1 resize-none focus:outline-none text-gray-800 dark:text-gray-100 text-xs leading-snug"
+          rows={3}
+          value={bodyDraft}
+          onChange={(e) => setBodyDraft(e.target.value)}
+          onBlur={commitBody}
+          placeholder="Type a note..."
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <div
+          className="px-1.5 py-1 text-xs leading-snug prose prose-xs dark:prose-invert max-w-none cursor-text"
+          onDoubleClick={(e) => { e.stopPropagation(); setBodyDraft(card.content); setIsEditingBody(true); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          dangerouslySetInnerHTML={{ __html: card.content ? renderSanitizedMarkdown(card.content) : '<span class="opacity-40">Double-click to add notes…</span>' }}
+        />
+      )}
+    </div>
+  );
+};
+
 const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
   addNotecardLink, updateNotecardLink, deleteNotecardLink,
-  timelineSettings, toggleTimeline, renameTimelineSlot, snapNotecardToTimeline, clearNotecardTimelineSlot,
+  timelineSettings, renameTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline,
   insertTimelineSlot, deleteTimelineSlot,
   transform, onTransformChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const timelinePaneRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const interactionRef = useRef<InteractionState>({ type: 'idle' });
+  const dragRef = useRef<CardDragBookkeeping | null>(null);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rubberBandRect, setRubberBandRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   // Local, single-canvas undo stack for bulk-delete only (this app has no app-wide undo
   // for notecards the way blocks[] does via useHistory — see CLAUDE.md's state table).
-  // Each entry is the exact set of cards/links removed by one Delete-key press.
   const deletedStackRef = useRef<Array<{ cards: NotecardType[]; links: NotecardLink[] }>>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverTimeline, setDragOverTimeline] = useState(false);
+  const [timelinePreview, setTimelinePreview] = useState<{ slot: number; order: string[] } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; cardId?: string; slot?: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
@@ -88,6 +218,10 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const isMatch = (card: NotecardType) =>
     !normalizedQuery || card.title.toLowerCase().includes(normalizedQuery) || card.content.toLowerCase().includes(normalizedQuery);
+
+  const [isTimelinePaneOpen, setIsTimelinePaneOpen] = useState(true);
+  const [isUnsortedPaneOpen, setIsUnsortedPaneOpen] = useState(true);
+  const [timelinePaneSize, setTimelinePaneSize] = useState(280);
 
   useEffect(() => {
     const el = surfaceRef.current;
@@ -97,13 +231,15 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isUnsortedPaneOpen]);
 
   const [linkDraft, setLinkDraft] = useState<{ fromId: string; x: number; y: number } | null>(null);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [slotLabelDraft, setSlotLabelDraft] = useState('');
+
+  const unsortedNotecards = notecards.filter(c => c.timelineSlot === undefined);
 
   const startLinkDrag = useCallback((cardId: string, clientX: number, clientY: number) => {
     if (!surfaceRef.current) return;
@@ -181,7 +317,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
   useEffect(() => {
     if (!normalizedQuery) return;
-    const first = notecards.find(isMatch);
+    const first = unsortedNotecards.find(isMatch);
     if (!first || !canvasDimensions.width || !canvasDimensions.height) return;
     const centerX = first.position.x + first.width / 2;
     const centerY = first.position.y + first.height / 2;
@@ -193,13 +329,115 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedQuery]);
 
+  // Which Timeline column (if any) a client-space point falls inside, and the insertion index
+  // within that column derived from comparing the point's Y against each existing card's
+  // midpoint (excluding the card currently being dragged). Returns null when the point isn't
+  // over the Timeline pane at all, or the pane is collapsed.
+  const hitTestTimeline = useCallback((clientX: number, clientY: number, draggedCardId: string) => {
+    if (!isTimelinePaneOpen || !timelinePaneRef.current) return null;
+    const paneRect = timelinePaneRef.current.getBoundingClientRect();
+    if (clientX < paneRect.left || clientX > paneRect.right || clientY < paneRect.top || clientY > paneRect.bottom) return null;
+
+    for (const [slotStr, el] of Object.entries(columnRefs.current)) {
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (clientX < r.left || clientX > r.right) continue;
+      const slot = Number(slotStr);
+      const cardEls = Array.from(el.querySelectorAll<HTMLElement>('[data-kanban-card-id]'))
+        .filter(ce => ce.getAttribute('data-kanban-card-id') !== draggedCardId);
+      let index = cardEls.length;
+      for (let i = 0; i < cardEls.length; i++) {
+        const cr = cardEls[i].getBoundingClientRect();
+        if (clientY < cr.top + cr.height / 2) { index = i; break; }
+      }
+      return { slot, index };
+    }
+    return null;
+  }, [isTimelinePaneOpen]);
+
+  // Owns every card drag, wherever it starts. While the pointer stays over the Unsorted pane
+  // the card just moves freely (today's behavior, unchanged); once it crosses into the Timeline
+  // pane's bounds this switches to building a live insertion preview for whichever column is
+  // under the pointer, committed to moveNotecardWithinTimeline/unassignNotecardFromTimeline on
+  // release. See the file header comment for why this can't live in either pane individually.
+  const beginCardDrag = useCallback((card: NotecardType, e: React.PointerEvent) => {
+    e.stopPropagation();
+    containerRef.current?.focus();
+    setSelectedIds(new Set([card.id]));
+    setDraggingId(card.id);
+
+    dragRef.current = {
+      cardId: card.id,
+      width: card.width,
+      height: card.height,
+      originSlot: card.timelineSlot,
+      unsortedStartClientX: e.clientX,
+      unsortedStartClientY: e.clientY,
+      unsortedOriginX: card.position.x,
+      unsortedOriginY: card.position.y,
+    };
+    const previewRef = { current: null as { slot: number; order: string[] } | null };
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const hover = hitTestTimeline(moveEvent.clientX, moveEvent.clientY, drag.cardId);
+      if (hover) {
+        setDragOverTimeline(true);
+        const destExisting = notecards
+          .filter(n => n.timelineSlot === hover.slot && n.id !== drag.cardId)
+          .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0))
+          .map(n => n.id);
+        destExisting.splice(Math.max(0, Math.min(hover.index, destExisting.length)), 0, drag.cardId);
+        const preview = { slot: hover.slot, order: destExisting };
+        previewRef.current = preview;
+        setTimelinePreview(preview);
+      } else {
+        setDragOverTimeline(false);
+        previewRef.current = null;
+        setTimelinePreview(null);
+        const dx = (moveEvent.clientX - drag.unsortedStartClientX) / transform.scale;
+        const dy = (moveEvent.clientY - drag.unsortedStartClientY) / transform.scale;
+        updateNotecard(drag.cardId, { position: { x: drag.unsortedOriginX + dx, y: drag.unsortedOriginY + dy } });
+      }
+    };
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      const drag = dragRef.current;
+      setDraggingId(null);
+      setDragOverTimeline(false);
+      setTimelinePreview(null);
+      dragRef.current = null;
+      if (!drag) return;
+
+      const preview = previewRef.current;
+      if (preview) {
+        const idx = preview.order.indexOf(drag.cardId);
+        moveNotecardWithinTimeline(drag.cardId, preview.slot, idx === -1 ? preview.order.length : idx);
+      } else if (drag.originSlot !== undefined) {
+        // Dragged a Timeline card down into Unsorted: unpin it and drop it at this point,
+        // in Unsorted-pane world space (falls back to its old freeform x/y if the surface
+        // isn't currently measurable, e.g. the Unsorted pane is collapsed).
+        const rect = surfaceRef.current?.getBoundingClientRect();
+        if (rect) {
+          const world = toWorld(upEvent.clientX, upEvent.clientY, rect, transform);
+          unassignNotecardFromTimeline(drag.cardId, { x: world.x - drag.width / 2, y: world.y - drag.height / 2 });
+        } else {
+          unassignNotecardFromTimeline(drag.cardId);
+        }
+      }
+      // else: a plain Unsorted-to-Unsorted drag already committed its position live above.
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [notecards, transform, updateNotecard, moveNotecardWithinTimeline, unassignNotecardFromTimeline, hitTestTimeline]);
+
   // Each pointerdown handler below defines its own local handlePointerMove/handlePointerUp
-  // closures and adds/removes exactly those closures (never a separately-memoized
-  // top-level callback). This guarantees add and remove always reference the identical
-  // function instance even if transform.scale (or other deps) changes mid-gesture —
-  // matching the established pattern in StoryCanvas.tsx. A prior version used top-level
-  // useCallbacks for these, which could leak a stale pointermove listener if the memoized
-  // identity drifted between pointerdown and pointerup (e.g. a zoom mid-drag).
+  // closures and adds/removes exactly those closures (never a separately-memoized top-level
+  // callback), matching the established pattern in StoryCanvas.tsx.
   const handleCardPointerDown = useCallback((e: React.PointerEvent, card: NotecardType) => {
     const target = e.target as HTMLElement;
     containerRef.current?.focus();
@@ -233,36 +471,8 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     setSelectedIds(new Set([card.id]));
     if (!target.closest('.drag-handle')) return;
 
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const originX = card.position.x;
-    const originY = card.position.y;
-    interactionRef.current = { type: 'dragging-card', id: card.id, startX, startY, originX, originY };
-    setDraggingId(card.id);
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const dx = (moveEvent.clientX - startX) / transform.scale;
-      const dy = (moveEvent.clientY - startY) / transform.scale;
-      updateNotecard(card.id, { position: { x: originX + dx, y: originY + dy } });
-    };
-    const handlePointerUp = (upEvent: PointerEvent) => {
-      interactionRef.current = { type: 'idle' };
-      setDraggingId(null);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-
-      if (timelineSettings.enabled) {
-        const dy = (upEvent.clientY - startY) / transform.scale;
-        const finalCenterY = originY + dy + card.height / 2;
-        const withinBand = Math.abs(finalCenterY - timelineSettings.railY) <= TIMELINE_SNAP_BAND;
-        if (withinBand) snapNotecardToTimeline(card.id);
-        else if (card.timelineSlot !== undefined) clearNotecardTimelineSlot(card.id);
-      }
-    };
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [transform.scale, updateNotecard, timelineSettings, snapNotecardToTimeline, clearNotecardTimelineSlot]);
+    beginCardDrag(card, e);
+  }, [transform.scale, updateNotecard, beginCardDrag]);
 
   const handleSurfacePointerDown = useCallback((e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
@@ -330,7 +540,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
         width: Math.abs(endWorld.x - startWorld.x),
         height: Math.abs(endWorld.y - startWorld.y),
       };
-      const idsInRect = notecards.filter(c =>
+      const idsInRect = unsortedNotecards.filter(c =>
         c.position.x < rect.x + rect.width &&
         c.position.x + c.width > rect.x &&
         c.position.y < rect.y + rect.height &&
@@ -340,7 +550,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [transform, onTransformChange, notecards]);
+  }, [transform, onTransformChange, unsortedNotecards]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!surfaceRef.current) return;
@@ -365,8 +575,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
   // Scoped to this instance's own container (not window) so a background/inactive
   // split-pane NotecardCanvas doesn't steal these keystrokes meant for the foreground
-  // pane. Requires the container to actually hold focus — see the .focus() calls in
-  // handleSurfacePointerDown/handleCardPointerDown below.
+  // pane. Requires the container to actually hold focus — see the .focus() calls above.
   const handleContainerKeyDown = useCallback((e: React.KeyboardEvent) => {
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
@@ -385,7 +594,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
     if (isMetaShortcut && key === 'a') {
       e.preventDefault();
-      setSelectedIds(new Set(notecards.map(c => c.id)));
+      setSelectedIds(new Set(unsortedNotecards.map(c => c.id)));
       return;
     }
 
@@ -402,162 +611,261 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
         setSelectedIds(new Set(last.cards.map(c => c.id)));
       }
     }
-  }, [selectedIds, notecards, notecardLinks, deleteNotecards, restoreNotecards]);
+  }, [selectedIds, notecards, notecardLinks, unsortedNotecards, deleteNotecards, restoreNotecards]);
 
-  const minimapItems: MinimapItem[] = notecards.map(card => ({
+  const minimapItems: MinimapItem[] = unsortedNotecards.map(card => ({
     id: card.id, position: card.position, width: card.width, height: card.height, type: 'notecard', color: card.color,
   }));
+
+  const usedSlots = notecards.map(c => c.timelineSlot).filter((s): s is number => s !== undefined);
+  const maxSlot = usedSlots.length ? Math.max(...usedSlots) : -1;
+  // Always show one empty trailing column past the highest occupied slot, so there's
+  // somewhere to drop a card to start a new scene.
+  const slots = Array.from({ length: maxSlot + 2 }, (_, i) => i);
+
+  const openCardContextMenu = (e: React.MouseEvent, cardId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, worldX: 0, worldY: 0, cardId });
+  };
 
   return (
     <div
       ref={containerRef}
+      data-testid="notecard-canvas-root"
       tabIndex={0}
-      className="relative w-full h-full overflow-hidden bg-gray-50 dark:bg-gray-900 focus:outline-none"
+      className="relative w-full h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 focus:outline-none"
       onKeyDown={handleContainerKeyDown}
     >
-      <div
-        ref={surfaceRef}
-        data-testid="notecard-canvas-surface"
-        className="absolute inset-0"
-        onDoubleClick={handleSurfaceDoubleClick}
-        onContextMenu={handleSurfaceContextMenu}
-        onPointerDown={handleSurfacePointerDown}
-        onWheel={handleWheel}
-      >
-        <div className="absolute inset-0" style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}>
-          <svg className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, width: 1, height: 1 }}>
-            <defs>
-              <marker id="notecard-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-                <path d="M0,0 L10,5 L0,10 Z" className="fill-indigo-500" />
-              </marker>
-            </defs>
-            {notecardLinks.map(link => {
-              const from = cardById(link.fromId);
-              const to = cardById(link.toId);
-              if (!from || !to) return null;
-              const fromCenter = cardCenter(from);
-              const toCenter = cardCenter(to);
-              // Clip to card edges, not centers — the target card renders above this SVG, so
-              // an arrowhead aimed at its center would be drawn invisibly underneath it.
-              const a = cardEdgePoint(from, toCenter);
-              const b = cardEdgePoint(to, fromCenter);
-              const midX = (a.x + b.x) / 2;
-              const midY = (a.y + b.y) / 2;
+      {/* Timeline pane (top) */}
+      {isTimelinePaneOpen ? (
+        <div ref={timelinePaneRef} data-testid="notecard-timeline-pane" style={{ height: timelinePaneSize, flexShrink: 0 }} className="flex flex-col min-h-0 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between px-2 py-1 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Timeline</span>
+            <div className="flex items-center gap-2">
+              {usedSlots.length > 0 && (
+                <CopyButton text={formatFullTimeline(notecards, timelineSettings)} label="Copy Full Timeline" size="xs" />
+              )}
+              <button
+                onClick={() => setIsTimelinePaneOpen(false)}
+                title="Collapse Timeline"
+                aria-label="Collapse Timeline"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+              </button>
+            </div>
+          </div>
+          <div data-testid="notecard-timeline-scroll" className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden flex">
+            {slots.map(slot => {
+              const isPreviewTarget = timelinePreview?.slot === slot;
+              const columnCards: NotecardType[] = isPreviewTarget
+                ? (timelinePreview!.order.map(id => cardById(id)).filter((c): c is NotecardType => !!c))
+                : notecards
+                  .filter(c => c.timelineSlot === slot && c.id !== draggingId)
+                  .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0));
+
               return (
-                <g
-                  key={link.id}
-                  data-notecard-link-id={link.id}
-                  data-testid={`notecard-link-${link.id}`}
-                  className="pointer-events-auto cursor-pointer"
-                  onDoubleClick={() => { setLabelDraft(link.label ?? ''); setEditingLinkId(link.id); }}
+                <div
+                  key={slot}
+                  ref={el => { columnRefs.current[slot] = el; }}
+                  data-testid={`timeline-slot-${slot}`}
+                  className="flex-shrink-0 w-56 flex flex-col min-h-0 border-r border-gray-200 dark:border-gray-700"
                 >
-                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="stroke-indigo-500" strokeWidth={2} markerEnd="url(#notecard-arrow)" />
-                  {link.label && (
-                    <text x={midX} y={midY - 6} className="fill-indigo-700 dark:fill-indigo-300 text-xs" textAnchor="middle">{link.label}</text>
-                  )}
-                </g>
+                  <div className="flex items-center gap-1 px-1.5 py-1 flex-shrink-0">
+                    {editingSlot === slot ? (
+                      <input
+                        autoFocus
+                        className="text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800 w-full"
+                        value={slotLabelDraft}
+                        onChange={(e) => setSlotLabelDraft(e.target.value)}
+                        onBlur={() => { renameTimelineSlot(slot, slotLabelDraft.trim() || getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(null); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          className="flex-1 min-w-0 text-left text-xs font-medium px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 truncate hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                          onClick={() => { setSlotLabelDraft(getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(slot); }}
+                          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, worldX: 0, worldY: 0, slot }); }}
+                        >
+                          {getTimelineSlotLabel(timelineSettings, slot)}
+                        </button>
+                        {usedSlots.includes(slot) && (
+                          <div title="Copy this scene's cards">
+                            <CopyButton text={formatSlotContent(notecards, slot)} label="" size="xs" />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 p-1.5">
+                    {columnCards.map(card => (
+                      <KanbanCard
+                        key={card.id}
+                        card={card}
+                        isDragging={draggingId === card.id}
+                        onPointerDown={(e) => beginCardDrag(card, e)}
+                        onContextMenu={(e) => openCardContextMenu(e, card.id)}
+                        updateCard={updateNotecard}
+                        deleteCard={deleteNotecard}
+                      />
+                    ))}
+                  </div>
+                </div>
               );
             })}
-            {linkDraft && (() => {
-              const from = cardById(linkDraft.fromId);
-              if (!from) return null;
-              const a = cardEdgePoint(from, linkDraft);
-              return <line x1={a.x} y1={a.y} x2={linkDraft.x} y2={linkDraft.y} className="stroke-indigo-400" strokeWidth={2} strokeDasharray="4 4" markerEnd="url(#notecard-arrow)" />;
-            })()}
-          </svg>
-          {editingLinkId && (() => {
-            const link = notecardLinks.find(l => l.id === editingLinkId);
-            if (!link) return null;
-            const from = cardById(link.fromId);
-            const to = cardById(link.toId);
-            if (!from || !to) return null;
-            const a = cardCenter(from);
-            const b = cardCenter(to);
-            return (
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-2 py-1 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Timeline (collapsed)</span>
+          <button
+            onClick={() => setIsTimelinePaneOpen(true)}
+            title="Expand Timeline"
+            aria-label="Expand Timeline"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+          </button>
+        </div>
+      )}
+
+      {isTimelinePaneOpen && isUnsortedPaneOpen && (
+        <Sash direction="vertical" onDrag={(delta) => setTimelinePaneSize(prev => Math.max(MIN_PANE_SIZE, prev + delta))} />
+      )}
+
+      {/* Unsorted pane (bottom) */}
+      {isUnsortedPaneOpen ? (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex items-center justify-between px-2 py-1 flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Unsorted</span>
               <input
-                autoFocus
-                className="absolute z-40 text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800"
-                placeholder="Link label…"
-                style={{ left: (a.x + b.x) / 2, top: (a.y + b.y) / 2 }}
-                value={labelDraft}
-                onChange={(e) => setLabelDraft(e.target.value)}
-                onBlur={() => { updateNotecardLink(editingLinkId, { label: labelDraft }); setEditingLinkId(null); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              />
-            );
-          })()}
-          {timelineSettings.enabled && (() => {
-            const usedSlots = notecards.map(c => c.timelineSlot).filter((s): s is number => s !== undefined);
-            const minSlot = usedSlots.length ? Math.min(...usedSlots, 0) : 0;
-            const maxSlot = usedSlots.length ? Math.max(...usedSlots, 3) : 3;
-            const fromSlot = minSlot - 1;
-            const toSlot = maxSlot + 2;
-            const { originX, railY, slotSpacing } = timelineSettings;
-            const slots = Array.from({ length: toSlot - fromSlot + 1 }, (_, i) => fromSlot + i);
-            return (
-              <>
-                <div
-                  className="absolute h-0.5 bg-indigo-400 dark:bg-indigo-500 opacity-60 pointer-events-none"
-                  style={{ left: originX + fromSlot * slotSpacing, top: railY, width: (toSlot - fromSlot) * slotSpacing }}
-                />
-                {slots.map(slot => (
-                  <div key={slot} className="absolute" style={{ left: originX + slot * slotSpacing, top: railY }} data-testid={`timeline-slot-${slot}`}>
-                    <div className="w-0.5 h-5 bg-indigo-400 dark:bg-indigo-500 opacity-70 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                    <div className="absolute left-0 top-3 -translate-x-1/2">
-                      {editingSlot === slot ? (
-                        <input
-                          autoFocus
-                          className="text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800 w-24 text-center"
-                          value={slotLabelDraft}
-                          onChange={(e) => setSlotLabelDraft(e.target.value)}
-                          onBlur={() => { renameTimelineSlot(slot, slotLabelDraft.trim() || getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(null); }}
-                          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                          onPointerDown={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <button
-                            className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 whitespace-nowrap hover:bg-indigo-200 dark:hover:bg-indigo-800"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => { setSlotLabelDraft(getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(slot); }}
-                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, worldX: 0, worldY: 0, slot }); }}
-                          >
-                            {getTimelineSlotLabel(timelineSettings, slot)}
-                          </button>
-                          {usedSlots.includes(slot) && (
-                            <div onPointerDown={(e) => e.stopPropagation()} title="Copy this slot's cards">
-                              <CopyButton text={formatSlotContent(notecards, slot)} label="" size="xs" />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </>
-            );
-          })()}
-          {rubberBandRect && <RubberBand rect={rubberBandRect} />}
-          {notecards.map(card => (
-            <div
-              key={card.id}
-              data-testid={`notecard-${card.id}`}
-              data-notecard-id={card.id}
-              className={isMatch(card) ? '' : 'opacity-30 transition-opacity'}
-              onPointerDown={(e) => handleCardPointerDown(e, card)}
-            >
-              <Notecard
-                card={card}
-                updateCard={updateNotecard}
-                deleteCard={deleteNotecard}
-                isSelected={selectedIds.has(card.id)}
-                isDragging={draggingId === card.id}
-                onStartLinkDrag={startLinkDrag}
+                type="text"
+                placeholder="Search notecards…"
+                className="w-56 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-          ))}
+            <button
+              onClick={() => setIsUnsortedPaneOpen(false)}
+              title="Collapse Unsorted"
+              aria-label="Collapse Unsorted"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+            </button>
+          </div>
+          <div
+            ref={surfaceRef}
+            data-testid="notecard-canvas-surface"
+            className="relative flex-1 min-h-0 overflow-hidden"
+            onDoubleClick={handleSurfaceDoubleClick}
+            onContextMenu={handleSurfaceContextMenu}
+            onPointerDown={handleSurfacePointerDown}
+            onWheel={handleWheel}
+          >
+            <div className="absolute inset-0" style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}>
+              <svg className="absolute overflow-visible pointer-events-none" style={{ left: 0, top: 0, width: 1, height: 1 }}>
+                <defs>
+                  <marker id="notecard-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                    <path d="M0,0 L10,5 L0,10 Z" className="fill-indigo-500" />
+                  </marker>
+                </defs>
+                {notecardLinks.map(link => {
+                  const from = cardById(link.fromId);
+                  const to = cardById(link.toId);
+                  if (!from || !to || from.timelineSlot !== undefined || to.timelineSlot !== undefined) return null;
+                  const fromCenter = cardCenter(from);
+                  const toCenter = cardCenter(to);
+                  const a = cardEdgePoint(from, toCenter);
+                  const b = cardEdgePoint(to, fromCenter);
+                  const midX = (a.x + b.x) / 2;
+                  const midY = (a.y + b.y) / 2;
+                  return (
+                    <g
+                      key={link.id}
+                      data-notecard-link-id={link.id}
+                      data-testid={`notecard-link-${link.id}`}
+                      className="pointer-events-auto cursor-pointer"
+                      onDoubleClick={() => { setLabelDraft(link.label ?? ''); setEditingLinkId(link.id); }}
+                    >
+                      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="stroke-indigo-500" strokeWidth={2} markerEnd="url(#notecard-arrow)" />
+                      {link.label && (
+                        <text x={midX} y={midY - 6} className="fill-indigo-700 dark:fill-indigo-300 text-xs" textAnchor="middle">{link.label}</text>
+                      )}
+                    </g>
+                  );
+                })}
+                {linkDraft && (() => {
+                  const from = cardById(linkDraft.fromId);
+                  if (!from) return null;
+                  const a = cardEdgePoint(from, linkDraft);
+                  return <line x1={a.x} y1={a.y} x2={linkDraft.x} y2={linkDraft.y} className="stroke-indigo-400" strokeWidth={2} strokeDasharray="4 4" markerEnd="url(#notecard-arrow)" />;
+                })()}
+              </svg>
+              {editingLinkId && (() => {
+                const link = notecardLinks.find(l => l.id === editingLinkId);
+                if (!link) return null;
+                const from = cardById(link.fromId);
+                const to = cardById(link.toId);
+                if (!from || !to) return null;
+                const a = cardCenter(from);
+                const b = cardCenter(to);
+                return (
+                  <input
+                    autoFocus
+                    className="absolute z-40 text-xs px-1 py-0.5 rounded border border-indigo-400 bg-white dark:bg-gray-800"
+                    placeholder="Link label…"
+                    style={{ left: (a.x + b.x) / 2, top: (a.y + b.y) / 2 }}
+                    value={labelDraft}
+                    onChange={(e) => setLabelDraft(e.target.value)}
+                    onBlur={() => { updateNotecardLink(editingLinkId, { label: labelDraft }); setEditingLinkId(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  />
+                );
+              })()}
+              {rubberBandRect && <RubberBand rect={rubberBandRect} />}
+              {unsortedNotecards.filter(c => !(draggingId === c.id && dragOverTimeline)).map(card => (
+                <div
+                  key={card.id}
+                  data-testid={`notecard-${card.id}`}
+                  data-notecard-id={card.id}
+                  className={isMatch(card) ? '' : 'opacity-30 transition-opacity'}
+                  onPointerDown={(e) => handleCardPointerDown(e, card)}
+                  onContextMenu={(e) => openCardContextMenu(e, card.id)}
+                >
+                  <Notecard
+                    card={card}
+                    updateCard={updateNotecard}
+                    deleteCard={deleteNotecard}
+                    isSelected={selectedIds.has(card.id)}
+                    isDragging={draggingId === card.id}
+                    onStartLinkDrag={startLinkDrag}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="absolute bottom-4 right-4">
+              <Minimap items={minimapItems} transform={transform} canvasDimensions={canvasDimensions} onTransformChange={onTransformChange} />
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between px-2 py-1 flex-shrink-0">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Unsorted (collapsed)</span>
+          <button
+            onClick={() => setIsUnsortedPaneOpen(true)}
+            title="Expand Unsorted"
+            aria-label="Expand Unsorted"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+          </button>
+        </div>
+      )}
 
       {contextMenu && (
         <div
@@ -609,33 +917,6 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
           )}
         </div>
       )}
-
-      <div className="absolute top-4 left-4 z-40 flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="Search notecards…"
-          className="w-56 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <button
-          className={`px-2 py-1 text-xs rounded border shadow backdrop-blur-sm ${timelineSettings.enabled
-            ? 'bg-indigo-600 border-indigo-600 text-white'
-            : 'bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'}`}
-          onClick={toggleTimeline}
-          title="Toggle scene timeline"
-          aria-pressed={timelineSettings.enabled}
-        >
-          Timeline
-        </button>
-        {timelineSettings.enabled && notecards.some(c => c.timelineSlot !== undefined) && (
-          <CopyButton text={formatFullTimeline(notecards, timelineSettings)} label="Copy Full Timeline" size="xs" />
-        )}
-      </div>
-
-      <div className="absolute bottom-4 right-4">
-        <Minimap items={minimapItems} transform={transform} canvasDimensions={canvasDimensions} onTransformChange={onTransformChange} />
-      </div>
     </div>
   );
 };

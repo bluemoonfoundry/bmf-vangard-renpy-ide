@@ -96,17 +96,9 @@ describe('useNotecards', () => {
     expect(onNotecardChange).toHaveBeenCalledTimes(1);
   });
 
-  it('starts with the timeline disabled, using the default settings', () => {
+  it('starts with an empty timeline (no slot labels)', () => {
     const { result } = renderHook(() => useNotecards(baseParams()));
     expect(result.current.timelineSettings).toEqual(DEFAULT_NOTECARD_TIMELINE_SETTINGS);
-  });
-
-  it('toggleTimeline flips enabled on and off', () => {
-    const { result } = renderHook(() => useNotecards(baseParams()));
-    act(() => result.current.toggleTimeline());
-    expect(result.current.timelineSettings.enabled).toBe(true);
-    act(() => result.current.toggleTimeline());
-    expect(result.current.timelineSettings.enabled).toBe(false);
   });
 
   it('renameTimelineSlot sets a custom label, overriding the default "Scene N" fallback', () => {
@@ -116,26 +108,71 @@ describe('useNotecards', () => {
     expect(getTimelineSlotLabel(result.current.timelineSettings, 2)).toBe('The Confrontation');
   });
 
-  it('snapNotecardToTimeline snaps X to the nearest slot center and records the slot index', () => {
+  it('moveNotecardWithinTimeline pins an Unsorted card into a column at the given index', () => {
     const { result } = renderHook(() => useNotecards(baseParams()));
-    // Default timeline: originX 0, slotSpacing 260. Card centered at x=500 -> nearest slot is
-    // round(500/260) = 2, whose center is at x=520.
-    act(() => result.current.addNotecard({ x: 500, y: 300 }));
+    act(() => result.current.addNotecard({ x: 0, y: 0 }));
     const id = result.current.notecards[0].id;
-    act(() => result.current.snapNotecardToTimeline(id));
+    act(() => result.current.moveNotecardWithinTimeline(id, 2, 0));
     const card = result.current.notecards[0];
     expect(card.timelineSlot).toBe(2);
-    expect(card.position.x + card.width / 2).toBe(520);
+    expect(card.timelineOrder).toBe(0);
   });
 
-  it('clearNotecardTimelineSlot removes the slot assignment', () => {
+  it('moveNotecardWithinTimeline inserts among existing cards in the destination column and renormalizes their order', () => {
     const { result } = renderHook(() => useNotecards(baseParams()));
-    act(() => result.current.addNotecard({ x: 500, y: 300 }));
-    const id = result.current.notecards[0].id;
-    act(() => result.current.snapNotecardToTimeline(id));
-    expect(result.current.notecards[0].timelineSlot).toBe(2);
-    act(() => result.current.clearNotecardTimelineSlot(id));
-    expect(result.current.notecards[0].timelineSlot).toBeUndefined();
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 0, y: 0 });
+    });
+    const [a, b, c] = result.current.notecards;
+    act(() => {
+      result.current.moveNotecardWithinTimeline(a.id, 0, 0);
+      result.current.moveNotecardWithinTimeline(b.id, 0, 1);
+    });
+    // Insert c between a and b.
+    act(() => result.current.moveNotecardWithinTimeline(c.id, 0, 1));
+    const order = Object.fromEntries(result.current.notecards.map(n => [n.id, n.timelineOrder]));
+    expect(order[a.id]).toBe(0);
+    expect(order[c.id]).toBe(1);
+    expect(order[b.id]).toBe(2);
+  });
+
+  it('moveNotecardWithinTimeline closes the gap in the source column when moving a card to a different column', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 0, y: 0 });
+    });
+    const [a, b] = result.current.notecards;
+    act(() => {
+      result.current.moveNotecardWithinTimeline(a.id, 0, 0);
+      result.current.moveNotecardWithinTimeline(b.id, 0, 1);
+    });
+    act(() => result.current.moveNotecardWithinTimeline(a.id, 1, 0));
+    const updated = Object.fromEntries(result.current.notecards.map(n => [n.id, { slot: n.timelineSlot, order: n.timelineOrder }]));
+    expect(updated[a.id]).toEqual({ slot: 1, order: 0 });
+    expect(updated[b.id]).toEqual({ slot: 0, order: 0 });
+  });
+
+  it('unassignNotecardFromTimeline clears the slot assignment, optionally repositioning the card, and closes the gap left behind', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 0, y: 0 });
+    });
+    const [a, b] = result.current.notecards;
+    act(() => {
+      result.current.moveNotecardWithinTimeline(a.id, 0, 0);
+      result.current.moveNotecardWithinTimeline(b.id, 0, 1);
+    });
+    act(() => result.current.unassignNotecardFromTimeline(a.id, { x: 42, y: 7 }));
+    const updatedA = result.current.notecards.find(n => n.id === a.id)!;
+    expect(updatedA.timelineSlot).toBeUndefined();
+    expect(updatedA.timelineOrder).toBeUndefined();
+    expect(updatedA.position).toEqual({ x: 42, y: 7 });
+    const updatedB = result.current.notecards.find(n => n.id === b.id)!;
+    expect(updatedB.timelineOrder).toBe(0);
   });
 
   it('insertTimelineSlot shifts cards at or past the insertion point up by one, leaving earlier cards alone', () => {

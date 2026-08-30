@@ -101,8 +101,10 @@ export interface Notecard {
   width: number;
   height: number;
   color: NoteColor;
-  /** Index of the timeline slot this card is snapped to (e.g. "Scene 3"). Undefined = off the timeline, freeform. */
+  /** Index of the timeline column (slot) this card is pinned to. Undefined = unsorted/freeform. */
   timelineSlot?: number;
+  /** Position within its timelineSlot column (0 = top). Meaningless when timelineSlot is undefined. */
+  timelineOrder?: number;
 }
 
 /**
@@ -117,19 +119,12 @@ export interface NotecardLink {
 }
 
 /**
- * Board-level settings for the Notecard Canvas's optional horizontal timeline —
- * a discrete-slot rail cards can snap to for establishing scene order. Separate
- * from any individual `Notecard`, one instance per board.
+ * Board-level settings for the Notecard Canvas's Timeline pane — a Kanban-style
+ * row of scene columns cards can be pinned into. Separate from any individual
+ * `Notecard`, one instance per board.
  * @interface NotecardTimelineSettings
  */
 export interface NotecardTimelineSettings {
-  enabled: boolean;
-  /** World-space X of slot 0's center. */
-  originX: number;
-  /** World-space Y the horizontal rail is drawn at, and the drag-proximity check is measured against. */
-  railY: number;
-  /** World-space distance between adjacent slot centers. */
-  slotSpacing: number;
   /** Slot index -> display label (e.g. "Scene 1"). Missing entries fall back to a default label. */
   slotLabels: Record<number, string>;
 }

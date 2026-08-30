@@ -274,14 +274,14 @@ describe('deserializeProjectData', () => {
     expect(snap.notecardLinks).toEqual([link]);
   });
 
-  it('defaults notecardTimeline to a disabled default when absent from settings', () => {
+  it('defaults notecardTimeline to empty slot labels when absent from settings', () => {
     const data = makeResult();
     const snap = deserializeProjectData(data, []);
-    expect(snap.notecardTimeline).toEqual({ enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} });
+    expect(snap.notecardTimeline).toEqual({ slotLabels: {} });
   });
 
   it('carries notecardTimeline through when present in settings', () => {
-    const notecardTimeline = { enabled: true, originX: 40, railY: 20, slotSpacing: 300, slotLabels: { 0: 'Opening' } };
+    const notecardTimeline = { slotLabels: { 0: 'Opening' } };
     const data = makeResult();
     data.settings = { ...data.settings, notecardTimeline };
     const snap = deserializeProjectData(data, []);

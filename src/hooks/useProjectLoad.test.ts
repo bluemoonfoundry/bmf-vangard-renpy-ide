@@ -25,7 +25,7 @@ function createMinimalSnapshot(overrides: Partial<ProjectSnapshot> = {}): Projec
     choiceStickyNotes: [],
     notecards: [],
     notecardLinks: [],
-    notecardTimeline: { enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} },
+    notecardTimeline: { slotLabels: {} },
     characterProfiles: {},
     punchlistMetadata: {},
     diagnosticsTasks: [],
@@ -234,7 +234,7 @@ describe('hydrateFromProjectData', () => {
 
   it('hydrates notecardTimeline from the snapshot', () => {
     const setNotecardTimeline = vi.fn();
-    const notecardTimeline = { enabled: true, originX: 0, railY: 0, slotSpacing: 260, slotLabels: { 0: 'Opening' } };
+    const notecardTimeline = { slotLabels: { 0: 'Opening' } };
     const snapshot = createMinimalSnapshot({ notecardTimeline });
     const setters = { ...createMockHydrateSetters(), setNotecardTimeline };
     hydrateFromProjectData(snapshot, setters);

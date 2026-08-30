@@ -14,16 +14,16 @@ describe('notecardTimelineExport', () => {
     expect(formatCard(card)).toBe('# Empty Beat');
   });
 
-  it('formatSlotContent orders cards in the same slot top-to-bottom by Y', () => {
-    const bottom = createNotecard({ id: 'bottom', title: 'Bottom', content: 'B', timelineSlot: 0, position: { x: 0, y: 200 } });
-    const top = createNotecard({ id: 'top', title: 'Top', content: 'T', timelineSlot: 0, position: { x: 0, y: 0 } });
-    const other = createNotecard({ id: 'other', title: 'Other Slot', content: 'X', timelineSlot: 1, position: { x: 260, y: 0 } });
+  it('formatSlotContent orders cards in the same column by timelineOrder', () => {
+    const bottom = createNotecard({ id: 'bottom', title: 'Bottom', content: 'B', timelineSlot: 0, timelineOrder: 1 });
+    const top = createNotecard({ id: 'top', title: 'Top', content: 'T', timelineSlot: 0, timelineOrder: 0 });
+    const other = createNotecard({ id: 'other', title: 'Other Slot', content: 'X', timelineSlot: 1, timelineOrder: 0 });
     expect(formatSlotContent([bottom, top, other], 0)).toBe('# Top\nT\n\n# Bottom\nB');
   });
 
   it('formatFullTimeline concatenates only occupied slots, in ascending order, excluding off-timeline cards', () => {
-    const a = createNotecard({ id: 'a', title: 'First', content: 'A', timelineSlot: 0, position: { x: 0, y: 0 } });
-    const b = createNotecard({ id: 'b', title: 'Third', content: 'C', timelineSlot: 2, position: { x: 520, y: 0 } });
+    const a = createNotecard({ id: 'a', title: 'First', content: 'A', timelineSlot: 0, timelineOrder: 0 });
+    const b = createNotecard({ id: 'b', title: 'Third', content: 'C', timelineSlot: 2, timelineOrder: 0 });
     const parked = createNotecard({ id: 'parked', title: 'Parking Lot', content: 'P' });
     const result = formatFullTimeline([a, b, parked], DEFAULT_NOTECARD_TIMELINE_SETTINGS);
     expect(result).toBe('# Scene 1\n\n# First\nA\n\n# Scene 3\n\n# Third\nC');

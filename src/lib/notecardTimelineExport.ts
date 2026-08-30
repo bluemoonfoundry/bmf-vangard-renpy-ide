@@ -10,16 +10,16 @@ export function formatCard(card: Notecard): string {
   return card.content ? `# ${card.title}\n${card.content}` : `# ${card.title}`;
 }
 
-/** Cards in a single slot, concatenated in top-to-bottom (Y) order — the exported order. */
+/** Cards in a single column, concatenated in their timelineOrder — the exported order. */
 export function formatSlotContent(notecards: Notecard[], slot: number): string {
   return notecards
     .filter(c => c.timelineSlot === slot)
-    .sort((a, b) => a.position.y - b.position.y)
+    .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0))
     .map(formatCard)
     .join('\n\n');
 }
 
-/** Every occupied slot in order, each with a `# <label>` header, cards within sorted by Y. Cards with no timelineSlot are excluded. */
+/** Every occupied slot in order, each with a `# <label>` header, cards within sorted by timelineOrder. Cards with no timelineSlot are excluded. */
 export function formatFullTimeline(notecards: Notecard[], timelineSettings: NotecardTimelineSettings): string {
   const slots = Array.from(new Set(
     notecards.map(c => c.timelineSlot).filter((s): s is number => s !== undefined),

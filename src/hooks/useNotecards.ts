@@ -11,10 +11,6 @@ import type { Notecard, NotecardLink, NotecardTimelineSettings, Position, AppSet
 import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
 
 export const DEFAULT_NOTECARD_TIMELINE_SETTINGS: NotecardTimelineSettings = {
-  enabled: false,
-  originX: 0,
-  railY: 0,
-  slotSpacing: 260,
   slotLabels: {},
 };
 
@@ -38,10 +34,14 @@ export interface UseNotecardsReturn {
   addNotecardLink: (fromId: string, toId: string) => void;
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
-  toggleTimeline: () => void;
   renameTimelineSlot: (slot: number, label: string) => void;
-  snapNotecardToTimeline: (id: string) => void;
-  clearNotecardTimelineSlot: (id: string) => void;
+  /** Pins a card into `toSlot` at `toIndex` within that column, renormalizing order in both the
+   * destination column and (if the card moved between columns) the source column. Used for
+   * initial assignment from Unsorted, cross-column moves, and same-column reorders alike. */
+  moveNotecardWithinTimeline: (id: string, toSlot: number, toIndex: number) => void;
+  /** Unpins a card from the timeline back to freeform Unsorted space, closing the gap in its
+   * former column. `position`, if given, becomes the card's new freeform drop position. */
+  unassignNotecardFromTimeline: (id: string, position?: Position) => void;
   insertTimelineSlot: (beforeSlot: number) => void;
   deleteTimelineSlot: (slot: number) => void;
 }
@@ -104,36 +104,54 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
     onNotecardChange?.();
   }, [setNotecards, onNotecardChange]);
 
-  const toggleTimeline = useCallback(() => {
-    setTimelineSettings(draft => { draft.enabled = !draft.enabled; });
-    onNotecardChange?.();
-  }, [setTimelineSettings, onNotecardChange]);
-
   const renameTimelineSlot = useCallback((slot: number, label: string) => {
     setTimelineSettings(draft => { draft.slotLabels[slot] = label; });
     onNotecardChange?.();
   }, [setTimelineSettings, onNotecardChange]);
 
-  // Snaps a card's along-axis (X) position to the nearest timeline slot, based on its
-  // *current* stored position — the caller (NotecardCanvas) decides whether a drag ended
-  // close enough to the rail to warrant calling this at all. Y is left untouched, which is
-  // what lets multiple cards share a slot (export order is derived by sorting on Y).
-  const snapNotecardToTimeline = useCallback((id: string) => {
+  // Single primitive behind every Timeline-pane drag outcome: assigning an Unsorted card to a
+  // column for the first time, moving a card between columns, and reordering within a column
+  // are all "splice this card into toSlot's order at toIndex." Renormalizing both the
+  // destination column (0..n-1) and, if the card left a different column, the source column,
+  // keeps timelineOrder gap-free and never dependent on stale values from either side.
+  const moveNotecardWithinTimeline = useCallback((id: string, toSlot: number, toIndex: number) => {
     setNotecards(draft => {
       const card = draft.find(n => n.id === id);
       if (!card) return;
-      const centerX = card.position.x + card.width / 2;
-      const slotIndex = Math.round((centerX - timelineSettings.originX) / timelineSettings.slotSpacing);
-      card.position.x = timelineSettings.originX + slotIndex * timelineSettings.slotSpacing - card.width / 2;
-      card.timelineSlot = slotIndex;
+      const fromSlot = card.timelineSlot;
+      card.timelineSlot = toSlot;
+
+      const destCards = draft
+        .filter(n => n.timelineSlot === toSlot && n.id !== id)
+        .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0));
+      destCards.splice(Math.max(0, Math.min(toIndex, destCards.length)), 0, card);
+      destCards.forEach((n, i) => { n.timelineOrder = i; });
+
+      if (fromSlot !== undefined && fromSlot !== toSlot) {
+        draft
+          .filter(n => n.timelineSlot === fromSlot)
+          .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0))
+          .forEach((n, i) => { n.timelineOrder = i; });
+      }
     });
     onNotecardChange?.();
-  }, [setNotecards, timelineSettings, onNotecardChange]);
+  }, [setNotecards, onNotecardChange]);
 
-  const clearNotecardTimelineSlot = useCallback((id: string) => {
+  const unassignNotecardFromTimeline = useCallback((id: string, position?: Position) => {
     setNotecards(draft => {
       const card = draft.find(n => n.id === id);
-      if (card) delete card.timelineSlot;
+      if (!card) return;
+      const fromSlot = card.timelineSlot;
+      delete card.timelineSlot;
+      delete card.timelineOrder;
+      if (position) card.position = position;
+
+      if (fromSlot !== undefined) {
+        draft
+          .filter(n => n.timelineSlot === fromSlot)
+          .sort((a, b) => (a.timelineOrder ?? 0) - (b.timelineOrder ?? 0))
+          .forEach((n, i) => { n.timelineOrder = i; });
+      }
     });
     onNotecardChange?.();
   }, [setNotecards, onNotecardChange]);
@@ -250,7 +268,7 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
     notecards, notecardLinks, timelineSettings, setNotecards, setNotecardLinks, setTimelineSettings,
     addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
-    toggleTimeline, renameTimelineSlot, snapNotecardToTimeline, clearNotecardTimelineSlot,
+    renameTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline,
     insertTimelineSlot, deleteTimelineSlot,
   };
 }

@@ -115,10 +115,9 @@ export interface UseTabContentRendererParams {
   updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
   deleteNotecardLink: (id: string) => void;
   notecardTimeline: NotecardTimelineSettings;
-  toggleNotecardTimeline: () => void;
   renameNotecardTimelineSlot: (slot: number, label: string) => void;
-  snapNotecardToTimeline: (id: string) => void;
-  clearNotecardTimelineSlot: (id: string) => void;
+  moveNotecardWithinTimeline: (id: string, toSlot: number, toIndex: number) => void;
+  unassignNotecardFromTimeline: (id: string, position?: Position) => void;
   insertTimelineSlot: (beforeSlot: number) => void;
   deleteTimelineSlot: (slot: number) => void;
   notecardCanvasTransform: CanvasTransform;
@@ -262,8 +261,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     allStickyNotes,
     notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
-    notecardTimeline, toggleNotecardTimeline, renameNotecardTimelineSlot,
-    snapNotecardToTimeline, clearNotecardTimelineSlot, insertTimelineSlot, deleteTimelineSlot,
+    notecardTimeline, renameNotecardTimelineSlot,
+    moveNotecardWithinTimeline, unassignNotecardFromTimeline, insertTimelineSlot, deleteTimelineSlot,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
@@ -380,9 +379,9 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         updateNotecard={updateNotecard} deleteNotecard={deleteNotecard} deleteNotecards={deleteNotecards}
         restoreNotecards={restoreNotecards} addNotecard={addNotecard}
         addNotecardLink={addNotecardLink} updateNotecardLink={updateNotecardLink} deleteNotecardLink={deleteNotecardLink}
-        timelineSettings={notecardTimeline} toggleTimeline={toggleNotecardTimeline}
+        timelineSettings={notecardTimeline}
         renameTimelineSlot={renameNotecardTimelineSlot}
-        snapNotecardToTimeline={snapNotecardToTimeline} clearNotecardTimelineSlot={clearNotecardTimelineSlot}
+        moveNotecardWithinTimeline={moveNotecardWithinTimeline} unassignNotecardFromTimeline={unassignNotecardFromTimeline}
         insertTimelineSlot={insertTimelineSlot} deleteTimelineSlot={deleteTimelineSlot}
         transform={notecardCanvasTransform} onTransformChange={setNotecardCanvasTransform}
       />;

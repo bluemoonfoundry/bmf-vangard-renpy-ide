@@ -45,7 +45,7 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
     choiceStickyNotes: [],
     notecards: [],
     notecardLinks: [],
-    notecardTimeline: { enabled: false, originX: 0, railY: 0, slotSpacing: 260, slotLabels: {} },
+    notecardTimeline: { slotLabels: {} },
     characterProfiles: {},
     punchlistMetadata: {},
     diagnosticsTasks: [],
@@ -194,7 +194,7 @@ describe('useProjectIO', () => {
   it('includes notecardTimeline in the saved settings payload', async () => {
     const api = createMockElectronAPI();
     installElectronAPI(api);
-    const notecardTimeline = { enabled: true, originX: 0, railY: 0, slotSpacing: 260, slotLabels: { 0: 'Opening' } };
+    const notecardTimeline = { slotLabels: { 0: 'Opening' } };
     const { result } = renderHook(() => useProjectIO(makeParams({ notecardTimeline })));
     await act(async () => { await result.current.handleSaveProjectSettings(); });
     const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
