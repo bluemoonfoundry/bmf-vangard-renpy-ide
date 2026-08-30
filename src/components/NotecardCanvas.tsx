@@ -32,6 +32,8 @@ export interface NotecardCanvasProps {
   renameTimelineSlot: (slot: number, label: string) => void;
   snapNotecardToTimeline: (id: string) => void;
   clearNotecardTimelineSlot: (id: string) => void;
+  insertTimelineSlot: (beforeSlot: number) => void;
+  deleteTimelineSlot: (slot: number) => void;
   transform: CanvasTransform;
   onTransformChange: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 }
@@ -66,6 +68,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
   addNotecardLink, updateNotecardLink, deleteNotecardLink,
   timelineSettings, toggleTimeline, renameTimelineSlot, snapNotecardToTimeline, clearNotecardTimelineSlot,
+  insertTimelineSlot, deleteTimelineSlot,
   transform, onTransformChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,7 +81,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   // Each entry is the exact set of cards/links removed by one Delete-key press.
   const deletedStackRef = useRef<Array<{ cards: NotecardType[]; links: NotecardLink[] }>>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; cardId?: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number; cardId?: string; slot?: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -517,6 +520,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
                             className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 whitespace-nowrap hover:bg-indigo-200 dark:hover:bg-indigo-800"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => { setSlotLabelDraft(getTimelineSlotLabel(timelineSettings, slot)); setEditingSlot(slot); }}
+                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, worldX: 0, worldY: 0, slot }); }}
                           >
                             {getTimelineSlotLabel(timelineSettings, slot)}
                           </button>
@@ -561,7 +565,28 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
           className="fixed z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg py-1"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          {contextMenu.cardId ? (() => {
+          {contextMenu.slot !== undefined ? (
+            <>
+              <button
+                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => { insertTimelineSlot(contextMenu.slot as number); setContextMenu(null); }}
+              >
+                Insert Scene Before
+              </button>
+              <button
+                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => { insertTimelineSlot((contextMenu.slot as number) + 1); setContextMenu(null); }}
+              >
+                Insert Scene After
+              </button>
+              <button
+                className="block w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => { deleteTimelineSlot(contextMenu.slot as number); setContextMenu(null); }}
+              >
+                Delete This Scene
+              </button>
+            </>
+          ) : contextMenu.cardId ? (() => {
             const card = cardById(contextMenu.cardId as string);
             if (!card) return null;
             return (

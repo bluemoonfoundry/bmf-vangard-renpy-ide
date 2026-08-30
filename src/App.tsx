@@ -420,6 +420,7 @@ const App: React.FC = () => {
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     toggleTimeline: toggleNotecardTimeline, renameTimelineSlot: renameNotecardTimelineSlot,
     snapNotecardToTimeline, clearNotecardTimelineSlot,
+    insertTimelineSlot, deleteTimelineSlot,
   } = useNotecards({
     appSettings,
     notecardCanvasTransform,
@@ -1836,6 +1837,7 @@ const App: React.FC = () => {
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     notecardTimeline, toggleNotecardTimeline, renameNotecardTimelineSlot,
     snapNotecardToTimeline, clearNotecardTimelineSlot,
+    insertTimelineSlot, deleteTimelineSlot,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,

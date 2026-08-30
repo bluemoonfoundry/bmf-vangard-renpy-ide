@@ -21,6 +21,8 @@ const baseProps = () => ({
   renameTimelineSlot: vi.fn(),
   snapNotecardToTimeline: vi.fn(),
   clearNotecardTimelineSlot: vi.fn(),
+  insertTimelineSlot: vi.fn(),
+  deleteTimelineSlot: vi.fn(),
   transform: { x: 0, y: 0, scale: 1 },
   onTransformChange: vi.fn(),
 });
@@ -417,6 +419,39 @@ describe('NotecardCanvas', () => {
       const copyButton = screen.getByText('Copy Scene Content');
       fireEvent.click(copyButton);
       expect(clipboardMock.writeText).toHaveBeenCalledWith('# Opening Beat\nIt begins.');
+    });
+
+    it('offers slot management actions on right-click of a slot label', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.contextMenu(screen.getByText('Scene 1'));
+      expect(screen.getByText('Insert Scene Before')).toBeInTheDocument();
+      expect(screen.getByText('Insert Scene After')).toBeInTheDocument();
+      expect(screen.getByText('Delete This Scene')).toBeInTheDocument();
+    });
+
+    it('"Insert Scene Before" calls insertTimelineSlot with the clicked slot index', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.contextMenu(screen.getByText('Scene 1'));
+      fireEvent.click(screen.getByText('Insert Scene Before'));
+      expect(props.insertTimelineSlot).toHaveBeenCalledWith(0);
+    });
+
+    it('"Insert Scene After" calls insertTimelineSlot with the clicked slot index plus one', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.contextMenu(screen.getByText('Scene 1'));
+      fireEvent.click(screen.getByText('Insert Scene After'));
+      expect(props.insertTimelineSlot).toHaveBeenCalledWith(1);
+    });
+
+    it('"Delete This Scene" calls deleteTimelineSlot with the clicked slot index', () => {
+      const props = { ...baseProps(), notecards: [], timelineSettings: enabledTimeline };
+      render(<NotecardCanvas {...props} />);
+      fireEvent.contextMenu(screen.getByText('Scene 1'));
+      fireEvent.click(screen.getByText('Delete This Scene'));
+      expect(props.deleteTimelineSlot).toHaveBeenCalledWith(0);
     });
   });
 });

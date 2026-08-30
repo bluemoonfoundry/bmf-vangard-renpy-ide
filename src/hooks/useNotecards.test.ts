@@ -137,4 +137,68 @@ describe('useNotecards', () => {
     act(() => result.current.clearNotecardTimelineSlot(id));
     expect(result.current.notecards[0].timelineSlot).toBeUndefined();
   });
+
+  it('insertTimelineSlot shifts cards at or past the insertion point up by one, leaving earlier cards alone', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 100, y: 0 });
+      result.current.addNotecard({ x: 200, y: 0 });
+    });
+    const [a, b, c] = result.current.notecards;
+    act(() => {
+      result.current.updateNotecard(a.id, { timelineSlot: 0 });
+      result.current.updateNotecard(b.id, { timelineSlot: 1 });
+      result.current.updateNotecard(c.id, { timelineSlot: 2 });
+    });
+    act(() => result.current.insertTimelineSlot(1));
+    const bySlot = Object.fromEntries(result.current.notecards.map(n => [n.id, n.timelineSlot]));
+    expect(bySlot[a.id]).toBe(0);
+    expect(bySlot[b.id]).toBe(2);
+    expect(bySlot[c.id]).toBe(3);
+  });
+
+  it('insertTimelineSlot shifts existing slot labels to match', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.renameTimelineSlot(0, 'Opening');
+      result.current.renameTimelineSlot(1, 'Confrontation');
+    });
+    act(() => result.current.insertTimelineSlot(1));
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 0)).toBe('Opening');
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 1)).toBe('Scene 2');
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 2)).toBe('Confrontation');
+  });
+
+  it('deleteTimelineSlot unassigns cards in that slot and shifts later cards down by one', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.addNotecard({ x: 0, y: 0 });
+      result.current.addNotecard({ x: 100, y: 0 });
+      result.current.addNotecard({ x: 200, y: 0 });
+    });
+    const [a, b, c] = result.current.notecards;
+    act(() => {
+      result.current.updateNotecard(a.id, { timelineSlot: 0 });
+      result.current.updateNotecard(b.id, { timelineSlot: 1 });
+      result.current.updateNotecard(c.id, { timelineSlot: 2 });
+    });
+    act(() => result.current.deleteTimelineSlot(1));
+    const bySlot = Object.fromEntries(result.current.notecards.map(n => [n.id, n.timelineSlot]));
+    expect(bySlot[a.id]).toBe(0);
+    expect(bySlot[b.id]).toBeUndefined();
+    expect(bySlot[c.id]).toBe(1);
+  });
+
+  it('deleteTimelineSlot drops the deleted slot\'s label and shifts later labels down', () => {
+    const { result } = renderHook(() => useNotecards(baseParams()));
+    act(() => {
+      result.current.renameTimelineSlot(0, 'Opening');
+      result.current.renameTimelineSlot(1, 'Middle');
+      result.current.renameTimelineSlot(2, 'Finale');
+    });
+    act(() => result.current.deleteTimelineSlot(1));
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 0)).toBe('Opening');
+    expect(getTimelineSlotLabel(result.current.timelineSettings, 1)).toBe('Finale');
+  });
 });

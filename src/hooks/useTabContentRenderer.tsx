@@ -119,6 +119,8 @@ export interface UseTabContentRendererParams {
   renameNotecardTimelineSlot: (slot: number, label: string) => void;
   snapNotecardToTimeline: (id: string) => void;
   clearNotecardTimelineSlot: (id: string) => void;
+  insertTimelineSlot: (beforeSlot: number) => void;
+  deleteTimelineSlot: (slot: number) => void;
   notecardCanvasTransform: CanvasTransform;
   setNotecardCanvasTransform: React.Dispatch<React.SetStateAction<CanvasTransform>>;
 
@@ -261,7 +263,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     notecards, notecardLinks, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecard,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     notecardTimeline, toggleNotecardTimeline, renameNotecardTimelineSlot,
-    snapNotecardToTimeline, clearNotecardTimelineSlot,
+    snapNotecardToTimeline, clearNotecardTimelineSlot, insertTimelineSlot, deleteTimelineSlot,
     notecardCanvasTransform, setNotecardCanvasTransform,
     canvasInteractionEnd, findUsagesHighlightIds, handleClearFindUsages,
     canvasFilters, setCanvasFilters, centerOnBlockRequest, flashBlockRequest, hoverHighlightIds,
@@ -381,6 +383,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
         timelineSettings={notecardTimeline} toggleTimeline={toggleNotecardTimeline}
         renameTimelineSlot={renameNotecardTimelineSlot}
         snapNotecardToTimeline={snapNotecardToTimeline} clearNotecardTimelineSlot={clearNotecardTimelineSlot}
+        insertTimelineSlot={insertTimelineSlot} deleteTimelineSlot={deleteTimelineSlot}
         transform={notecardCanvasTransform} onTransformChange={setNotecardCanvasTransform}
       />;
     }

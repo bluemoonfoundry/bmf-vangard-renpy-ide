@@ -42,6 +42,8 @@ export interface UseNotecardsReturn {
   renameTimelineSlot: (slot: number, label: string) => void;
   snapNotecardToTimeline: (id: string) => void;
   clearNotecardTimelineSlot: (id: string) => void;
+  insertTimelineSlot: (beforeSlot: number) => void;
+  deleteTimelineSlot: (slot: number) => void;
 }
 
 export interface UseNotecardsParams {
@@ -136,6 +138,47 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
     onNotecardChange?.();
   }, [setNotecards, onNotecardChange]);
 
+  // Makes room for a new slot at `beforeSlot` by shifting every card and label at or past it
+  // up by one. The new slot itself starts empty with the default "Scene N" label.
+  const insertTimelineSlot = useCallback((beforeSlot: number) => {
+    setNotecards(draft => {
+      draft.forEach(card => {
+        if (card.timelineSlot !== undefined && card.timelineSlot >= beforeSlot) card.timelineSlot += 1;
+      });
+    });
+    setTimelineSettings(draft => {
+      const shifted: Record<number, string> = {};
+      Object.entries(draft.slotLabels).forEach(([key, label]) => {
+        const idx = Number(key);
+        shifted[idx >= beforeSlot ? idx + 1 : idx] = label;
+      });
+      draft.slotLabels = shifted;
+    });
+    onNotecardChange?.();
+  }, [setNotecards, setTimelineSettings, onNotecardChange]);
+
+  // Removes a slot: cards in it are unassigned (not deleted — they become freeform again),
+  // and every card/label past it shifts down by one to close the gap.
+  const deleteTimelineSlot = useCallback((slot: number) => {
+    setNotecards(draft => {
+      draft.forEach(card => {
+        if (card.timelineSlot === undefined) return;
+        if (card.timelineSlot === slot) delete card.timelineSlot;
+        else if (card.timelineSlot > slot) card.timelineSlot -= 1;
+      });
+    });
+    setTimelineSettings(draft => {
+      const shifted: Record<number, string> = {};
+      Object.entries(draft.slotLabels).forEach(([key, label]) => {
+        const idx = Number(key);
+        if (idx === slot) return;
+        shifted[idx > slot ? idx - 1 : idx] = label;
+      });
+      draft.slotLabels = shifted;
+    });
+    onNotecardChange?.();
+  }, [setNotecards, setTimelineSettings, onNotecardChange]);
+
   const deleteNotecard = useCallback((id: string) => {
     setNotecards(draft => {
       const idx = draft.findIndex(n => n.id === id);
@@ -208,5 +251,6 @@ export function useNotecards(params: UseNotecardsParams): UseNotecardsReturn {
     addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards,
     addNotecardLink, updateNotecardLink, deleteNotecardLink,
     toggleTimeline, renameTimelineSlot, snapNotecardToTimeline, clearNotecardTimelineSlot,
+    insertTimelineSlot, deleteTimelineSlot,
   };
 }
