@@ -13,7 +13,7 @@
  * pane's own pointer handlers.
  */
 
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import Notecard from '@/components/Notecard';
 import Minimap, { type MinimapItem } from '@/components/Minimap';
 import CopyButton from '@/components/CopyButton';
@@ -23,6 +23,7 @@ import type { Notecard as NotecardType, NotecardLink, NotecardTimelineSettings, 
 import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
 import { getTimelineSlotLabel } from '@/hooks/useNotecards';
 import { formatCard, formatSlotContent, formatFullTimeline } from '@/lib/notecardTimelineExport';
+import { getBackwardTimelineLinkWarnings } from '@/lib/notecardTimelineValidation';
 
 export interface NotecardCanvasProps {
   notecards: NotecardType[];
@@ -89,11 +90,12 @@ function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: Can
 const KanbanCard: React.FC<{
   card: NotecardType;
   isDragging: boolean;
+  warnings?: string[];
   onPointerDown: (e: React.PointerEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   updateCard: (id: string, data: Partial<NotecardType>) => void;
   deleteCard: (id: string) => void;
-}> = ({ card, isDragging, onPointerDown, onContextMenu, updateCard, deleteCard }) => {
+}> = ({ card, isDragging, warnings, onPointerDown, onContextMenu, updateCard, deleteCard }) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingBody, setIsEditingBody] = useState(false);
@@ -156,15 +158,26 @@ const KanbanCard: React.FC<{
             </span>
           )}
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="text-black/30 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
-          title="Delete Notecard"
-          aria-label="Delete notecard"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {warnings && warnings.length > 0 && (
+            <span
+              data-testid={`timeline-warning-${card.id}`}
+              className="text-amber-500 dark:text-amber-400"
+              title={warnings.join('\n')}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.335-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.652-1.743-2.987l6.28-11.18zM11 14a1 1 0 11-2 0 1 1 0 012 0zm-1-7a1 1 0 00-1 1v2a1 1 0 002 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+            </span>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="text-black/30 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+            title="Delete Notecard"
+            aria-label="Delete notecard"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+          </button>
+        </div>
       </div>
       {isEditingBody ? (
         <textarea
@@ -240,6 +253,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
   const [slotLabelDraft, setSlotLabelDraft] = useState('');
 
   const unsortedNotecards = notecards.filter(c => c.timelineSlot === undefined);
+  const timelineWarnings = useMemo(() => getBackwardTimelineLinkWarnings(notecards, notecardLinks), [notecards, notecardLinks]);
 
   const startLinkDrag = useCallback((cardId: string, clientX: number, clientY: number) => {
     if (!surfaceRef.current) return;
@@ -705,6 +719,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
                         key={card.id}
                         card={card}
                         isDragging={draggingId === card.id}
+                        warnings={timelineWarnings.get(card.id)}
                         onPointerDown={(e) => beginCardDrag(card, e)}
                         onContextMenu={(e) => openCardContextMenu(e, card.id)}
                         updateCard={updateNotecard}

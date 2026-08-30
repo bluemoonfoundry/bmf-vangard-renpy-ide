@@ -466,6 +466,37 @@ describe('NotecardCanvas', () => {
     });
   });
 
+  describe('backward-link timeline warnings', () => {
+    it('shows a warning badge on a Kanban card whose link points to an earlier slot', () => {
+      const later = createNotecard({ id: 'later', title: 'Confrontation', timelineSlot: 2, timelineOrder: 0 });
+      const earlier = createNotecard({ id: 'earlier', title: 'Opening', timelineSlot: 0, timelineOrder: 0 });
+      const link = { id: 'l1', fromId: 'later', toId: 'earlier' };
+      const props = { ...baseProps(), notecards: [later, earlier], notecardLinks: [link] };
+      render(<NotecardCanvas {...props} />);
+      expect(screen.getByTestId('timeline-warning-later')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-warning-earlier')).toBeInTheDocument();
+    });
+
+    it('does not show a warning badge for a link that points forward in time', () => {
+      const earlier = createNotecard({ id: 'earlier', timelineSlot: 0, timelineOrder: 0 });
+      const later = createNotecard({ id: 'later', timelineSlot: 2, timelineOrder: 0 });
+      const link = { id: 'l1', fromId: 'earlier', toId: 'later' };
+      const props = { ...baseProps(), notecards: [earlier, later], notecardLinks: [link] };
+      render(<NotecardCanvas {...props} />);
+      expect(screen.queryByTestId('timeline-warning-earlier')).toBeNull();
+      expect(screen.queryByTestId('timeline-warning-later')).toBeNull();
+    });
+
+    it('does not show a warning badge when one link endpoint is still unsorted', () => {
+      const pinned = createNotecard({ id: 'pinned', timelineSlot: 1, timelineOrder: 0 });
+      const unsorted = createNotecard({ id: 'unsorted' });
+      const link = { id: 'l1', fromId: 'pinned', toId: 'unsorted' };
+      const props = { ...baseProps(), notecards: [pinned, unsorted], notecardLinks: [link] };
+      render(<NotecardCanvas {...props} />);
+      expect(screen.queryByTestId('timeline-warning-pinned')).toBeNull();
+    });
+  });
+
   describe('drag between panes and within a column', () => {
     it('pins an Unsorted card into a Timeline column when dropped there', () => {
       const card = createNotecard({ id: 'a', position: { x: 0, y: 0 } });
