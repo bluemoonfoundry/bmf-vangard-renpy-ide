@@ -90,12 +90,13 @@ function toWorld(clientX: number, clientY: number, rect: DOMRect, transform: Can
 const KanbanCard: React.FC<{
   card: NotecardType;
   isDragging: boolean;
+  dimmed?: boolean;
   warnings?: string[];
   onPointerDown: (e: React.PointerEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   updateCard: (id: string, data: Partial<NotecardType>) => void;
   deleteCard: (id: string) => void;
-}> = ({ card, isDragging, warnings, onPointerDown, onContextMenu, updateCard, deleteCard }) => {
+}> = ({ card, isDragging, dimmed, warnings, onPointerDown, onContextMenu, updateCard, deleteCard }) => {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingBody, setIsEditingBody] = useState(false);
@@ -109,7 +110,7 @@ const KanbanCard: React.FC<{
     <div
       data-kanban-card-id={card.id}
       data-testid={`kanban-card-${card.id}`}
-      className={`rounded-sm shadow-sm border flex flex-col bg-[#fdfbf3] dark:bg-[#2a2823] border-[#e2d9bd] dark:border-[#4a4638] flex-shrink-0 group ${isDragging ? 'opacity-40' : ''}`}
+      className={`rounded-sm shadow-sm border flex flex-col bg-[#fdfbf3] dark:bg-[#2a2823] border-[#e2d9bd] dark:border-[#4a4638] flex-shrink-0 group transition-opacity ${isDragging ? 'opacity-40' : dimmed ? 'opacity-30' : ''}`}
       onContextMenu={onContextMenu}
     >
       <div
@@ -331,15 +332,26 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
 
   useEffect(() => {
     if (!normalizedQuery) return;
-    const first = unsortedNotecards.find(isMatch);
-    if (!first || !canvasDimensions.width || !canvasDimensions.height) return;
-    const centerX = first.position.x + first.width / 2;
-    const centerY = first.position.y + first.height / 2;
-    onTransformChange(t => ({
-      ...t,
-      x: canvasDimensions.width / 2 - centerX * t.scale,
-      y: canvasDimensions.height / 2 - centerY * t.scale,
-    }));
+    const firstUnsorted = unsortedNotecards.find(isMatch);
+    if (firstUnsorted && canvasDimensions.width && canvasDimensions.height) {
+      setIsUnsortedPaneOpen(true);
+      const centerX = firstUnsorted.position.x + firstUnsorted.width / 2;
+      const centerY = firstUnsorted.position.y + firstUnsorted.height / 2;
+      onTransformChange(t => ({
+        ...t,
+        x: canvasDimensions.width / 2 - centerX * t.scale,
+        y: canvasDimensions.height / 2 - centerY * t.scale,
+      }));
+      return;
+    }
+    const firstTimelineCard = notecards.find(c => c.timelineSlot !== undefined && isMatch(c));
+    if (firstTimelineCard) {
+      const slot = firstTimelineCard.timelineSlot as number;
+      setIsTimelinePaneOpen(true);
+      requestAnimationFrame(() => {
+        columnRefs.current[slot]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedQuery]);
 
@@ -719,6 +731,7 @@ const NotecardCanvas: React.FC<NotecardCanvasProps> = ({
                         key={card.id}
                         card={card}
                         isDragging={draggingId === card.id}
+                        dimmed={!isMatch(card)}
                         warnings={timelineWarnings.get(card.id)}
                         onPointerDown={(e) => beginCardDrag(card, e)}
                         onContextMenu={(e) => openCardContextMenu(e, card.id)}

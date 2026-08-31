@@ -324,6 +324,16 @@ describe('NotecardCanvas', () => {
     expect(screen.getByTestId('notecard-b').className).not.toContain('opacity-30');
   });
 
+  it('dims Timeline cards that do not match the search query too', () => {
+    const a = createNotecard({ id: 'a', title: 'Letter reveal', timelineSlot: 0, timelineOrder: 0 });
+    const b = createNotecard({ id: 'b', title: 'Market scene', timelineSlot: 1, timelineOrder: 0 });
+    const props = { ...baseProps(), notecards: [a, b] };
+    render(<NotecardCanvas {...props} />);
+    fireEvent.change(screen.getByPlaceholderText('Search notecards…'), { target: { value: 'letter' } });
+    expect(screen.getByTestId('kanban-card-a').className).not.toContain('opacity-30');
+    expect(screen.getByTestId('kanban-card-b').className).toContain('opacity-30');
+  });
+
   describe('panes: collapse/expand', () => {
     it('collapses the Timeline pane, hiding its columns, when its collapse chevron is clicked', () => {
       const props = baseProps();
