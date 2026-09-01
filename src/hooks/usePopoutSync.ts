@@ -13,24 +13,33 @@
  *
  * Supported tab types: `editor`, `untitled`, `markdown`, `image`, `audio`,
  * `character`, `diagnostics`/`punchlist`, `translations`, `stats`, `screen-preview`,
- * `route-canvas`, `choice-canvas`. The remaining types (the pinned Project Canvas,
- * `notecard-canvas`, and the scene/imagemap composers) are deliberately not included
- * yet -- see the "Detachable Editor Tabs" plan's Phase 2 notes for why: their primary
- * interaction commits continuously on every pointermove rather than once on release,
- * which route-canvas/choice-canvas's node-position dragging (their main interaction)
- * does not -- only their secondary sticky-note dragging is continuous, an accepted
- * tradeoff for now (see the relay comment on addRouteStickyNote/addChoiceStickyNote
- * paths below). The pinned canvas is also excluded deliberately, matching its existing
- * `isProtectedTab` treatment elsewhere (it's the app's always-present home view).
+ * `route-canvas`, `choice-canvas`, `notecard-canvas`, `scene-composer`,
+ * `imagemap-composer`. Only the pinned Project Canvas (`canvas`) is excluded, matching
+ * its existing `isProtectedTab` treatment elsewhere (it's the app's always-present home
+ * view -- popping it out would leave the main window with nothing in its place).
+ *
+ * A note on continuous (per-pointermove) updates, since several of the later tab types
+ * have them as their *primary* interaction rather than a secondary one: this was
+ * stress-tested directly (60 rapid RPC calls in under a second, all completing cleanly)
+ * and isn't the relay's limiting factor. The real hazard is a component computing its
+ * next value as a *delta relative to the previous prop value* (`s.x + dx`) rather than
+ * from a fixed anchor captured at drag-start (`dragStartX + totalDx`) -- the former
+ * silently drifts/resets under IPC lag because each RPC call's "previous value" is
+ * whatever snapshot last arrived, not necessarily what the popout just sent. Route/
+ * Choice's sticky notes, ImageMapComposer's hotspot drag, and NotecardCanvas's card
+ * drag/resize all use the fixed-anchor form (confirmed by reading each drag handler) and
+ * relay directly. SceneComposer's sprite drag is the one exception (see the comment on
+ * `usePopoutSceneComposerState` below for how that's handled.)
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AppSettings, AudioMetadata, Block, Character, DialogueLine, DiagnosticsResult,
-  DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMetadata,
-  JumpLocation, LabelNode, MenuTemplate, MouseGestureSettings, PersistedProjectSettings,
-  Position, ProjectImage, RenpyAnalysisResult, RenpyAudio, RenpyScreen, RouteLink,
-  StickyNote, StoryCanvasGroupingMode, StoryCanvasLayoutMode, Theme,
-  TranslationAnalysisResult, UserSnippet,
+  DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMapComposition,
+  ImageMetadata, JumpLocation, LabelNode, MenuTemplate, MouseGestureSettings, Notecard,
+  NotecardLink, NotecardTimelineSettings, PersistedProjectSettings, Position, ProjectImage,
+  RenpyAnalysisResult, RenpyAudio, RenpyScreen, RouteLink, SceneComposition, StickyNote,
+  StoryCanvasGroupingMode, StoryCanvasLayoutMode, Theme, TranslationAnalysisResult,
+  UserSnippet,
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
@@ -39,7 +48,7 @@ import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 export const POPOUT_SUPPORTED_TAB_TYPES: ReadonlySet<string> = new Set<EditorTab['type']>([
   'editor', 'untitled', 'markdown', 'image', 'audio',
   'character', 'diagnostics', 'punchlist', 'translations', 'stats', 'screen-preview',
-  'route-canvas', 'choice-canvas',
+  'route-canvas', 'choice-canvas', 'notecard-canvas', 'scene-composer', 'imagemap-composer',
 ]);
 
 /** A block stripped of its (potentially large) script text, for views that only ever
@@ -215,6 +224,33 @@ export interface ChoiceCanvasPopoutSnapshot extends BaseSnapshot {
   mouseGestures?: MouseGestureSettings;
 }
 
+/** Self-contained data, no `blocks`/`analysisResult` dependency at all -- both drag
+ *  (fixed-anchor + total delta, App.tsx never reads back its own transform mid-drag)
+ *  and resize use the same safe pattern as Route/Choice's sticky notes. */
+export interface NotecardCanvasPopoutSnapshot extends BaseSnapshot {
+  kind: 'notecard-canvas';
+  notecards: Notecard[];
+  notecardLinks: NotecardLink[];
+  timelineSettings: NotecardTimelineSettings;
+}
+
+export interface SceneComposerPopoutSnapshot extends BaseSnapshot {
+  kind: 'scene-composer';
+  sceneId: string;
+  scene: SceneComposition;
+  sceneName: string;
+  images: ProjectImage[];
+  imageMetadata: Map<string, ImageMetadata>;
+}
+
+export interface ImageMapComposerPopoutSnapshot extends BaseSnapshot {
+  kind: 'imagemap-composer';
+  imagemapId: string;
+  imagemap: ImageMapComposition;
+  images: ProjectImage[];
+  labels: string[];
+}
+
 export type PopoutSnapshot =
   | EditorPopoutSnapshot
   | UntitledPopoutSnapshot
@@ -227,7 +263,10 @@ export type PopoutSnapshot =
   | StatsPopoutSnapshot
   | ScreenPreviewPopoutSnapshot
   | RouteCanvasPopoutSnapshot
-  | ChoiceCanvasPopoutSnapshot;
+  | ChoiceCanvasPopoutSnapshot
+  | NotecardCanvasPopoutSnapshot
+  | SceneComposerPopoutSnapshot
+  | ImageMapComposerPopoutSnapshot;
 
 export interface PopoutHandlers {
   updateBlock: (id: string, data: Partial<Block>) => void;
@@ -263,6 +302,23 @@ export interface PopoutHandlers {
   addChoiceStickyNote: (position: Position) => void;
   updateChoiceStickyNote: (id: string, data: Partial<StickyNote>) => void;
   deleteChoiceStickyNote: (id: string) => void;
+  addNotecard: (position?: Position) => void;
+  updateNotecard: (id: string, data: Partial<Notecard>) => void;
+  deleteNotecard: (id: string) => void;
+  deleteNotecards: (ids: string[]) => void;
+  restoreNotecards: (cards: Notecard[], links: NotecardLink[]) => void;
+  addNotecardLink: (fromId: string, toId: string) => void;
+  updateNotecardLink: (id: string, data: Partial<NotecardLink>) => void;
+  deleteNotecardLink: (id: string) => void;
+  renameNotecardTimelineSlot: (slot: number, label: string) => void;
+  moveNotecardWithinTimeline: (id: string, toSlot: number, toIndex: number) => void;
+  unassignNotecardFromTimeline: (id: string, position?: Position) => void;
+  insertTimelineSlot: (beforeSlot: number) => void;
+  deleteTimelineSlot: (slot: number) => void;
+  handleSceneUpdate: (sceneId: string, scene: SceneComposition) => void;
+  handleRenameScene: (sceneId: string, newName: string) => void;
+  handleImageMapUpdate: (imagemapId: string, imagemap: ImageMapComposition) => void;
+  handleRenameImageMap: (imagemapId: string, newName: string) => void;
 }
 
 export interface PopoutSnapshotDeps {
@@ -292,6 +348,13 @@ export interface PopoutSnapshotDeps {
   editorCursorPosition: { line: number; column: number } | null;
   routeStickyNotes: StickyNote[];
   choiceStickyNotes: StickyNote[];
+  notecards: Notecard[];
+  notecardLinks: NotecardLink[];
+  notecardTimeline: NotecardTimelineSettings;
+  sceneCompositions: Record<string, SceneComposition>;
+  sceneNames: Record<string, string>;
+  imagemapCompositions: Record<string, ImageMapComposition>;
+  analysisLabelKeys: string[];
 }
 
 function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSnapshot | null {
@@ -302,6 +365,8 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     diagnosticsResult, routeAnalysisResult, performanceMetrics, isGeneratingTranslations,
     isRenpyPathValid, editorCursorBlockId, editorCursorPosition,
     routeStickyNotes, choiceStickyNotes,
+    notecards, notecardLinks, notecardTimeline, sceneCompositions, sceneNames,
+    imagemapCompositions, analysisLabelKeys,
   } = deps;
   const editorTheme: 'light' | 'dark' = appSettings.theme.includes('dark') ? 'dark' : 'light';
 
@@ -450,6 +515,34 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     };
   }
 
+  if (tab.type === 'notecard-canvas') {
+    return {
+      kind: 'notecard-canvas', tabId: tab.id, theme: appSettings.theme,
+      notecards, notecardLinks, timelineSettings: notecardTimeline,
+    };
+  }
+
+  if (tab.type === 'scene-composer' && tab.sceneId) {
+    const scene = sceneCompositions[tab.sceneId] || { background: null, sprites: [] };
+    return {
+      kind: 'scene-composer', tabId: tab.id, theme: appSettings.theme,
+      sceneId: tab.sceneId, scene,
+      sceneName: sceneNames[tab.sceneId] || 'Scene',
+      images: Array.from(images.values()),
+      imageMetadata,
+    };
+  }
+
+  if (tab.type === 'imagemap-composer' && tab.imagemapId) {
+    const imagemap = imagemapCompositions[tab.imagemapId] || { screenName: 'imagemap', groundImage: null, hoverImage: null, hotspots: [] };
+    return {
+      kind: 'imagemap-composer', tabId: tab.id, theme: appSettings.theme,
+      imagemapId: tab.imagemapId, imagemap,
+      images: Array.from(images.values()),
+      labels: analysisLabelKeys,
+    };
+  }
+
   return null;
 }
 
@@ -526,7 +619,9 @@ export function useMainWindowPopoutSync({
     deps.characterTagsArray, deps.allStickyNotes, deps.diagnosticsTasks, deps.ignoredDiagnostics,
     deps.diagnosticsResult, deps.routeAnalysisResult, deps.performanceMetrics,
     deps.isGeneratingTranslations, deps.isRenpyPathValid, deps.editorCursorBlockId,
-    deps.editorCursorPosition, deps.routeStickyNotes, deps.choiceStickyNotes, pushSnapshotForTab,
+    deps.editorCursorPosition, deps.routeStickyNotes, deps.choiceStickyNotes,
+    deps.notecards, deps.notecardLinks, deps.notecardTimeline, deps.sceneCompositions,
+    deps.sceneNames, deps.imagemapCompositions, deps.analysisLabelKeys, pushSnapshotForTab,
   ]);
 }
 

@@ -22,11 +22,14 @@ import StatsView from '@/components/StatsView';
 import ScreenPreviewTab from '@/components/ScreenPreviewTab';
 import RouteCanvas from '@/components/RouteCanvas';
 import ChoiceCanvas from '@/components/ChoiceCanvas';
+import NotecardCanvas from '@/components/NotecardCanvas';
+import SceneComposer from '@/components/SceneComposer';
+import ImageMapComposer from '@/components/ImageMapComposer';
 import { applyTheme } from '@/App';
 import { usePopoutTabClient, fromLightBlocks } from '@/hooks/usePopoutSync';
 import { EMPTY_ANALYSIS_RESULT } from '@/hooks/useRenpyAnalysis';
 import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
-import type { Block, RenpyAnalysisResult } from '@/types';
+import type { Block, ImageMapComposition, RenpyAnalysisResult, SceneComposition } from '@/types';
 
 interface PopoutTabRootProps {
   tabId: string;
@@ -86,6 +89,16 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   // Pan/zoom is intentionally local to this window, not relayed -- see the comment on
   // RouteCanvasPopoutSnapshot in usePopoutSync.ts for why that's safe.
   const [canvasTransform, setCanvasTransform] = useState<CanvasTransform>({ x: 0, y: 0, scale: 1 });
+  // SceneComposer's sprite-drag computes its next position as `s.x + dx` -- a delta
+  // relative to the *previous prop value* -- rather than a fixed anchor plus total
+  // delta (which is what every other continuous-drag component here uses, and is safe
+  // to resolve against a possibly-stale relayed snapshot). Resolving that pattern
+  // against the snapshot would silently drop/reset intermediate drag frames under IPC
+  // lag, so this window owns a local, optimistic copy instead: seeded once from the
+  // first snapshot, then updated synchronously on every onSceneChange call (each RPC
+  // send just persists whatever the local resolution already produced).
+  const [localScene, setLocalScene] = useState<SceneComposition | null>(null);
+  const sceneSeededRef = useRef(false);
 
   useEffect(() => {
     if (!theme) return;
@@ -94,6 +107,13 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (snapshot?.kind === 'scene-composer' && !sceneSeededRef.current) {
+      setLocalScene(snapshot.scene);
+      sceneSeededRef.current = true;
+    }
+  }, [snapshot]);
 
   const editorAnalysisResult: RenpyAnalysisResult | null = useMemo(() => {
     if (!snapshot || (snapshot.kind !== 'editor' && snapshot.kind !== 'untitled')) return null;
@@ -418,6 +438,78 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           onWarpToLabel={(labelName) => { void callHandler('handleWarpToLabel', labelName); }}
         />
       </PopoutCanvasChrome>
+    );
+  }
+
+  if (snapshot.kind === 'notecard-canvas') {
+    return (
+      <PopoutCanvasChrome>
+        <NotecardCanvas
+          notecards={snapshot.notecards}
+          notecardLinks={snapshot.notecardLinks}
+          updateNotecard={(id, data) => { void callHandler('updateNotecard', id, data); }}
+          deleteNotecard={(id) => { void callHandler('deleteNotecard', id); }}
+          deleteNotecards={(ids) => { void callHandler('deleteNotecards', ids); }}
+          restoreNotecards={(cards, links) => { void callHandler('restoreNotecards', cards, links); }}
+          addNotecard={(position) => { void callHandler('addNotecard', position); }}
+          addNotecardLink={(fromId, toId) => { void callHandler('addNotecardLink', fromId, toId); }}
+          updateNotecardLink={(id, data) => { void callHandler('updateNotecardLink', id, data); }}
+          deleteNotecardLink={(id) => { void callHandler('deleteNotecardLink', id); }}
+          timelineSettings={snapshot.timelineSettings}
+          renameTimelineSlot={(slot, label) => { void callHandler('renameNotecardTimelineSlot', slot, label); }}
+          moveNotecardWithinTimeline={(id, toSlot, toIndex) => { void callHandler('moveNotecardWithinTimeline', id, toSlot, toIndex); }}
+          unassignNotecardFromTimeline={(id, position) => { void callHandler('unassignNotecardFromTimeline', id, position); }}
+          insertTimelineSlot={(beforeSlot) => { void callHandler('insertTimelineSlot', beforeSlot); }}
+          deleteTimelineSlot={(slot) => { void callHandler('deleteTimelineSlot', slot); }}
+          transform={canvasTransform}
+          onTransformChange={setCanvasTransform}
+        />
+      </PopoutCanvasChrome>
+    );
+  }
+
+  if (snapshot.kind === 'scene-composer') {
+    const scene = localScene ?? snapshot.scene;
+    return (
+      <PopoutChrome title={snapshot.sceneName}>
+        <SceneComposer
+          images={snapshot.images}
+          metadata={snapshot.imageMetadata}
+          scene={scene}
+          onSceneChange={(value) => {
+            setLocalScene(prev => {
+              const base = prev ?? scene;
+              const next = typeof value === 'function' ? (value as (p: SceneComposition) => SceneComposition)(base) : value;
+              void callHandler('handleSceneUpdate', snapshot.sceneId, next);
+              return next;
+            });
+          }}
+          sceneName={snapshot.sceneName}
+          onRenameScene={(newName) => { void callHandler('handleRenameScene', snapshot.sceneId, newName); }}
+          addToast={(message, type) => { void callHandler('addToast', message, type); }}
+          activeEditor={null}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'imagemap-composer') {
+    return (
+      <PopoutChrome title={snapshot.imagemap.screenName}>
+        <ImageMapComposer
+          images={snapshot.images}
+          imagemap={snapshot.imagemap}
+          onImageMapChange={(value) => {
+            const base = snapshot.imagemap;
+            const next = typeof value === 'function' ? (value as (p: ImageMapComposition) => ImageMapComposition)(base) : value;
+            void callHandler('handleImageMapUpdate', snapshot.imagemapId, next);
+          }}
+          imagemapName={snapshot.imagemap.screenName}
+          onRenameImageMap={(newName) => { void callHandler('handleRenameImageMap', snapshot.imagemapId, newName); }}
+          labels={snapshot.labels}
+          activeEditor={null}
+        />
+      </PopoutChrome>
     );
   }
 
