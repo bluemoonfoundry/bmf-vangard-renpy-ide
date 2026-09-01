@@ -1528,6 +1528,17 @@ declare global {
           getLogPath?: () => Promise<string | null>;
           openLogDirectory?: () => Promise<{ success: boolean; error?: string }>;
           addToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+          // --- Detachable tab windows ---
+          popoutTab?: (tabId: string) => Promise<void>;
+          focusMainWindow?: () => void;
+          onTabRedocked?: (callback: (data: { tabId: string }) => void) => () => void;
+          callPopoutHandler?: (tabId: string, handlerName: string, args: unknown[]) => Promise<unknown>;
+          onPopoutInvokeHandler?: (callback: (payload: { requestId: number; tabId: string; handlerName: string; args: unknown[] }) => void) => () => void;
+          replyPopoutHandlerResult?: (requestId: number, result?: unknown, error?: string) => void;
+          sendPopoutStateUpdate?: (tabId: string, snapshot: unknown) => void;
+          onPopoutPropsUpdate?: (callback: (snapshot: unknown) => void) => () => void;
+          requestPopoutSnapshot?: (tabId: string) => void;
+          onPopoutSnapshotRequested?: (callback: (data: { tabId: string }) => void) => () => void;
       }
   }
 }

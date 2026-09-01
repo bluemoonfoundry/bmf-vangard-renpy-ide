@@ -27,6 +27,8 @@ function makeProps(overrides: Partial<Parameters<typeof useTabLifecycle>[0]> = {
     setDragSourcePaneId: vi.fn(),
     closedTabsStack: [] as ClosedTabEntry[],
     setClosedTabsStack: vi.fn(),
+    poppedOutTabs: new Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>(),
+    setPoppedOutTabs: vi.fn(),
     dirtyBlockIds: new Set<string>(),
     dirtyEditors: new Set<string>(),
     setDirtyBlockIds: vi.fn(),

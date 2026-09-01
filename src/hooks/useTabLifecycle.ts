@@ -28,6 +28,9 @@ export interface UseTabLifecycleProps {
   // Recently-closed tabs
   closedTabsStack: ClosedTabEntry[];
   setClosedTabsStack: Dispatch<SetStateAction<ClosedTabEntry[]>>;
+  // Popped-out (detached-window) tabs
+  poppedOutTabs: Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>;
+  setPoppedOutTabs: Dispatch<SetStateAction<Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>>>;
   // Dirty tracking
   dirtyBlockIds: Set<string>;
   dirtyEditors: Set<string>;
@@ -69,6 +72,8 @@ export interface UseTabLifecycleReturn {
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
   handleTabDrop: (e: React.DragEvent<HTMLDivElement>, targetTabId: string | null, targetPaneId: 'primary' | 'secondary') => void;
   handleReopenClosedTab: () => void;
+  handlePopOutTab: (tabId: string, paneId: 'primary' | 'secondary') => void;
+  handleRedockTab: (tabId: string) => void;
 }
 
 /** Tabs whose content isn't recoverable once closed (an untitled draft's text is gone) are excluded from the stack. */
@@ -85,6 +90,7 @@ export function useTabLifecycle({
   setSplitLayout, setSplitPrimarySize,
   setDraggedTabId, setDragSourcePaneId,
   closedTabsStack, setClosedTabsStack,
+  poppedOutTabs, setPoppedOutTabs,
   dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
   untitledFiles, saveUntitledFile, discardUntitledFile,
   openUnsavedChangesModal, closeUnsavedChangesModal,
@@ -453,6 +459,81 @@ export function useTabLifecycle({
     }
   }, [closedTabsStack, openTabs, secondaryOpenTabs, splitLayout, setClosedTabsStack, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId]);
 
+  // Detaches a tab into its own OS window. The main window keeps owning all
+  // state -- this only removes the tab from its pane's list (recoverable via
+  // handleRedockTab) and asks the main process to open the popout BrowserWindow.
+  const handlePopOutTab = useCallback((tabId: string, paneId: 'primary' | 'secondary') => {
+    const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
+    const index = tabs.findIndex(t => t.id === tabId);
+    const tab = tabs[index];
+    if (!tab || tab.id === 'canvas') return;
+
+    setPoppedOutTabs(prev => {
+      const next = new Map(prev);
+      next.set(tabId, { tab, paneId, index });
+      return next;
+    });
+
+    if (paneId === 'primary') {
+      setOpenTabs(prev => {
+        const next = prev.filter(t => t.id !== tabId);
+        if (activeTabId === tabId) {
+          const closedIdx = prev.findIndex(t => t.id === tabId);
+          const fallback = next[closedIdx] ?? next[closedIdx - 1] ?? next[0];
+          setActiveTabId(fallback?.id ?? '');
+        }
+        return next;
+      });
+    } else {
+      setSecondaryOpenTabs(prev => {
+        const next = prev.filter(t => t.id !== tabId);
+        if (next.length === 0) {
+          setSplitLayout('none');
+          setActivePaneId('primary');
+          setSecondaryActiveTabId('');
+        } else if (secondaryActiveTabId === tabId) {
+          setSecondaryActiveTabId(next[0].id);
+        }
+        return next;
+      });
+    }
+
+    void window.electronAPI?.popoutTab?.(tabId);
+  }, [openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, setPoppedOutTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
+
+  // Reinserts a tab at its original pane/index once its detached window closes.
+  const handleRedockTab = useCallback((tabId: string) => {
+    const entry = poppedOutTabs.get(tabId);
+    if (!entry) return;
+    const { tab, paneId, index } = entry;
+
+    setPoppedOutTabs(prev => {
+      const next = new Map(prev);
+      next.delete(tabId);
+      return next;
+    });
+
+    if (paneId === 'secondary' && splitLayout !== 'none') {
+      setSecondaryOpenTabs(prev => {
+        if (prev.some(t => t.id === tabId)) return prev;
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, tab);
+        return next;
+      });
+      setSecondaryActiveTabId(tab.id);
+      setActivePaneId('secondary');
+    } else {
+      setOpenTabs(prev => {
+        if (prev.some(t => t.id === tabId)) return prev;
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, tab);
+        return next;
+      });
+      setActiveTabId(tab.id);
+      setActivePaneId('primary');
+    }
+  }, [poppedOutTabs, splitLayout, setPoppedOutTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
+
   return {
     handleCloseTab,
     processTabCloseRequest,
@@ -470,5 +551,7 @@ export function useTabLifecycle({
     handleTabDragOver,
     handleTabDrop,
     handleReopenClosedTab,
+    handlePopOutTab,
+    handleRedockTab,
   };
 }

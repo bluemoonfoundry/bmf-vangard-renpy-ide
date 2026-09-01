@@ -74,6 +74,7 @@ import { useCharacterManagement } from '@/hooks/useCharacterManagement';
 import { useUntitledFiles } from '@/hooks/useUntitledFiles';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
+import { useMainWindowPopoutSync } from '@/hooks/usePopoutSync';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
@@ -108,7 +109,7 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 
 
-function applyTheme(root: HTMLElement, theme: Theme): void {
+export function applyTheme(root: HTMLElement, theme: Theme): void {
   root.classList.remove(
     'dark',
     'theme-solarized-light',
@@ -208,6 +209,8 @@ const App: React.FC = () => {
     setDragSourcePaneId,
     closedTabsStack,
     setClosedTabsStack,
+    poppedOutTabs,
+    setPoppedOutTabs,
     openTab: _openTab,
     closeTab: _closeTab,
     switchTab: _switchTab,
@@ -1037,10 +1040,13 @@ const App: React.FC = () => {
 
   const handleSaveBlock = useCallback(async (blockId: string) => {
     const editor = editorInstances.current.get(blockId);
-    if (!editor) return;
-
-    const contentToSave = editor.getValue();
     const block = blocksRef.current.find(b => b.id === blockId);
+    // No local Monaco instance means this tab isn't open in *this* window --
+    // e.g. it's been popped out into its own window, which keeps blocksRef
+    // current via the same updateBlock/setBlockContent calls a local edit
+    // would make. Fall back to that instead of silently no-op'ing.
+    if (!editor && !block) return;
+    const contentToSave = editor ? editor.getValue() : (block?.content ?? '');
 
     const doSave = async () => {
       try {
@@ -1171,17 +1177,42 @@ const App: React.FC = () => {
     handleTabDragOver,
     handleTabDrop,
     handleReopenClosedTab,
+    handlePopOutTab,
+    handleRedockTab,
   } = useTabLifecycle({
     openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, splitLayout,
     draggedTabId, dragSourcePaneId,
     setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
     setSplitLayout, setSplitPrimarySize, setDraggedTabId, setDragSourcePaneId,
     closedTabsStack, setClosedTabsStack,
+    poppedOutTabs, setPoppedOutTabs,
     dirtyBlockIds, dirtyEditors, setDirtyBlockIds, setDirtyEditors,
     untitledFiles, saveUntitledFile, discardUntitledFile,
     openUnsavedChangesModal, closeUnsavedChangesModal,
     handleSaveAll, setHasUnsavedSettings,
   });
+
+  // Only the 'editor' tab type is poppable in this first phase -- see
+  // src/hooks/usePopoutSync.ts for the relay this feeds.
+  const poppedOutEditorTabs = useMemo(() => {
+    const map = new Map<string, EditorTab>();
+    for (const { tab } of poppedOutTabs.values()) {
+      if (tab.type === 'editor') map.set(tab.id, tab);
+    }
+    return map;
+  }, [poppedOutTabs]);
+
+  const setBlockContentFromPopout = useCallback((id: string, content: string) => {
+    setBlocks(prev => prev.map(b => (b.id === id ? { ...b, content } : b)));
+  }, [setBlocks]);
+
+  const setEditorDirtyFromPopout = useCallback((id: string, dirty: boolean) => {
+    setDirtyEditors(prev => {
+      const next = new Set(prev);
+      if (dirty) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, [setDirtyEditors]);
 
   // Safety net: an 'editor' tab whose blockId no longer resolves in blocks[] (e.g. the
   // block was deleted/replaced through a path that didn't reconcile tabs) used to render
@@ -1820,6 +1851,32 @@ const App: React.FC = () => {
     handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
   }, [addToast, analysisResult.characters, handleOpenCharacterEditor]);
 
+  const popoutHandlers = useMemo(() => ({
+    updateBlock,
+    handleSaveBlock,
+    setBlockContent: setBlockContentFromPopout,
+    setEditorDirty: setEditorDirtyFromPopout,
+    handleWarpToLabel,
+    handleCreateFileFromSelection,
+    handleCreateVariableFromSelection,
+    handleCreateCharacterFromSelection,
+    handleSaveMenuTemplate,
+    addToast,
+    handleOpenEditor,
+  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor]);
+
+  useMainWindowPopoutSync({
+    poppedOutTabs: poppedOutEditorTabs,
+    blocks,
+    analysisResult,
+    appSettings,
+    projectSettings,
+    existingImageTags,
+    existingAudioPaths,
+    onRedock: handleRedockTab,
+    handlers: popoutHandlers,
+  });
+
   // --- Tab helpers (used by both panes) ---
   const { renderTabContent, renderTabBar } = useTabContentRenderer({
     editorInstances, blocksRef, pendingTagRenameRef,
@@ -1908,6 +1965,7 @@ const App: React.FC = () => {
     splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
     draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
     closedTabsStack, setClosedTabsStack,
+    poppedOutTabs, setPoppedOutTabs,
     openTab: _openTab, closeTab: _closeTab, switchTab: _switchTab, updateTab: _updateTab,
     closeTabs: _closeTabs, setTabs,
     createSplit: _createSplit, closeSplit: _closeSplit, setSplitSize: _setSplitSize,
@@ -1921,6 +1979,7 @@ const App: React.FC = () => {
     handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
     handleCloseSecondaryPane, handleClosePrimaryPane,
     handleTabDragStart, handleTabDragOver, handleTabDrop, handleReopenClosedTab,
+    handlePopOutTab, handleRedockTab,
     handleTabContextMenu,
     handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
     handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
@@ -1931,6 +1990,7 @@ const App: React.FC = () => {
     splitLayout, splitPrimarySize, setSplitLayout, setSplitPrimarySize,
     draggedTabId, dragSourcePaneId, setDraggedTabId, setDragSourcePaneId,
     closedTabsStack, setClosedTabsStack,
+    poppedOutTabs, setPoppedOutTabs,
     _openTab, _closeTab, _switchTab, _updateTab, _closeTabs, setTabs,
     _createSplit, _closeSplit, _setSplitSize, _moveTabToPane,
     _startTabDrag, _endTabDrag, _findTab, _getActiveTab,
@@ -1940,7 +2000,8 @@ const App: React.FC = () => {
     handleCloseLeftRequest, handleCloseRightRequest,
     handleSwitchTab, handleCreateSplit, handleOpenInSplit, handleMoveToOtherPane,
     handleCloseSecondaryPane, handleClosePrimaryPane,
-    handleTabDragStart, handleTabDragOver, handleTabDrop, handleReopenClosedTab, handleTabContextMenu,
+    handleTabDragStart, handleTabDragOver, handleTabDrop, handleReopenClosedTab,
+    handlePopOutTab, handleRedockTab, handleTabContextMenu,
     handleOpenEditor, handleOpenStaticTab, handleOpenRouteCanvasTab, handleOpenChoiceCanvasTab,
     handleOpenImageEditorTab, handleOpenMarkdownTab, handleOpenAudioEditorInTab, handlePathDoubleClick,
   ]);
@@ -2402,6 +2463,10 @@ const App: React.FC = () => {
                       ? blocks.find(b => b.id === tab.blockId)?.filePath
                       : tab.filePath;
               })()}
+              tabType={(() => {
+                  const tabs = contextMenuInfo.paneId === 'secondary' ? secondaryOpenTabs : openTabs;
+                  return tabs.find(t => t.id === contextMenuInfo.tabId)?.type;
+              })()}
               onClose={() => closeContextMenu()}
               onCloseTab={(id) => handleCloseTab(id, contextMenuInfo.paneId)}
               onCloseOthers={(id) => handleCloseOthersRequest(id, contextMenuInfo.paneId)}
@@ -2411,6 +2476,7 @@ const App: React.FC = () => {
               onSplitRight={(id) => handleOpenInSplit(id, 'right')}
               onSplitBottom={(id) => handleOpenInSplit(id, 'bottom')}
               onMoveToOtherPane={(id) => handleMoveToOtherPane(id, contextMenuInfo.paneId)}
+              onPopOut={(id) => handlePopOutTab(id, contextMenuInfo.paneId)}
               onRevealInFileManager={handleRevealInFileManager}
               onCopyPath={handleCopyPath}
           />,

@@ -92,6 +92,32 @@ let gameProcess = null;
 // --- Main Window Reference (for auto-updater callbacks) ---
 let mainWindowRef = null;
 
+// --- Popped-out tab windows ---
+// Each detached tab gets its own BrowserWindow, keyed by tabId. The main window
+// remains the sole owner of app state (blocks, analysisResult, etc.) -- these
+// windows are thin remote views relayed over the popout:* IPC channels below.
+const popoutWindows = new Map(); // tabId -> BrowserWindow
+let popoutCallRequestId = 0;
+const pendingPopoutCalls = new Map(); // requestId -> { resolve, reject }
+
+/** Sends `channel` to the main window and every popped-out tab window. */
+function broadcastToAllWindows(channel, payload) {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send(channel, payload);
+    }
+    for (const win of popoutWindows.values()) {
+        if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+    }
+}
+
+/** Closes every popped-out tab window -- called when the main window (the sole state owner) is closing. */
+function closeAllPopoutWindows() {
+    for (const win of popoutWindows.values()) {
+        if (win && !win.isDestroyed()) win.destroy();
+    }
+    popoutWindows.clear();
+}
+
 // --- Project Root Tracking (for screenshots and other features) ---
 let currentProjectRoot = null;
 
@@ -200,16 +226,12 @@ function startProjectWatcher(rootPath) {
                 if (lastWrite && Date.now() - lastWrite < SELF_WRITE_SUPPRESS_MS) return;
 
                 const relativePath = path.relative(rootPath, absolutePath).replace(/\\/g, '/');
-                if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-                    mainWindowRef.webContents.send('fs:file-changed-externally', { relativePath, absolutePath: normalizedAbs });
-                }
+                broadcastToAllWindows('fs:file-changed-externally', { relativePath, absolutePath: normalizedAbs });
             }, WATCH_DEBOUNCE_MS));
         });
     } catch (err) {
         logger.error(`Failed to start file watcher for project root ${rootPath}:`, err);
-        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('fs:watcher-error', { message: err.message });
-        }
+        broadcastToAllWindows('fs:watcher-error', { message: err.message });
     }
 }
 
@@ -818,9 +840,14 @@ async function createWindow() {
   mainWindow.on('close', (e) => {
     if (forceQuit) {
       saveWindowState(mainWindow);
+      closeAllPopoutWindows();
       return;
     }
     e.preventDefault();
+    // The main window is the sole owner of app state -- a popped-out tab window
+    // has nothing of its own to lose, so close them immediately rather than
+    // prompting once per window.
+    closeAllPopoutWindows();
     mainWindow.webContents.send('check-unsaved-changes-before-exit');
   });
 
@@ -890,6 +917,42 @@ async function createWindow() {
 
   applyContentSecurityPolicy(mainWindow.webContents.session);
   mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+}
+
+/**
+ * Creates the detached window for one popped-out tab. It loads the exact same
+ * renderer bundle as the main window (dist/index.html) but with a `?mode=popout`
+ * query param that tells src/index.tsx to mount a minimal standalone root
+ * instead of the full App shell. It shares the main window's default session,
+ * so the CSP already applied in createWindow() covers it too -- no need to
+ * call applyContentSecurityPolicy again here.
+ */
+function createPopoutWindow(tabId) {
+  const win = new BrowserWindow({
+    width: 900,
+    height: 700,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+    icon: path.join(__dirname, 'vangard.png'),
+  });
+
+  popoutWindows.set(tabId, win);
+
+  win.on('closed', () => {
+    popoutWindows.delete(tabId);
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('window:tab-redocked', { tabId });
+    }
+  });
+
+  win.loadFile(path.join(__dirname, 'dist/index.html'), {
+    search: `mode=popout&tabId=${encodeURIComponent(tabId)}`,
+  });
+
+  return win;
 }
 
 /**
@@ -1479,6 +1542,64 @@ app.whenReady().then(async () => {
     app.quit();
   });
 
+  // --- Detachable tab windows ---
+  // See createPopoutWindow() above and src/hooks/usePopoutSync.ts for the
+  // renderer side of this relay. The main window remains the sole owner of
+  // app state; these channels just ferry snapshots and RPC calls to/from it.
+
+  ipcMain.handle('window:popout-tab', (event, { tabId }) => {
+    if (popoutWindows.has(tabId)) {
+      const existing = popoutWindows.get(tabId);
+      if (existing && !existing.isDestroyed()) { existing.focus(); return; }
+    }
+    createPopoutWindow(tabId);
+  });
+
+  ipcMain.on('window:focus-main', () => {
+    if (!mainWindowRef || mainWindowRef.isDestroyed()) return;
+    if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+    mainWindowRef.focus();
+  });
+
+  // A popout renderer asks the main window's renderer to run one of its real
+  // handlers (updateBlock, handleSaveBlock, ...) so app state only ever has one
+  // writer regardless of which window an edit came from. This process just
+  // relays the call and waits for the matching reply.
+  ipcMain.handle('popout:call-handler', (event, { tabId, handlerName, args }) => {
+    if (!mainWindowRef || mainWindowRef.isDestroyed()) {
+      return Promise.reject(new Error('Main window is not available'));
+    }
+    return new Promise((resolve, reject) => {
+      const requestId = ++popoutCallRequestId;
+      pendingPopoutCalls.set(requestId, { resolve, reject });
+      mainWindowRef.webContents.send('popout:invoke-handler', { requestId, tabId, handlerName, args });
+    });
+  });
+
+  ipcMain.on('popout:handler-result', (event, { requestId, result, error }) => {
+    const pending = pendingPopoutCalls.get(requestId);
+    if (!pending) return;
+    pendingPopoutCalls.delete(requestId);
+    if (error) pending.reject(new Error(error));
+    else pending.resolve(result);
+  });
+
+  // The main window's renderer pushes a fresh props snapshot for one popped-out
+  // tab whenever the state it depends on changes.
+  ipcMain.on('popout:state-update', (event, { tabId, snapshot }) => {
+    const win = popoutWindows.get(tabId);
+    if (win && !win.isDestroyed()) win.webContents.send('popout:props-update', snapshot);
+  });
+
+  // A just-mounted popout asks for its initial snapshot rather than relying solely
+  // on the push above, which can fire before the popout's listener (or even its
+  // window) exists -- window:popout-tab is fire-and-forget from the caller's side.
+  ipcMain.on('popout:request-snapshot', (event, { tabId }) => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('popout:snapshot-requested', { tabId });
+    }
+  });
+
   function setGameRunningMenuState(running) {
     const menu = Menu.getApplicationMenu();
     if (!menu) return;
@@ -1600,8 +1721,8 @@ app.whenReady().then(async () => {
     if (Array.isArray(settings?.recentProjects)) {
         await Promise.all(settings.recentProjects.map(vetProjectRoot));
     }
-    if (warning && mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('app:settings-warning', warning);
+    if (warning) {
+        broadcastToAllWindows('app:settings-warning', warning);
     }
     return settings;
   });

@@ -173,4 +173,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('screenshot-captured', handler);
     return () => ipcRenderer.removeListener('screenshot-captured', handler);
   },
+  // --- Detachable tab windows ---
+  popoutTab: (tabId) => ipcRenderer.invoke('window:popout-tab', { tabId }),
+  focusMainWindow: () => ipcRenderer.send('window:focus-main'),
+  onTabRedocked: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('window:tab-redocked', handler);
+    return () => ipcRenderer.removeListener('window:tab-redocked', handler);
+  },
+  callPopoutHandler: (tabId, handlerName, args) => ipcRenderer.invoke('popout:call-handler', { tabId, handlerName, args }),
+  onPopoutInvokeHandler: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('popout:invoke-handler', handler);
+    return () => ipcRenderer.removeListener('popout:invoke-handler', handler);
+  },
+  replyPopoutHandlerResult: (requestId, result, error) => {
+    ipcRenderer.send('popout:handler-result', { requestId, result, error });
+  },
+  sendPopoutStateUpdate: (tabId, snapshot) => ipcRenderer.send('popout:state-update', { tabId, snapshot }),
+  onPopoutPropsUpdate: (callback) => {
+    const handler = (_event, snapshot) => callback(snapshot);
+    ipcRenderer.on('popout:props-update', handler);
+    return () => ipcRenderer.removeListener('popout:props-update', handler);
+  },
+  requestPopoutSnapshot: (tabId) => ipcRenderer.send('popout:request-snapshot', { tabId }),
+  onPopoutSnapshotRequested: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('popout:snapshot-requested', handler);
+    return () => ipcRenderer.removeListener('popout:snapshot-requested', handler);
+  },
 });
