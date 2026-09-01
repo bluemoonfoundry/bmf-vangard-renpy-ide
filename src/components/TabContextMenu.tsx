@@ -8,6 +8,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useDualPane } from '@/contexts/DualPaneContext';
+import { POPOUT_SUPPORTED_TAB_TYPES } from '@/hooks/usePopoutSync';
 
 interface TabContextMenuProps {
   x: number;
@@ -126,7 +127,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
             {moveLabel}
           </button>
         )}
-        {tabType === 'editor' && onPopOut && (
+        {tabType && POPOUT_SUPPORTED_TAB_TYPES.has(tabType) && onPopOut && (
           <>
             <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
             <button

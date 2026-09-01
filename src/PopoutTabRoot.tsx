@@ -1,23 +1,53 @@
 /**
  * @file PopoutTabRoot.tsx
- * @description Root component for a detached ("popped-out") editor tab window.
+ * @description Root component for a detached ("popped-out") tab window.
  *
  * Mounted instead of <App/> when src/index.tsx sees `?mode=popout` in the URL (see
  * createPopoutWindow() in electron.js). This is intentionally a much smaller React
  * tree than App.tsx: the main window remains the sole owner of app state, and this
  * component is a thin remote view of one tab, fed by usePopoutTabClient's relay
- * (src/hooks/usePopoutSync.ts). Only the 'editor' tab type is supported for now.
+ * (src/hooks/usePopoutSync.ts). See POPOUT_SUPPORTED_TAB_TYPES for which tab types
+ * this currently handles.
  */
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import EditorView from '@/components/EditorView';
+import ImageEditorView from '@/components/ImageEditorView';
+import AudioEditorView from '@/components/AudioEditorView';
+import MarkdownPreviewView from '@/components/MarkdownPreviewView';
 import { applyTheme } from '@/App';
 import { usePopoutTabClient } from '@/hooks/usePopoutSync';
 import { EMPTY_ANALYSIS_RESULT } from '@/hooks/useRenpyAnalysis';
-import type { RenpyAnalysisResult } from '@/types';
+import type { Block, RenpyAnalysisResult } from '@/types';
 
 interface PopoutTabRootProps {
   tabId: string;
+}
+
+function PopoutChrome({ title, onBeforeRedock, children }: { title: string; onBeforeRedock?: () => Promise<unknown>; children: React.ReactNode }) {
+  const handleRedock = async () => {
+    // Flush any pending edit before closing -- onContentChange's 800ms debounce (see
+    // EditorView's onDidChangeModelContent) may not have fired yet, and a closed window
+    // can't fire it later. Without this, typing and immediately hitting Redock silently
+    // drops the last few hundred ms of edits.
+    await onBeforeRedock?.();
+    window.close();
+  };
+  return (
+    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{title}</span>
+        <button
+          onClick={handleRedock}
+          className="text-xs px-2 py-1 rounded text-gray-600 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600"
+          title="Move this tab back into the main window"
+        >
+          Redock
+        </button>
+      </div>
+      <div className="flex-1 min-h-0">{children}</div>
+    </div>
+  );
 }
 
 const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
@@ -33,22 +63,19 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
       : theme);
   }, [theme]);
 
-  const analysisResult: RenpyAnalysisResult | null = useMemo(() => {
-    if (!snapshot) return null;
+  const editorAnalysisResult: RenpyAnalysisResult | null = useMemo(() => {
+    if (!snapshot || (snapshot.kind !== 'editor' && snapshot.kind !== 'untitled')) return null;
+    const blockId = snapshot.kind === 'editor' ? snapshot.blockId : snapshot.tabId;
     return {
       ...EMPTY_ANALYSIS_RESULT,
-      jumps: { [snapshot.blockId]: snapshot.jumps },
-      invalidJumps: { [snapshot.blockId]: snapshot.invalidJumps },
+      jumps: { [blockId]: snapshot.kind === 'editor' ? snapshot.jumps : [] },
+      invalidJumps: { [blockId]: snapshot.kind === 'editor' ? snapshot.invalidJumps : [] },
       labels: Object.fromEntries(snapshot.labelNames.map(name => [name, { blockId: '', label: name, line: 0, column: 0, type: 'label' as const }])),
       variables: new Map(snapshot.variableNames.map(name => [name, { name, type: 'implicit' as const, initialValue: '', definedInBlockId: '', line: 0 }])),
     };
   }, [snapshot]);
 
-  const handleRedock = () => {
-    window.close();
-  };
-
-  if (!snapshot || !analysisResult) {
+  if (!snapshot) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
         Loading...
@@ -56,25 +83,19 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
     );
   }
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-          {snapshot.block.title || 'Untitled'}
-        </span>
-        <button
-          onClick={handleRedock}
-          className="text-xs px-2 py-1 rounded text-gray-600 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600"
-          title="Move this tab back into the main window"
-        >
-          Redock
-        </button>
-      </div>
-      <div className="flex-1 min-h-0">
+  if (snapshot.kind === 'editor' && editorAnalysisResult) {
+    return (
+      <PopoutChrome
+        title={snapshot.block.title || 'Untitled'}
+        onBeforeRedock={() => {
+          const liveContent = editorRef.current?.getValue();
+          return liveContent !== undefined ? callHandler('setBlockContent', snapshot.blockId, liveContent) : Promise.resolve();
+        }}
+      >
         <EditorView
           block={snapshot.block}
           blocks={[snapshot.block]}
-          analysisResult={analysisResult}
+          analysisResult={editorAnalysisResult}
           onSwitchFocusBlock={(blockId, line) => {
             void callHandler('handleOpenEditor', blockId, line);
             window.electronAPI?.focusMainWindow?.();
@@ -109,7 +130,99 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           menuTemplates={snapshot.menuTemplates}
           onSaveMenuTemplate={(template) => { void callHandler('handleSaveMenuTemplate', template); }}
         />
-      </div>
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'untitled' && editorAnalysisResult) {
+    const syntheticBlock: Block = { id: snapshot.tabId, content: snapshot.content, position: { x: 0, y: 0 }, width: 320, height: 200, title: snapshot.title };
+    return (
+      <PopoutChrome
+        title={snapshot.title ?? 'Untitled'}
+        onBeforeRedock={() => {
+          const liveContent = editorRef.current?.getValue();
+          return liveContent !== undefined ? callHandler('updateUntitledContent', snapshot.tabId, liveContent) : Promise.resolve();
+        }}
+      >
+        <EditorView
+          block={syntheticBlock}
+          blocks={[syntheticBlock]}
+          analysisResult={editorAnalysisResult}
+          onSwitchFocusBlock={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          onSave={(id, content) => { void callHandler('updateUntitledContent', id, content); }}
+          onTriggerSave={(id) => {
+            const liveContent = editorRef.current?.getValue();
+            void callHandler('saveUntitledFile', id, liveContent);
+          }}
+          onDirtyChange={(id, dirty) => { void callHandler('setUntitledDirty', id, dirty); }}
+          onContentChange={(id, content) => { void callHandler('updateUntitledContent', id, content); }}
+          editorTheme={snapshot.editorTheme}
+          editorFontFamily={snapshot.editorFontFamily}
+          editorFontSize={snapshot.editorFontSize}
+          addToast={(message, type) => { void callHandler('addToast', message, type); }}
+          onEditorMount={(_id, editor) => { editorRef.current = editor; }}
+          onEditorUnmount={() => { editorRef.current = null; }}
+          onWarpToLabel={(labelName) => { void callHandler('handleWarpToLabel', labelName); }}
+          onCreateFileFromSelection={(blockId, selectedText) => { void callHandler('handleCreateFileFromSelection', blockId, selectedText); }}
+          onCreateVariableFromSelection={(selectedText) => { void callHandler('handleCreateVariableFromSelection', selectedText); }}
+          onCreateCharacterFromSelection={(selectedText) => { void callHandler('handleCreateCharacterFromSelection', selectedText); }}
+          draftingMode={snapshot.draftingMode}
+          existingImageTags={new Set(snapshot.existingImageTags)}
+          existingAudioPaths={new Set(snapshot.existingAudioPaths)}
+          userSnippets={snapshot.userSnippets}
+          menuTemplates={snapshot.menuTemplates}
+          onSaveMenuTemplate={(template) => { void callHandler('handleSaveMenuTemplate', template); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'markdown') {
+    return (
+      <PopoutChrome title={snapshot.filePath.split('/').pop() ?? 'Markdown'}>
+        <MarkdownPreviewView
+          filePath={snapshot.filePath}
+          projectRootPath={snapshot.projectRootPath}
+          editorTheme={snapshot.editorTheme}
+          addToast={(message, type) => { void callHandler('addToast', message, type); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'image') {
+    return (
+      <PopoutChrome title={snapshot.image.fileName}>
+        <ImageEditorView
+          image={snapshot.image}
+          allImages={snapshot.allImages}
+          metadata={snapshot.metadata}
+          onSaveMetadata={(currentFilePath, newMeta) => callHandler<void>('handleSaveImageMetadata', currentFilePath, newMeta)}
+          onCopyToProject={(sourcePath, meta) => { void callHandler('handleCopyImageToProject', sourcePath, meta); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'audio') {
+    return (
+      <PopoutChrome title={snapshot.audio.fileName}>
+        <AudioEditorView
+          audio={snapshot.audio}
+          metadata={snapshot.metadata}
+          onSaveMetadata={(currentFilePath, newMeta) => callHandler<void>('handleSaveAudioMetadata', currentFilePath, newMeta)}
+          onCopyToProject={(sourcePath, meta) => { void callHandler('handleCopyAudioToProject', sourcePath, meta); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  return (
+    <div className="h-screen w-screen flex items-center justify-center bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+      This tab type can&apos;t be shown in a detached window.
     </div>
   );
 };

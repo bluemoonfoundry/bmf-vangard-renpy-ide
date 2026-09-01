@@ -74,7 +74,7 @@ import { useCharacterManagement } from '@/hooks/useCharacterManagement';
 import { useUntitledFiles } from '@/hooks/useUntitledFiles';
 import { useTabLifecycle } from '@/hooks/useTabLifecycle';
 import { useTabOpeners } from '@/hooks/useTabOpeners';
-import { useMainWindowPopoutSync } from '@/hooks/usePopoutSync';
+import { useMainWindowPopoutSync, POPOUT_SUPPORTED_TAB_TYPES } from '@/hooks/usePopoutSync';
 import { useStoryElementsPanel } from '@/hooks/useStoryElementsPanel';
 import { useCanvasLayout } from '@/hooks/useCanvasLayout';
 import { useBlockManagement } from '@/hooks/useBlockManagement';
@@ -1192,12 +1192,12 @@ const App: React.FC = () => {
     handleSaveAll, setHasUnsavedSettings,
   });
 
-  // Only the 'editor' tab type is poppable in this first phase -- see
-  // src/hooks/usePopoutSync.ts for the relay this feeds.
-  const poppedOutEditorTabs = useMemo(() => {
+  // See POPOUT_SUPPORTED_TAB_TYPES in src/hooks/usePopoutSync.ts for which tab types
+  // can currently be detached -- the relay this feeds is built per-type there.
+  const poppedOutSyncableTabs = useMemo(() => {
     const map = new Map<string, EditorTab>();
     for (const { tab } of poppedOutTabs.values()) {
-      if (tab.type === 'editor') map.set(tab.id, tab);
+      if (POPOUT_SUPPORTED_TAB_TYPES.has(tab.type)) map.set(tab.id, tab);
     }
     return map;
   }, [poppedOutTabs]);
@@ -1863,16 +1863,29 @@ const App: React.FC = () => {
     handleSaveMenuTemplate,
     addToast,
     handleOpenEditor,
-  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor]);
+    updateUntitledContent,
+    setUntitledDirty,
+    saveUntitledFile,
+    handleSaveImageMetadata,
+    handleCopyImageToProject,
+    handleSaveAudioMetadata,
+    handleCopyAudioToProject,
+  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject]);
 
   useMainWindowPopoutSync({
-    poppedOutTabs: poppedOutEditorTabs,
+    poppedOutTabs: poppedOutSyncableTabs,
     blocks,
     analysisResult,
     appSettings,
     projectSettings,
     existingImageTags,
     existingAudioPaths,
+    images,
+    imageMetadata,
+    audios,
+    audioMetadata,
+    untitledFiles,
+    projectRootPath,
     onRedock: handleRedockTab,
     handlers: popoutHandlers,
   });

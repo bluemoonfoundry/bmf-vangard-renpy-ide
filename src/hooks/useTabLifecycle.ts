@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ClosedTabEntry, EditorTab } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
+import { POPOUT_SUPPORTED_TAB_TYPES } from '@/hooks/usePopoutSync';
 
 // Caps unbounded growth from long sessions with lots of tab churn.
 const MAX_CLOSED_TABS_STACK = 20;
@@ -466,7 +467,7 @@ export function useTabLifecycle({
     const tabs = paneId === 'primary' ? openTabs : secondaryOpenTabs;
     const index = tabs.findIndex(t => t.id === tabId);
     const tab = tabs[index];
-    if (!tab || tab.id === 'canvas') return;
+    if (!tab || !POPOUT_SUPPORTED_TAB_TYPES.has(tab.type)) return;
 
     setPoppedOutTabs(prev => {
       const next = new Map(prev);
