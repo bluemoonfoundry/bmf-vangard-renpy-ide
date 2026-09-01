@@ -1851,6 +1851,19 @@ const App: React.FC = () => {
     handleOpenCharacterEditor(tabTag, { initialTag: sanitizedTag, initialName: rawName });
   }, [addToast, analysisResult.characters, handleOpenCharacterEditor]);
 
+  // Named equivalents of the inline onUpdateTasks/onUpdateIgnoredDiagnostics closures
+  // useTabContentRenderer.tsx passes to DiagnosticsPanel in-process -- popoutHandlers
+  // needs a stable name to register, which an inline closure there can't provide.
+  const handleUpdateDiagnosticsTasks = useCallback((tasks: DiagnosticsTask[]) => {
+    setDiagnosticsTasks(tasks);
+    setHasUnsavedSettings(true);
+  }, [setDiagnosticsTasks, setHasUnsavedSettings]);
+
+  const handleUpdateIgnoredDiagnostics = useCallback((rules: IgnoredDiagnosticRule[]) => {
+    setIgnoredDiagnostics(rules);
+    setHasUnsavedSettings(true);
+  }, [setIgnoredDiagnostics, setHasUnsavedSettings]);
+
   const popoutHandlers = useMemo(() => ({
     updateBlock,
     handleSaveBlock,
@@ -1870,7 +1883,13 @@ const App: React.FC = () => {
     handleCopyImageToProject,
     handleSaveAudioMetadata,
     handleCopyAudioToProject,
-  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject]);
+    handleUpdateCharacter,
+    handleUpdateDiagnosticsTasks,
+    handleUpdateIgnoredDiagnostics,
+    handleCenterOnBlock,
+    handleGenerateTranslations,
+    handleOpenStaticTab,
+  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab]);
 
   useMainWindowPopoutSync({
     poppedOutTabs: poppedOutSyncableTabs,
@@ -1886,6 +1905,18 @@ const App: React.FC = () => {
     audioMetadata,
     untitledFiles,
     projectRootPath,
+    charactersByTag: analysisResultWithProfiles.characters,
+    characterTagsArray,
+    allStickyNotes,
+    diagnosticsTasks,
+    ignoredDiagnostics,
+    diagnosticsResult,
+    routeAnalysisResult,
+    performanceMetrics: perfSnapshot,
+    isGeneratingTranslations,
+    isRenpyPathValid,
+    editorCursorBlockId,
+    editorCursorPosition,
     onRedock: handleRedockTab,
     handlers: popoutHandlers,
   });

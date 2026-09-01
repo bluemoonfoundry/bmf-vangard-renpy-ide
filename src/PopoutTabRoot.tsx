@@ -15,8 +15,13 @@ import EditorView from '@/components/EditorView';
 import ImageEditorView from '@/components/ImageEditorView';
 import AudioEditorView from '@/components/AudioEditorView';
 import MarkdownPreviewView from '@/components/MarkdownPreviewView';
+import CharacterEditorView from '@/components/CharacterEditorView';
+import DiagnosticsPanel from '@/components/DiagnosticsPanel';
+import TranslationDashboard from '@/components/TranslationDashboard';
+import StatsView from '@/components/StatsView';
+import ScreenPreviewTab from '@/components/ScreenPreviewTab';
 import { applyTheme } from '@/App';
-import { usePopoutTabClient } from '@/hooks/usePopoutSync';
+import { usePopoutTabClient, fromLightBlocks } from '@/hooks/usePopoutSync';
 import { EMPTY_ANALYSIS_RESULT } from '@/hooks/useRenpyAnalysis';
 import type { Block, RenpyAnalysisResult } from '@/types';
 
@@ -73,6 +78,13 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
       labels: Object.fromEntries(snapshot.labelNames.map(name => [name, { blockId: '', label: name, line: 0, column: 0, type: 'label' as const }])),
       variables: new Map(snapshot.variableNames.map(name => [name, { name, type: 'implicit' as const, initialValue: '', definedInBlockId: '', line: 0 }])),
     };
+  }, [snapshot]);
+
+  // CharacterEditorView only reads analysisResult.dialogueLines/.labelNodes (see the
+  // Phase 2 research notes) -- everything else stays at EMPTY_ANALYSIS_RESULT's defaults.
+  const characterAnalysisResult: RenpyAnalysisResult | null = useMemo(() => {
+    if (!snapshot || snapshot.kind !== 'character') return null;
+    return { ...EMPTY_ANALYSIS_RESULT, dialogueLines: snapshot.dialogueLines, labelNodes: snapshot.labelNodes };
   }, [snapshot]);
 
   if (!snapshot) {
@@ -215,6 +227,112 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           metadata={snapshot.metadata}
           onSaveMetadata={(currentFilePath, newMeta) => callHandler<void>('handleSaveAudioMetadata', currentFilePath, newMeta)}
           onCopyToProject={(sourcePath, meta) => { void callHandler('handleCopyAudioToProject', sourcePath, meta); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'character' && characterAnalysisResult) {
+    return (
+      <PopoutChrome title={snapshot.character?.name ? `Char: ${snapshot.character.name}` : `Char: ${snapshot.characterTag}`}>
+        <CharacterEditorView
+          character={snapshot.character}
+          onSave={(char, oldTag) => { void callHandler('handleUpdateCharacter', char, oldTag); }}
+          existingTags={snapshot.existingTags}
+          projectImages={snapshot.projectImages}
+          imageMetadata={snapshot.imageMetadata}
+          initialTag={snapshot.character ? undefined : snapshot.initialTag}
+          initialName={snapshot.character ? undefined : snapshot.initialName}
+          analysisResult={characterAnalysisResult}
+          blocks={fromLightBlocks(snapshot.blocks)}
+          onOpenEditor={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'diagnostics') {
+    return (
+      <PopoutChrome title="Diagnostics">
+        <DiagnosticsPanel
+          diagnostics={snapshot.diagnostics}
+          blocks={fromLightBlocks(snapshot.blocks)}
+          stickyNotes={snapshot.stickyNotes}
+          tasks={snapshot.tasks}
+          ignoredDiagnostics={snapshot.ignoredDiagnostics}
+          onUpdateTasks={(updated) => { void callHandler('handleUpdateDiagnosticsTasks', updated); }}
+          onUpdateIgnoredDiagnostics={(updated) => { void callHandler('handleUpdateIgnoredDiagnostics', updated); }}
+          onOpenBlock={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          onHighlightBlock={(id) => {
+            // Centers/reveals the block on the Project Canvas -- only meaningful in the
+            // main window, which has the canvas.
+            void callHandler('handleCenterOnBlock', id);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'translations') {
+    return (
+      <PopoutChrome title="Translations">
+        <TranslationDashboard
+          translationData={snapshot.translationData}
+          blocks={fromLightBlocks(snapshot.blocks)}
+          onOpenBlock={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          onGenerateTranslations={(language) => callHandler<void>('handleGenerateTranslations', language)}
+          isGenerating={snapshot.isGenerating}
+          isRenpyPathValid={snapshot.isRenpyPathValid}
+          addToast={(message, type) => { void callHandler('addToast', message, type); }}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'stats') {
+    return (
+      <PopoutChrome title="Stats">
+        <StatsView
+          blocks={snapshot.blocks}
+          analysisResult={snapshot.analysisResult}
+          routeAnalysisResult={snapshot.routeAnalysisResult}
+          projectImages={snapshot.images}
+          imageMetadata={snapshot.imageMetadata}
+          projectAudios={snapshot.audios}
+          diagnosticsErrorCount={snapshot.diagnosticsErrorCount}
+          onOpenDiagnostics={() => {
+            void callHandler('handleOpenStaticTab', 'diagnostics');
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          onOpenEditor={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          performanceMetrics={snapshot.performanceMetrics}
+        />
+      </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'screen-preview') {
+    return (
+      <PopoutChrome title="Screen Preview">
+        <ScreenPreviewTab
+          screens={snapshot.screens}
+          blocks={snapshot.blocks}
+          cursorBlockId={snapshot.cursorBlockId}
+          cursorLine={snapshot.cursorLine}
+          projectImages={snapshot.images}
         />
       </PopoutChrome>
     );

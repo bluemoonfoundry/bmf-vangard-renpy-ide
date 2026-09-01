@@ -11,23 +11,57 @@
  * in the popout window) is the other end: it holds the latest snapshot and exposes
  * `callHandler` to invoke a named handler in the main window.
  *
- * Supported tab types: `editor`, `untitled`, `markdown`, `image`, `audio`. The
- * remaining types (the infinite canvases, scene/imagemap composers, and the
- * project-wide dashboards) are deliberately not included yet -- see the "Detachable
- * Editor Tabs" plan's Phase 2 notes for why each was deferred.
+ * Supported tab types: `editor`, `untitled`, `markdown`, `image`, `audio`,
+ * `character`, `diagnostics`/`punchlist`, `translations`, `stats`, `screen-preview`.
+ * The remaining types (the infinite canvases and the scene/imagemap composers) are
+ * deliberately not included yet -- see the "Detachable Editor Tabs" plan's Phase 2
+ * notes for why: they need real-time position/drag sync, a different problem than
+ * relaying a snapshot of a self-contained item or a read-mostly dashboard.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  AppSettings, AudioMetadata, Block, EditorTab, ImageMetadata, JumpLocation,
-  MenuTemplate, PersistedProjectSettings, ProjectImage, RenpyAnalysisResult,
-  RenpyAudio, Theme, UserSnippet,
+  AppSettings, AudioMetadata, Block, Character, DialogueLine, DiagnosticsResult,
+  DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMetadata,
+  JumpLocation, LabelNode, MenuTemplate, PersistedProjectSettings, ProjectImage,
+  RenpyAnalysisResult, RenpyAudio, RenpyScreen, RouteLink, StickyNote, Theme,
+  TranslationAnalysisResult, UserSnippet,
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
+import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 
 /** Tab types that can currently be popped out into their own window. */
 export const POPOUT_SUPPORTED_TAB_TYPES: ReadonlySet<string> = new Set<EditorTab['type']>([
   'editor', 'untitled', 'markdown', 'image', 'audio',
+  'character', 'diagnostics', 'punchlist', 'translations', 'stats', 'screen-preview',
 ]);
+
+/** A block stripped of its (potentially large) script text, for views that only ever
+ *  cross-reference blocks by id/path/title -- see the Phase 2 research notes in the
+ *  plan for which components this applies to. */
+export interface LightBlock {
+  id: string;
+  filePath?: string;
+  title?: string;
+}
+
+function toLightBlocks(blocks: Block[]): LightBlock[] {
+  return blocks.map(b => ({ id: b.id, filePath: b.filePath, title: b.title }));
+}
+
+/** The leaf components that only need id/filePath/title still declare their `blocks`
+ *  prop as `Block[]` (they're shared with the in-process render path) -- pad the
+ *  canvas-only fields with harmless placeholders rather than relaying them (and
+ *  definitely rather than casting past the type system). */
+export function fromLightBlocks(blocks: LightBlock[]): Block[] {
+  return blocks.map(b => ({ ...b, content: '', position: { x: 0, y: 0 }, width: 0, height: 0 }));
+}
+
+interface RouteAnalysisResultLike {
+  labelNodes: LabelNode[];
+  routeLinks: RouteLink[];
+  identifiedRoutes: IdentifiedRoute[];
+  routesTruncated: boolean;
+}
 
 interface BaseSnapshot {
   tabId: string;
@@ -89,12 +123,73 @@ export interface AudioPopoutSnapshot extends BaseSnapshot {
   metadata?: AudioMetadata;
 }
 
+export interface CharacterPopoutSnapshot extends BaseSnapshot {
+  kind: 'character';
+  characterTag: string;
+  character?: Character;
+  initialTag?: string;
+  initialName?: string;
+  existingTags: string[];
+  projectImages: ProjectImage[];
+  imageMetadata: Map<string, ImageMetadata>;
+  blocks: LightBlock[];
+  dialogueLines: Map<string, DialogueLine[]>;
+  labelNodes: LabelNode[];
+}
+
+export interface DiagnosticsPopoutSnapshot extends BaseSnapshot {
+  kind: 'diagnostics';
+  diagnostics: DiagnosticsResult;
+  blocks: LightBlock[];
+  stickyNotes: StickyNote[];
+  tasks: DiagnosticsTask[];
+  ignoredDiagnostics: IgnoredDiagnosticRule[];
+}
+
+export interface TranslationsPopoutSnapshot extends BaseSnapshot {
+  kind: 'translations';
+  translationData: TranslationAnalysisResult;
+  blocks: LightBlock[];
+  isGenerating: boolean;
+  isRenpyPathValid: boolean;
+}
+
+/** `stats` and `screen-preview` genuinely need the full corpus (word counts, define/style
+ *  scans, and the active-screen extraction all read every block's raw script text) --
+ *  Electron IPC's structured-clone supports Map/Set natively, so these relay `blocks`/
+ *  `analysisResult` largely as-is rather than hand-picking fields like the others do. */
+export interface StatsPopoutSnapshot extends BaseSnapshot {
+  kind: 'stats';
+  blocks: Block[];
+  analysisResult: RenpyAnalysisResult;
+  routeAnalysisResult: RouteAnalysisResultLike;
+  images: Map<string, ProjectImage>;
+  imageMetadata: Map<string, ImageMetadata>;
+  audios: Map<string, RenpyAudio>;
+  diagnosticsErrorCount: number;
+  performanceMetrics: PerformanceSnapshot;
+}
+
+export interface ScreenPreviewPopoutSnapshot extends BaseSnapshot {
+  kind: 'screen-preview';
+  blocks: Block[];
+  screens: Map<string, RenpyScreen>;
+  cursorBlockId: string | null;
+  cursorLine: number | null;
+  images: Map<string, ProjectImage>;
+}
+
 export type PopoutSnapshot =
   | EditorPopoutSnapshot
   | UntitledPopoutSnapshot
   | MarkdownPopoutSnapshot
   | ImagePopoutSnapshot
-  | AudioPopoutSnapshot;
+  | AudioPopoutSnapshot
+  | CharacterPopoutSnapshot
+  | DiagnosticsPopoutSnapshot
+  | TranslationsPopoutSnapshot
+  | StatsPopoutSnapshot
+  | ScreenPreviewPopoutSnapshot;
 
 export interface PopoutHandlers {
   updateBlock: (id: string, data: Partial<Block>) => void;
@@ -115,6 +210,12 @@ export interface PopoutHandlers {
   handleCopyImageToProject: (sourcePath: string, meta: ImageMetadata) => void | Promise<void>;
   handleSaveAudioMetadata: (currentFilePath: string, newMeta: AudioMetadata) => Promise<void>;
   handleCopyAudioToProject: (sourcePath: string, meta: AudioMetadata) => void | Promise<void>;
+  handleUpdateCharacter: (char: Character, oldTag?: string) => void | Promise<void>;
+  handleUpdateDiagnosticsTasks: (tasks: DiagnosticsTask[]) => void;
+  handleUpdateIgnoredDiagnostics: (rules: IgnoredDiagnosticRule[]) => void;
+  handleCenterOnBlock: (target: string) => void;
+  handleGenerateTranslations: (language: string) => Promise<void>;
+  handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
 }
 
 export interface PopoutSnapshotDeps {
@@ -130,10 +231,28 @@ export interface PopoutSnapshotDeps {
   audioMetadata: Map<string, AudioMetadata>;
   untitledFiles: Map<string, UntitledFileState>;
   projectRootPath: string | null;
+  charactersByTag: Map<string, Character>;
+  characterTagsArray: string[];
+  allStickyNotes: StickyNote[];
+  diagnosticsTasks: DiagnosticsTask[];
+  ignoredDiagnostics: IgnoredDiagnosticRule[];
+  diagnosticsResult: DiagnosticsResult;
+  routeAnalysisResult: RouteAnalysisResultLike;
+  performanceMetrics: PerformanceSnapshot;
+  isGeneratingTranslations: boolean;
+  isRenpyPathValid: boolean;
+  editorCursorBlockId: string | null;
+  editorCursorPosition: { line: number; column: number } | null;
 }
 
 function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSnapshot | null {
-  const { blocks, analysisResult, appSettings, projectSettings, existingImageTags, existingAudioPaths, images, imageMetadata, audios, audioMetadata, untitledFiles, projectRootPath } = deps;
+  const {
+    blocks, analysisResult, appSettings, projectSettings, existingImageTags, existingAudioPaths,
+    images, imageMetadata, audios, audioMetadata, untitledFiles, projectRootPath,
+    charactersByTag, characterTagsArray, allStickyNotes, diagnosticsTasks, ignoredDiagnostics,
+    diagnosticsResult, routeAnalysisResult, performanceMetrics, isGeneratingTranslations,
+    isRenpyPathValid, editorCursorBlockId, editorCursorPosition,
+  } = deps;
   const editorTheme: 'light' | 'dark' = appSettings.theme.includes('dark') ? 'dark' : 'light';
 
   if (tab.type === 'editor' && tab.blockId) {
@@ -194,6 +313,63 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     return {
       kind: 'audio', tabId: tab.id, theme: appSettings.theme,
       audio, metadata: audioMetadata.get(audio.projectFilePath || audio.filePath),
+    };
+  }
+
+  if (tab.type === 'character' && tab.characterTag) {
+    return {
+      kind: 'character', tabId: tab.id, theme: appSettings.theme,
+      characterTag: tab.characterTag,
+      character: charactersByTag.get(tab.characterTag),
+      initialTag: tab.initialCharacterTag,
+      initialName: tab.initialCharacterName,
+      existingTags: characterTagsArray,
+      projectImages: Array.from(images.values()),
+      imageMetadata,
+      blocks: toLightBlocks(blocks),
+      dialogueLines: analysisResult.dialogueLines,
+      labelNodes: analysisResult.labelNodes,
+    };
+  }
+
+  if (tab.type === 'diagnostics' || tab.type === 'punchlist') {
+    return {
+      kind: 'diagnostics', tabId: tab.id, theme: appSettings.theme,
+      diagnostics: diagnosticsResult,
+      blocks: toLightBlocks(blocks),
+      stickyNotes: allStickyNotes,
+      tasks: diagnosticsTasks,
+      ignoredDiagnostics,
+    };
+  }
+
+  if (tab.type === 'translations') {
+    return {
+      kind: 'translations', tabId: tab.id, theme: appSettings.theme,
+      translationData: analysisResult.translationData,
+      blocks: toLightBlocks(blocks),
+      isGenerating: isGeneratingTranslations,
+      isRenpyPathValid,
+    };
+  }
+
+  if (tab.type === 'stats') {
+    return {
+      kind: 'stats', tabId: tab.id, theme: appSettings.theme,
+      blocks, analysisResult, routeAnalysisResult,
+      images, imageMetadata, audios,
+      diagnosticsErrorCount: diagnosticsResult.errorCount,
+      performanceMetrics,
+    };
+  }
+
+  if (tab.type === 'screen-preview') {
+    return {
+      kind: 'screen-preview', tabId: tab.id, theme: appSettings.theme,
+      blocks, screens: analysisResult.screens,
+      cursorBlockId: editorCursorBlockId,
+      cursorLine: editorCursorPosition?.line ?? null,
+      images,
     };
   }
 
@@ -266,7 +442,15 @@ export function useMainWindowPopoutSync({
     for (const tabId of poppedOutTabs.keys()) pushSnapshotForTab(tabId);
     // deps are spread from `deps` -- list each field so the effect re-fires on the
     // slice of state it actually reads, same as before this was generalized.
-  }, [poppedOutTabs, deps.blocks, deps.analysisResult, deps.appSettings, deps.projectSettings, deps.existingImageTags, deps.existingAudioPaths, deps.images, deps.imageMetadata, deps.audios, deps.audioMetadata, deps.untitledFiles, deps.projectRootPath, pushSnapshotForTab]);
+  }, [
+    poppedOutTabs, deps.blocks, deps.analysisResult, deps.appSettings, deps.projectSettings,
+    deps.existingImageTags, deps.existingAudioPaths, deps.images, deps.imageMetadata, deps.audios,
+    deps.audioMetadata, deps.untitledFiles, deps.projectRootPath, deps.charactersByTag,
+    deps.characterTagsArray, deps.allStickyNotes, deps.diagnosticsTasks, deps.ignoredDiagnostics,
+    deps.diagnosticsResult, deps.routeAnalysisResult, deps.performanceMetrics,
+    deps.isGeneratingTranslations, deps.isRenpyPathValid, deps.editorCursorBlockId,
+    deps.editorCursorPosition, pushSnapshotForTab,
+  ]);
 }
 
 export interface UsePopoutTabClientReturn {
