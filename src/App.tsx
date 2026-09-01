@@ -1864,6 +1864,14 @@ const App: React.FC = () => {
     setHasUnsavedSettings(true);
   }, [setIgnoredDiagnostics, setHasUnsavedSettings]);
 
+  // createGroupFromSelection returns the new group's id synchronously in-process
+  // (StoryCanvas uses it immediately to select the new group) -- an RPC round trip
+  // can't provide that synchronously. The group still gets created correctly through
+  // this call; the popout just won't auto-select it the way the main window does.
+  const createGroupFromSelectionVoid = useCallback((blockIds: string[]) => {
+    createGroupFromSelection(blockIds);
+  }, [createGroupFromSelection]);
+
   const popoutHandlers = useMemo(() => ({
     updateBlock,
     handleSaveBlock,
@@ -1915,7 +1923,22 @@ const App: React.FC = () => {
     handleRenameScene,
     handleImageMapUpdate,
     handleRenameImageMap,
-  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab, handleUpdateRouteNodePositions, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote, handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote, addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecardLink, updateNotecardLink, deleteNotecardLink, renameNotecardTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline, insertTimelineSlot, deleteTimelineSlot, handleSceneUpdate, handleRenameScene, handleImageMapUpdate, handleRenameImageMap]);
+    updateGroup,
+    updateBlockPositions,
+    updateGroupPositions,
+    deleteBlockWithFile,
+    deleteBlocksWithFile,
+    createGroupFromSelection: createGroupFromSelectionVoid,
+    deleteGroup,
+    addStickyNote,
+    updateStickyNote,
+    deleteStickyNote,
+    handleCreateBlockFromCanvas,
+    handleChangeStoryCanvasLayoutMode,
+    handleChangeStoryCanvasGroupingMode,
+    handleOpenRouteCanvasTab,
+    setCanvasFilters,
+  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab, handleUpdateRouteNodePositions, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote, handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote, addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecardLink, updateNotecardLink, deleteNotecardLink, renameNotecardTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline, insertTimelineSlot, deleteTimelineSlot, handleSceneUpdate, handleRenameScene, handleImageMapUpdate, handleRenameImageMap, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile, deleteBlocksWithFile, createGroupFromSelectionVoid, deleteGroup, addStickyNote, updateStickyNote, deleteStickyNote, handleCreateBlockFromCanvas, handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode, handleOpenRouteCanvasTab, setCanvasFilters]);
 
   useMainWindowPopoutSync({
     poppedOutTabs: poppedOutSyncableTabs,
@@ -1952,6 +1975,10 @@ const App: React.FC = () => {
     sceneNames,
     imagemapCompositions,
     analysisLabelKeys,
+    groups,
+    stickyNotes,
+    canvasFilters,
+    dirtyBlockIds,
     onRedock: handleRedockTab,
     handlers: popoutHandlers,
   });

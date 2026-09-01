@@ -11,12 +11,14 @@
  * in the popout window) is the other end: it holds the latest snapshot and exposes
  * `callHandler` to invoke a named handler in the main window.
  *
- * Supported tab types: `editor`, `untitled`, `markdown`, `image`, `audio`,
- * `character`, `diagnostics`/`punchlist`, `translations`, `stats`, `screen-preview`,
- * `route-canvas`, `choice-canvas`, `notecard-canvas`, `scene-composer`,
- * `imagemap-composer`. Only the pinned Project Canvas (`canvas`) is excluded, matching
- * its existing `isProtectedTab` treatment elsewhere (it's the app's always-present home
- * view -- popping it out would leave the main window with nothing in its place).
+ * Supported tab types: all 16 -- `canvas`, `editor`, `untitled`, `markdown`, `image`,
+ * `audio`, `character`, `diagnostics`/`punchlist`, `translations`, `stats`,
+ * `screen-preview`, `route-canvas`, `choice-canvas`, `notecard-canvas`, `scene-composer`,
+ * `imagemap-composer`. (`canvas`, the Project Canvas, was excluded through an earlier
+ * pass over an incorrect assumption that it's a permanently pinned/required view --
+ * it isn't: `TabContextMenu`'s `isProtectedTab` only disables its Close *menu item* and
+ * hides Split options, not the tab strip's own close button or Ctrl+W, so it's exactly
+ * as closeable/poppable as any other canvas today.)
  *
  * A note on continuous (per-pointermove) updates, since several of the later tab types
  * have them as their *primary* interaction rather than a secondary one: this was
@@ -33,7 +35,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  AppSettings, AudioMetadata, Block, Character, DialogueLine, DiagnosticsResult,
+  AppSettings, AudioMetadata, Block, BlockGroup, Character, DialogueLine, DiagnosticsResult,
   DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMapComposition,
   ImageMetadata, JumpLocation, LabelNode, MenuTemplate, MouseGestureSettings, Notecard,
   NotecardLink, NotecardTimelineSettings, PersistedProjectSettings, Position, ProjectImage,
@@ -43,10 +45,12 @@ import type {
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
+import type { CanvasFilters } from '@/hooks/useCanvasInteraction';
+import type { BlockType } from '@/components/CreateBlockModal';
 
 /** Tab types that can currently be popped out into their own window. */
 export const POPOUT_SUPPORTED_TAB_TYPES: ReadonlySet<string> = new Set<EditorTab['type']>([
-  'editor', 'untitled', 'markdown', 'image', 'audio',
+  'canvas', 'editor', 'untitled', 'markdown', 'image', 'audio',
   'character', 'diagnostics', 'punchlist', 'translations', 'stats', 'screen-preview',
   'route-canvas', 'choice-canvas', 'notecard-canvas', 'scene-composer', 'imagemap-composer',
 ]);
@@ -251,6 +255,30 @@ export interface ImageMapComposerPopoutSnapshot extends BaseSnapshot {
   labels: string[];
 }
 
+/** Block/group dragging is batched to release (confirmed by reading StoryCanvas's
+ *  pointer-up handler); resize computes from a fixed anchor (`block.width` captured at
+ *  drag-start) plus total delta since drag-start, the same safe pattern as everywhere
+ *  else -- so this relays directly like Route/Choice, no local-optimistic-state needed.
+ *  Selection (`selectedBlockIds`/`selectedGroupIds`) and find-usages/center/flash
+ *  requests are treated as per-window UI state, not relayed, same reasoning as pan/zoom. */
+export interface StoryCanvasPopoutSnapshot extends BaseSnapshot {
+  kind: 'canvas';
+  blocks: Block[];
+  groups: BlockGroup[];
+  stickyNotes: StickyNote[];
+  analysisResult: RenpyAnalysisResult;
+  canvasFilters: CanvasFilters;
+  mouseGestures?: MouseGestureSettings;
+  layoutMode: StoryCanvasLayoutMode;
+  groupingMode: StoryCanvasGroupingMode;
+  diagnosticsResult?: DiagnosticsResult;
+  fileSizeThresholds?: AppSettings['fileSizeThresholds'];
+  /** StoryCanvas reads `dirtyBlockIds` from `useDualPane()` for the unsaved-dot
+   *  indicator -- the only field of that ~90-field context it actually touches.
+   *  PopoutTabRoot wraps it in a minimal DualPaneContext.Provider with just this. */
+  dirtyBlockIds: Set<string>;
+}
+
 export type PopoutSnapshot =
   | EditorPopoutSnapshot
   | UntitledPopoutSnapshot
@@ -266,7 +294,8 @@ export type PopoutSnapshot =
   | ChoiceCanvasPopoutSnapshot
   | NotecardCanvasPopoutSnapshot
   | SceneComposerPopoutSnapshot
-  | ImageMapComposerPopoutSnapshot;
+  | ImageMapComposerPopoutSnapshot
+  | StoryCanvasPopoutSnapshot;
 
 export interface PopoutHandlers {
   updateBlock: (id: string, data: Partial<Block>) => void;
@@ -319,6 +348,21 @@ export interface PopoutHandlers {
   handleRenameScene: (sceneId: string, newName: string) => void;
   handleImageMapUpdate: (imagemapId: string, imagemap: ImageMapComposition) => void;
   handleRenameImageMap: (imagemapId: string, newName: string) => void;
+  updateGroup: (id: string, data: Partial<BlockGroup>) => void;
+  updateBlockPositions: (updates: { id: string; position: Position }[]) => void;
+  updateGroupPositions: (updates: { id: string; position: Position }[]) => void;
+  deleteBlockWithFile: (id: string) => Promise<void>;
+  deleteBlocksWithFile: (ids: string[]) => Promise<void>;
+  createGroupFromSelection: (blockIds: string[]) => void;
+  deleteGroup: (id: string) => void;
+  addStickyNote: (position?: Position) => void;
+  updateStickyNote: (id: string, data: Partial<StickyNote>) => void;
+  deleteStickyNote: (id: string) => void;
+  handleCreateBlockFromCanvas: (type: BlockType, position: Position) => void;
+  handleChangeStoryCanvasLayoutMode: (mode: StoryCanvasLayoutMode) => void;
+  handleChangeStoryCanvasGroupingMode: (mode: StoryCanvasGroupingMode) => void;
+  handleOpenRouteCanvasTab: () => void;
+  setCanvasFilters: (filters: CanvasFilters) => void;
 }
 
 export interface PopoutSnapshotDeps {
@@ -355,6 +399,10 @@ export interface PopoutSnapshotDeps {
   sceneNames: Record<string, string>;
   imagemapCompositions: Record<string, ImageMapComposition>;
   analysisLabelKeys: string[];
+  groups: BlockGroup[];
+  stickyNotes: StickyNote[];
+  canvasFilters: CanvasFilters;
+  dirtyBlockIds: Set<string>;
 }
 
 function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSnapshot | null {
@@ -366,7 +414,8 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     isRenpyPathValid, editorCursorBlockId, editorCursorPosition,
     routeStickyNotes, choiceStickyNotes,
     notecards, notecardLinks, notecardTimeline, sceneCompositions, sceneNames,
-    imagemapCompositions, analysisLabelKeys,
+    imagemapCompositions, analysisLabelKeys, groups, stickyNotes, canvasFilters,
+    dirtyBlockIds,
   } = deps;
   const editorTheme: 'light' | 'dark' = appSettings.theme.includes('dark') ? 'dark' : 'light';
 
@@ -543,6 +592,20 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     };
   }
 
+  if (tab.type === 'canvas') {
+    return {
+      kind: 'canvas', tabId: tab.id, theme: appSettings.theme,
+      blocks, groups, stickyNotes, analysisResult,
+      canvasFilters,
+      mouseGestures: appSettings.mouseGestures,
+      layoutMode: projectSettings.storyCanvasLayoutMode ?? 'flow-lr',
+      groupingMode: projectSettings.storyCanvasGroupingMode ?? 'none',
+      diagnosticsResult,
+      fileSizeThresholds: appSettings.fileSizeThresholds,
+      dirtyBlockIds,
+    };
+  }
+
   return null;
 }
 
@@ -621,7 +684,8 @@ export function useMainWindowPopoutSync({
     deps.isGeneratingTranslations, deps.isRenpyPathValid, deps.editorCursorBlockId,
     deps.editorCursorPosition, deps.routeStickyNotes, deps.choiceStickyNotes,
     deps.notecards, deps.notecardLinks, deps.notecardTimeline, deps.sceneCompositions,
-    deps.sceneNames, deps.imagemapCompositions, deps.analysisLabelKeys, pushSnapshotForTab,
+    deps.sceneNames, deps.imagemapCompositions, deps.analysisLabelKeys,
+    deps.groups, deps.stickyNotes, deps.canvasFilters, deps.dirtyBlockIds, pushSnapshotForTab,
   ]);
 }
 

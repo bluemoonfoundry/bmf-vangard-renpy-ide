@@ -25,6 +25,9 @@ import ChoiceCanvas from '@/components/ChoiceCanvas';
 import NotecardCanvas from '@/components/NotecardCanvas';
 import SceneComposer from '@/components/SceneComposer';
 import ImageMapComposer from '@/components/ImageMapComposer';
+import StoryCanvas from '@/components/StoryCanvas';
+import { DualPaneContext } from '@/contexts/DualPaneContext';
+import type { DualPaneContextValue } from '@/contexts/DualPaneContext';
 import { applyTheme } from '@/App';
 import { usePopoutTabClient, fromLightBlocks } from '@/hooks/usePopoutSync';
 import { EMPTY_ANALYSIS_RESULT } from '@/hooks/useRenpyAnalysis';
@@ -99,6 +102,9 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   // send just persists whatever the local resolution already produced).
   const [localScene, setLocalScene] = useState<SceneComposition | null>(null);
   const sceneSeededRef = useRef(false);
+  // Selection is per-window UI state, same reasoning as pan/zoom -- not relayed.
+  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!theme) return;
@@ -510,6 +516,77 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           activeEditor={null}
         />
       </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'canvas') {
+    // StoryCanvas reads dirtyBlockIds from useDualPane() (the unsaved-dot indicator) --
+    // the only field of that ~90-field context it touches. Providing a full, real
+    // DualPaneContextValue here isn't practical (it's App.tsx's own tab-management
+    // state, not something this window owns), so this supplies just that one field.
+    const dualPaneValue = { dirtyBlockIds: snapshot.dirtyBlockIds } as DualPaneContextValue;
+    return (
+      <PopoutCanvasChrome>
+        <DualPaneContext.Provider value={dualPaneValue}>
+        <StoryCanvas
+          blocks={snapshot.blocks}
+          groups={snapshot.groups}
+          stickyNotes={snapshot.stickyNotes}
+          analysisResult={snapshot.analysisResult}
+          updateBlock={(id, data) => { void callHandler('updateBlock', id, data); }}
+          updateGroup={(id, data) => { void callHandler('updateGroup', id, data); }}
+          updateBlockPositions={(updates) => { void callHandler('updateBlockPositions', updates); }}
+          updateGroupPositions={(updates) => { void callHandler('updateGroupPositions', updates); }}
+          updateStickyNote={(id, data) => { void callHandler('updateStickyNote', id, data); }}
+          deleteStickyNote={(id) => { void callHandler('deleteStickyNote', id); }}
+          onInteractionEnd={() => {}}
+          deleteBlock={(id) => callHandler<void>('deleteBlockWithFile', id)}
+          deleteBlocks={(ids) => callHandler<void>('deleteBlocksWithFile', ids)}
+          createGroupFromSelection={(blockIds) => {
+            // Can't return the new group's id synchronously across an RPC round trip --
+            // see the comment on createGroupFromSelectionVoid in App.tsx. The group is
+            // still created correctly; this window just won't auto-select it.
+            void callHandler('createGroupFromSelection', blockIds);
+            return null;
+          }}
+          deleteGroup={(id) => { void callHandler('deleteGroup', id); }}
+          onOpenEditor={(id, line) => {
+            void callHandler('handleOpenEditor', id, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          selectedBlockIds={selectedBlockIds}
+          setSelectedBlockIds={setSelectedBlockIds}
+          selectedGroupIds={selectedGroupIds}
+          setSelectedGroupIds={setSelectedGroupIds}
+          findUsagesHighlightIds={null}
+          clearFindUsages={() => {}}
+          canvasFilters={snapshot.canvasFilters}
+          setCanvasFilters={(value) => {
+            const base = snapshot.canvasFilters;
+            const next = typeof value === 'function' ? value(base) : value;
+            void callHandler('setCanvasFilters', next);
+          }}
+          centerOnBlockRequest={null}
+          flashBlockRequest={null}
+          hoverHighlightIds={null}
+          transform={canvasTransform}
+          onTransformChange={setCanvasTransform}
+          onCreateBlock={(type, position) => { void callHandler('handleCreateBlockFromCanvas', type, position); }}
+          onAddStickyNote={(position) => { void callHandler('addStickyNote', position); }}
+          onOpenRouteCanvas={() => {
+            void callHandler('handleOpenRouteCanvasTab');
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          mouseGestures={snapshot.mouseGestures}
+          layoutMode={snapshot.layoutMode}
+          groupingMode={snapshot.groupingMode}
+          onChangeLayoutMode={(mode) => { void callHandler('handleChangeStoryCanvasLayoutMode', mode); }}
+          onChangeGroupingMode={(mode) => { void callHandler('handleChangeStoryCanvasGroupingMode', mode); }}
+          diagnosticsResult={snapshot.diagnosticsResult}
+          fileSizeThresholds={snapshot.fileSizeThresholds}
+        />
+        </DualPaneContext.Provider>
+      </PopoutCanvasChrome>
     );
   }
 
