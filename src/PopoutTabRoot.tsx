@@ -9,7 +9,7 @@
  * (src/hooks/usePopoutSync.ts). See POPOUT_SUPPORTED_TAB_TYPES for which tab types
  * this currently handles.
  */
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import EditorView from '@/components/EditorView';
 import ImageEditorView from '@/components/ImageEditorView';
@@ -20,9 +20,12 @@ import DiagnosticsPanel from '@/components/DiagnosticsPanel';
 import TranslationDashboard from '@/components/TranslationDashboard';
 import StatsView from '@/components/StatsView';
 import ScreenPreviewTab from '@/components/ScreenPreviewTab';
+import RouteCanvas from '@/components/RouteCanvas';
+import ChoiceCanvas from '@/components/ChoiceCanvas';
 import { applyTheme } from '@/App';
 import { usePopoutTabClient, fromLightBlocks } from '@/hooks/usePopoutSync';
 import { EMPTY_ANALYSIS_RESULT } from '@/hooks/useRenpyAnalysis';
+import type { CanvasTransform } from '@/hooks/useCanvasInteraction';
 import type { Block, RenpyAnalysisResult } from '@/types';
 
 interface PopoutTabRootProps {
@@ -55,10 +58,34 @@ function PopoutChrome({ title, onBeforeRedock, children }: { title: string; onBe
   );
 }
 
+/** The canvas components (Route/Choice/etc.) render their own floating settings panels,
+ *  legend, and minimap positioned relative to the viewport, assuming they own the whole
+ *  window -- wrapping them in PopoutChrome's header bar visually collides with those
+ *  (confirmed live: the header's Redock button ended up underneath the canvas's own
+ *  "Legend" toggle in the same corner). Render the canvas full-bleed instead, with just
+ *  a small floating Redock pill at a high z-index in a corner those panels don't use. */
+function PopoutCanvasChrome({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="h-screen w-screen relative bg-white dark:bg-gray-900">
+      {children}
+      <button
+        onClick={() => window.close()}
+        className="absolute bottom-3 left-3 z-[9999] text-xs px-2.5 py-1.5 rounded shadow-lg bg-gray-800/90 text-white hover:bg-indigo-600 dark:bg-gray-700/90 dark:hover:bg-indigo-600"
+        title="Move this tab back into the main window"
+      >
+        Redock
+      </button>
+    </div>
+  );
+}
+
 const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   const { snapshot, callHandler } = usePopoutTabClient(tabId);
   const theme = snapshot?.theme;
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Pan/zoom is intentionally local to this window, not relayed -- see the comment on
+  // RouteCanvasPopoutSnapshot in usePopoutSync.ts for why that's safe.
+  const [canvasTransform, setCanvasTransform] = useState<CanvasTransform>({ x: 0, y: 0, scale: 1 });
 
   useEffect(() => {
     if (!theme) return;
@@ -335,6 +362,62 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           projectImages={snapshot.images}
         />
       </PopoutChrome>
+    );
+  }
+
+  if (snapshot.kind === 'route-canvas') {
+    return (
+      <PopoutCanvasChrome>
+        <RouteCanvas
+          labelNodes={snapshot.labelNodes}
+          routeLinks={snapshot.routeLinks}
+          identifiedRoutes={snapshot.identifiedRoutes}
+          routesTruncated={snapshot.routesTruncated}
+          stickyNotes={snapshot.stickyNotes}
+          projectImages={snapshot.images}
+          updateLabelNodePositions={(updates) => { void callHandler('handleUpdateRouteNodePositions', updates); }}
+          onAddStickyNote={(position) => { void callHandler('addRouteStickyNote', position); }}
+          updateStickyNote={(id, data) => { void callHandler('updateRouteStickyNote', id, data); }}
+          deleteStickyNote={(id) => { void callHandler('deleteRouteStickyNote', id); }}
+          onOpenEditor={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          transform={canvasTransform}
+          onTransformChange={setCanvasTransform}
+          mouseGestures={snapshot.mouseGestures}
+          layoutMode={snapshot.layoutMode}
+          groupingMode={snapshot.groupingMode}
+          onChangeLayoutMode={(mode) => { void callHandler('handleChangeRouteCanvasLayoutMode', mode); }}
+          onChangeGroupingMode={(mode) => { void callHandler('handleChangeRouteCanvasGroupingMode', mode); }}
+          onWarpToLabel={(labelName) => { void callHandler('handleWarpToLabel', labelName); }}
+        />
+      </PopoutCanvasChrome>
+    );
+  }
+
+  if (snapshot.kind === 'choice-canvas') {
+    return (
+      <PopoutCanvasChrome>
+        <ChoiceCanvas
+          labelNodes={snapshot.labelNodes}
+          routeLinks={snapshot.routeLinks}
+          blocks={snapshot.blocks}
+          analysisResult={snapshot.analysisResult}
+          stickyNotes={snapshot.stickyNotes}
+          onAddStickyNote={(position) => { void callHandler('addChoiceStickyNote', position); }}
+          updateStickyNote={(id, data) => { void callHandler('updateChoiceStickyNote', id, data); }}
+          deleteStickyNote={(id) => { void callHandler('deleteChoiceStickyNote', id); }}
+          onOpenEditor={(blockId, line) => {
+            void callHandler('handleOpenEditor', blockId, line);
+            window.electronAPI?.focusMainWindow?.();
+          }}
+          transform={canvasTransform}
+          onTransformChange={setCanvasTransform}
+          mouseGestures={snapshot.mouseGestures}
+          onWarpToLabel={(labelName) => { void callHandler('handleWarpToLabel', labelName); }}
+        />
+      </PopoutCanvasChrome>
     );
   }
 

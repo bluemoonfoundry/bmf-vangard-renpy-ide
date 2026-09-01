@@ -12,18 +12,24 @@
  * `callHandler` to invoke a named handler in the main window.
  *
  * Supported tab types: `editor`, `untitled`, `markdown`, `image`, `audio`,
- * `character`, `diagnostics`/`punchlist`, `translations`, `stats`, `screen-preview`.
- * The remaining types (the infinite canvases and the scene/imagemap composers) are
- * deliberately not included yet -- see the "Detachable Editor Tabs" plan's Phase 2
- * notes for why: they need real-time position/drag sync, a different problem than
- * relaying a snapshot of a self-contained item or a read-mostly dashboard.
+ * `character`, `diagnostics`/`punchlist`, `translations`, `stats`, `screen-preview`,
+ * `route-canvas`, `choice-canvas`. The remaining types (the pinned Project Canvas,
+ * `notecard-canvas`, and the scene/imagemap composers) are deliberately not included
+ * yet -- see the "Detachable Editor Tabs" plan's Phase 2 notes for why: their primary
+ * interaction commits continuously on every pointermove rather than once on release,
+ * which route-canvas/choice-canvas's node-position dragging (their main interaction)
+ * does not -- only their secondary sticky-note dragging is continuous, an accepted
+ * tradeoff for now (see the relay comment on addRouteStickyNote/addChoiceStickyNote
+ * paths below). The pinned canvas is also excluded deliberately, matching its existing
+ * `isProtectedTab` treatment elsewhere (it's the app's always-present home view).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AppSettings, AudioMetadata, Block, Character, DialogueLine, DiagnosticsResult,
   DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMetadata,
-  JumpLocation, LabelNode, MenuTemplate, PersistedProjectSettings, ProjectImage,
-  RenpyAnalysisResult, RenpyAudio, RenpyScreen, RouteLink, StickyNote, Theme,
+  JumpLocation, LabelNode, MenuTemplate, MouseGestureSettings, PersistedProjectSettings,
+  Position, ProjectImage, RenpyAnalysisResult, RenpyAudio, RenpyScreen, RouteLink,
+  StickyNote, StoryCanvasGroupingMode, StoryCanvasLayoutMode, Theme,
   TranslationAnalysisResult, UserSnippet,
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
@@ -33,6 +39,7 @@ import type { PerformanceSnapshot } from '@/hooks/usePerformanceMetrics';
 export const POPOUT_SUPPORTED_TAB_TYPES: ReadonlySet<string> = new Set<EditorTab['type']>([
   'editor', 'untitled', 'markdown', 'image', 'audio',
   'character', 'diagnostics', 'punchlist', 'translations', 'stats', 'screen-preview',
+  'route-canvas', 'choice-canvas',
 ]);
 
 /** A block stripped of its (potentially large) script text, for views that only ever
@@ -179,6 +186,35 @@ export interface ScreenPreviewPopoutSnapshot extends BaseSnapshot {
   images: Map<string, ProjectImage>;
 }
 
+/** Pan/zoom (`transform`) is deliberately NOT part of this snapshot -- it's already
+ *  ephemeral, non-persisted `useState` in the main window (resets to {0,0,1} on
+ *  reload), so a popout owning its own local transform doesn't violate any shared
+ *  truth. Likewise `centerOnStartRequest`/`centerOnNodeRequest` (external "scroll to X"
+ *  triggers, e.g. from Go-to-Label) aren't relayed -- there's no such trigger UI in a
+ *  popout yet. */
+export interface RouteCanvasPopoutSnapshot extends BaseSnapshot {
+  kind: 'route-canvas';
+  labelNodes: LabelNode[];
+  routeLinks: RouteLink[];
+  identifiedRoutes: IdentifiedRoute[];
+  routesTruncated?: boolean;
+  stickyNotes: StickyNote[];
+  images: Map<string, ProjectImage>;
+  mouseGestures?: MouseGestureSettings;
+  layoutMode: StoryCanvasLayoutMode;
+  groupingMode: StoryCanvasGroupingMode;
+}
+
+export interface ChoiceCanvasPopoutSnapshot extends BaseSnapshot {
+  kind: 'choice-canvas';
+  labelNodes: LabelNode[];
+  routeLinks: RouteLink[];
+  blocks: { id: string; content: string }[];
+  analysisResult: RenpyAnalysisResult;
+  stickyNotes: StickyNote[];
+  mouseGestures?: MouseGestureSettings;
+}
+
 export type PopoutSnapshot =
   | EditorPopoutSnapshot
   | UntitledPopoutSnapshot
@@ -189,7 +225,9 @@ export type PopoutSnapshot =
   | DiagnosticsPopoutSnapshot
   | TranslationsPopoutSnapshot
   | StatsPopoutSnapshot
-  | ScreenPreviewPopoutSnapshot;
+  | ScreenPreviewPopoutSnapshot
+  | RouteCanvasPopoutSnapshot
+  | ChoiceCanvasPopoutSnapshot;
 
 export interface PopoutHandlers {
   updateBlock: (id: string, data: Partial<Block>) => void;
@@ -216,6 +254,15 @@ export interface PopoutHandlers {
   handleCenterOnBlock: (target: string) => void;
   handleGenerateTranslations: (language: string) => Promise<void>;
   handleOpenStaticTab: (type: 'canvas' | 'route-canvas' | 'choice-canvas' | 'notecard-canvas' | 'diagnostics' | 'stats' | 'translations' | 'screen-preview') => void;
+  handleUpdateRouteNodePositions: (updates: { id: string; position: Position }[]) => void;
+  addRouteStickyNote: (position: Position) => void;
+  updateRouteStickyNote: (id: string, data: Partial<StickyNote>) => void;
+  deleteRouteStickyNote: (id: string) => void;
+  handleChangeRouteCanvasLayoutMode: (mode: StoryCanvasLayoutMode) => void;
+  handleChangeRouteCanvasGroupingMode: (mode: StoryCanvasGroupingMode) => void;
+  addChoiceStickyNote: (position: Position) => void;
+  updateChoiceStickyNote: (id: string, data: Partial<StickyNote>) => void;
+  deleteChoiceStickyNote: (id: string) => void;
 }
 
 export interface PopoutSnapshotDeps {
@@ -243,6 +290,8 @@ export interface PopoutSnapshotDeps {
   isRenpyPathValid: boolean;
   editorCursorBlockId: string | null;
   editorCursorPosition: { line: number; column: number } | null;
+  routeStickyNotes: StickyNote[];
+  choiceStickyNotes: StickyNote[];
 }
 
 function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSnapshot | null {
@@ -252,6 +301,7 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     charactersByTag, characterTagsArray, allStickyNotes, diagnosticsTasks, ignoredDiagnostics,
     diagnosticsResult, routeAnalysisResult, performanceMetrics, isGeneratingTranslations,
     isRenpyPathValid, editorCursorBlockId, editorCursorPosition,
+    routeStickyNotes, choiceStickyNotes,
   } = deps;
   const editorTheme: 'light' | 'dark' = appSettings.theme.includes('dark') ? 'dark' : 'light';
 
@@ -373,6 +423,33 @@ function buildPopoutSnapshot(tab: EditorTab, deps: PopoutSnapshotDeps): PopoutSn
     };
   }
 
+  if (tab.type === 'route-canvas') {
+    return {
+      kind: 'route-canvas', tabId: tab.id, theme: appSettings.theme,
+      labelNodes: routeAnalysisResult.labelNodes,
+      routeLinks: routeAnalysisResult.routeLinks,
+      identifiedRoutes: routeAnalysisResult.identifiedRoutes,
+      routesTruncated: routeAnalysisResult.routesTruncated,
+      stickyNotes: routeStickyNotes,
+      images,
+      mouseGestures: appSettings.mouseGestures,
+      layoutMode: projectSettings.routeCanvasLayoutMode ?? 'flow-lr',
+      groupingMode: projectSettings.routeCanvasGroupingMode ?? 'none',
+    };
+  }
+
+  if (tab.type === 'choice-canvas') {
+    return {
+      kind: 'choice-canvas', tabId: tab.id, theme: appSettings.theme,
+      labelNodes: routeAnalysisResult.labelNodes,
+      routeLinks: routeAnalysisResult.routeLinks,
+      blocks: blocks.map(b => ({ id: b.id, content: b.content })),
+      analysisResult,
+      stickyNotes: choiceStickyNotes,
+      mouseGestures: appSettings.mouseGestures,
+    };
+  }
+
   return null;
 }
 
@@ -449,7 +526,7 @@ export function useMainWindowPopoutSync({
     deps.characterTagsArray, deps.allStickyNotes, deps.diagnosticsTasks, deps.ignoredDiagnostics,
     deps.diagnosticsResult, deps.routeAnalysisResult, deps.performanceMetrics,
     deps.isGeneratingTranslations, deps.isRenpyPathValid, deps.editorCursorBlockId,
-    deps.editorCursorPosition, pushSnapshotForTab,
+    deps.editorCursorPosition, deps.routeStickyNotes, deps.choiceStickyNotes, pushSnapshotForTab,
   ]);
 }
 

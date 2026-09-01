@@ -1889,7 +1889,16 @@ const App: React.FC = () => {
     handleCenterOnBlock,
     handleGenerateTranslations,
     handleOpenStaticTab,
-  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab]);
+    handleUpdateRouteNodePositions,
+    addRouteStickyNote,
+    updateRouteStickyNote,
+    deleteRouteStickyNote,
+    handleChangeRouteCanvasLayoutMode,
+    handleChangeRouteCanvasGroupingMode,
+    addChoiceStickyNote,
+    updateChoiceStickyNote,
+    deleteChoiceStickyNote,
+  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab, handleUpdateRouteNodePositions, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote, handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote]);
 
   useMainWindowPopoutSync({
     poppedOutTabs: poppedOutSyncableTabs,
@@ -1917,6 +1926,8 @@ const App: React.FC = () => {
     isRenpyPathValid,
     editorCursorBlockId,
     editorCursorPosition,
+    routeStickyNotes,
+    choiceStickyNotes,
     onRedock: handleRedockTab,
     handlers: popoutHandlers,
   });
