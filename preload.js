@@ -209,4 +209,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('popout:flush-requested', handler);
   },
   acknowledgePopoutFlush: () => ipcRenderer.send('popout:flush-complete'),
+  flushAllPopouts: () => ipcRenderer.invoke('window:flush-all-popouts'),
+  closeAllPopouts: () => ipcRenderer.invoke('window:close-all-popouts'),
+  closePopoutForTab: (tabId) => ipcRenderer.invoke('window:close-popout-for-tab', { tabId }),
 });

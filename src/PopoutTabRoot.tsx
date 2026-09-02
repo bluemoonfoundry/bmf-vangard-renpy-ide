@@ -103,6 +103,11 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   // first snapshot, then updated synchronously on every onSceneChange call (each RPC
   // send just persists whatever the local resolution already produced).
   const [localScene, setLocalScene] = useState<SceneComposition | null>(null);
+  // Mirrors localScene synchronously so onSceneChange can read the latest value without
+  // going through a setState updater -- a side effect (the callHandler IPC call) inside
+  // a functional setState updater would violate React's requirement that updaters be
+  // pure, since React may invoke one more than once per commit (e.g. under StrictMode).
+  const localSceneRef = useRef<SceneComposition | null>(null);
   const sceneSeededRef = useRef(false);
   // Selection is per-window UI state, same reasoning as pan/zoom -- not relayed.
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
@@ -145,16 +150,14 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
       if (data.command === 'close-tab') {
         closePopout();
       } else if (data.command === 'save-all') {
-        const liveContent = editorRef.current?.getValue();
-        if (snapshot.kind === 'editor') {
-          const flush = liveContent !== undefined ? callHandler('setBlockContent', snapshot.blockId, liveContent) : Promise.resolve();
-          void flush.then(() => callHandler('handleSaveBlock', snapshot.blockId));
-        } else if (snapshot.kind === 'untitled') {
-          void callHandler('saveUntitledFile', snapshot.tabId, liveContent);
-        }
+        // A true app-wide save, not just this window's tab -- Electron only routes
+        // the Save All menu command to the focused window, so this is the only
+        // place a popout-focused Save All can reach the other dirty blocks/tabs
+        // living in the main window or other popouts.
+        void flushPendingEdits().then(() => callHandler('handleSaveAll'));
       }
     });
-  }, [snapshot, callHandler]);
+  }, [snapshot, callHandler, flushPendingEdits]);
 
   useEffect(() => {
     if (!theme) return;
@@ -167,6 +170,7 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   useEffect(() => {
     if (snapshot?.kind === 'scene-composer' && !sceneSeededRef.current) {
       setLocalScene(snapshot.scene);
+      localSceneRef.current = snapshot.scene;
       sceneSeededRef.current = true;
     }
   }, [snapshot]);
@@ -215,10 +219,13 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
             // this block when one is open there, but there isn't one for a popped-out
             // tab -- it falls back to blocksRef, which setBlockContent below only updates
             // on an 800ms debounce (see EditorView's onDidChangeModelContent). Flush the
-            // live value first so save never races that debounce.
+            // live value first so blocks[] reflects it regardless of what happens next,
+            // and also pass it straight through to handleSaveBlock so the save itself
+            // doesn't depend on blocksRef having already synced from that flush (a
+            // separate RPC round trip) by the time this second call runs.
             const liveContent = editorRef.current?.getValue();
             const flush = liveContent !== undefined ? callHandler('setBlockContent', id, liveContent) : Promise.resolve();
-            void flush.then(() => callHandler('handleSaveBlock', id));
+            void flush.then(() => callHandler('handleSaveBlock', id, liveContent));
           }}
           onDirtyChange={(id, dirty) => { void callHandler('setEditorDirty', id, dirty); }}
           onContentChange={(id, content) => { void callHandler('setBlockContent', id, content); }}
@@ -521,12 +528,11 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           metadata={snapshot.imageMetadata}
           scene={scene}
           onSceneChange={(value) => {
-            setLocalScene(prev => {
-              const base = prev ?? scene;
-              const next = typeof value === 'function' ? (value as (p: SceneComposition) => SceneComposition)(base) : value;
-              void callHandler('handleSceneUpdate', snapshot.sceneId, next);
-              return next;
-            });
+            const base = localSceneRef.current ?? scene;
+            const next = typeof value === 'function' ? (value as (p: SceneComposition) => SceneComposition)(base) : value;
+            localSceneRef.current = next;
+            setLocalScene(next);
+            void callHandler('handleSceneUpdate', snapshot.sceneId, next);
           }}
           sceneName={snapshot.sceneName}
           onRenameScene={(newName) => { void callHandler('handleRenameScene', snapshot.sceneId, newName); }}
@@ -580,13 +586,10 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
           onInteractionEnd={() => {}}
           deleteBlock={(id) => callHandler<void>('deleteBlockWithFile', id)}
           deleteBlocks={(ids) => callHandler<void>('deleteBlocksWithFile', ids)}
-          createGroupFromSelection={(blockIds) => {
-            // Can't return the new group's id synchronously across an RPC round trip --
-            // see the comment on createGroupFromSelectionVoid in App.tsx. The group is
-            // still created correctly; this window just won't auto-select it.
-            void callHandler('createGroupFromSelection', blockIds);
-            return null;
-          }}
+          // Can't return the new group's id synchronously across an RPC round trip --
+          // StoryCanvas accepts a Promise here and awaits it before selecting/
+          // announcing the new group (see its keydown handler).
+          createGroupFromSelection={(blockIds) => callHandler<string | null>('createGroupFromSelection', blockIds)}
           deleteGroup={(id) => { void callHandler('deleteGroup', id); }}
           onOpenEditor={(id, line) => {
             void callHandler('handleOpenEditor', id, line);

@@ -894,6 +894,7 @@ const App: React.FC = () => {
     activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
     setActivePaneId, setSplitLayout,
+    poppedOutTabs, setPoppedOutTabs,
   });
 
   // --- Layout ---
@@ -923,6 +924,7 @@ const App: React.FC = () => {
       setIsLoading, setLoadingProgress, setLoadingMessage,
       updateAppSettings,
       setHasUnsavedSettings, setIsInitialAnalysisPending, perfRecorders, addToast,
+      poppedOutTabs, setPoppedOutTabs,
       hydrateSetters: {
           pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
           setProjectRootPath, setFileSystemTree,
@@ -1038,7 +1040,7 @@ const App: React.FC = () => {
     setDirtyBlockIds(prev => new Set(prev).add(blockId));
   }, [setBlocks]);
 
-  const handleSaveBlock = useCallback(async (blockId: string) => {
+  const handleSaveBlock = useCallback(async (blockId: string, liveContent?: string) => {
     const editor = editorInstances.current.get(blockId);
     const block = blocksRef.current.find(b => b.id === blockId);
     // No local Monaco instance means this tab isn't open in *this* window --
@@ -1046,7 +1048,12 @@ const App: React.FC = () => {
     // current via the same updateBlock/setBlockContent calls a local edit
     // would make. Fall back to that instead of silently no-op'ing.
     if (!editor && !block) return;
-    const contentToSave = editor ? editor.getValue() : (block?.content ?? '');
+    // liveContent (passed by a popout that read its own Monaco instance directly)
+    // takes priority over blocksRef -- the popout's own flush-then-save call already
+    // relays this same value via setBlockContent first, but that's a separate RPC
+    // round trip, and relying on blocksRef having synced from it by the time *this*
+    // call runs isn't guaranteed. Passing the value straight through removes that race.
+    const contentToSave = liveContent !== undefined ? liveContent : (editor ? editor.getValue() : (block?.content ?? ''));
 
     const doSave = async () => {
       try {
@@ -1115,9 +1122,18 @@ const App: React.FC = () => {
     }
   }, [appSettings.renpyPath, projectRootPath, addToast, handleRefreshProject, setIsGeneratingTranslations]);
 
-  const handleNewProjectRequest = useCallback(() => {
-    const hasUnsavedUntitled = [...untitledFiles.values()].some(f => f.isDirty);
-    const hasUnsaved = dirtyBlockIds.size > 0 || dirtyEditors.size > 0 || hasUnsavedSettings || hasUnsavedUntitled;
+  const handleNewProjectRequest = useCallback(async () => {
+    // Flush any popped-out editor's still-debouncing edit into dirty state first --
+    // otherwise a block being actively typed in a popout window (still inside
+    // Monaco's 800ms onContentChange debounce) might not have flipped its dirty
+    // flag yet, letting this unsaved-changes check slip past it. dirtyBlockIdsRef/
+    // dirtyEditorsRef/untitledFilesRef (the *Ref mirrors, not the closure-captured
+    // state) are read afterward so the flush's IPC round trip is actually picked up
+    // -- hasUnsavedSettings is read directly since popout content flushing doesn't
+    // affect it either way.
+    await window.electronAPI?.flushAllPopouts?.();
+    const hasUnsavedUntitled = [...untitledFilesRef.current.values()].some(f => f.isDirty);
+    const hasUnsaved = dirtyBlockIdsRef.current.size > 0 || dirtyEditorsRef.current.size > 0 || hasUnsavedSettings || hasUnsavedUntitled;
 
     if (hasUnsaved) {
       openUnsavedChangesModal({
@@ -1141,7 +1157,7 @@ const App: React.FC = () => {
     } else {
       handleCreateProject();
     }
-  }, [dirtyBlockIds, dirtyEditors, hasUnsavedSettings, untitledFiles, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
+  }, [dirtyBlockIdsRef, dirtyEditorsRef, hasUnsavedSettings, untitledFilesRef, handleCreateProject, handleSaveAll, openUnsavedChangesModal, closeUnsavedChangesModal]);
   
   // --- Tab Management ---
   const {
@@ -1155,7 +1171,7 @@ const App: React.FC = () => {
     handlePathDoubleClick,
   } = useTabOpeners({
     blocksRef,
-    openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+    openTabs, secondaryOpenTabs, activePaneId, splitLayout, poppedOutTabs,
     setOpenTabs, setSecondaryOpenTabs,
     setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
   });
@@ -1243,7 +1259,23 @@ const App: React.FC = () => {
       }
       return next;
     });
-  }, [blocks, activeTabId, secondaryActiveTabId, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setSplitLayout, setActivePaneId]);
+
+    // Same safety net for a popped-out editor tab -- pruneOrphanedEditorTabs above
+    // only reconciles openTabs/secondaryOpenTabs, so a tab detached into its own
+    // window whose backing block gets deleted would otherwise sit there indefinitely
+    // and get resurrected as a stale tab when the window closes (handleRedockTab
+    // unconditionally reinserts whatever poppedOutTabs still has for that id).
+    setPoppedOutTabs(prev => {
+      const orphaned = Array.from(prev.values()).filter(
+        ({ tab }) => tab.type === 'editor' && !!tab.blockId && !blockIds.has(tab.blockId)
+      );
+      if (orphaned.length === 0) return prev;
+      orphaned.forEach(({ tab }) => { void window.electronAPI?.closePopoutForTab?.(tab.id); });
+      const next = new Map(prev);
+      orphaned.forEach(({ tab }) => next.delete(tab.id));
+      return next;
+    });
+  }, [blocks, activeTabId, secondaryActiveTabId, setOpenTabs, setSecondaryOpenTabs, setActiveTabId, setSecondaryActiveTabId, setSplitLayout, setActivePaneId, setPoppedOutTabs]);
 
   const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
       e.preventDefault();
@@ -1865,17 +1897,10 @@ const App: React.FC = () => {
     setHasUnsavedSettings(true);
   }, [setIgnoredDiagnostics, setHasUnsavedSettings]);
 
-  // createGroupFromSelection returns the new group's id synchronously in-process
-  // (StoryCanvas uses it immediately to select the new group) -- an RPC round trip
-  // can't provide that synchronously. The group still gets created correctly through
-  // this call; the popout just won't auto-select it the way the main window does.
-  const createGroupFromSelectionVoid = useCallback((blockIds: string[]) => {
-    createGroupFromSelection(blockIds);
-  }, [createGroupFromSelection]);
-
   const popoutHandlers = useMemo(() => ({
     updateBlock,
     handleSaveBlock,
+    handleSaveAll,
     setBlockContent: setBlockContentFromPopout,
     setEditorDirty: setEditorDirtyFromPopout,
     handleWarpToLabel,
@@ -1929,7 +1954,7 @@ const App: React.FC = () => {
     updateGroupPositions,
     deleteBlockWithFile,
     deleteBlocksWithFile,
-    createGroupFromSelection: createGroupFromSelectionVoid,
+    createGroupFromSelection,
     deleteGroup,
     addStickyNote,
     updateStickyNote,
@@ -1939,7 +1964,7 @@ const App: React.FC = () => {
     handleChangeStoryCanvasGroupingMode,
     handleOpenRouteCanvasTab,
     setCanvasFilters,
-  }), [updateBlock, handleSaveBlock, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab, handleUpdateRouteNodePositions, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote, handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote, addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecardLink, updateNotecardLink, deleteNotecardLink, renameNotecardTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline, insertTimelineSlot, deleteTimelineSlot, handleSceneUpdate, handleRenameScene, handleImageMapUpdate, handleRenameImageMap, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile, deleteBlocksWithFile, createGroupFromSelectionVoid, deleteGroup, addStickyNote, updateStickyNote, deleteStickyNote, handleCreateBlockFromCanvas, handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode, handleOpenRouteCanvasTab, setCanvasFilters]);
+  }), [updateBlock, handleSaveBlock, handleSaveAll, setBlockContentFromPopout, setEditorDirtyFromPopout, handleWarpToLabel, handleCreateFileFromSelection, handleCreateVariableFromSelection, handleCreateCharacterFromSelection, handleSaveMenuTemplate, addToast, handleOpenEditor, updateUntitledContent, setUntitledDirty, saveUntitledFile, handleSaveImageMetadata, handleCopyImageToProject, handleSaveAudioMetadata, handleCopyAudioToProject, handleUpdateCharacter, handleUpdateDiagnosticsTasks, handleUpdateIgnoredDiagnostics, handleCenterOnBlock, handleGenerateTranslations, handleOpenStaticTab, handleUpdateRouteNodePositions, addRouteStickyNote, updateRouteStickyNote, deleteRouteStickyNote, handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode, addChoiceStickyNote, updateChoiceStickyNote, deleteChoiceStickyNote, addNotecard, updateNotecard, deleteNotecard, deleteNotecards, restoreNotecards, addNotecardLink, updateNotecardLink, deleteNotecardLink, renameNotecardTimelineSlot, moveNotecardWithinTimeline, unassignNotecardFromTimeline, insertTimelineSlot, deleteTimelineSlot, handleSceneUpdate, handleRenameScene, handleImageMapUpdate, handleRenameImageMap, updateGroup, updateBlockPositions, updateGroupPositions, deleteBlockWithFile, deleteBlocksWithFile, createGroupFromSelection, deleteGroup, addStickyNote, updateStickyNote, deleteStickyNote, handleCreateBlockFromCanvas, handleChangeStoryCanvasLayoutMode, handleChangeStoryCanvasGroupingMode, handleOpenRouteCanvasTab, setCanvasFilters]);
 
   useMainWindowPopoutSync({
     poppedOutTabs: poppedOutSyncableTabs,

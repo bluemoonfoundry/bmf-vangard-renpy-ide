@@ -21,6 +21,7 @@ function makeProps(overrides: Partial<Parameters<typeof useTabOpeners>[0]> = {})
     secondaryOpenTabs: [] as EditorTab[],
     activePaneId: 'primary' as const,
     splitLayout: 'none' as const,
+    poppedOutTabs: new Map(),
     setOpenTabs,
     setSecondaryOpenTabs,
     setActiveTabId,

@@ -235,6 +235,12 @@ export interface UseProjectLoadParams {
   setHasUnsavedSettings: React.Dispatch<React.SetStateAction<boolean>>;
   setIsInitialAnalysisPending: React.Dispatch<React.SetStateAction<boolean>>;
 
+  // Popped-out (detached-window) tabs -- closed before loading a different project,
+  // since their relayed RPC calls would otherwise keep targeting block ids from the
+  // project being replaced.
+  poppedOutTabs: Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>;
+  setPoppedOutTabs: React.Dispatch<React.SetStateAction<Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>>>;
+
   // Performance metrics
   perfRecorders: {
     recordLoad: (ms: number) => void;
@@ -260,11 +266,22 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     setHasUnsavedSettings, setIsInitialAnalysisPending,
     perfRecorders, addToast,
     hydrateSetters,
+    poppedOutTabs, setPoppedOutTabs,
   } = params;
 
   const loadProject = useCallback(async (path: string) => {
     loadCancelRef.current = false;
     const loadStartTime = performance.now();
+
+    // A popped-out tab window relays RPC calls (updateBlock, setBlockContent, ...)
+    // against the *current* project's block ids -- once this project is replaced,
+    // those calls would silently target ids that don't exist (or worse, collide
+    // with unrelated ids) in the new project. Close them before touching any state.
+    if (poppedOutTabs.size > 0) {
+      await window.electronAPI?.closeAllPopouts?.();
+      setPoppedOutTabs(new Map());
+    }
+
     setIsLoading(true);
     setLoadingProgress(5);
     setLoadingMessage('Reading project files...');
@@ -333,6 +350,7 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     setIsLoading, setLoadingMessage, setLoadingProgress,
     updateAppSettings, setHasUnsavedSettings, setIsInitialAnalysisPending,
     perfRecorders, addToast,
+    poppedOutTabs, setPoppedOutTabs,
   ]);
 
   return { loadProject };

@@ -34,6 +34,7 @@
  * `usePopoutSceneComposerState` below for how that's handled.)
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '@/lib/logger';
 import type {
   AppSettings, AudioMetadata, Block, BlockGroup, Character, DialogueLine, DiagnosticsResult,
   DiagnosticsTask, EditorTab, IdentifiedRoute, IgnoredDiagnosticRule, ImageMapComposition,
@@ -299,7 +300,8 @@ export type PopoutSnapshot =
 
 export interface PopoutHandlers {
   updateBlock: (id: string, data: Partial<Block>) => void;
-  handleSaveBlock: (blockId: string) => Promise<void>;
+  handleSaveBlock: (blockId: string, liveContent?: string) => Promise<void>;
+  handleSaveAll: () => Promise<boolean>;
   setBlockContent: (id: string, content: string) => void;
   setEditorDirty: (id: string, dirty: boolean) => void;
   handleWarpToLabel: (labelName: string) => void;
@@ -353,7 +355,7 @@ export interface PopoutHandlers {
   updateGroupPositions: (updates: { id: string; position: Position }[]) => void;
   deleteBlockWithFile: (id: string) => Promise<void>;
   deleteBlocksWithFile: (ids: string[]) => Promise<void>;
-  createGroupFromSelection: (blockIds: string[]) => void;
+  createGroupFromSelection: (blockIds: string[]) => string | null;
   deleteGroup: (id: string) => void;
   addStickyNote: (position?: Position) => void;
   updateStickyNote: (id: string, data: Partial<StickyNote>) => void;
@@ -712,7 +714,25 @@ export function usePopoutTabClient(tabId: string): UsePopoutTabClientReturn {
   const callHandler = useCallback(<T = unknown>(handlerName: keyof PopoutHandlers, ...args: unknown[]): Promise<T> => {
     const api = window.electronAPI;
     if (!api?.callPopoutHandler) return Promise.reject(new Error('electronAPI.callPopoutHandler unavailable'));
-    return api.callPopoutHandler(tabId, handlerName, args) as Promise<T>;
+    const promise = api.callPopoutHandler(tabId, handlerName, args) as Promise<T>;
+    // PopoutTabRoot.tsx fires the vast majority of these as `void callHandler(...)`
+    // with no further .catch -- without this, any relayed handler failure (a file
+    // write erroring, an unregistered handler name, the main window being
+    // unavailable) becomes a silent unhandled promise rejection with zero user-
+    // facing feedback, unlike the same operation's error handling in the main
+    // window. Attached as a side branch (not chained onto the returned promise) so
+    // a caller that DOES attach its own .then/.catch (e.g. ImageEditorView's
+    // onSaveMetadata) still sees the rejection normally.
+    promise.catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Popout handler '${handlerName}' failed:`, err);
+      if (handlerName !== 'addToast') {
+        api.callPopoutHandler?.(tabId, 'addToast', [`Action failed: ${message}`, 'error']).catch(() => {
+          // Nothing left to report through if even the toast relay is unavailable.
+        });
+      }
+    });
+    return promise;
   }, [tabId]);
 
   return { snapshot, callHandler };

@@ -1542,6 +1542,9 @@ declare global {
           onPopoutSnapshotRequested?: (callback: (data: { tabId: string }) => void) => () => void;
           onPopoutFlushRequested?: (callback: () => void) => () => void;
           acknowledgePopoutFlush?: () => void;
+          flushAllPopouts?: () => Promise<void>;
+          closeAllPopouts?: () => Promise<void>;
+          closePopoutForTab?: (tabId: string) => Promise<void>;
       }
   }
 }

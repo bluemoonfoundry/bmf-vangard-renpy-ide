@@ -34,7 +34,10 @@ export interface StoryCanvasProps {
   onInteractionEnd: () => void;
   deleteBlock: (id: string) => void | Promise<void>;
   deleteBlocks?: (ids: string[]) => void | Promise<void>;
-  createGroupFromSelection?: (blockIds: string[]) => string | null;
+  /** A popped-out window can't return the new group's id synchronously (it goes over
+   *  an RPC round trip) -- may return a Promise instead, resolved before selecting/
+   *  announcing the new group. */
+  createGroupFromSelection?: (blockIds: string[]) => string | null | Promise<string | null>;
   deleteGroup?: (id: string) => void;
   onOpenEditor: (id: string, line?: number) => void;
   selectedBlockIds: string[];
@@ -980,12 +983,14 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
 
     if ((e.key === 'g' || e.key === 'G') && noModifiers && selectedBlockIds.length > 0 && createGroupFromSelection) {
       e.preventDefault();
-      const newGroupId = createGroupFromSelection(selectedBlockIds);
+      const result = createGroupFromSelection(selectedBlockIds);
       setSelectedBlockIds([]);
-      if (newGroupId) {
-        setSelectedGroupIds([newGroupId]);
-        announce('Group created');
-      }
+      void Promise.resolve(result).then((newGroupId) => {
+        if (newGroupId) {
+          setSelectedGroupIds([newGroupId]);
+          announce('Group created');
+        }
+      });
       return;
     }
 

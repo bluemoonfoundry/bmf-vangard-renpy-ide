@@ -469,6 +469,11 @@ export function useTabLifecycle({
     const index = tabs.findIndex(t => t.id === tabId);
     const tab = tabs[index];
     if (!tab || !POPOUT_SUPPORTED_TAB_TYPES.has(tab.type)) return;
+    // The Project Canvas is the pane's permanent home tab (see isProtectedTab in
+    // TabContextMenu) -- popping it out when it's the only tab open would leave the
+    // pane completely blank with no way back short of reopening a second, duplicate
+    // canvas via the Toolbar.
+    if (tabId === 'canvas' && tabs.length === 1) return;
 
     setPoppedOutTabs(prev => {
       const next = new Map(prev);

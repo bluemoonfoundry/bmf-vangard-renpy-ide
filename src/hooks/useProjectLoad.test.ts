@@ -280,6 +280,8 @@ describe('useProjectLoad', () => {
       },
       addToast: vi.fn(),
       hydrateSetters: createMockHydrateSetters(),
+      poppedOutTabs: new Map(),
+      setPoppedOutTabs: vi.fn(),
       ...overrides,
     };
   }

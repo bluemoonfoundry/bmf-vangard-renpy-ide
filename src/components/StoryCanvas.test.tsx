@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import StoryCanvas from './StoryCanvas';
 import type { StoryCanvasProps } from './StoryCanvas';
 import {
@@ -179,7 +179,7 @@ describe('StoryCanvas', () => {
     expect(props.onCreateBlock).toHaveBeenCalledWith('story', expect.any(Object));
   });
 
-  it('groups selected blocks when G is pressed on the canvas', () => {
+  it('groups selected blocks when G is pressed on the canvas', async () => {
     const createGroupFromSelection = vi.fn(() => 'new-group-id');
     const props = createProps({ selectedBlockIds: ['b1', 'b2'], createGroupFromSelection });
     render(<StoryCanvas {...props} />);
@@ -187,7 +187,12 @@ describe('StoryCanvas', () => {
     fireEvent.keyDown(canvas, { key: 'g' });
     expect(createGroupFromSelection).toHaveBeenCalledWith(['b1', 'b2']);
     expect(props.setSelectedBlockIds).toHaveBeenCalledWith([]);
-    expect(props.setSelectedGroupIds).toHaveBeenCalledWith(['new-group-id']);
+    // The new group's id may now arrive via a Promise (a popped-out window relays it
+    // over RPC) -- createGroupFromSelection here returns a plain value, but the
+    // selection/announce still goes through a Promise.resolve(...).then(...) hop.
+    await waitFor(() => {
+      expect(props.setSelectedGroupIds).toHaveBeenCalledWith(['new-group-id']);
+    });
   });
 
   it('does not group when G is pressed with no selection', () => {
