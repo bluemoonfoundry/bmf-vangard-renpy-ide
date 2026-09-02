@@ -132,6 +132,30 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
     });
   }, [flushPendingEdits]);
 
+  // The app's single native menu bar (macOS has only one, shared across every
+  // window) sends 'menu-command' to whichever window has OS focus -- previously
+  // only the main window listened, so a menu command or its keyboard accelerator
+  // silently did nothing while a popout was focused. Cmd+S already works via
+  // Monaco's own keybinding (EditorView's 'save-block' action), independent of
+  // this -- these two commands are the ones that only ever reached the menu.
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.onMenuCommand || !snapshot) return;
+    return api.onMenuCommand((data: { command: string }) => {
+      if (data.command === 'close-tab') {
+        closePopout();
+      } else if (data.command === 'save-all') {
+        const liveContent = editorRef.current?.getValue();
+        if (snapshot.kind === 'editor') {
+          const flush = liveContent !== undefined ? callHandler('setBlockContent', snapshot.blockId, liveContent) : Promise.resolve();
+          void flush.then(() => callHandler('handleSaveBlock', snapshot.blockId));
+        } else if (snapshot.kind === 'untitled') {
+          void callHandler('saveUntitledFile', snapshot.tabId, liveContent);
+        }
+      }
+    });
+  }, [snapshot, callHandler]);
+
   useEffect(() => {
     if (!theme) return;
     const root = window.document.documentElement;
