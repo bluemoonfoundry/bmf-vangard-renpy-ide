@@ -9,7 +9,7 @@
  * (src/hooks/usePopoutSync.ts). See POPOUT_SUPPORTED_TAB_TYPES for which tab types
  * this currently handles.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import EditorView from '@/components/EditorView';
 import ImageEditorView from '@/components/ImageEditorView';
@@ -38,21 +38,13 @@ interface PopoutTabRootProps {
   tabId: string;
 }
 
-function PopoutChrome({ title, onBeforeRedock, children }: { title: string; onBeforeRedock?: () => Promise<unknown>; children: React.ReactNode }) {
-  const handleRedock = async () => {
-    // Flush any pending edit before closing -- onContentChange's 800ms debounce (see
-    // EditorView's onDidChangeModelContent) may not have fired yet, and a closed window
-    // can't fire it later. Without this, typing and immediately hitting Redock silently
-    // drops the last few hundred ms of edits.
-    await onBeforeRedock?.();
-    window.close();
-  };
+function PopoutChrome({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{title}</span>
         <button
-          onClick={handleRedock}
+          onClick={() => window.close()}
           className="text-xs px-2 py-1 rounded text-gray-600 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600"
           title="Move this tab back into the main window"
         >
@@ -106,6 +98,30 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
+  // Pushes the live Monaco value (for the two tab kinds that have a debounced
+  // onContentChange -- see EditorView's onDidChangeModelContent) into the main
+  // window's real state. The main process asks for this before *any* path this
+  // window can close through (its own close button, Cmd+W, Redock, or the main
+  // window closing) actually completes, so a still-debouncing edit is never lost.
+  const flushPendingEdits = useCallback(async () => {
+    if (!snapshot) return;
+    const liveContent = editorRef.current?.getValue();
+    if (liveContent === undefined) return;
+    if (snapshot.kind === 'editor') {
+      await callHandler('setBlockContent', snapshot.blockId, liveContent);
+    } else if (snapshot.kind === 'untitled') {
+      await callHandler('updateUntitledContent', snapshot.tabId, liveContent);
+    }
+  }, [snapshot, callHandler]);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api?.onPopoutFlushRequested) return;
+    return api.onPopoutFlushRequested(() => {
+      void flushPendingEdits().finally(() => api.acknowledgePopoutFlush?.());
+    });
+  }, [flushPendingEdits]);
+
   useEffect(() => {
     if (!theme) return;
     const root = window.document.documentElement;
@@ -150,13 +166,7 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
 
   if (snapshot.kind === 'editor' && editorAnalysisResult) {
     return (
-      <PopoutChrome
-        title={snapshot.block.title || 'Untitled'}
-        onBeforeRedock={() => {
-          const liveContent = editorRef.current?.getValue();
-          return liveContent !== undefined ? callHandler('setBlockContent', snapshot.blockId, liveContent) : Promise.resolve();
-        }}
-      >
+      <PopoutChrome title={snapshot.block.title || 'Untitled'}>
         <EditorView
           block={snapshot.block}
           blocks={[snapshot.block]}
@@ -202,13 +212,7 @@ const PopoutTabRoot: React.FC<PopoutTabRootProps> = ({ tabId }) => {
   if (snapshot.kind === 'untitled' && editorAnalysisResult) {
     const syntheticBlock: Block = { id: snapshot.tabId, content: snapshot.content, position: { x: 0, y: 0 }, width: 320, height: 200, title: snapshot.title };
     return (
-      <PopoutChrome
-        title={snapshot.title ?? 'Untitled'}
-        onBeforeRedock={() => {
-          const liveContent = editorRef.current?.getValue();
-          return liveContent !== undefined ? callHandler('updateUntitledContent', snapshot.tabId, liveContent) : Promise.resolve();
-        }}
-      >
+      <PopoutChrome title={snapshot.title ?? 'Untitled'}>
         <EditorView
           block={syntheticBlock}
           blocks={[syntheticBlock]}

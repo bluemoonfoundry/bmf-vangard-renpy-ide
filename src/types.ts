@@ -1539,6 +1539,8 @@ declare global {
           onPopoutPropsUpdate?: (callback: (snapshot: unknown) => void) => () => void;
           requestPopoutSnapshot?: (tabId: string) => void;
           onPopoutSnapshotRequested?: (callback: (data: { tabId: string }) => void) => () => void;
+          onPopoutFlushRequested?: (callback: () => void) => () => void;
+          acknowledgePopoutFlush?: () => void;
       }
   }
 }

@@ -99,6 +99,11 @@ let mainWindowRef = null;
 const popoutWindows = new Map(); // tabId -> BrowserWindow
 let popoutCallRequestId = 0;
 const pendingPopoutCalls = new Map(); // requestId -> { resolve, reject }
+// tabIds whose window.close() we're letting through because we already ran (or gave
+// up waiting on) its pre-close flush -- without this, calling win.close() again after
+// the flush completes would just re-enter the same 'close' handler forever.
+const popoutClosingForced = new Set();
+const pendingPopoutFlushAcks = new Map(); // tabId -> resolve
 
 /** Sends `channel` to the main window and every popped-out tab window. */
 function broadcastToAllWindows(channel, payload) {
@@ -110,7 +115,40 @@ function broadcastToAllWindows(channel, payload) {
     }
 }
 
-/** Closes every popped-out tab window -- called when the main window (the sole state owner) is closing. */
+function getTabIdForPopoutWindow(win) {
+    for (const [tabId, w] of popoutWindows) {
+        if (w === win) return tabId;
+    }
+    return null;
+}
+
+/**
+ * Asks one popout to flush any pending edit (e.g. Monaco content still sitting in
+ * onContentChange's 800ms debounce, not yet relayed into the main window's real
+ * state) into blocks[] before we do anything that depends on that state being
+ * current -- checking for unsaved changes, saving, or destroying the window.
+ * Resolves once the popout acks, or after a short timeout if it doesn't (crashed
+ * renderer, etc.) so this can never hang the app.
+ */
+function requestPopoutFlush(tabId) {
+    const win = popoutWindows.get(tabId);
+    if (!win || win.isDestroyed()) return Promise.resolve();
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            pendingPopoutFlushAcks.delete(tabId);
+            resolve();
+        }, 1500);
+        pendingPopoutFlushAcks.set(tabId, () => {
+            clearTimeout(timeout);
+            resolve();
+        });
+        win.webContents.send('popout:flush-requested');
+    });
+}
+
+/** Closes every popped-out tab window -- called once we're actually committed to
+ *  quitting (forceQuit is true), by which point each has already had a chance to
+ *  flush via the main window's own close-flow (see mainWindow.on('close') below). */
 function closeAllPopoutWindows() {
     for (const win of popoutWindows.values()) {
         if (win && !win.isDestroyed()) win.destroy();
@@ -844,11 +882,15 @@ async function createWindow() {
       return;
     }
     e.preventDefault();
-    // The main window is the sole owner of app state -- a popped-out tab window
-    // has nothing of its own to lose, so close them immediately rather than
-    // prompting once per window.
-    closeAllPopoutWindows();
-    mainWindow.webContents.send('check-unsaved-changes-before-exit');
+    // Flush every open popout's pending edits into the main window's real state before
+    // asking it whether anything is unsaved -- otherwise a block being actively typed
+    // in a popout wouldn't be reflected in blocks[] yet, and neither the dirty-check nor
+    // "Save & Quit" would see it. Popout windows are deliberately NOT closed here: the
+    // user might still cancel the exit (see the unsaved-changes modal flow below), and
+    // until forceQuit is actually set there's nothing to gain from tearing them down.
+    Promise.all(Array.from(popoutWindows.keys(), requestPopoutFlush)).then(() => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send('check-unsaved-changes-before-exit');
+    });
   });
 
   // Register global screenshot shortcut - handled entirely in main process for reliability
@@ -941,8 +983,35 @@ function createPopoutWindow(tabId) {
 
   popoutWindows.set(tabId, win);
 
+  // Intercept every path a popout can close through (its own native close button,
+  // Cmd+W, the Redock button calling window.close(), ...) so a pending Monaco edit
+  // still in onContentChange's debounce always gets flushed first -- previously only
+  // the Redock button's own JS handler did this, so closing via the OS chrome could
+  // silently drop the last few hundred ms of typing.
+  //
+  // Skipped once forceQuit is true: at that point the main window's own close flow
+  // has already flushed every open popout (see mainWindow.on('close') below) before
+  // ever asking about unsaved changes, so there's nothing new to flush here. This
+  // isn't just a redundant-work optimization -- app.quit() (which is what sets
+  // forceQuit) tries to close every window as part of one quit attempt, and calling
+  // event.preventDefault() on any of them appears to cancel that whole attempt in
+  // Electron, not just that window's close; destroying the window separately
+  // afterward (as closeAllPopoutWindows does) does not resume it, so the app never
+  // actually exits. Confirmed live: without this check the process hung indefinitely
+  // after the user confirmed "Don't Save".
+  win.on('close', (e) => {
+    if (popoutClosingForced.has(tabId) || forceQuit) return;
+    e.preventDefault();
+    requestPopoutFlush(tabId).then(() => {
+      popoutClosingForced.add(tabId);
+      if (!win.isDestroyed()) win.close();
+    });
+  });
+
   win.on('closed', () => {
     popoutWindows.delete(tabId);
+    popoutClosingForced.delete(tabId);
+    pendingPopoutFlushAcks.delete(tabId);
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       mainWindowRef.webContents.send('window:tab-redocked', { tabId });
     }
@@ -1582,6 +1651,17 @@ app.whenReady().then(async () => {
     pendingPopoutCalls.delete(requestId);
     if (error) pending.reject(new Error(error));
     else pending.resolve(result);
+  });
+
+  ipcMain.on('popout:flush-complete', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const tabId = win && getTabIdForPopoutWindow(win);
+    if (!tabId) return;
+    const resolve = pendingPopoutFlushAcks.get(tabId);
+    if (resolve) {
+        pendingPopoutFlushAcks.delete(tabId);
+        resolve();
+    }
   });
 
   // The main window's renderer pushes a fresh props snapshot for one popped-out

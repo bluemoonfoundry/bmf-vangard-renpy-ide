@@ -202,4 +202,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('popout:snapshot-requested', handler);
     return () => ipcRenderer.removeListener('popout:snapshot-requested', handler);
   },
+  onPopoutFlushRequested: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('popout:flush-requested', handler);
+    return () => ipcRenderer.removeListener('popout:flush-requested', handler);
+  },
+  acknowledgePopoutFlush: () => ipcRenderer.send('popout:flush-complete'),
 });
