@@ -173,6 +173,37 @@ describe('useTabLifecycle', () => {
     });
   });
 
+  describe('handleTabDragEnd', () => {
+    it('pops the tab out when the drag ends with no drop target accepting it', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const dragEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).toHaveBeenCalled();
+      expect(props.setDraggedTabId).toHaveBeenCalledWith(null);
+    });
+
+    it('does not pop the tab out when the drop was handled (dropEffect is move)', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const dragEvent = { dataTransfer: { dropEffect: 'move' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).not.toHaveBeenCalled();
+      expect(props.setDraggedTabId).toHaveBeenCalledWith(null);
+    });
+
+    it('does nothing when the dragged tab is no longer in the pane (already closed mid-drag)', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'gone-tab', setPoppedOutTabs });
+      const dragEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'gone-tab', 'primary'));
+      expect(setPoppedOutTabs).not.toHaveBeenCalled();
+    });
+  });
+
   describe('processTabCloseRequest', () => {
     it('does nothing for empty tab list', () => {
       const props = makeProps();

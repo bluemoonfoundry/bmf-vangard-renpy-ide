@@ -172,6 +172,7 @@ export interface UseTabContentRendererParams {
   handleSwitchTab: (tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
+  handleTabDragEnd: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => void;
   handleTabContextMenu: (e: React.MouseEvent, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleCloseTab: (tabId: string, paneId: 'primary' | 'secondary', e?: React.MouseEvent) => void;
   handleCreateSplit: (direction: 'right' | 'bottom', tabId?: string) => void;
@@ -276,7 +277,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     handleCreateBlockFromCanvas,
     dirtyBlockIds, dirtyEditors, setDirtyEditors,
     splitLayout, activePaneId, draggedTabId,
-    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
+    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver, handleTabDragEnd,
     handleTabContextMenu, handleCloseTab, handleCreateSplit,
     handleClosePrimaryPane, handleCloseSecondaryPane,
     handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
@@ -587,6 +588,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
             onDragStart={(e) => handleTabDragStart(e, tab.id, paneId)}
             onDragOver={(e) => handleTabDragOver(e, tab.id)}
             onDrop={(e) => { e.stopPropagation(); handleTabDrop(e, tab.id, paneId); }}
+            onDragEnd={(e) => handleTabDragEnd(e, tab.id, paneId)}
             onContextMenu={(e) => handleTabContextMenu(e, tab.id, paneId)}
           >
             <span className="truncate flex-grow">{getTabLabel(tab)}</span>

@@ -72,6 +72,7 @@ export interface UseTabLifecycleReturn {
   handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
   handleTabDrop: (e: React.DragEvent<HTMLDivElement>, targetTabId: string | null, targetPaneId: 'primary' | 'secondary') => void;
+  handleTabDragEnd: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => void;
   handleReopenClosedTab: () => void;
   handlePopOutTab: (tabId: string, paneId: 'primary' | 'secondary') => void;
   handleRedockTab: (tabId: string) => void;
@@ -502,6 +503,20 @@ export function useTabLifecycle({
     void window.electronAPI?.popoutTab?.(tabId);
   }, [openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, setPoppedOutTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
+  // A tab's native drag ends with dropEffect left at its default 'none' unless it
+  // landed on a recognized drop target -- another tab or either pane's tab strip,
+  // both of which explicitly set dropEffect to 'move' in their own dragover/drop
+  // handlers above. Anything else (the desktop, another app, empty space in this
+  // window outside the tab bar) never sets it, so 'none' here means "dragged the
+  // tab out" -- pop it out into its own window, mirroring the browser/VS Code
+  // drag-a-tab-off-the-strip convention.
+  const handleTabDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => {
+    if (e.dataTransfer.dropEffect === 'none' && draggedTabId === tabId) {
+      handlePopOutTab(tabId, paneId);
+    }
+    setDraggedTabId(null);
+  }, [draggedTabId, handlePopOutTab, setDraggedTabId]);
+
   // Reinserts a tab at its original pane/index once its detached window closes.
   const handleRedockTab = useCallback((tabId: string) => {
     const entry = poppedOutTabs.get(tabId);
@@ -551,6 +566,7 @@ export function useTabLifecycle({
     handleTabDragStart,
     handleTabDragOver,
     handleTabDrop,
+    handleTabDragEnd,
     handleReopenClosedTab,
     handlePopOutTab,
     handleRedockTab,
