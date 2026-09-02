@@ -500,7 +500,7 @@ export function useTabLifecycle({
       });
     }
 
-    void window.electronAPI?.popoutTab?.(tabId);
+    void window.electronAPI?.popoutTab?.(tabId, tab.type);
   }, [openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, setPoppedOutTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   // A tab's native drag ends with dropEffect left at its default 'none' unless it

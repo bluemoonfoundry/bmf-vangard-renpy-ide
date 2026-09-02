@@ -174,8 +174,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('screenshot-captured', handler);
   },
   // --- Detachable tab windows ---
-  popoutTab: (tabId) => ipcRenderer.invoke('window:popout-tab', { tabId }),
+  popoutTab: (tabId, tabType) => ipcRenderer.invoke('window:popout-tab', { tabId, tabType }),
   focusMainWindow: () => ipcRenderer.send('window:focus-main'),
+  closePopoutSelf: () => ipcRenderer.send('popout:close-self'),
   onTabRedocked: (callback) => {
     const handler = (_event, data) => callback(data);
     ipcRenderer.on('window:tab-redocked', handler);

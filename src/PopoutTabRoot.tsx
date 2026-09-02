@@ -38,13 +38,23 @@ interface PopoutTabRootProps {
   tabId: string;
 }
 
+// Closing via the main process's BrowserWindow#close() rather than the renderer's
+// own window.close() DOM API -- confirmed live that window.close() here makes the
+// popout disappear without ever firing the BrowserWindow's 'close'/'closed' events
+// in this Electron version, silently skipping the flush-before-close and window-
+// state persistence that both depend on that event (see electron.js's win.on('close')).
+function closePopout() {
+  if (window.electronAPI?.closePopoutSelf) window.electronAPI.closePopoutSelf();
+  else window.close();
+}
+
 function PopoutChrome({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{title}</span>
         <button
-          onClick={() => window.close()}
+          onClick={closePopout}
           className="text-xs px-2 py-1 rounded text-gray-600 dark:text-gray-300 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600"
           title="Move this tab back into the main window"
         >
@@ -67,7 +77,7 @@ function PopoutCanvasChrome({ children }: { children: React.ReactNode }) {
     <div className="h-screen w-screen relative bg-white dark:bg-gray-900">
       {children}
       <button
-        onClick={() => window.close()}
+        onClick={closePopout}
         className="absolute bottom-3 left-3 z-[9999] text-xs px-2.5 py-1.5 rounded shadow-lg bg-gray-800/90 text-white hover:bg-indigo-600 dark:bg-gray-700/90 dark:hover:bg-indigo-600"
         title="Move this tab back into the main window"
       >

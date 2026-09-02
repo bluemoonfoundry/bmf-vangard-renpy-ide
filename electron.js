@@ -299,6 +299,43 @@ function saveWindowState(window) {
     }
 }
 
+// Popout bounds are remembered per tab *type* (e.g. every 'editor' popout shares
+// one remembered size/position), not per tab id -- a tab id is usually unique to
+// one file and popouts are typically short-lived, so per-id storage would just
+// grow unboundedly without ever being reused.
+const popoutWindowStatePath = path.join(app.getPath('userData'), 'popout-window-state.json');
+
+async function loadPopoutWindowState(tabType) {
+    try {
+        const data = await fs.readFile(popoutWindowStatePath, 'utf-8');
+        const state = JSON.parse(data);
+        const entry = state[tabType];
+        if (entry && typeof entry.width === 'number' && typeof entry.height === 'number') {
+            return entry;
+        }
+    } catch {
+        // No saved state yet for this tab type, or the file doesn't exist/is corrupted
+    }
+    return null;
+}
+
+async function savePopoutWindowState(tabType, window) {
+    if (!window || window.isDestroyed()) return;
+    try {
+        const bounds = window.getBounds();
+        let state = {};
+        try {
+            state = JSON.parse(await fs.readFile(popoutWindowStatePath, 'utf-8'));
+        } catch {
+            // First popout window ever saved
+        }
+        state[tabType] = bounds;
+        await fs.writeFile(popoutWindowStatePath, JSON.stringify(state));
+    } catch (error) {
+        logger.error('Failed to save popout window state:', error);
+    }
+}
+
 // --- App Settings Management ---
 const appSettingsPath = path.join(app.getPath('userData'), 'app-settings.json');
 
@@ -969,10 +1006,13 @@ async function createWindow() {
  * so the CSP already applied in createWindow() covers it too -- no need to
  * call applyContentSecurityPolicy again here.
  */
-function createPopoutWindow(tabId) {
+async function createPopoutWindow(tabId, tabType) {
+  const savedState = await loadPopoutWindowState(tabType);
   const win = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: savedState?.width || 900,
+    height: savedState?.height || 700,
+    x: savedState?.x,
+    y: savedState?.y,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -1000,6 +1040,7 @@ function createPopoutWindow(tabId) {
   // actually exits. Confirmed live: without this check the process hung indefinitely
   // after the user confirmed "Don't Save".
   win.on('close', (e) => {
+    savePopoutWindowState(tabType, win);
     if (popoutClosingForced.has(tabId) || forceQuit) return;
     e.preventDefault();
     requestPopoutFlush(tabId).then(() => {
@@ -1616,18 +1657,30 @@ app.whenReady().then(async () => {
   // renderer side of this relay. The main window remains the sole owner of
   // app state; these channels just ferry snapshots and RPC calls to/from it.
 
-  ipcMain.handle('window:popout-tab', (event, { tabId }) => {
+  ipcMain.handle('window:popout-tab', (event, { tabId, tabType }) => {
     if (popoutWindows.has(tabId)) {
       const existing = popoutWindows.get(tabId);
       if (existing && !existing.isDestroyed()) { existing.focus(); return; }
     }
-    createPopoutWindow(tabId);
+    createPopoutWindow(tabId, tabType);
   });
 
   ipcMain.on('window:focus-main', () => {
     if (!mainWindowRef || mainWindowRef.isDestroyed()) return;
     if (mainWindowRef.isMinimized()) mainWindowRef.restore();
     mainWindowRef.focus();
+  });
+
+  // The Redock button asks the main process to close its own popout window via
+  // IPC rather than calling the renderer's window.close() DOM API directly --
+  // confirmed live that window.close() from a popout's renderer makes the window
+  // disappear without ever firing the BrowserWindow's 'close'/'closed' events,
+  // silently skipping the flush-before-close (see win.on('close') above) and the
+  // window-state persistence below. Closing via BrowserWindow#close() from here
+  // goes through the exact same lifecycle as the native close button or Cmd+W.
+  ipcMain.on('popout:close-self', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.close();
   });
 
   // A popout renderer asks the main window's renderer to run one of its real

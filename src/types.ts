@@ -1529,8 +1529,9 @@ declare global {
           openLogDirectory?: () => Promise<{ success: boolean; error?: string }>;
           addToast?: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
           // --- Detachable tab windows ---
-          popoutTab?: (tabId: string) => Promise<void>;
+          popoutTab?: (tabId: string, tabType: string) => Promise<void>;
           focusMainWindow?: () => void;
+          closePopoutSelf?: () => void;
           onTabRedocked?: (callback: (data: { tabId: string }) => void) => () => void;
           callPopoutHandler?: (tabId: string, handlerName: string, args: unknown[]) => Promise<unknown>;
           onPopoutInvokeHandler?: (callback: (payload: { requestId: number; tabId: string; handlerName: string; args: unknown[] }) => void) => () => void;
