@@ -19,6 +19,8 @@ import type { MinimapItem } from './Minimap';
 import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult, FileSizeThresholds } from '@/types';
 import type { BlockType } from './CreateBlockModal';
 import { useDualPane } from '@/contexts/DualPaneContext';
+import { useCanvasKeyboardPan } from '@/hooks/useCanvasKeyboardPan';
+import { useCanvasActiveScope } from '@/hooks/useCanvasActiveScope';
 
 export interface StoryCanvasProps {
   blocks: Block[];
@@ -1050,15 +1052,19 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
       transform, onCreateBlock, selectedBlockIds, selectedGroupIds, createGroupFromSelection,
       deleteBlocks, deleteGroup]);
 
+  const isCanvasActive = useCanvasActiveScope(canvasRef);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (e.key === 'f' || e.key === 'F') fitToScreen();
+      if ((e.key === 'f' || e.key === 'F') && isCanvasActive()) fitToScreen();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fitToScreen]);
+  }, [fitToScreen, isCanvasActive]);
+
+  useCanvasKeyboardPan({ containerRef: canvasRef, onTransformChange, minScale: 0.2, maxScale: 3 });
 
   const visibleLinks = useMemo(() => {
       return analysisResult.links.filter(link =>
@@ -1235,6 +1241,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               setShowLabelSearchResults(true);
             }}
             onFocus={() => setShowLabelSearchResults(true)}
+            onKeyDown={e => e.stopPropagation()}
             placeholder="Search labels…"
             className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
           />
