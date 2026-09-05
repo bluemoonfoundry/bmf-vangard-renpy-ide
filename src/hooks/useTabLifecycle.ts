@@ -103,8 +103,35 @@ export function useTabLifecycle({
   // Set true only by a recognized drop target's own dragover handler (another tab, or
   // either pane's tab strip) below. handleTabDragEnd reads this explicitly rather than
   // inferring "dragged off the strip" from dataTransfer.dropEffect's incidental default,
-  // so it can't misfire if bubbling/handler order ever changes. Reset on drag start.
+  // so it can't misfire if bubbling/handler order ever changes.
+  //
+  // This must reflect only the *last* dragover, not "was it ever true this drag" --
+  // otherwise a drag that starts on the source tab itself (a child of the strip, whose
+  // own dragover bubbles up to the strip's handler) would latch this true at the very
+  // first event and never pop out even after the pointer leaves every recognized target.
+  // handleWindowDragOverDuringTabDrag is registered on `window` with capture:true for the
+  // duration of a drag, so it runs before any target's bubble-phase onDragOver on every
+  // single dragover event and resets the flag first; a recognized target's own handler
+  // (also below) then sets it back to true if -- and only if -- this event actually
+  // landed on it. Net effect: true exactly when the most recent dragover hit a
+  // recognized target, mirroring how the browser itself resets dataTransfer.dropEffect
+  // to 'none' by default on every dragover unless a handler overrides it.
   const draggedOverValidTargetRef = useRef(false);
+  // Also calls preventDefault() and sets dropEffect = 'move' as the baseline for any
+  // area that isn't a recognized drop target (e.g. dragging over the canvas or empty
+  // window space). Without this, the browser shows its default "no-drop" (forbidden)
+  // cursor there, which reads as "this won't work" even though releasing the mouse
+  // there does correctly pop the tab out -- native dragover treats "no handler called
+  // preventDefault" as "this drop is rejected" and cursors it accordingly, regardless
+  // of what our own dragend logic goes on to do. Bubble-phase handlers below still run
+  // afterward and can override dropEffect (to the same 'move' value) when the pointer
+  // is actually over a recognized target, so this is purely cosmetic -- it never
+  // affects which branch handleTabDragEnd takes.
+  const handleWindowDragOverDuringTabDrag = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    draggedOverValidTargetRef.current = false;
+  }, []);
 
   const pushClosedTabs = useCallback((entries: ClosedTabEntry[]) => {
     if (entries.length === 0) return;
@@ -348,11 +375,12 @@ export function useTabLifecycle({
 
   const handleTabDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
     draggedOverValidTargetRef.current = false;
+    window.addEventListener('dragover', handleWindowDragOverDuringTabDrag, true);
     setDraggedTabId(tabId);
     setDragSourcePaneId(paneId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', tabId);
-  }, [setDraggedTabId, setDragSourcePaneId]);
+  }, [setDraggedTabId, setDragSourcePaneId, handleWindowDragOverDuringTabDrag]);
 
   const handleTabDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, targetTabId: string) => {
     e.preventDefault();
@@ -533,11 +561,12 @@ export function useTabLifecycle({
   // drag that ends without it means "dragged the tab out" -- pop it out into its
   // own window, mirroring the browser/VS Code drag-a-tab-off-the-strip convention.
   const handleTabDragEnd = useCallback((_e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => {
+    window.removeEventListener('dragover', handleWindowDragOverDuringTabDrag, true);
     if (!draggedOverValidTargetRef.current && draggedTabId === tabId) {
       handlePopOutTab(tabId, paneId);
     }
     setDraggedTabId(null);
-  }, [draggedTabId, handlePopOutTab, setDraggedTabId]);
+  }, [draggedTabId, handlePopOutTab, setDraggedTabId, handleWindowDragOverDuringTabDrag]);
 
   // Reinserts a tab at its original pane/index once its detached window closes.
   const handleRedockTab = useCallback((tabId: string) => {
