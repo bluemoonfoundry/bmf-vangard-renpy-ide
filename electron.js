@@ -317,29 +317,39 @@ function startProjectWatcher(rootPath) {
 }
 
 // --- Window State Management ---
+
+// Shared read/write idiom for the small JSON state files below (window bounds,
+// popout bounds). Read failures (missing file, first launch, corrupted content)
+// are swallowed and reported as null -- callers treat that as "no saved state".
+async function readJsonStateFile(filePath) {
+    try {
+        return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+    } catch {
+        return null;
+    }
+}
+
+async function writeJsonStateFile(filePath, data, description) {
+    try {
+        await fs.writeFile(filePath, JSON.stringify(data));
+    } catch (error) {
+        logger.error(`Failed to save ${description}:`, error);
+    }
+}
+
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 
 async function loadWindowState() {
-    try {
-        const data = await fs.readFile(windowStatePath, 'utf-8');
-        const state = JSON.parse(data);
-        if (typeof state.width === 'number' && typeof state.height === 'number') {
-            return state;
-        }
-    } catch {
-        // First launch or corrupted state — use defaults
+    const state = await readJsonStateFile(windowStatePath);
+    if (state && typeof state.width === 'number' && typeof state.height === 'number') {
+        return state;
     }
     return null;
 }
 
 function saveWindowState(window) {
     if (!window) return;
-    try {
-        const bounds = window.getBounds();
-        fs.writeFile(windowStatePath, JSON.stringify(bounds));
-    } catch (error) {
-        logger.error('Failed to save window state:', error);
-    }
+    void writeJsonStateFile(windowStatePath, window.getBounds(), 'window state');
 }
 
 // Popout bounds are remembered per tab *type* (e.g. every 'editor' popout shares
@@ -349,15 +359,10 @@ function saveWindowState(window) {
 const popoutWindowStatePath = path.join(app.getPath('userData'), 'popout-window-state.json');
 
 async function loadPopoutWindowState(tabType) {
-    try {
-        const data = await fs.readFile(popoutWindowStatePath, 'utf-8');
-        const state = JSON.parse(data);
-        const entry = state[tabType];
-        if (entry && typeof entry.width === 'number' && typeof entry.height === 'number') {
-            return entry;
-        }
-    } catch {
-        // No saved state yet for this tab type, or the file doesn't exist/is corrupted
+    const state = await readJsonStateFile(popoutWindowStatePath);
+    const entry = state?.[tabType];
+    if (entry && typeof entry.width === 'number' && typeof entry.height === 'number') {
+        return entry;
     }
     return null;
 }
@@ -373,18 +378,9 @@ function savePopoutWindowState(tabType, window) {
     if (!window || window.isDestroyed()) return popoutWindowStateWriteQueue;
     const bounds = window.getBounds();
     popoutWindowStateWriteQueue = popoutWindowStateWriteQueue.then(async () => {
-        try {
-            let state = {};
-            try {
-                state = JSON.parse(await fs.readFile(popoutWindowStatePath, 'utf-8'));
-            } catch {
-                // First popout window ever saved
-            }
-            state[tabType] = bounds;
-            await fs.writeFile(popoutWindowStatePath, JSON.stringify(state));
-        } catch (error) {
-            logger.error('Failed to save popout window state:', error);
-        }
+        const state = (await readJsonStateFile(popoutWindowStatePath)) || {};
+        state[tabType] = bounds;
+        await writeJsonStateFile(popoutWindowStatePath, state, 'popout window state');
     });
     return popoutWindowStateWriteQueue;
 }

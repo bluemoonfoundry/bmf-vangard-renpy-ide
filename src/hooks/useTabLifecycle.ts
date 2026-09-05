@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ClosedTabEntry, EditorTab } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
@@ -71,6 +71,7 @@ export interface UseTabLifecycleReturn {
   handleClosePrimaryPane: () => void;
   handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
+  handleTabStripDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   handleTabDrop: (e: React.DragEvent<HTMLDivElement>, targetTabId: string | null, targetPaneId: 'primary' | 'secondary') => void;
   handleTabDragEnd: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => void;
   handleReopenClosedTab: () => void;
@@ -98,6 +99,12 @@ export function useTabLifecycle({
   openUnsavedChangesModal, closeUnsavedChangesModal,
   handleSaveAll, setHasUnsavedSettings,
 }: UseTabLifecycleProps): UseTabLifecycleReturn {
+
+  // Set true only by a recognized drop target's own dragover handler (another tab, or
+  // either pane's tab strip) below. handleTabDragEnd reads this explicitly rather than
+  // inferring "dragged off the strip" from dataTransfer.dropEffect's incidental default,
+  // so it can't misfire if bubbling/handler order ever changes. Reset on drag start.
+  const draggedOverValidTargetRef = useRef(false);
 
   const pushClosedTabs = useCallback((entries: ClosedTabEntry[]) => {
     if (entries.length === 0) return;
@@ -340,6 +347,7 @@ export function useTabLifecycle({
   }, [openTabs, secondaryOpenTabs, secondaryActiveTabId, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
   const handleTabDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary' = 'primary') => {
+    draggedOverValidTargetRef.current = false;
     setDraggedTabId(tabId);
     setDragSourcePaneId(paneId);
     e.dataTransfer.effectAllowed = 'move';
@@ -350,6 +358,16 @@ export function useTabLifecycle({
     e.preventDefault();
     if (draggedTabId && draggedTabId !== targetTabId) {
       e.dataTransfer.dropEffect = 'move';
+      draggedOverValidTargetRef.current = true;
+    }
+  }, [draggedTabId]);
+
+  // The scrollable tab strip itself also accepts drops (to append at the end of a pane).
+  const handleTabStripDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (draggedTabId) {
+      e.dataTransfer.dropEffect = 'move';
+      draggedOverValidTargetRef.current = true;
     }
   }, [draggedTabId]);
 
@@ -508,15 +526,14 @@ export function useTabLifecycle({
     void window.electronAPI?.popoutTab?.(tabId, tab.type);
   }, [openTabs, secondaryOpenTabs, activeTabId, secondaryActiveTabId, setPoppedOutTabs, setActivePaneId, setActiveTabId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs, setSplitLayout]);
 
-  // A tab's native drag ends with dropEffect left at its default 'none' unless it
-  // landed on a recognized drop target -- another tab or either pane's tab strip,
-  // both of which explicitly set dropEffect to 'move' in their own dragover/drop
-  // handlers above. Anything else (the desktop, another app, empty space in this
-  // window outside the tab bar) never sets it, so 'none' here means "dragged the
-  // tab out" -- pop it out into its own window, mirroring the browser/VS Code
-  // drag-a-tab-off-the-strip convention.
-  const handleTabDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => {
-    if (e.dataTransfer.dropEffect === 'none' && draggedTabId === tabId) {
+  // A tab's native drag ends over a recognized drop target (another tab or either
+  // pane's tab strip) only if that target's own dragover handler ran and flipped
+  // draggedOverValidTargetRef -- see its declaration above. Anything else (the
+  // desktop, another app, empty space outside the tab bar) never flips it, so a
+  // drag that ends without it means "dragged the tab out" -- pop it out into its
+  // own window, mirroring the browser/VS Code drag-a-tab-off-the-strip convention.
+  const handleTabDragEnd = useCallback((_e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => {
+    if (!draggedOverValidTargetRef.current && draggedTabId === tabId) {
       handlePopOutTab(tabId, paneId);
     }
     setDraggedTabId(null);
@@ -570,6 +587,7 @@ export function useTabLifecycle({
     handleClosePrimaryPane,
     handleTabDragStart,
     handleTabDragOver,
+    handleTabStripDragOver,
     handleTabDrop,
     handleTabDragEnd,
     handleReopenClosedTab,
