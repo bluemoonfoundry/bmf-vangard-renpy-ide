@@ -7,6 +7,7 @@ import Minimap from './Minimap';
 import CanvasNodeContextMenu from './CanvasNodeContextMenu';
 import type { MinimapItem } from './Minimap';
 import type { LabelNode, RouteLink, MouseGestureSettings, RenpyAnalysisResult, StickyNote } from '@/types';
+import { useCanvasKeyboardPan } from '@/hooks/useCanvasKeyboardPan';
 
 // ── World-space layout constants ──────────────────────────────────────────────
 
@@ -581,6 +582,8 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
     return () => el.removeEventListener('wheel', onWheel);
   }, [onTransformChange, mouseGestures]);
 
+  useCanvasKeyboardPan({ containerRef: canvasAreaRef, onTransformChange, minScale: 0.1, maxScale: 4 });
+
   // ── Pointer events (pan + click detection) ──
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     const g = mouseGestures ?? { canvasPanGesture: 'shift-drag' as const, middleMouseAlwaysPans: false, zoomScrollDirection: 'normal' as const, zoomScrollSensitivity: 1 };
@@ -1021,6 +1024,7 @@ const ChoiceCanvas: React.FC<ChoiceCanvasProps> = ({
               value={labelSearchQuery}
               onChange={e => { setLabelSearchQuery(e.target.value); setShowLabelSearchResults(true); }}
               onFocus={() => setShowLabelSearchResults(true)}
+              onKeyDown={e => e.stopPropagation()} // Keep canvas shortcuts (WASD/QE pan, etc.) from firing while typing
               placeholder="Search labels…"
               className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
             />

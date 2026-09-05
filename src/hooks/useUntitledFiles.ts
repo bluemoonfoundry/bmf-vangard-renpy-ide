@@ -23,6 +23,12 @@ export interface UseUntitledFilesProps {
   setSecondaryActiveTabId: Dispatch<SetStateAction<string>>;
   setActivePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
   setSplitLayout: Dispatch<SetStateAction<'none' | 'right' | 'bottom'>>;
+  /** Tabs currently detached into their own window. Consulted so saving a popped-out
+   *  untitled draft (its window stays open across a save, unlike closing a tab) can
+   *  clean up its now-stale 'untitled' entry instead of leaving it to be resurrected
+   *  as a broken tab on redock -- see the comment in saveUntitledFile below. */
+  poppedOutTabs: Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>;
+  setPoppedOutTabs: Dispatch<SetStateAction<Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>>>;
 }
 
 export interface UseUntitledFilesReturn {
@@ -59,6 +65,7 @@ export function useUntitledFiles({
   activePaneId, splitLayout,
   setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
   setActivePaneId, setSplitLayout,
+  poppedOutTabs, setPoppedOutTabs,
 }: UseUntitledFilesProps): UseUntitledFilesReturn {
   const [untitledFiles, setUntitledFiles] = useState<Map<string, UntitledFileState>>(new Map());
   const counterRef = useRef(0);
@@ -191,6 +198,22 @@ export function useUntitledFiles({
       });
     }
 
+    // The popout window (if any) is still open and pointed at this tabId, which
+    // can't be "rekeyed" to the new file/block id without reloading the whole
+    // window -- closing it here is effectively save-and-redock, and stops it from
+    // being resurrected as a broken 'untitled' tab with no backing draft (see
+    // handleRedockTab and the 'untitled' branch of buildPopoutSnapshot in
+    // usePopoutSync.ts, which returns null forever once discardUntitledFile below
+    // removes this draft).
+    if (poppedOutTabs.has(tabId)) {
+      setPoppedOutTabs(prev => {
+        const next = new Map(prev);
+        next.delete(tabId);
+        return next;
+      });
+      void window.electronAPI?.closePopoutForTab?.(tabId);
+    }
+
     discardUntitledFile(tabId);
 
     try {
@@ -202,7 +225,7 @@ export function useUntitledFiles({
 
     addToast(`Saved ${relativePath}`, 'success');
     return true;
-  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout, discardUntitledFile]);
+  }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout, discardUntitledFile, poppedOutTabs, setPoppedOutTabs]);
 
   return { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile };
 }

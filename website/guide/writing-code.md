@@ -16,6 +16,8 @@ When you are cross-referencing two files -- say, writing a scene in `chapter3.rp
 
 You can drag tabs freely between panes, close either pane independently, and resize them by dragging the divider. This is especially useful when a scene references images or labels defined elsewhere -- you can keep the definition visible in one pane while writing the scene in the other.
 
+Any tab can also leave the main window entirely: drag it off the tab bar (or right-click it and choose **Pop Out to Window**) to detach it into its own movable OS window, useful for a second monitor or comparing a canvas against the code side by side. See [Popping Out Tabs](/reference/editor-reference#_4-9-popping-out-tabs) for details, including how the popout window stays in sync with the main window.
+
 ## Syntax Highlighting
 
 Vangard Studio provides two layers of syntax coloring that work together.
@@ -46,6 +48,8 @@ The completion provider looks at a handful of specific prefixes on the current l
 - Inside `$` expressions or `python` blocks, it suggests only `define`/`default` variable names
 
 For everything else -- which in practice covers most typing positions, including the start of a dialogue line -- Vangard Studio falls back to one unified list that mixes Ren'Py keyword snippets, character tags, label names, variables, screen names, and your custom snippets all together. It is not scoped down to "just character tags" or "just keywords"; you will see all of these candidate types at once and rely on the label text (and Monaco's fuzzy filtering as you type) to narrow the list.
+
+That fallback list does not follow you into a quoted string, though. Once the cursor is actually inside the `"..."` of a dialogue line (or any other quoted text, like a filename), suggestions are suppressed entirely -- so typing a sentence of ordinary prose never gets interrupted by a popup full of keywords and label names every time you hit a space.
 
 Each suggestion includes a short detail annotation to help you distinguish between similarly named items -- for example a label shows `Label (label)`, a character tag shows `Character: <display name>`, and a variable shows its type and initial value. Label suggestions do **not** show which file the label is defined in. Type a few characters and press `Tab` or `Enter` to accept a suggestion.
 

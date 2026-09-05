@@ -138,6 +138,8 @@ Completions are context-aware: the provider inspects the current line to determi
 
 Registered with `triggerCharacters: [' ', '$']`. The space trigger enables keyword-context completions (e.g., after `jump ` or `show `); `$` triggers variable completions.
 
+Trigger characters bypass Monaco's own `quickSuggestions.strings` setting (which defaults to suppressing automatic suggestions inside string tokens) -- a registered trigger character always invokes `provideCompletionItems` when typed, regardless of string context. That means the space trigger would otherwise fire on every space typed inside a dialogue string, since `detectContext()` had no string-awareness of its own. See "Quoted-string suppression" below for how this is handled.
+
 ### Completion categories
 
 | Context | Data source | Monaco kind |
@@ -146,6 +148,12 @@ Registered with `triggerCharacters: [' ', '$']`. The space trigger enables keywo
 | After `call screen` | `analysis.screens` | `Module` |
 | After `show` / `scene` / `hide` | `analysis.definedImages` | `File` |
 | After `$` | `analysis.variables` | `Variable` |
+| Inside a quoted string | -- | none (suppressed) |
+| Everything else (`'general'`) | `analysis.labels`/`.characters`/`.variables`/`.screens` + user snippets | mixed |
+
+### Quoted-string suppression
+
+`detectContext()` in `renpyCompletionProvider.ts` checks `isInsideStringLiteral(lineContent, column)` before any other branch. This is a single-line, escape-aware quote-parity scan (walks the line up to the cursor, toggling an "in string" flag on each unescaped `"`/`'`, skipping the character after a `\`) -- deliberately not a whole-document scan, since Ren'Py dialogue strings are effectively always single-line and this runs on every keystroke. When the cursor sits inside an open string, `detectContext` returns the `'string'` context and `getRenpyCompletions()` returns no items for it, instead of falling through to the `'general'` category's full keyword/character/label/variable/snippet dump.
 
 ### Snapshot pattern
 
@@ -153,7 +161,8 @@ The provider captures a snapshot of `analysisResultRef.current` at the moment a 
 
 ```typescript
 provideCompletionItems: (model, position) => {
-  const data = {
+  const context = detectContext(model.getLineContent(position.lineNumber), position.column);
+  const data: RenpyCompletionData = {
     labels: analysisResultRef.current.labels,
     characters: analysisResultRef.current.characters,
     variables: analysisResultRef.current.variables,
@@ -161,7 +170,7 @@ provideCompletionItems: (model, position) => {
     definedImages: analysisResultRef.current.definedImages,
     userSnippets: userSnippetsRef.current,
   };
-  return { suggestions: getRenpyCompletions(model, position, data) };
+  return { suggestions: getRenpyCompletions(context, data, range) };
 },
 ```
 

@@ -23,6 +23,8 @@ import CanvasNodeContextMenu from './CanvasNodeContextMenu';
 import type { MinimapItem } from './Minimap';
 import type { LabelNode, RouteLink, Position, IdentifiedRoute, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, StickyNote, ProjectImage } from '@/types';
 import { computeRouteCanvasLayout } from '@/lib/routeCanvasLayout';
+import { useCanvasKeyboardPan } from '@/hooks/useCanvasKeyboardPan';
+import { useCanvasActiveScope } from '@/hooks/useCanvasActiveScope';
 
 interface RouteCanvasProps {
   labelNodes: LabelNode[];
@@ -823,17 +825,21 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
     }
   }, [labelNodes, fileGraph, viewLevel, onOpenEditor, setSelectedNodeIds, announce]);
 
+  const isCanvasActive = useCanvasActiveScope(canvasRef);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (e.key === 'f' || e.key === 'F') fitToScreen();
+      if ((e.key === 'f' || e.key === 'F') && isCanvasActive()) fitToScreen();
       if (e.key === '[' && navHistoryIndex > 0) applyHistoryEntry(navHistoryIndex - 1);
       if (e.key === ']' && navHistoryIndex >= 0 && navHistoryIndex < navHistory.length - 1) applyHistoryEntry(navHistoryIndex + 1);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fitToScreen, navHistory, navHistoryIndex, applyHistoryEntry]);
+  }, [fitToScreen, navHistory, navHistoryIndex, applyHistoryEntry, isCanvasActive]);
+
+  useCanvasKeyboardPan({ containerRef: canvasRef, onTransformChange, minScale: 0.2, maxScale: 3 });
 
   const handleToggleRoute = (routeId: number) => {
     closeTransientUi();
@@ -1430,6 +1436,7 @@ const RouteCanvas: React.FC<RouteCanvasProps> = ({
               setEdgeContextMenu(null);
             }}
             onFocus={() => setShowRouteSearchResults(true)}
+            onKeyDown={event => event.stopPropagation()}
             placeholder="Go to label..."
             className="flex-1 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
           />

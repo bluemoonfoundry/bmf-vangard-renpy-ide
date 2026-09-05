@@ -30,7 +30,8 @@ export type CompletionContext =
   | 'character'
   | 'variable'
   | 'screen'
-  | 'general';
+  | 'general'
+  | 'string';
 
 export interface CompletionRange {
   startLineNumber: number;
@@ -60,10 +61,41 @@ export interface RenpyCompletionData {
 }
 
 /**
+ * Returns true when `column` (1-based) sits inside an open quoted string on `lineContent`,
+ * e.g. dialogue text like `e "Hello, how are|` (cursor at `|`). Tracks escape sequences so
+ * `\"` doesn't prematurely close the string. Only single-line strings are considered — Ren'Py
+ * dialogue is effectively always single-line, and triple-quoted blocks are rare enough here
+ * that a whole-document scan isn't worth doing on every keystroke.
+ */
+export function isInsideStringLiteral(lineContent: string, column: number): boolean {
+  const textBefore = lineContent.substring(0, column - 1);
+  let inString = false;
+  let quoteChar = '';
+  for (let i = 0; i < textBefore.length; i++) {
+    const ch = textBefore[i];
+    if (ch === '\\' && inString) {
+      i++; // skip escaped character
+      continue;
+    }
+    if (inString) {
+      if (ch === quoteChar) inString = false;
+    } else if (ch === '"' || ch === "'") {
+      inString = true;
+      quoteChar = ch;
+    }
+  }
+  return inString;
+}
+
+/**
  * Detects the completion context based on the current line content and cursor position.
  * Strips leading whitespace and checks for Ren'Py keyword prefixes.
  */
 export function detectContext(lineContent: string, column: number): CompletionContext {
+  // Typing inside a quoted string (dialogue text, filenames, etc.) shouldn't surface the
+  // full keyword/character/label/variable dump — it interrupts writing actual prose.
+  if (isInsideStringLiteral(lineContent, column)) return 'string';
+
   const textBefore = lineContent.substring(0, column - 1).trimStart();
 
   // Check for specific keyword prefixes (order matters: call screen before call)
@@ -210,6 +242,10 @@ export function getRenpyCompletions(
   const items: CompletionItem[] = [];
 
   switch (context) {
+    case 'string':
+      // Inside a quoted string literal — no suggestions (see isInsideStringLiteral).
+      break;
+
     case 'jump':
     case 'call':
       // Suggest labels

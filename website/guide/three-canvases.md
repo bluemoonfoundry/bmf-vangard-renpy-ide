@@ -345,6 +345,21 @@ diagnostic state. Users of screen readers (NVDA, VoiceOver, JAWS) can navigate t
 and understand the story structure without relying on visual cues alone. The canvas
 announces block names, connection counts, and diagnostic summaries as focus moves.
 
+### Keyboard Pan and Zoom (WASD/QE)
+
+Beyond `Shift+Drag` and mouse scroll, every canvas can be panned and zoomed like a game
+camera: hold `W`/`A`/`S`/`D` to pan continuously in that direction, and `Q`/`E` to zoom out
+or in, toward the center of the viewport. Motion continues smoothly for as long as a key is
+held, rather than moving in single discrete steps.
+
+This only responds to whichever canvas is currently **hovered or holds focus** -- in a
+split view with two canvases open side by side, only the active pane's canvas moves,
+so a stray keypress never drags both panes at once. The moment you type into a text
+field instead -- a sticky note, a block or group rename field, a search box, or the
+Monaco editor -- these keys stop panning/zooming entirely and behave as ordinary typed
+letters, so writing dialogue that happens to use W, A, S, D, Q, or E is never
+interrupted.
+
 ### Fit-to-Screen, Go-to-Start, and Auto-Center
 
 The canvas navigation controls (available in the floating toolbox and via keyboard

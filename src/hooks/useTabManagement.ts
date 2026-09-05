@@ -41,6 +41,11 @@ export interface UseTabManagementReturn {
   closedTabsStack: ClosedTabEntry[];
   setClosedTabsStack: React.Dispatch<React.SetStateAction<ClosedTabEntry[]>>;
 
+  // Tabs currently detached into their own OS window, keyed by tab id, so they
+  // can be reinserted at their original pane/index on redock.
+  poppedOutTabs: Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>;
+  setPoppedOutTabs: React.Dispatch<React.SetStateAction<Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>>>;
+
   // Tab lifecycle handlers
   openTab: (tab: EditorTab, paneId?: 'primary' | 'secondary') => void;
   closeTab: (tabId: string, paneId: 'primary' | 'secondary') => void;
@@ -111,6 +116,9 @@ export function useTabManagement(): UseTabManagementReturn {
 
   // --- Recently-closed tabs stack ---
   const [closedTabsStack, setClosedTabsStack] = useState<ClosedTabEntry[]>([]);
+
+  // --- Popped-out (detached-window) tabs ---
+  const [poppedOutTabs, setPoppedOutTabs] = useState<Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>>(new Map());
 
   /**
    * Find a tab across both panes
@@ -403,6 +411,8 @@ export function useTabManagement(): UseTabManagementReturn {
     setDragSourcePaneId,
     closedTabsStack,
     setClosedTabsStack,
+    poppedOutTabs,
+    setPoppedOutTabs,
 
     // Lifecycle
     openTab,

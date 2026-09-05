@@ -8,11 +8,22 @@ export interface UseTabOpenersProps {
   secondaryOpenTabs: EditorTab[];
   activePaneId: 'primary' | 'secondary';
   splitLayout: 'none' | 'right' | 'bottom';
+  /** Tabs currently detached into their own window -- consulted so re-requesting one
+   *  of these focuses its window instead of creating a duplicate tab/editor instance
+   *  in the main window. */
+  poppedOutTabs: Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>;
   setOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
   setSecondaryOpenTabs: Dispatch<SetStateAction<EditorTab[]>>;
   setActiveTabId: Dispatch<SetStateAction<string>>;
   setSecondaryActiveTabId: Dispatch<SetStateAction<string>>;
   setActivePaneId: Dispatch<SetStateAction<'primary' | 'secondary'>>;
+}
+
+/** window:popout-tab focuses the existing popout window (rather than creating a
+ *  second one) whenever it's called again for a tabId that's already popped out --
+ *  see electron.js's 'window:popout-tab' handler. */
+function focusPoppedOutTab(tab: EditorTab): void {
+  void window.electronAPI?.popoutTab?.(tab.id, tab.type);
 }
 
 export interface UseTabOpenersReturn {
@@ -30,7 +41,7 @@ const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
 
 export function useTabOpeners({
   blocksRef,
-  openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  openTabs, secondaryOpenTabs, activePaneId, splitLayout, poppedOutTabs,
   setOpenTabs, setSecondaryOpenTabs,
   setActiveTabId, setSecondaryActiveTabId, setActivePaneId,
 }: UseTabOpenersProps): UseTabOpenersReturn {
@@ -47,6 +58,8 @@ export function useTabOpeners({
       setActivePaneId('secondary');
       return;
     }
+    const popped = poppedOutTabs.get(id);
+    if (popped) { focusPoppedOutTab(popped.tab); return; }
     if (activePaneId === 'secondary' && splitLayout !== 'none') {
       setSecondaryOpenTabs(prev => [...prev, { id, type }]);
       setSecondaryActiveTabId(id);
@@ -54,7 +67,7 @@ export function useTabOpeners({
       setOpenTabs(prev => [...prev, { id, type }]);
       setActiveTabId(id);
     }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  }, [openTabs, secondaryOpenTabs, poppedOutTabs, activePaneId, splitLayout,
       setActiveTabId, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenRouteCanvasTab = useCallback(
@@ -83,6 +96,8 @@ export function useTabOpeners({
       setActivePaneId('secondary');
       return;
     }
+    const popped = poppedOutTabs.get(blockId);
+    if (popped) { focusPoppedOutTab(popped.tab); return; }
     const newTab: EditorTab = { id: blockId, type: 'editor', blockId, filePath: block.filePath, scrollRequest: line ? { line, key: Date.now() } : undefined };
     if (activePaneId === 'secondary' && splitLayout !== 'none') {
       setSecondaryOpenTabs(prev => [...prev, newTab]);
@@ -91,13 +106,15 @@ export function useTabOpeners({
       setOpenTabs(prev => [...prev, newTab]);
       setActiveTabId(blockId);
     }
-  }, [blocksRef, openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  }, [blocksRef, openTabs, secondaryOpenTabs, poppedOutTabs, activePaneId, splitLayout,
       setActiveTabId, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenImageEditorTab = useCallback((filePath: string) => {
     const tabId = `img-${filePath}`;
     if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
     if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
+    const popped = poppedOutTabs.get(tabId);
+    if (popped) { focusPoppedOutTab(popped.tab); return; }
     const newTab: EditorTab = { id: tabId, type: 'image', filePath };
     if (activePaneId === 'secondary' && splitLayout !== 'none') {
       setSecondaryOpenTabs(prev => [...prev, newTab]);
@@ -106,13 +123,15 @@ export function useTabOpeners({
       setOpenTabs(prev => [...prev, newTab]);
       setActiveTabId(tabId);
     }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  }, [openTabs, secondaryOpenTabs, poppedOutTabs, activePaneId, splitLayout,
       setActiveTabId, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenMarkdownTab = useCallback((filePath: string) => {
     const tabId = `md-${filePath}`;
     if (openTabs.find(t => t.id === tabId)) { setActiveTabId(tabId); setActivePaneId('primary'); return; }
     if (secondaryOpenTabs.find(t => t.id === tabId)) { setSecondaryActiveTabId(tabId); setActivePaneId('secondary'); return; }
+    const popped = poppedOutTabs.get(tabId);
+    if (popped) { focusPoppedOutTab(popped.tab); return; }
     const newTab: EditorTab = { id: tabId, type: 'markdown', filePath };
     if (activePaneId === 'secondary' && splitLayout !== 'none') {
       setSecondaryOpenTabs(prev => [...prev, newTab]);
@@ -121,14 +140,16 @@ export function useTabOpeners({
       setOpenTabs(prev => [...prev, newTab]);
       setActiveTabId(tabId);
     }
-  }, [openTabs, secondaryOpenTabs, activePaneId, splitLayout,
+  }, [openTabs, secondaryOpenTabs, poppedOutTabs, activePaneId, splitLayout,
       setActiveTabId, setActivePaneId, setOpenTabs, setSecondaryActiveTabId, setSecondaryOpenTabs]);
 
   const handleOpenAudioEditorInTab = useCallback((filePath: string) => {
     const tabId = `aud-${filePath}`;
+    const popped = poppedOutTabs.get(tabId);
+    if (popped) { focusPoppedOutTab(popped.tab); return; }
     setOpenTabs(prev => prev.find(t => t.id === tabId) ? prev : [...prev, { id: tabId, type: 'audio' as const, filePath }]);
     setActiveTabId(tabId);
-  }, [setActiveTabId, setOpenTabs]);
+  }, [poppedOutTabs, setActiveTabId, setOpenTabs]);
 
   const handlePathDoubleClick = useCallback((filePath: string) => {
     const lowerFilePath = filePath.toLowerCase();

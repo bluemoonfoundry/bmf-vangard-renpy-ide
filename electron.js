@@ -92,6 +92,113 @@ let gameProcess = null;
 // --- Main Window Reference (for auto-updater callbacks) ---
 let mainWindowRef = null;
 
+// --- Popped-out tab windows ---
+// Each detached tab gets its own BrowserWindow, keyed by tabId. The main window
+// remains the sole owner of app state (blocks, analysisResult, etc.) -- these
+// windows are thin remote views relayed over the popout:* IPC channels below.
+const popoutWindows = new Map(); // tabId -> BrowserWindow
+// tabIds with a createPopoutWindow() call in flight -- awaiting loadPopoutWindowState()
+// before popoutWindows.set() registers the window, so 'window:popout-tab''s own dedup
+// check (popoutWindows.has(tabId)) can't by itself protect against a second rapid
+// pop-out request for the same tabId landing before the first's await resolves.
+const popoutWindowsPending = new Set();
+let popoutCallRequestId = 0;
+const pendingPopoutCalls = new Map(); // requestId -> { resolve, reject, timeout }
+// Safety net against a permanently hung popout:call-handler request -- if the main
+// window's renderer reloads or crashes mid-request, 'popout:invoke-handler' is never
+// seen and no 'popout:handler-result' ever comes back, so without this the popout's
+// await would hang forever and the map entry would leak for the life of the process.
+// Generous on purpose: some relayed handlers (e.g. handleGenerateTranslations) can
+// legitimately run for a while.
+const POPOUT_CALL_TIMEOUT_MS = 2 * 60 * 1000;
+
+/** Settles every in-flight popout:call-handler request -- used when the main window's
+ *  renderer is confirmed gone (crashed) rather than making callers wait out the full
+ *  timeout above for something we already know isn't coming back. */
+function rejectAllPendingPopoutCalls(message) {
+    for (const { reject, timeout } of pendingPopoutCalls.values()) {
+        clearTimeout(timeout);
+        reject(new Error(message));
+    }
+    pendingPopoutCalls.clear();
+}
+// tabIds whose window.close() we're letting through because we already ran (or gave
+// up waiting on) its pre-close flush -- without this, calling win.close() again after
+// the flush completes would just re-enter the same 'close' handler forever.
+const popoutClosingForced = new Set();
+const pendingPopoutFlushAcks = new Map(); // tabId -> { resolvers: Array<() => void>, timeout }
+
+/** Sends `channel` to the main window and every popped-out tab window. */
+function broadcastToAllWindows(channel, payload) {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+        mainWindowRef.webContents.send(channel, payload);
+    }
+    for (const win of popoutWindows.values()) {
+        if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+    }
+}
+
+function getTabIdForPopoutWindow(win) {
+    for (const [tabId, w] of popoutWindows) {
+        if (w === win) return tabId;
+    }
+    return null;
+}
+
+/**
+ * Asks one popout to flush any pending edit (e.g. Monaco content still sitting in
+ * onContentChange's 800ms debounce, not yet relayed into the main window's real
+ * state) into blocks[] before we do anything that depends on that state being
+ * current -- checking for unsaved changes, saving, or destroying the window.
+ * Resolves once the popout acks, or after a short timeout if it doesn't (crashed
+ * renderer, etc.) so this can never hang the app.
+ *
+ * Can be called more than once concurrently for the same tabId (e.g. the main
+ * window's close handler and that popout's own close handler both firing around
+ * the same moment) -- each entry in pendingPopoutFlushAcks holds every caller's
+ * resolver so a single ack (or a single timeout) settles all of them, rather than
+ * a second call's resolver silently overwriting the first's.
+ */
+function requestPopoutFlush(tabId) {
+    const win = popoutWindows.get(tabId);
+    if (!win || win.isDestroyed()) return Promise.resolve();
+    return new Promise((resolve) => {
+        const existing = pendingPopoutFlushAcks.get(tabId);
+        if (existing) {
+            existing.resolvers.push(resolve);
+            return;
+        }
+        const entry = {
+            resolvers: [resolve],
+            timeout: setTimeout(() => {
+                const e = pendingPopoutFlushAcks.get(tabId);
+                if (!e) return;
+                pendingPopoutFlushAcks.delete(tabId);
+                e.resolvers.forEach((r) => r());
+            }, 1500),
+        };
+        pendingPopoutFlushAcks.set(tabId, entry);
+        win.webContents.send('popout:flush-requested');
+    });
+}
+
+/** Closes every popped-out tab window -- called once we're actually committed to
+ *  quitting (forceQuit is true), by which point each has already had a chance to
+ *  flush via the main window's own close-flow (see mainWindow.on('close') below).
+ *  Uses destroy() rather than close() since we're not giving the user a chance to
+ *  cancel at this point -- but destroy() never fires the 'close' event that
+ *  win.on('close') (see createPopoutWindow) relies on to persist window state, so
+ *  each window's bounds are saved explicitly here first. */
+function closeAllPopoutWindows() {
+    for (const win of popoutWindows.values()) {
+        if (win && !win.isDestroyed()) {
+            if (win.popoutTabType) savePopoutWindowState(win.popoutTabType, win);
+            win.destroy();
+        }
+    }
+    popoutWindows.clear();
+}
+
 // --- Project Root Tracking (for screenshots and other features) ---
 let currentProjectRoot = null;
 
@@ -200,43 +307,82 @@ function startProjectWatcher(rootPath) {
                 if (lastWrite && Date.now() - lastWrite < SELF_WRITE_SUPPRESS_MS) return;
 
                 const relativePath = path.relative(rootPath, absolutePath).replace(/\\/g, '/');
-                if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-                    mainWindowRef.webContents.send('fs:file-changed-externally', { relativePath, absolutePath: normalizedAbs });
-                }
+                broadcastToAllWindows('fs:file-changed-externally', { relativePath, absolutePath: normalizedAbs });
             }, WATCH_DEBOUNCE_MS));
         });
     } catch (err) {
         logger.error(`Failed to start file watcher for project root ${rootPath}:`, err);
-        if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-            mainWindowRef.webContents.send('fs:watcher-error', { message: err.message });
-        }
+        broadcastToAllWindows('fs:watcher-error', { message: err.message });
     }
 }
 
 // --- Window State Management ---
+
+// Shared read/write idiom for the small JSON state files below (window bounds,
+// popout bounds). Read failures (missing file, first launch, corrupted content)
+// are swallowed and reported as null -- callers treat that as "no saved state".
+async function readJsonStateFile(filePath) {
+    try {
+        return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+    } catch {
+        return null;
+    }
+}
+
+async function writeJsonStateFile(filePath, data, description) {
+    try {
+        await fs.writeFile(filePath, JSON.stringify(data));
+    } catch (error) {
+        logger.error(`Failed to save ${description}:`, error);
+    }
+}
+
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
 
 async function loadWindowState() {
-    try {
-        const data = await fs.readFile(windowStatePath, 'utf-8');
-        const state = JSON.parse(data);
-        if (typeof state.width === 'number' && typeof state.height === 'number') {
-            return state;
-        }
-    } catch {
-        // First launch or corrupted state — use defaults
+    const state = await readJsonStateFile(windowStatePath);
+    if (state && typeof state.width === 'number' && typeof state.height === 'number') {
+        return state;
     }
     return null;
 }
 
 function saveWindowState(window) {
     if (!window) return;
-    try {
-        const bounds = window.getBounds();
-        fs.writeFile(windowStatePath, JSON.stringify(bounds));
-    } catch (error) {
-        logger.error('Failed to save window state:', error);
+    void writeJsonStateFile(windowStatePath, window.getBounds(), 'window state');
+}
+
+// Popout bounds are remembered per tab *type* (e.g. every 'editor' popout shares
+// one remembered size/position), not per tab id -- a tab id is usually unique to
+// one file and popouts are typically short-lived, so per-id storage would just
+// grow unboundedly without ever being reused.
+const popoutWindowStatePath = path.join(app.getPath('userData'), 'popout-window-state.json');
+
+async function loadPopoutWindowState(tabType) {
+    const state = await readJsonStateFile(popoutWindowStatePath);
+    const entry = state?.[tabType];
+    if (entry && typeof entry.width === 'number' && typeof entry.height === 'number') {
+        return entry;
     }
+    return null;
+}
+
+// Serializes every read-modify-write of popoutWindowStatePath behind one promise
+// chain -- multiple popout windows can close within a short window of each other
+// (e.g. during app-quit's popout teardown), and without this, two concurrent calls
+// would both read the same pre-update file and whichever write lands second would
+// silently discard the other's just-saved bounds (lost update).
+let popoutWindowStateWriteQueue = Promise.resolve();
+
+function savePopoutWindowState(tabType, window) {
+    if (!window || window.isDestroyed()) return popoutWindowStateWriteQueue;
+    const bounds = window.getBounds();
+    popoutWindowStateWriteQueue = popoutWindowStateWriteQueue.then(async () => {
+        const state = (await readJsonStateFile(popoutWindowStatePath)) || {};
+        state[tabType] = bounds;
+        await writeJsonStateFile(popoutWindowStatePath, state, 'popout window state');
+    });
+    return popoutWindowStateWriteQueue;
 }
 
 // --- App Settings Management ---
@@ -815,13 +961,29 @@ async function createWindow() {
 
   mainWindowRef = mainWindow;
 
+  // Settle any in-flight popout:call-handler request immediately once the main
+  // window's renderer is confirmed gone -- otherwise every waiting popout sits out
+  // the full POPOUT_CALL_TIMEOUT_MS for a reply that's already known to never come.
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    rejectAllPendingPopoutCalls(`Main window renderer is gone (${details.reason})`);
+  });
+
   mainWindow.on('close', (e) => {
     if (forceQuit) {
       saveWindowState(mainWindow);
+      closeAllPopoutWindows();
       return;
     }
     e.preventDefault();
-    mainWindow.webContents.send('check-unsaved-changes-before-exit');
+    // Flush every open popout's pending edits into the main window's real state before
+    // asking it whether anything is unsaved -- otherwise a block being actively typed
+    // in a popout wouldn't be reflected in blocks[] yet, and neither the dirty-check nor
+    // "Save & Quit" would see it. Popout windows are deliberately NOT closed here: the
+    // user might still cancel the exit (see the unsaved-changes modal flow below), and
+    // until forceQuit is actually set there's nothing to gain from tearing them down.
+    Promise.all(Array.from(popoutWindows.keys(), requestPopoutFlush)).then(() => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send('check-unsaved-changes-before-exit');
+    });
   });
 
   // Register global screenshot shortcut - handled entirely in main process for reliability
@@ -890,6 +1052,82 @@ async function createWindow() {
 
   applyContentSecurityPolicy(mainWindow.webContents.session);
   mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+}
+
+/**
+ * Creates the detached window for one popped-out tab. It loads the exact same
+ * renderer bundle as the main window (dist/index.html) but with a `?mode=popout`
+ * query param that tells src/index.tsx to mount a minimal standalone root
+ * instead of the full App shell. It shares the main window's default session,
+ * so the CSP already applied in createWindow() covers it too -- no need to
+ * call applyContentSecurityPolicy again here.
+ */
+async function createPopoutWindow(tabId, tabType) {
+  const savedState = await loadPopoutWindowState(tabType);
+  const win = new BrowserWindow({
+    width: savedState?.width || 900,
+    height: savedState?.height || 700,
+    x: savedState?.x,
+    y: savedState?.y,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+    icon: path.join(__dirname, 'vangard.png'),
+  });
+
+  win.popoutTabType = tabType;
+  popoutWindows.set(tabId, win);
+
+  // Intercept every path a popout can close through (its own native close button,
+  // Cmd+W, the Redock button calling window.close(), ...) so a pending Monaco edit
+  // still in onContentChange's debounce always gets flushed first -- previously only
+  // the Redock button's own JS handler did this, so closing via the OS chrome could
+  // silently drop the last few hundred ms of typing.
+  //
+  // Skipped once forceQuit is true: at that point the main window's own close flow
+  // has already flushed every open popout (see mainWindow.on('close') below) before
+  // ever asking about unsaved changes, so there's nothing new to flush here. This
+  // isn't just a redundant-work optimization -- app.quit() (which is what sets
+  // forceQuit) tries to close every window as part of one quit attempt, and calling
+  // event.preventDefault() on any of them appears to cancel that whole attempt in
+  // Electron, not just that window's close; destroying the window separately
+  // afterward (as closeAllPopoutWindows does) does not resume it, so the app never
+  // actually exits. Confirmed live: without this check the process hung indefinitely
+  // after the user confirmed "Don't Save".
+  win.on('close', (e) => {
+    savePopoutWindowState(tabType, win);
+    if (popoutClosingForced.has(tabId) || forceQuit) return;
+    e.preventDefault();
+    requestPopoutFlush(tabId).then(() => {
+      popoutClosingForced.add(tabId);
+      if (!win.isDestroyed()) win.close();
+    });
+  });
+
+  win.on('closed', () => {
+    popoutWindows.delete(tabId);
+    popoutClosingForced.delete(tabId);
+    // Settle any flush still awaiting this window's ack immediately -- it's never
+    // coming now that the window is gone -- rather than making every waiter sit
+    // out the full 1.5s timeout.
+    const pendingFlush = pendingPopoutFlushAcks.get(tabId);
+    if (pendingFlush) {
+      clearTimeout(pendingFlush.timeout);
+      pendingPopoutFlushAcks.delete(tabId);
+      pendingFlush.resolvers.forEach((r) => r());
+    }
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('window:tab-redocked', { tabId });
+    }
+  });
+
+  win.loadFile(path.join(__dirname, 'dist/index.html'), {
+    search: `mode=popout&tabId=${encodeURIComponent(tabId)}`,
+  });
+
+  return win;
 }
 
 /**
@@ -1479,6 +1717,121 @@ app.whenReady().then(async () => {
     app.quit();
   });
 
+  // --- Detachable tab windows ---
+  // See createPopoutWindow() above and src/hooks/usePopoutSync.ts for the
+  // renderer side of this relay. The main window remains the sole owner of
+  // app state; these channels just ferry snapshots and RPC calls to/from it.
+
+  ipcMain.handle('window:popout-tab', (event, { tabId, tabType }) => {
+    if (popoutWindows.has(tabId)) {
+      const existing = popoutWindows.get(tabId);
+      if (existing && !existing.isDestroyed()) { existing.focus(); return; }
+    }
+    if (popoutWindowsPending.has(tabId)) return;
+    popoutWindowsPending.add(tabId);
+    createPopoutWindow(tabId, tabType).finally(() => popoutWindowsPending.delete(tabId));
+  });
+
+  ipcMain.on('window:focus-main', () => {
+    if (!mainWindowRef || mainWindowRef.isDestroyed()) return;
+    if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+    mainWindowRef.focus();
+  });
+
+  // The Redock button asks the main process to close its own popout window via
+  // IPC rather than calling the renderer's window.close() DOM API directly --
+  // confirmed live that window.close() from a popout's renderer makes the window
+  // disappear without ever firing the BrowserWindow's 'close'/'closed' events,
+  // silently skipping the flush-before-close (see win.on('close') above) and the
+  // window-state persistence below. Closing via BrowserWindow#close() from here
+  // goes through the exact same lifecycle as the native close button or Cmd+W.
+  ipcMain.on('popout:close-self', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.close();
+  });
+
+  // A popout renderer asks the main window's renderer to run one of its real
+  // handlers (updateBlock, handleSaveBlock, ...) so app state only ever has one
+  // writer regardless of which window an edit came from. This process just
+  // relays the call and waits for the matching reply.
+  ipcMain.handle('popout:call-handler', (event, { tabId, handlerName, args }) => {
+    if (!mainWindowRef || mainWindowRef.isDestroyed()) {
+      return Promise.reject(new Error('Main window is not available'));
+    }
+    return new Promise((resolve, reject) => {
+      const requestId = ++popoutCallRequestId;
+      const timeout = setTimeout(() => {
+        pendingPopoutCalls.delete(requestId);
+        reject(new Error(`Popout handler call '${handlerName}' timed out`));
+      }, POPOUT_CALL_TIMEOUT_MS);
+      pendingPopoutCalls.set(requestId, { resolve, reject, timeout });
+      mainWindowRef.webContents.send('popout:invoke-handler', { requestId, tabId, handlerName, args });
+    });
+  });
+
+  ipcMain.on('popout:handler-result', (event, { requestId, result, error }) => {
+    const pending = pendingPopoutCalls.get(requestId);
+    if (!pending) return;
+    pendingPopoutCalls.delete(requestId);
+    clearTimeout(pending.timeout);
+    if (error !== undefined) pending.reject(new Error(error));
+    else pending.resolve(result);
+  });
+
+  ipcMain.on('popout:flush-complete', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const tabId = win && getTabIdForPopoutWindow(win);
+    if (!tabId) return;
+    const pending = pendingPopoutFlushAcks.get(tabId);
+    if (pending) {
+        clearTimeout(pending.timeout);
+        pendingPopoutFlushAcks.delete(tabId);
+        pending.resolvers.forEach((r) => r());
+    }
+  });
+
+  // The main window's renderer pushes a fresh props snapshot for one popped-out
+  // tab whenever the state it depends on changes.
+  ipcMain.on('popout:state-update', (event, { tabId, snapshot }) => {
+    const win = popoutWindows.get(tabId);
+    if (win && !win.isDestroyed()) win.webContents.send('popout:props-update', snapshot);
+  });
+
+  // A just-mounted popout asks for its initial snapshot rather than relying solely
+  // on the push above, which can fire before the popout's listener (or even its
+  // window) exists -- window:popout-tab is fire-and-forget from the caller's side.
+  ipcMain.on('popout:request-snapshot', (event, { tabId }) => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('popout:snapshot-requested', { tabId });
+    }
+  });
+
+  // Lets the main window's renderer flush every open popout's pending edits into
+  // its own state on demand (e.g. before Save All or opening a new project), the
+  // same flush mainWindow's own close handler already runs before checking for
+  // unsaved changes.
+  ipcMain.handle('window:flush-all-popouts', async () => {
+    await Promise.all(Array.from(popoutWindows.keys(), requestPopoutFlush));
+  });
+
+  // Loading a different project invalidates every open popout -- its relayed RPC
+  // calls (updateBlock, setBlockContent, ...) would otherwise keep targeting block
+  // ids from the project that's being replaced. The renderer clears its own
+  // poppedOutTabs state alongside this call (see useProjectLoad.ts).
+  ipcMain.handle('window:close-all-popouts', () => {
+    closeAllPopoutWindows();
+  });
+
+  // Closes one specific popout window from the main window's side -- e.g. when the
+  // tab it was showing has become orphaned (its backing block was deleted) and the
+  // main window's own reconciliation has decided it's no longer valid to keep open.
+  // Goes through the normal close() path (not destroy()) so the usual flush-before-
+  // close and window-state persistence in win.on('close') still run.
+  ipcMain.handle('window:close-popout-for-tab', (event, { tabId }) => {
+    const win = popoutWindows.get(tabId);
+    if (win && !win.isDestroyed()) win.close();
+  });
+
   function setGameRunningMenuState(running) {
     const menu = Menu.getApplicationMenu();
     if (!menu) return;
@@ -1600,8 +1953,8 @@ app.whenReady().then(async () => {
     if (Array.isArray(settings?.recentProjects)) {
         await Promise.all(settings.recentProjects.map(vetProjectRoot));
     }
-    if (warning && mainWindowRef && !mainWindowRef.isDestroyed()) {
-        mainWindowRef.webContents.send('app:settings-warning', warning);
+    if (warning) {
+        broadcastToAllWindows('app:settings-warning', warning);
     }
     return settings;
   });

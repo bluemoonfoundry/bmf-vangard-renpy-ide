@@ -172,6 +172,8 @@ export interface UseTabContentRendererParams {
   handleSwitchTab: (tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragStart: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleTabDragOver: (e: React.DragEvent<HTMLDivElement>, targetTabId: string) => void;
+  handleTabStripDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleTabDragEnd: (e: React.DragEvent<HTMLDivElement>, tabId: string, paneId: 'primary' | 'secondary') => void;
   handleTabContextMenu: (e: React.MouseEvent, tabId: string, paneId?: 'primary' | 'secondary') => void;
   handleCloseTab: (tabId: string, paneId: 'primary' | 'secondary', e?: React.MouseEvent) => void;
   handleCreateSplit: (direction: 'right' | 'bottom', tabId?: string) => void;
@@ -275,8 +277,8 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
     handleChangeRouteCanvasLayoutMode, handleChangeRouteCanvasGroupingMode,
     handleCreateBlockFromCanvas,
     dirtyBlockIds, dirtyEditors, setDirtyEditors,
-    splitLayout, activePaneId, draggedTabId,
-    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver,
+    splitLayout, activePaneId,
+    handleTabDrop, handleSwitchTab, handleTabDragStart, handleTabDragOver, handleTabStripDragOver, handleTabDragEnd,
     handleTabContextMenu, handleCloseTab, handleCreateSplit,
     handleClosePrimaryPane, handleCloseSecondaryPane,
     handleOpenEditor, handleOpenRouteCanvasTab, handleOpenStaticTab,
@@ -575,7 +577,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
       <div
         ref={scrollRef}
         className="flex flex-1 overflow-x-auto no-scrollbar min-w-0"
-        onDragOver={(e) => { e.preventDefault(); if (draggedTabId) e.dataTransfer.dropEffect = 'move'; }}
+        onDragOver={handleTabStripDragOver}
         onDrop={(e) => handleTabDrop(e, null, paneId)}
       >
         {tabs.map(tab => (
@@ -587,6 +589,7 @@ export function useTabContentRenderer(params: UseTabContentRendererParams): UseT
             onDragStart={(e) => handleTabDragStart(e, tab.id, paneId)}
             onDragOver={(e) => handleTabDragOver(e, tab.id)}
             onDrop={(e) => { e.stopPropagation(); handleTabDrop(e, tab.id, paneId); }}
+            onDragEnd={(e) => handleTabDragEnd(e, tab.id, paneId)}
             onContextMenu={(e) => handleTabContextMenu(e, tab.id, paneId)}
           >
             <span className="truncate flex-grow">{getTabLabel(tab)}</span>

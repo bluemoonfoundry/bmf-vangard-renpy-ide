@@ -4,6 +4,22 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+- **NEW:** Editor tabs can now be popped out into detached windows — drag a tab off the tab bar, or use the pop-out affordance; all 16 tab types (editors, canvases, composers, panels) are poppable, each remembering its own window size/position
+- **NEW:** Popout windows respond to native menu commands (Cmd+W, Save All, etc.) the same as the main window
+- **NEW:** WASD/QE keyboard pan-zoom for the Project/Flow/Choices canvases, scoped to hover/focus so it doesn't fight typing elsewhere
+
+### Fixed
+- **FIXED:** WASD/QE canvas shortcuts no longer swallow those letters when typing in the Monaco editor
+- **FIXED:** Popout edits are now flushed before the main-window close cascade, and several correctness/race/accessibility bugs found in review of the popout-tabs feature were addressed
+- **FIXED:** Autocomplete no longer dumps the full keyword/character/label/variable suggestion list while typing inside a quoted string (dialogue text, filenames, etc.) — trigger characters like space were bypassing Monaco's string-suppression setting
+- **FIXED:** Drag-a-tab-off-the-strip pop-out no longer depends on `dataTransfer.dropEffect`'s incidental default; a recognized drop target now sets an explicit flag so future drop targets can't silently break or misfire the pop-out (#219)
+
+### Changed
+- Deduplicated the window-state persistence read/write idiom shared by the main-window and popout-window state files in `electron.js` (#219)
+
 ## [1.0.0]
 
 ### Added

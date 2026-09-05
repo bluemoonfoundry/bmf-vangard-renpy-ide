@@ -86,6 +86,7 @@ const StickyNote = React.memo(forwardRef<HTMLDivElement, StickyNoteProps>(({ not
         onChange={(e) => updateNote(note.id, { content: e.target.value })}
         placeholder="Type a note..."
         onPointerDown={(e) => e.stopPropagation()} // Prevent dragging when clicking textarea
+        onKeyDown={(e) => e.stopPropagation()} // Keep canvas shortcuts (WASD/QE pan, etc.) from firing while typing
       />
       <div className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize" style={{ zIndex: 2 }} />
     </div>

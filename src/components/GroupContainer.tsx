@@ -44,6 +44,7 @@ const GroupContainer = forwardRef<HTMLDivElement, GroupContainerProps>(({ group,
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation(); // Keep canvas shortcuts (WASD/QE pan, etc.) from firing while renaming
     if (e.key === 'Enter') handleTitleSave();
     else if (e.key === 'Escape') setIsEditingTitle(false);
   };

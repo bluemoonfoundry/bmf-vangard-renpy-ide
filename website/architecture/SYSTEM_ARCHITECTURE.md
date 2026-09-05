@@ -147,6 +147,8 @@ useEffect(() => {
 | `path` | Path utilities | `join` |
 | `shell` | OS shell integration | `openExternal`, `showItemInFolder` |
 | `explorer` | File explorer integration | (context menu actions) |
+| `window` | Popout window lifecycle | `popout-tab`, `focus-main`, `flush-all-popouts`, `close-all-popouts`, `close-popout-for-tab` (+ event: `tab-redocked`) |
+| `popout` | Popout ↔ main-window state/RPC relay -- see [IPC_PATTERNS.md](/architecture/IPC_PATTERNS#_6-popout-window-rpc-relay) | `call-handler`, `handler-result`, `state-update`, `props-update`, `request-snapshot`, `snapshot-requested`, `flush-requested`, `flush-complete`, `close-self` |
 
 ### Push Events (Main → Renderer)
 
@@ -498,6 +500,8 @@ const renderTabContent = (tab: EditorTab) => {
 - **State preservation**: Monaco scroll position, composer undo history, etc. persist across tab switches
 - **Memory trade-off**: More memory for better UX (instant tab switching)
 
+**Popped-out tabs**: any tab can detach into its own `BrowserWindow` (`useTabLifecycle.ts`'s `handlePopOutTab`, triggered by dragging the tab off the strip or its context menu). The main window remains the sole state owner -- the popout is a synced remote view, not an independent copy of app state. See [IPC_PATTERNS.md §6](/architecture/IPC_PATTERNS#_6-popout-window-rpc-relay) for the state/RPC relay this depends on.
+
 ---
 
 ## Performance Considerations
@@ -722,8 +726,12 @@ For project-specific instructions when working with Claude Code, see `CLAUDE.md`
 | `src/components/RouteCanvas.tsx` | 1,000+ | Label-level canvas (Flow Canvas) |
 | `src/components/ChoiceCanvas.tsx` | 1,000+ | Player experience canvas (Choices Canvas) |
 | `src/components/EditorView.tsx` | 800+ | Monaco editor integration + dialogue preview |
+| `src/hooks/usePopoutSync.ts` | 700+ | Popout window state/RPC relay -- serializes per-tab-type snapshots, answers relayed handler calls |
+| `src/PopoutTabRoot.tsx` | 600+ | Popout window's renderer entry point |
+| `src/hooks/useTabLifecycle.ts` | 600+ | Tab open/close/split/drag lifecycle, including pop-out and redock |
+| `src/hooks/useCanvasKeyboardPan.ts` | 150+ | WASD/QE keyboard pan-zoom for the three canvases |
 
 ---
 
-**Last Updated**: 2026-07-12
-**Vangard Studio Version**: 1.0.0
+**Last Updated**: 2026-09-05
+**Vangard Studio Version**: 1.1.0

@@ -1,4 +1,4 @@
-import { detectContext, getRenpyCompletions, isInsideScreenBlock, CompletionItemKind, InsertTextRule } from './renpyCompletionProvider';
+import { detectContext, getRenpyCompletions, isInsideScreenBlock, isInsideStringLiteral, CompletionItemKind, InsertTextRule } from './renpyCompletionProvider';
 import type { RenpyCompletionData, CompletionRange } from './renpyCompletionProvider';
 
 const range: CompletionRange = {
@@ -64,6 +64,38 @@ describe('detectContext', () => {
     expect(detectContext('    ', 5)).toBe('general');
     expect(detectContext('lab', 4)).toBe('general');
   });
+
+  it('returns string context while typing inside a quoted dialogue string', () => {
+    // cursor right after "how " in    e "Hello, how |
+    const line = '    e "Hello, how ';
+    expect(detectContext(line, line.length + 1)).toBe('string');
+  });
+
+  it('does not treat a closed string as still open', () => {
+    const line = '    e "Hello" ';
+    expect(detectContext(line, line.length + 1)).toBe('general');
+  });
+
+  it('respects escaped quotes when detecting string context', () => {
+    const line = '    e "She said \\"hi\\" and ';
+    expect(detectContext(line, line.length + 1)).toBe('string');
+  });
+});
+
+describe('isInsideStringLiteral', () => {
+  it('is false before any quote is opened', () => {
+    expect(isInsideStringLiteral('    jump ', 10)).toBe(false);
+  });
+
+  it('is true immediately after an opening quote', () => {
+    const line = '    e "Hello';
+    expect(isInsideStringLiteral(line, line.length + 1)).toBe(true);
+  });
+
+  it('is false once the string is closed', () => {
+    const line = '    e "Hello" and more';
+    expect(isInsideStringLiteral(line, line.length + 1)).toBe(false);
+  });
 });
 
 describe('getRenpyCompletions', () => {
@@ -88,6 +120,10 @@ describe('getRenpyCompletions', () => {
     expect(items.every(i => i.kind === CompletionItemKind.Module)).toBe(true);
     const inv = items.find(i => i.label === 'inventory');
     expect(inv?.detail).toContain('items');
+  });
+
+  it('returns no suggestions for string context', () => {
+    expect(getRenpyCompletions('string', sampleData, range)).toEqual([]);
   });
 
   it('returns images for show context', () => {

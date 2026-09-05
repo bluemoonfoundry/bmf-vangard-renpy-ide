@@ -27,6 +27,8 @@ function makeProps(overrides: Partial<Parameters<typeof useTabLifecycle>[0]> = {
     setDragSourcePaneId: vi.fn(),
     closedTabsStack: [] as ClosedTabEntry[],
     setClosedTabsStack: vi.fn(),
+    poppedOutTabs: new Map<string, { tab: EditorTab; paneId: 'primary' | 'secondary'; index: number }>(),
+    setPoppedOutTabs: vi.fn(),
     dirtyBlockIds: new Set<string>(),
     dirtyEditors: new Set<string>(),
     setDirtyBlockIds: vi.fn(),
@@ -168,6 +170,124 @@ describe('useTabLifecycle', () => {
       act(() => result.current.handleTabDragStart(dragEvent, 'block-1', 'primary'));
       expect(props.setDraggedTabId).toHaveBeenCalledWith('block-1');
       expect(props.setDragSourcePaneId).toHaveBeenCalledWith('primary');
+    });
+  });
+
+  describe('handleTabDragEnd', () => {
+    it('pops the tab out when the drag ends with no drop target accepting it', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const dragEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      // No dragover ever ran (dropEffect left at its incidental default), so the
+      // explicit valid-drop-target flag is still unset -- this should pop out.
+      act(() => result.current.handleTabDragEnd(dragEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).toHaveBeenCalled();
+      expect(props.setDraggedTabId).toHaveBeenCalledWith(null);
+    });
+
+    it('does not pop the tab out when a recognized drop target ran its dragover handler', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const dragEvent = { preventDefault: vi.fn(), dataTransfer: { dropEffect: 'move' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      // Simulate landing on another tab: its dragover handler flips the explicit flag.
+      act(() => result.current.handleTabDragOver(dragEvent, 'canvas'));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).not.toHaveBeenCalled();
+      expect(props.setDraggedTabId).toHaveBeenCalledWith(null);
+    });
+
+    it('does not pop the tab out when the tab strip itself ran its dragover handler', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const dragEvent = { preventDefault: vi.fn(), dataTransfer: { dropEffect: 'move' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabStripDragOver(dragEvent));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).not.toHaveBeenCalled();
+    });
+
+    it('resets the valid-drop-target flag on the next drag start, so a stale flag cannot suppress a later pop-out', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const overEvent = { preventDefault: vi.fn(), dataTransfer: { dropEffect: 'move' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const endEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const startEvent = { dataTransfer: { effectAllowed: '', setData: vi.fn() } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabDragOver(overEvent, 'canvas'));
+      act(() => result.current.handleTabDragStart(startEvent, 'block-1', 'primary'));
+      act(() => result.current.handleTabDragEnd(endEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).toHaveBeenCalled();
+    });
+
+    it('still pops out after the pointer passes over a valid target and then leaves to open space (regression: sticky flag from a bubbled dragover at drag start must not latch permanently true)', () => {
+      // Reproduces the reported bug: starting a drag necessarily begins with the
+      // pointer over the source tab, a child of the tab strip -- its dragover bubbles
+      // up to the strip's own onDragOver handler, which would incorrectly flip the
+      // valid-drop-target flag true right at drag start if that flag were sticky for
+      // the whole gesture instead of reflecting only the most recent dragover.
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'block-1', setPoppedOutTabs });
+      const startEvent = { dataTransfer: { effectAllowed: '', setData: vi.fn() } } as unknown as React.DragEvent<HTMLDivElement>;
+      const overEvent = { preventDefault: vi.fn(), dataTransfer: { dropEffect: 'move' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const endEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+
+      act(() => result.current.handleTabDragStart(startEvent, 'block-1', 'primary'));
+      // Simulates the bubbled dragover landing on the strip while still over the
+      // source tab, at the very start of the drag.
+      act(() => result.current.handleTabStripDragOver(overEvent));
+      // The pointer then moves to open space (outside every recognized target).
+      // window's capture-phase listener (registered by handleTabDragStart) must
+      // reset the flag on this dragover even though no bubble-phase handler ran.
+      act(() => { window.dispatchEvent(new Event('dragover', { cancelable: true })); });
+      act(() => result.current.handleTabDragEnd(endEvent, 'block-1', 'primary'));
+      expect(setPoppedOutTabs).toHaveBeenCalled();
+    });
+
+    it('shows a "move" cursor (not the browser default "no-drop") over open space during a tab drag', () => {
+      // Regression coverage for the UX follow-up: releasing the mouse over open space
+      // already popped the tab out correctly, but the browser showed its default
+      // forbidden/no-drop cursor there because nothing had called preventDefault() on
+      // that dragover. The window-level listener must both preventDefault() and set
+      // dropEffect to 'move' so the cursor reflects "this will do something."
+      const props = makeProps({ draggedTabId: 'block-1' });
+      const startEvent = { dataTransfer: { effectAllowed: '', setData: vi.fn() } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+
+      act(() => result.current.handleTabDragStart(startEvent, 'block-1', 'primary'));
+      const dragOverEvent = new Event('dragover', { cancelable: true }) as DragEvent;
+      Object.defineProperty(dragOverEvent, 'dataTransfer', { value: { dropEffect: 'none' }, writable: true });
+      act(() => { window.dispatchEvent(dragOverEvent); });
+
+      expect(dragOverEvent.defaultPrevented).toBe(true);
+      expect(dragOverEvent.dataTransfer!.dropEffect).toBe('move');
+    });
+
+    it('does not leak its window dragover listener past drag end', () => {
+      const props = makeProps({ draggedTabId: 'block-1' });
+      const startEvent = { dataTransfer: { effectAllowed: '', setData: vi.fn() } } as unknown as React.DragEvent<HTMLDivElement>;
+      const endEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const addSpy = vi.spyOn(window, 'addEventListener');
+      const removeSpy = vi.spyOn(window, 'removeEventListener');
+      const { result } = renderHook(() => useTabLifecycle(props));
+
+      act(() => result.current.handleTabDragStart(startEvent, 'block-1', 'primary'));
+      expect(addSpy).toHaveBeenCalledWith('dragover', expect.any(Function), true);
+      act(() => result.current.handleTabDragEnd(endEvent, 'block-1', 'primary'));
+      expect(removeSpy).toHaveBeenCalledWith('dragover', expect.any(Function), true);
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    });
+
+    it('does nothing when the dragged tab is no longer in the pane (already closed mid-drag)', () => {
+      const setPoppedOutTabs = vi.fn();
+      const props = makeProps({ draggedTabId: 'gone-tab', setPoppedOutTabs });
+      const dragEvent = { dataTransfer: { dropEffect: 'none' } } as unknown as React.DragEvent<HTMLDivElement>;
+      const { result } = renderHook(() => useTabLifecycle(props));
+      act(() => result.current.handleTabDragEnd(dragEvent, 'gone-tab', 'primary'));
+      expect(setPoppedOutTabs).not.toHaveBeenCalled();
     });
   });
 

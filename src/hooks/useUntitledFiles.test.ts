@@ -21,6 +21,8 @@ function makeProps(overrides: Partial<UseUntitledFilesProps> = {}): UseUntitledF
     setSecondaryActiveTabId: vi.fn(),
     setActivePaneId: vi.fn(),
     setSplitLayout: vi.fn(),
+    poppedOutTabs: new Map(),
+    setPoppedOutTabs: vi.fn(),
     ...overrides,
   };
 }

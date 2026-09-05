@@ -104,6 +104,11 @@ You can have multiple files open in tabs simultaneously. Tabs are lazy-loaded on
 activation and stay mounted in the background to preserve your scroll position and cursor
 state when you switch between them. [Chapter 8](/guide/writing-code) covers the editor in full depth.
 
+Any tab -- not just the editor, but canvases, composers, and panels too -- can be popped
+out into its own movable window: drag it off the tab bar, or right-click it and choose
+**Pop Out to Window**. See [Popping Out Tabs](/reference/editor-reference#_4-9-popping-out-tabs)
+for the full details.
+
 ## The Story Elements Sidebar
 
 The right sidebar is called **Story Elements**. It uses a single flat tab layout: one

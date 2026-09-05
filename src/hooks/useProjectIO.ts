@@ -220,7 +220,13 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     const doSaveAll = async (): Promise<boolean> => {
       setSaveStatus('saving');
       try {
-          const currentBlocks = [...blocks];
+          // Flush any popped-out editor's still-debouncing edit into blocks[] first --
+          // otherwise a block being actively typed in a popout window wouldn't be
+          // reflected yet, and Save All would silently write stale content for it.
+          // blocksRef (not the `blocks` closure captured when this callback was built)
+          // is used below so the flushed content is actually picked up.
+          await window.electronAPI?.flushAllPopouts?.();
+          const currentBlocks = [...blocksRef.current];
           const editorUpdates = new Map<string, string>();
 
           for (const blockId of dirtyEditors) {
@@ -323,7 +329,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     }
 
     return await doSaveAll();
-  }, [blocks, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict, openTabs, secondaryOpenTabs, untitledFiles, saveUntitledFile]);
+  }, [blocks, blocksRef, dirtyEditors, dirtyBlockIds, projectRootPath, addToast, setBlocks, handleSaveProjectSettings, filesWithDiskConflict, notifyFirstSave, openUnsavedChangesModal, closeUnsavedChangesModal, editorInstances, setDirtyBlockIds, setDirtyEditors, setHasUnsavedSettings, setSaveStatus, setFilesWithDiskConflict, openTabs, secondaryOpenTabs, untitledFiles, saveUntitledFile]);
 
   const handleReloadFromDisk = useCallback(async (item: { relativePath: string; absolutePath: string }) => {
       const block = blocks.find(b => b.filePath === item.relativePath);

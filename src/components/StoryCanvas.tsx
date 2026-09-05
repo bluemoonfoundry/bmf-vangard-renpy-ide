@@ -19,6 +19,8 @@ import type { MinimapItem } from './Minimap';
 import type { Block, Position, RenpyAnalysisResult, BlockGroup, StickyNote as StickyNoteType, MouseGestureSettings, StoryCanvasGroupingMode, StoryCanvasLayoutMode, DiagnosticsResult, FileSizeThresholds } from '@/types';
 import type { BlockType } from './CreateBlockModal';
 import { useDualPane } from '@/contexts/DualPaneContext';
+import { useCanvasKeyboardPan } from '@/hooks/useCanvasKeyboardPan';
+import { useCanvasActiveScope } from '@/hooks/useCanvasActiveScope';
 
 export interface StoryCanvasProps {
   blocks: Block[];
@@ -34,7 +36,10 @@ export interface StoryCanvasProps {
   onInteractionEnd: () => void;
   deleteBlock: (id: string) => void | Promise<void>;
   deleteBlocks?: (ids: string[]) => void | Promise<void>;
-  createGroupFromSelection?: (blockIds: string[]) => string | null;
+  /** A popped-out window can't return the new group's id synchronously (it goes over
+   *  an RPC round trip) -- may return a Promise instead, resolved before selecting/
+   *  announcing the new group. */
+  createGroupFromSelection?: (blockIds: string[]) => string | null | Promise<string | null>;
   deleteGroup?: (id: string) => void;
   onOpenEditor: (id: string, line?: number) => void;
   selectedBlockIds: string[];
@@ -980,12 +985,14 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
 
     if ((e.key === 'g' || e.key === 'G') && noModifiers && selectedBlockIds.length > 0 && createGroupFromSelection) {
       e.preventDefault();
-      const newGroupId = createGroupFromSelection(selectedBlockIds);
+      const result = createGroupFromSelection(selectedBlockIds);
       setSelectedBlockIds([]);
-      if (newGroupId) {
-        setSelectedGroupIds([newGroupId]);
-        announce('Group created');
-      }
+      void Promise.resolve(result).then((newGroupId) => {
+        if (newGroupId) {
+          setSelectedGroupIds([newGroupId]);
+          announce('Group created');
+        }
+      });
       return;
     }
 
@@ -1045,15 +1052,19 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
       transform, onCreateBlock, selectedBlockIds, selectedGroupIds, createGroupFromSelection,
       deleteBlocks, deleteGroup]);
 
+  const isCanvasActive = useCanvasActiveScope(canvasRef);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (e.key === 'f' || e.key === 'F') fitToScreen();
+      if ((e.key === 'f' || e.key === 'F') && isCanvasActive()) fitToScreen();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fitToScreen]);
+  }, [fitToScreen, isCanvasActive]);
+
+  useCanvasKeyboardPan({ containerRef: canvasRef, onTransformChange, minScale: 0.2, maxScale: 3 });
 
   const visibleLinks = useMemo(() => {
       return analysisResult.links.filter(link =>
@@ -1230,6 +1241,7 @@ const StoryCanvas: React.FC<StoryCanvasProps> = ({
               setShowLabelSearchResults(true);
             }}
             onFocus={() => setShowLabelSearchResults(true)}
+            onKeyDown={e => e.stopPropagation()}
             placeholder="Search labels…"
             className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm"
           />

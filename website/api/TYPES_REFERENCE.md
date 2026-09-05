@@ -136,12 +136,14 @@ These types manage the editor UI itself.
 - **`ToastMessage`** - Temporary notification
 
 **Tab Types**:
-- Canvas tabs: `canvas`, `route-canvas`, `choice-canvas`
-- Content tabs: `editor`, `image`, `audio`, `markdown`
-- Tool tabs: `diagnostics`, `stats`, `translations`
+- Canvas tabs: `canvas`, `route-canvas`, `choice-canvas`, `notecard-canvas`
+- Content tabs: `editor`, `untitled`, `image`, `audio`, `markdown`
+- Tool tabs: `diagnostics`, `punchlist`, `stats`, `translations`, `character`
 - Composer tabs: `scene-composer`, `imagemap-composer`, `screen-preview`
 
 **Tab Lifecycle**: Tabs mount lazily on first activation, then stay mounted-but-hidden to preserve Monaco editor state.
+
+**Popped-Out (Detached) Tabs**: Any tab type above except none are excluded -- all of them, including `canvas` -- can be detached into its own `BrowserWindow` (see `usePopoutSync.ts`'s `POPOUT_SUPPORTED_TAB_TYPES`). The main window stays the sole owner of app state; a popout is a thin remote view synced over IPC (`window:popout-tab`, `popout:*` channels in `preload.js`/`electron.js`). `useMainWindowPopoutSync` (main window) serializes a `PopoutSnapshot` per tab and answers RPC calls the popout makes back into the real state-mutating handlers; `usePopoutTabClient` (popout window, mounted via `PopoutTabRoot.tsx`) holds the latest snapshot and exposes `callHandler` to invoke those handlers remotely. `useTabLifecycle`'s `poppedOutTabs` map tracks each detached tab's original pane/index so `handleRedockTab` can reinsert it correctly when its window closes. Window size/position persist per tab *type* to `popout-window-state.json` in the userData directory (see `electron.js`'s `loadPopoutWindowState`/`savePopoutWindowState`).
 
 ### 7. Settings Types
 

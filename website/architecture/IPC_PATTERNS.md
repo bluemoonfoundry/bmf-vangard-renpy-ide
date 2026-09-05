@@ -35,6 +35,8 @@ All channels follow `namespace:action`:
 | `path:` | Node.js `path.join` (renderer has no path module) |
 | `shell:` | Opening external URLs via OS default browser |
 | `explorer:` | File explorer context menu state |
+| `window:` | Popout window lifecycle (create, close, redock notification) -- main process is the broker |
+| `popout:` | Popout ↔ main-window state/RPC relay (see Section 6) -- main process forwards these between the two renderer processes, it doesn't act on them itself |
 
 ---
 
@@ -134,7 +136,27 @@ All `on*` methods return an unsubscribe function. Always call it in the `useEffe
 
 ---
 
-## 6. Adding a New IPC Channel
+## 6. Popout Window RPC Relay
+
+A popped-out tab (`window:popout-tab`, opened from `useTabLifecycle.ts`'s `handlePopOutTab`) runs in its own `BrowserWindow` and renderer process, but the **main window remains the sole owner of app state**. The main process doesn't act on this data itself -- it's purely a relay between the two renderer processes, so this is a fourth pattern distinct from the three above: neither a simple request/response nor a one-way push, but a two-way state-and-RPC bridge with the main process as broker.
+
+```
+Popout renderer          Main process (relay only)       Main-window renderer
+────────────────         ──────────────────────────      ─────────────────────
+usePopoutTabClient   ←──  popout:props-update        ←──  useMainWindowPopoutSync
+  .callHandler()     ──→  popout:call-handler         ──→   (the real handler runs)
+                     ←──  popout:handler-result       ←──  ── returns its result
+```
+
+- **State flows down**: `useMainWindowPopoutSync` (main window) serializes just the slice of state a given tab type needs into a `PopoutSnapshot` and sends it via `sendPopoutStateUpdate` (`popout:state-update`) whenever that state changes. The main process relays it to the popout as `popout:props-update`. `usePopoutTabClient` (popout window) holds the latest snapshot and re-renders from it -- the popout never computes its own state.
+- **Actions flow up**: when the user edits something in the popout, it calls `callPopoutHandler(tabId, handlerName, args)` (`popout:call-handler`) instead of mutating local state. The main process relays this to the main window, which invokes the *real* handler (the same `updateBlock`, `handleSaveBlock`, etc. a main-window edit would call) and replies with the result via `popout:handler-result`. This keeps a single writer for all app state regardless of which window an edit originated in.
+- **Snapshot bootstrapping**: a newly opened popout sends `requestPopoutSnapshot` (`popout:request-snapshot`) to get its first `PopoutSnapshot` immediately, rather than waiting for the next state change in the main window.
+- **Close-time flush**: before the main window's close cascade proceeds, it sends `popout:flush-requested` to every open popout and waits for `acknowledgePopoutFlush` (`popout:flush-complete`) from each, so a pending debounced edit in a popout is written to disk instead of silently dropped.
+- **Redocking**: closing a popout window (or its own redock action) sends `window:tab-redocked` back to the main window, which reinserts the tab at its original pane/index via `useTabLifecycle.ts`'s `handleRedockTab`.
+
+See `src/hooks/usePopoutSync.ts` for the full snapshot-serialization logic per tab type, and `src/PopoutTabRoot.tsx` for the popout window's entry point.
+
+## 7. Adding a New IPC Channel
 
 Every new channel requires changes in all three files:
 
@@ -166,7 +188,7 @@ For a push event (main → renderer), add a `webContents.send()` call in `electr
 
 ---
 
-## 7. Security Considerations
+## 8. Security Considerations
 
 Electron's `contextBridge` ensures renderer JavaScript cannot call Node.js APIs directly — `window.electronAPI` is the only bridge. This is correct and should not be changed (do not disable `contextIsolation` or `sandbox`).
 
