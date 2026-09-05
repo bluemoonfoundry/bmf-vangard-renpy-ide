@@ -154,6 +154,29 @@ describe('useCanvasKeyboardPan', () => {
     document.body.removeChild(input);
   });
 
+  it('ignores key events targeting a non-contentEditable div inside a Monaco editor', () => {
+    // Regression: Monaco's hidden text-input surface is backed by Chromium's native
+    // EditContext API on some builds, which shows up as a plain <div> (not a TEXTAREA
+    // and not isContentEditable) rather than the classic hidden <textarea>. Without
+    // ancestry-based detection, this hook can't tell it's a typing target and
+    // preventDefault()s every WASD/QE keystroke typed into the editor.
+    renderHook(() => useCanvasKeyboardPan({ containerRef, onTransformChange: setTransform as never }));
+    hover(containerRef.current!);
+    const monacoRoot = document.createElement('div');
+    monacoRoot.className = 'monaco-editor';
+    const editContextDiv = document.createElement('div');
+    editContextDiv.className = 'native-edit-context';
+    monacoRoot.appendChild(editContextDiv);
+    document.body.appendChild(monacoRoot);
+
+    act(() => {
+      fireKey('keydown', 'w', editContextDiv);
+      vi.advanceTimersByTime(200);
+    });
+    expect(transform).toEqual({ x: 0, y: 0, scale: 1 });
+    document.body.removeChild(monacoRoot);
+  });
+
   it('does nothing when disabled', () => {
     renderHook(() => useCanvasKeyboardPan({ containerRef, onTransformChange: setTransform as never, enabled: false }));
     hover(containerRef.current!);

@@ -35,7 +35,13 @@ const PAN_ZOOM_KEYS = new Set(['w', 'a', 's', 'd', 'q', 'e']);
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
-  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+  // Chromium backs Monaco's hidden text-input surface with the native EditContext
+  // API on some builds, which shows up as a plain, non-contentEditable <div> (class
+  // "native-edit-context") rather than a TEXTAREA — so detect Monaco by ancestry
+  // instead of relying on the DOM shape of whatever element the browser currently
+  // uses for text input.
+  return !!el.closest?.('.monaco-editor');
 }
 
 /**
