@@ -37,9 +37,12 @@ Only a small set of line prefixes narrow the completion list. Everything else fa
 | Call screen | Typing after `call screen ` | Only defined `screen` names, with their parameters |
 | Image names | Typing after `show `, `scene `, or `hide ` | Only known image tags (from `image` statements and scanned files) |
 | Variables | Typing in `$` expressions or a `python` block | Only `define`/`default` variable names |
+| Inside a quoted string | Cursor sits inside an open `"..."` or `'...'` on the current line (dialogue text, filenames, etc.) | No suggestions -- see below |
 | General (everything else) | Any other position, including the start of a dialogue line | Ren'Py keyword snippets, character tags, label names, variables, screen names, and user snippets, all returned together in a single list |
 
 There is no dedicated "character tags only" or "screen names only" context outside of `call screen `. `show screen ` and `hide screen ` are matched by the broader `show `/`hide ` prefix check before any screen-specific check runs, so typing after them offers image names, not screen names.
+
+Suggestions are intentionally suppressed while the cursor is inside a quoted string. Space and `$` are registered as completion trigger characters (so the general context can offer suggestions as you type a keyword), but the same trigger characters would otherwise fire on every space typed while writing dialogue prose, dumping the entire keyword/character/label/variable list mid-sentence. The editor detects open-quote context per line (accounting for `\"`-escaped quotes) and returns no suggestions there instead.
 
 ### 4.4 Dialogue Preview
 
@@ -125,7 +128,7 @@ Vangard Studio distinguishes two different snippet shapes:
 | Feature | Description |
 |---------|-------------|
 | Split panes | Right-click a tab and choose "Open in Split Right" or "Open in Split Bottom" to create a split view |
-| Tab dragging | Reorder tabs, or drag a tab to move it between two already-existing panes (dragging does not create a new split) |
+| Tab dragging | Reorder tabs, or drag a tab to move it between two already-existing panes (dragging does not create a new split). Drag a tab off the tab bar entirely to pop it out into its own window -- see 4.9 |
 | Code folding | Collapse/expand indented blocks using gutter arrows |
 | Find / Replace | In-file search with regex, match case, and whole word options |
 | Multi-cursor | `Alt+Click` / `Option+Click` to place additional cursors |
@@ -136,7 +139,26 @@ Vangard Studio distinguishes two different snippet shapes:
 | Bracket matching | Matching brackets are highlighted when the cursor is adjacent |
 | Auto-indentation | New lines automatically match the indentation context |
 
-### 4.9 Search & Replace Panel
+### 4.9 Popping Out Tabs
+
+Any tab -- editor, canvas, composer, or panel -- can be detached into its own independent, movable OS window, then redocked back into its original pane later.
+
+**To pop out a tab:**
+- Drag the tab off the tab bar, or
+- Right-click the tab and choose **Pop Out to Window**
+
+**To redock a popped-out tab**, close its window -- it reinserts at its original pane and position.
+
+| Detail | Behavior |
+|--------|----------|
+| Supported tab types | All 16: editor, untitled, markdown, image, audio, character, diagnostics/punchlist, translations, stats, screen-preview, Project/Flow/Choices canvas, notecard-canvas, scene-composer, imagemap-composer |
+| State ownership | The main window remains the sole owner of app state. A popout is a thin remote view -- every edit still flows through the same handlers, undo history, and autosave as if it happened in the main window |
+| Window size/position | Remembered per tab *type* (not per tab id), so every popped-out editor, for example, reuses the last size/position of any previously popped-out editor |
+| Native menu commands | `Cmd+W` / `Ctrl+W` (close tab) and Save All work correctly when a popout window has OS focus |
+| Closing the main window | Any popout with a pending edit is flushed to disk before the main window's close cascade proceeds, so in-flight changes in a popout are never silently dropped |
+| The Project Canvas tab | Poppable like any other tab, except when it's the only tab left open in its pane -- popping it out then would leave that pane empty with no way back short of opening a second canvas tab |
+
+### 4.10 Search & Replace Panel
 
 Opened with `Ctrl+Shift+F` / `Cmd+Shift+F`. Searches across all `.rpy` files in the project using ripgrep.
 

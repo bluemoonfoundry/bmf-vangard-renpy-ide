@@ -266,6 +266,15 @@ The `1.5` perpendicular penalty biases navigation toward straight-line neighbors
 
 The announce region is updated with a text string (e.g., `"intro_scene focused"`) after each arrow-key navigation, enabling screen readers (NVDA, VoiceOver, JAWS) to read out the new focus.
 
+### 5.4 WASD/QE Keyboard Pan-Zoom
+
+All three canvases (including Flow Canvas, unlike arrow-key navigation above) support continuous camera-style pan/zoom via `useCanvasKeyboardPan.ts`, independent of the per-canvas pointer state machines in Section 1 -- it drives the same `transform` state (`x`, `y`, `scale`) but through its own `requestAnimationFrame` loop rather than a pointer-driven state transition.
+
+- **Pan**: holding `W`/`A`/`S`/`D` moves the transform at a constant `PAN_SPEED` (screen pixels/second), independent of zoom level.
+- **Zoom**: holding `Q`/`E` scales the transform at a constant fractional rate (`ZOOM_RATE`/second) anchored to the viewport center -- the world-space point currently at the container's center stays there as `scale` changes, so zooming doesn't drift the view.
+- **Scoping**: `useCanvasActiveScope` tracks which mounted canvas is currently hovered or has focus-within; the rAF loop re-checks this every frame (not just on keydown), so panning stops the instant the pointer leaves the canvas and resumes if it re-enters mid-hold. In a split view, only the active pane's canvas responds to a given keypress.
+- **Typing exclusion**: `keydown` is ignored when the event target is a text input, `contentEditable`, or -- detected by ancestry rather than tag name, since Monaco's hidden input surface isn't always a `<textarea>` -- inside `.monaco-editor`. This keeps W/A/S/D/Q/E usable as ordinary letters everywhere text is actually being typed (dialogue lines, sticky notes, rename fields).
+
 ---
 
 ## 6. When to Modify Each Canvas

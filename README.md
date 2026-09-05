@@ -137,10 +137,10 @@ The parser automatically detects languages from `tl/<language>/` directories, ma
 
 ### Code Editor
 
-A full Monaco editor (the VS Code engine) built right in, with Ren'Py-aware tooling designed to help you write your own code better, not write it for you. Split panes let you edit two files side by side. Drag tabs between panes.
+A full Monaco editor (the VS Code engine) built right in, with Ren'Py-aware tooling designed to help you write your own code better, not write it for you. Split panes let you edit two files side by side. Drag tabs between panes — or drag a tab off the tab bar entirely (or right-click → **Pop Out to Window**) to detach it into its own movable window; any of the 16 tab types (editors, canvases, composers, panels) can pop out, stays live-synced with the main window, and redocks when its window closes.
 
 - **TextMate syntax highlighting** — accurate, context-aware Ren'Py coloring with semantic token support for labels, variables, and screen references
-- **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables
+- **Context-aware IntelliSense** — autocomplete for `jump`/`call` targets, `show`/`scene` images, character tags, screen names, and variables. Suggestions are automatically suppressed while the cursor is inside a quoted string (dialogue text, filenames), so typing prose is never interrupted by a keyword dump
 - **Go to Definition** — `Ctrl+Click` a `jump`/`call` target to jump to its label definition
 - **Dialogue Preview** — an inline "Player View" panel below the editor shows a mock Ren'Py textbox (or choice menu) that updates in real time as the cursor moves through dialogue lines
 - **33 built-in Ren'Py snippets** with tab-stop placeholders
@@ -163,7 +163,7 @@ Same workflow for audio. Browse, scan external directories, and right-click to c
 
 ### Three Canvases
 
-Three ways to see your project's organization at a glance — not for building your story by dragging nodes, but for navigating and understanding a codebase that keeps growing.
+Three ways to see your project's organization at a glance — not for building your story by dragging nodes, but for navigating and understanding a codebase that keeps growing. Every canvas can be panned and zoomed like a game camera by holding `W`/`A`/`S`/`D` (pan) and `Q`/`E` (zoom), scoped to whichever canvas is hovered or focused so a split view doesn't drive both panes at once, and automatically ignored while typing anywhere text is being entered.
 
 #### Project Canvas
 
@@ -230,10 +230,11 @@ You can also warp from within the code editor — right-click a label line and c
 | Keyboard Shortcuts | `Ctrl+/` |
 | New Block | `N` |
 | Group selected blocks | `G` |
-| Pan canvas | `Shift+Drag` (configurable) |
-| Zoom canvas | Mouse scroll |
+| Pan canvas | `Shift+Drag` (configurable) or hold `W`/`A`/`S`/`D` |
+| Zoom canvas | Mouse scroll or hold `Q`/`E` |
 | Select multiple blocks | `Ctrl+Click` or rubber-band drag |
 | Delete selected | `Delete` |
+| Pop out tab to window | Drag tab off the tab bar, or right-click → Pop Out to Window |
 
 ---
 
@@ -445,4 +446,4 @@ Buttons are arranged left-to-right. The canvas switcher (Story / Route / Choice)
 
 ---
 
-*Vangard Studio — v1.0.0*
+*Vangard Studio — v1.1.0*

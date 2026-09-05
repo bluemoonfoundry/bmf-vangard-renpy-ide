@@ -107,6 +107,7 @@ These features are available on all three canvases, with one exception noted bel
 | Feature | Shortcut / Trigger | Description |
 |---------|--------------------|-------------|
 | Go-to-Label | `Ctrl+G` / `Cmd+G` | Fuzzy-search command palette. Selecting a label pans and zooms the canvas to that node at 100% zoom. |
+| Keyboard Pan/Zoom | Hold `W`/`A`/`S`/`D` to pan, `Q`/`E` to zoom toward viewport center | Continuous game-camera-style motion while held. Scoped to whichever canvas is hovered or focused (a split view only moves the active pane); suppressed while typing in any text field, sticky note, or the Monaco editor |
 | Toolbox Search | Search field in Toolbox panel | Filter visible nodes by name |
 | Fit-to-Screen | Floating button (bottom-right of canvas) or `F` | Adjusts zoom and pan to fit all nodes in the viewport |
 | Go-to-Start | Floating button (bottom-right of canvas) | Pans to the `label start` node |
