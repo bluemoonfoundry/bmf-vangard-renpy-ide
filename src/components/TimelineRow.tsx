@@ -71,7 +71,14 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
   };
 
   const setName = (name: string) => onChangeTimeline(prev => ({ ...prev, name }));
-  const setDuration = (duration: number) => onChangeTimeline(prev => ({ ...prev, duration: Math.max(0.1, duration) }));
+  const setDuration = (duration: number) => onChangeTimeline(prev => {
+    const clampedDuration = Math.max(0.1, duration);
+    return {
+      ...prev,
+      duration: clampedDuration,
+      keyframes: prev.keyframes.map(kf => kf.time > clampedDuration ? { ...kf, time: clampedDuration } : kf),
+    };
+  });
   const setLoop = (loop: boolean) => onChangeTimeline(prev => ({ ...prev, loop }));
 
   const timeFromClientX = (clientX: number): number => {

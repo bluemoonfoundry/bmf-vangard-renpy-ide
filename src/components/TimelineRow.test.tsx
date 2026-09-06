@@ -194,6 +194,24 @@ describe('TimelineRow', () => {
     expect(screen.getByLabelText('Loop')).not.toBeDisabled();
   });
 
+  it('shrinking duration below an existing keyframe time clamps that keyframe to the new duration', () => {
+    const { props } = renderRow({ timeline: alphaTimeline() }); // keyframe at time=1, duration=2
+    fireEvent.change(screen.getByDisplayValue('2'), { target: { value: '0.5' } });
+    const updater = props.onChangeTimeline.mock.calls[0][0];
+    const result = updater(alphaTimeline());
+    expect(result.duration).toBe(0.5);
+    expect(result.keyframes[0].time).toBe(0.5);
+  });
+
+  it('shrinking duration above all keyframe times leaves their times untouched', () => {
+    const { props } = renderRow({ timeline: alphaTimeline() }); // keyframe at time=1, duration=2
+    fireEvent.change(screen.getByDisplayValue('2'), { target: { value: '1.5' } });
+    const updater = props.onChangeTimeline.mock.calls[0][0];
+    const result = updater(alphaTimeline());
+    expect(result.duration).toBe(1.5);
+    expect(result.keyframes[0].time).toBe(1);
+  });
+
   it('calls onMoveUp/onMoveDown when provided, and omits the buttons when not', async () => {
     const user = userEvent.setup();
     const onMoveUp = vi.fn();
