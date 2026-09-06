@@ -51,9 +51,15 @@ export function interpolateTimeline(timeline: SpriteTimeline, localTime: number)
   return result;
 }
 
-/** Sum of the timelines' durations (sequential), or the max (parallel). 0 if there are no timelines. */
+/**
+ * Sum of the active timelines' durations (sequential), or the max (parallel).
+ * 0 if there are no active timelines. Mirrors `getActiveTimelines` so an
+ * empty/inactive timeline (no keyframes or no properties yet, e.g. one just
+ * added via '+ Add Timeline') never inflates the preview's duration with a
+ * phantom pause the generated ATL doesn't have.
+ */
 export function getTotalDuration(anim: SpriteAnimation): number {
-  const timelines = anim.timelines ?? [];
+  const timelines = getActiveTimelines(anim);
   if (timelines.length === 0) return 0;
   return anim.combineMode === 'parallel'
     ? Math.max(...timelines.map(t => t.duration))
@@ -66,11 +72,9 @@ function longestTimeline(timelines: SpriteTimeline[]): SpriteTimeline {
 
 /** Whether the combined preview should loop forever once it reaches `getTotalDuration(anim)`. Matches atlCodeGenerator's `honorLoop`, which only honors loop on the last *active* (keyframed + property-bearing) sequential timeline. */
 function overallLoops(anim: SpriteAnimation): boolean {
-  const timelines = anim.timelines ?? [];
-  if (timelines.length === 0) return false;
-  if (anim.combineMode === 'parallel') return longestTimeline(timelines).loop;
   const active = getActiveTimelines(anim);
-  return active.length > 0 ? active[active.length - 1].loop : timelines[timelines.length - 1].loop;
+  if (active.length === 0) return false;
+  return anim.combineMode === 'parallel' ? longestTimeline(active).loop : active[active.length - 1].loop;
 }
 
 /**
@@ -85,7 +89,7 @@ function overallLoops(anim: SpriteAnimation): boolean {
  * earlier statement last set).
  */
 export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number): Partial<Record<AnimatableProperty, number>> {
-  const timelines = anim.timelines ?? [];
+  const timelines = getActiveTimelines(anim);
   if (timelines.length === 0) return {};
 
   if (anim.combineMode === 'parallel') {
@@ -112,7 +116,6 @@ export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number):
   const result: Partial<Record<AnimatableProperty, number>> = {};
   for (let i = 0; i < activeIndex; i++) {
     const priorTimeline = timelines[i];
-    if (priorTimeline.keyframes.length === 0) continue;
     const lastKeyframe = [...priorTimeline.keyframes].sort((a, b) => a.time - b.time).at(-1)!;
     Object.assign(result, lastKeyframe.values);
   }

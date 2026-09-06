@@ -12,7 +12,7 @@ import type { ProjectImage, ImageMetadata, SceneComposition, SceneSprite, Sprite
 import CodeActionButtons from './CodeActionButtons';
 import SceneSpriteProperties from './SceneSpriteProperties';
 import SpriteAnimationPanel from './SpriteAnimationPanel';
-import { generateATLFromTimeline, transformNameFor } from '@/lib/atlCodeGenerator';
+import { generateATLFromTimeline, transformNameFor, MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
 import { createId } from '@/lib/createId';
 import { currentValuesForSprite } from '@/lib/spriteCurrentValues';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -800,6 +800,14 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
         return scene.animations?.find(a => a.spriteId === selectedSpriteId) ?? null;
     }, [scene.animations, selectedSpriteId]);
 
+    // Reciprocal of TimelineRow's hasStaticTint check: whether the active sprite already has a
+    // timeline animating a matrix-factor property, used to disable SceneSpriteProperties' static
+    // tint/colorize controls -- animating color together with a static effect isn't supported
+    // regardless of which one was applied first.
+    const activeHasAnimatedMatrixFactor = useMemo(() => {
+        return (activeAnimation?.timelines ?? []).some(t => t.properties.some(p => MATRIX_FACTOR_PROPERTIES.includes(p)));
+    }, [activeAnimation]);
+
     const handleCreateAnimation = useCallback(() => {
         if (!selectedSpriteId || !activeSprite) return;
         saveUndo();
@@ -1118,6 +1126,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
                             onUpdate={updateSprite}
                             onRangeSliderStart={handleRangeSliderStart}
                             onRangeSliderEnd={handleRangeSliderEnd}
+                            hasAnimatedMatrixFactor={activeHasAnimatedMatrixFactor}
                         />
                     </div>
                 </div>

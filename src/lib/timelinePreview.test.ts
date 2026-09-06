@@ -75,6 +75,12 @@ describe('getTotalDuration', () => {
   it('is 0 for a sprite animation with no timelines', () => {
     expect(getTotalDuration({ spriteId: 's', combineMode: 'parallel', timelines: [] })).toBe(0);
   });
+
+  it('excludes inactive timelines (no keyframes yet) from the sum in sequential mode, matching generated ATL', () => {
+    const empty: SpriteTimeline = { id: 't-empty', name: 'New', properties: [], duration: 1, loop: false, keyframes: [] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [{ ...xTimeline, duration: 2 }, empty] };
+    expect(getTotalDuration(anim)).toBe(2);
+  });
 });
 
 describe('interpolateSpriteAnimation', () => {
@@ -125,5 +131,14 @@ describe('interpolateSpriteAnimation', () => {
 
   it('returns an empty object for a sprite animation with no timelines', () => {
     expect(interpolateSpriteAnimation({ spriteId: 's', combineMode: 'parallel', timelines: [] }, 1)).toEqual({});
+  });
+
+  it('skips an inactive middle timeline (no keyframes) rather than treating it as a pause, matching generated ATL', () => {
+    const first: SpriteTimeline = { id: 't1', name: 'First', properties: ['x'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { x: 0 }, easing: 'linear' }, { id: 'k2', time: 1, values: { x: 1 }, easing: 'linear' }] };
+    const inactive: SpriteTimeline = { id: 't2', name: 'New', properties: [], duration: 1, loop: false, keyframes: [] };
+    const third: SpriteTimeline = { id: 't3', name: 'Third', properties: ['x'], duration: 1, loop: false, keyframes: [{ id: 'k1', time: 0, values: { x: 1 }, easing: 'linear' }, { id: 'k2', time: 1, values: { x: 0 }, easing: 'linear' }] };
+    const anim: SpriteAnimation = { spriteId: 's', combineMode: 'sequential', timelines: [first, inactive, third] };
+    // Without the inactive timeline's phantom 1s pause, `third` starts right after `first` at t=1, not t=2
+    expect(interpolateSpriteAnimation(anim, 1.5).x).toBeCloseTo(0.5, 5);
   });
 });
