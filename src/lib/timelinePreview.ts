@@ -8,6 +8,7 @@
  */
 import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/types';
 import { applyEasing } from './easingFunctions';
+import { getActiveTimelines } from './atlCodeGenerator';
 
 function wrapOrClampLocalTime(timeline: SpriteTimeline, localTime: number): number {
   if (timeline.duration <= 0) return 0;
@@ -52,22 +53,24 @@ export function interpolateTimeline(timeline: SpriteTimeline, localTime: number)
 
 /** Sum of the timelines' durations (sequential), or the max (parallel). 0 if there are no timelines. */
 export function getTotalDuration(anim: SpriteAnimation): number {
-  if (anim.timelines.length === 0) return 0;
+  const timelines = anim.timelines ?? [];
+  if (timelines.length === 0) return 0;
   return anim.combineMode === 'parallel'
-    ? Math.max(...anim.timelines.map(t => t.duration))
-    : anim.timelines.reduce((sum, t) => sum + t.duration, 0);
+    ? Math.max(...timelines.map(t => t.duration))
+    : timelines.reduce((sum, t) => sum + t.duration, 0);
 }
 
-function longestTimeline(anim: SpriteAnimation): SpriteTimeline {
-  return anim.timelines.reduce((max, t) => (t.duration > max.duration ? t : max));
+function longestTimeline(timelines: SpriteTimeline[]): SpriteTimeline {
+  return timelines.reduce((max, t) => (t.duration > max.duration ? t : max));
 }
 
-/** Whether the combined preview should loop forever once it reaches `getTotalDuration(anim)`. */
+/** Whether the combined preview should loop forever once it reaches `getTotalDuration(anim)`. Matches atlCodeGenerator's `honorLoop`, which only honors loop on the last *active* (keyframed + property-bearing) sequential timeline. */
 function overallLoops(anim: SpriteAnimation): boolean {
-  if (anim.timelines.length === 0) return false;
-  return anim.combineMode === 'parallel'
-    ? longestTimeline(anim).loop
-    : anim.timelines[anim.timelines.length - 1].loop;
+  const timelines = anim.timelines ?? [];
+  if (timelines.length === 0) return false;
+  if (anim.combineMode === 'parallel') return longestTimeline(timelines).loop;
+  const active = getActiveTimelines(anim);
+  return active.length > 0 ? active[active.length - 1].loop : timelines[timelines.length - 1].loop;
 }
 
 /**
@@ -82,11 +85,12 @@ function overallLoops(anim: SpriteAnimation): boolean {
  * earlier statement last set).
  */
 export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number): Partial<Record<AnimatableProperty, number>> {
-  if (anim.timelines.length === 0) return {};
+  const timelines = anim.timelines ?? [];
+  if (timelines.length === 0) return {};
 
   if (anim.combineMode === 'parallel') {
     const result: Partial<Record<AnimatableProperty, number>> = {};
-    for (const timeline of anim.timelines) {
+    for (const timeline of timelines) {
       Object.assign(result, interpolateTimeline(timeline, time));
     }
     return result;
@@ -95,9 +99,9 @@ export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number):
   let offset = 0;
   let activeIndex = 0;
   let localTime = time;
-  for (let i = 0; i < anim.timelines.length; i++) {
-    const timeline = anim.timelines[i];
-    if (time < offset + timeline.duration || i === anim.timelines.length - 1) {
+  for (let i = 0; i < timelines.length; i++) {
+    const timeline = timelines[i];
+    if (time < offset + timeline.duration || i === timelines.length - 1) {
       activeIndex = i;
       localTime = time - offset;
       break;
@@ -107,12 +111,12 @@ export function interpolateSpriteAnimation(anim: SpriteAnimation, time: number):
 
   const result: Partial<Record<AnimatableProperty, number>> = {};
   for (let i = 0; i < activeIndex; i++) {
-    const priorTimeline = anim.timelines[i];
+    const priorTimeline = timelines[i];
     if (priorTimeline.keyframes.length === 0) continue;
     const lastKeyframe = [...priorTimeline.keyframes].sort((a, b) => a.time - b.time).at(-1)!;
     Object.assign(result, lastKeyframe.values);
   }
-  Object.assign(result, interpolateTimeline(anim.timelines[activeIndex], localTime));
+  Object.assign(result, interpolateTimeline(timelines[activeIndex], localTime));
   return result;
 }
 

@@ -12,7 +12,7 @@ import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/type
 import TimelineRow from './TimelineRow';
 import { startPlayback, interpolateSpriteAnimation, getTotalDuration, type PlaybackHandle } from '@/lib/timelinePreview';
 import { createId } from '@/lib/createId';
-import { MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
+import { MATRIX_FACTOR_PROPERTIES, getActiveTimelines } from '@/lib/atlCodeGenerator';
 
 interface SpriteAnimationPanelProps {
   spriteLabel: string;
@@ -65,12 +65,19 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
     );
   }
 
+  const timelines = animation.timelines ?? [];
   const totalDuration = getTotalDuration(animation);
+  // Matches atlCodeGenerator's honorLoop, which only honors loop on the last *active*
+  // (keyframed + property-bearing) sequential timeline, not necessarily the last in the array.
+  const activeTimelines = getActiveTimelines(animation);
+  const lastLoopableId = activeTimelines.length > 0
+    ? activeTimelines[activeTimelines.length - 1].id
+    : timelines[timelines.length - 1]?.id;
 
   const hasOverlappingProperties = (() => {
     const seen = new Set<AnimatableProperty>();
     let timelinesWithAMatrixFactor = 0;
-    for (const t of animation.timelines) {
+    for (const t of timelines) {
       if (t.properties.some(p => MATRIX_FACTOR_PROPERTIES.includes(p))) timelinesWithAMatrixFactor++;
       for (const p of t.properties) {
         if (seen.has(p)) return true;
@@ -101,21 +108,29 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
   };
 
   const handleAddTimeline = () => {
-    const newTimeline = createTimeline(spriteLabel, animation.timelines.length);
-    onChangeAnimation(prev => ({ ...prev, timelines: [...prev.timelines, newTimeline] }));
+    const usedIndices = timelines
+      .map(t => {
+        if (!t.name.startsWith(spriteLabel)) return -1;
+        const suffix = t.name.slice(spriteLabel.length);
+        return /^\d+$/.test(suffix) ? Number(suffix) : -1;
+      })
+      .filter(n => n >= 0);
+    const nextIndex = usedIndices.length > 0 ? Math.max(...usedIndices) + 1 : 0;
+    const newTimeline = createTimeline(spriteLabel, nextIndex);
+    onChangeAnimation(prev => ({ ...prev, timelines: [...(prev.timelines ?? []), newTimeline] }));
   };
 
   const handleRemoveTimeline = (id: string) => {
-    onChangeAnimation(prev => ({ ...prev, timelines: prev.timelines.filter(t => t.id !== id) }));
+    onChangeAnimation(prev => ({ ...prev, timelines: (prev.timelines ?? []).filter(t => t.id !== id) }));
   };
 
   const handleChangeTimeline = (id: string, updater: (prev: SpriteTimeline) => SpriteTimeline) => {
-    onChangeAnimation(prev => ({ ...prev, timelines: prev.timelines.map(t => t.id === id ? updater(t) : t) }));
+    onChangeAnimation(prev => ({ ...prev, timelines: (prev.timelines ?? []).map(t => t.id === id ? updater(t) : t) }));
   };
 
   const handleMove = (index: number, direction: -1 | 1) => {
     onChangeAnimation(prev => {
-      const timelines = [...prev.timelines];
+      const timelines = [...(prev.timelines ?? [])];
       const target = index + direction;
       [timelines[index], timelines[target]] = [timelines[target], timelines[index]];
       return { ...prev, timelines };
@@ -129,7 +144,7 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
         <button onClick={onDeleteAnimation} className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove Animation</button>
       </div>
 
-      {animation.timelines.length >= 2 && (
+      {timelines.length >= 2 && (
         <div className="flex items-center gap-3 text-xs">
           <label className="flex items-center gap-1">
             <input
@@ -173,19 +188,19 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
       />
 
       <div className="space-y-2">
-        {animation.timelines.map((timeline, index) => (
+        {timelines.map((timeline, index) => (
           <TimelineRow
             key={timeline.id}
             timeline={timeline}
             combineMode={animation.combineMode}
-            canLoop={animation.combineMode === 'parallel' || index === animation.timelines.length - 1}
-            propertiesClaimedBySiblings={animation.timelines.filter((_, i) => i !== index).flatMap(t => t.properties)}
+            canLoop={animation.combineMode === 'parallel' || timeline.id === lastLoopableId}
+            propertiesClaimedBySiblings={timelines.filter((_, i) => i !== index).flatMap(t => t.properties)}
             hasStaticTint={hasStaticTint}
             currentValues={currentValues}
             onChangeTimeline={(updater) => handleChangeTimeline(timeline.id, updater)}
             onRemoveTimeline={() => handleRemoveTimeline(timeline.id)}
             onMoveUp={index > 0 ? () => handleMove(index, -1) : undefined}
-            onMoveDown={index < animation.timelines.length - 1 ? () => handleMove(index, 1) : undefined}
+            onMoveDown={index < timelines.length - 1 ? () => handleMove(index, 1) : undefined}
           />
         ))}
       </div>

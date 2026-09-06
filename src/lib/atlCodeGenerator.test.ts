@@ -134,7 +134,7 @@ describe('generateATLFromTimeline', () => {
       ],
     });
     expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
-      'transform eileen_animation:\n    alpha 0\n    matrixcolor SaturationMatrix(1)\n    linear 1 alpha 1 matrixcolor SaturationMatrix(1.5)\n'
+      'transform eileen_animation:\n    alpha 0\n    matrixcolor SaturationMatrix(1.00)\n    linear 1 alpha 1 matrixcolor SaturationMatrix(1.50)\n'
     );
   });
 
@@ -147,7 +147,7 @@ describe('generateATLFromTimeline', () => {
       ],
     });
     expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
-      'transform eileen_animation:\n    matrixcolor SaturationMatrix(1) * ContrastMatrix(1) * InvertMatrix(0)\n    easein 1 matrixcolor SaturationMatrix(2) * ContrastMatrix(0.5) * InvertMatrix(1)\n'
+      'transform eileen_animation:\n    matrixcolor SaturationMatrix(1.00) * ContrastMatrix(1.00) * InvertMatrix(0.00)\n    easein 1 matrixcolor SaturationMatrix(2.00) * ContrastMatrix(0.50) * InvertMatrix(1.00)\n'
     );
   });
 
@@ -171,7 +171,7 @@ describe('generateATLFromTimeline', () => {
       ],
     });
     expect(generateATLFromTimeline(anim({ timelines: [t] }))).toBe(
-      'transform eileen_animation:\n    matrixcolor BrightnessMatrix(0) * InvertMatrix(0)\n    linear 1 matrixcolor BrightnessMatrix(0.5) * InvertMatrix(1)\n'
+      'transform eileen_animation:\n    matrixcolor BrightnessMatrix(0.00) * InvertMatrix(0.00)\n    linear 1 matrixcolor BrightnessMatrix(0.50) * InvertMatrix(1.00)\n'
     );
   });
 });

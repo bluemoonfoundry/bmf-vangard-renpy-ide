@@ -711,7 +711,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     const animatedAnimationBySpriteId = useMemo(() => {
         const map = new Map<string, SpriteAnimation>();
         for (const anim of scene.animations ?? []) {
-            if (anim.timelines.some(t => t.keyframes.length > 0)) map.set(anim.spriteId, anim);
+            if ((anim.timelines ?? []).some(t => t.keyframes.length > 0)) map.set(anim.spriteId, anim);
         }
         return map;
     }, [scene.animations]);
@@ -803,7 +803,7 @@ const SceneComposer: React.FC<SceneComposerProps> = ({ images, metadata, scene, 
     const handleCreateAnimation = useCallback(() => {
         if (!selectedSpriteId || !activeSprite) return;
         saveUndo();
-        const spriteLabel = selectedSpriteId === 'background' ? 'background' : getRenpyTag(activeSprite.image);
+        const spriteLabel = selectedSpriteId === 'background' ? 'Background' : getRenpyTag(activeSprite.image);
         const starterTimeline: SpriteTimeline = {
             id: createId('tl'), name: `${spriteLabel}0`, properties: [], keyframes: [], duration: 1, loop: false,
         };

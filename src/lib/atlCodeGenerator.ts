@@ -32,10 +32,10 @@ const ATL_PROPERTY_NAME: Partial<Record<AnimatableProperty, string>> = {
  * visually plausible, just not identical curves.
  */
 const MATRIX_FACTOR_CONSTRUCTOR: Partial<Record<AnimatableProperty, (value: number) => string>> = {
-  saturation: (v) => `SaturationMatrix(${formatValue(v)})`,
-  brightness: (v) => `BrightnessMatrix(${formatValue(v)})`,
-  contrast: (v) => `ContrastMatrix(${formatValue(v)})`,
-  invert: (v) => `InvertMatrix(${formatValue(v)})`,
+  saturation: (v) => `SaturationMatrix(${formatMatrixValue(v)})`,
+  brightness: (v) => `BrightnessMatrix(${formatMatrixValue(v)})`,
+  contrast: (v) => `ContrastMatrix(${formatMatrixValue(v)})`,
+  invert: (v) => `InvertMatrix(${formatMatrixValue(v)})`,
 };
 
 /** Neutral (identity) value per matrix-factor property, used as a defensive fallback if a keyframe is ever missing a value it should have. */
@@ -69,6 +69,11 @@ export function transformNameFor(spriteId: string): string {
 
 function formatValue(value: number): string {
   return Number(value.toFixed(3)).toString();
+}
+
+/** Matches SceneComposer.tsx's spriteEffectCode() formatting for the same matrix-factor constructors, so animated and static matrixcolor expressions are visually consistent in generated code. */
+function formatMatrixValue(value: number): string {
+  return value.toFixed(2);
 }
 
 /**
@@ -122,6 +127,18 @@ function generateTimelineCode(timeline: SpriteTimeline, indent: string, honorLoo
 }
 
 /**
+ * The timelines that actually contribute to generated ATL (have both
+ * keyframes and at least one selected property) -- everything else is
+ * skipped by `generateATLFromTimeline`. Exported so the UI (canLoop) and the
+ * live preview (overallLoops) can agree with codegen's `honorLoop` on which
+ * timeline is "last" in sequential mode, rather than each independently
+ * assuming it's the last element of the full `timelines` array.
+ */
+export function getActiveTimelines(anim: SpriteAnimation): SpriteTimeline[] {
+  return (anim.timelines ?? []).filter(t => t.keyframes.length > 0 && t.properties.length > 0);
+}
+
+/**
  * A full `transform NAME:` block for `anim`. Timelines with zero keyframes
  * contribute nothing. In `'parallel'` mode, 2+ timelines with keyframes each
  * become their own nested `parallel:` branch (a single one is emitted
@@ -131,7 +148,7 @@ function generateTimelineCode(timeline: SpriteTimeline, indent: string, honorLoo
  */
 export function generateATLFromTimeline(anim: SpriteAnimation): string {
   const name = transformNameFor(anim.spriteId);
-  const active = anim.timelines.filter(t => t.keyframes.length > 0 && t.properties.length > 0);
+  const active = getActiveTimelines(anim);
 
   if (active.length === 0) {
     return `transform ${name}:\n    pass\n`;
