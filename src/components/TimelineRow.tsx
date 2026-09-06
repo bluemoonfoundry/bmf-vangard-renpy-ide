@@ -10,6 +10,7 @@
 import React, { useState, useRef } from 'react';
 import type { AnimatableProperty, PoseKeyframe, SpriteTimeline } from '@/types';
 import PoseKeyframeEditor, { VALUE_RANGE_BY_PROPERTY } from './PoseKeyframeEditor';
+import ConfirmModal from './ConfirmModal';
 import { createId } from '@/lib/createId';
 import { MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
 import { PROPERTY_ORDER, PROPERTY_LABEL } from '@/lib/animatableProperties';
@@ -36,6 +37,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
 }) => {
   const [editingKeyframeId, setEditingKeyframeId] = useState<string | null>(null);
   const [draggingKeyframeId, setDraggingKeyframeId] = useState<string | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const rulerRef = useRef<HTMLDivElement>(null);
   const dragStartClientXRef = useRef(0);
   const dragMovedRef = useRef(false);
@@ -135,8 +137,19 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
         />
         {onMoveUp && <button onClick={onMoveUp} aria-label="Move up" className="text-xs text-secondary hover:text-primary">&uarr;</button>}
         {onMoveDown && <button onClick={onMoveDown} aria-label="Move down" className="text-xs text-secondary hover:text-primary">&darr;</button>}
-        <button onClick={onRemoveTimeline} aria-label="Remove" className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
+        <button onClick={() => setShowRemoveConfirm(true)} aria-label="Remove" className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
       </div>
+
+      {showRemoveConfirm && (
+        <ConfirmModal
+          title="Remove Timeline"
+          confirmText="Remove"
+          onClose={() => setShowRemoveConfirm(false)}
+          onConfirm={() => { setShowRemoveConfirm(false); onRemoveTimeline(); }}
+        >
+          Remove timeline &ldquo;{timeline.name}&rdquo;? This deletes all of its keyframes and cannot be undone.
+        </ConfirmModal>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {PROPERTY_ORDER.map(property => {

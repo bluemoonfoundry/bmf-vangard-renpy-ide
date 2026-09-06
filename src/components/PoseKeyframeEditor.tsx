@@ -10,6 +10,7 @@ import type { AnimatableProperty, PoseKeyframe } from '@/types';
 import { EASING_OPTIONS } from '@/lib/easingFunctions';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
 import { PROPERTY_ORDER, PROPERTY_LABEL } from '@/lib/animatableProperties';
+import ConfirmModal from './ConfirmModal';
 
 interface ValueRange {
   min: number;
@@ -45,6 +46,7 @@ const PoseKeyframeEditor: React.FC<PoseKeyframeEditorProps> = ({ keyframe, prope
   const [time, setTime] = useState(keyframe.time);
   const [values, setValues] = useState<Partial<Record<AnimatableProperty, number>>>(keyframe.values);
   const [easing, setEasing] = useState(keyframe.easing);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { modalProps, contentRef } = useModalAccessibility({ isOpen: true, onClose, titleId: 'pose-keyframe-editor-title' });
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const orderedProperties = PROPERTY_ORDER.filter(p => properties.includes(p));
@@ -140,7 +142,7 @@ const PoseKeyframeEditor: React.FC<PoseKeyframeEditorProps> = ({ keyframe, prope
         </main>
 
         <footer className="bg-gray-50 dark:bg-gray-700 p-4 rounded-b-lg flex justify-between items-center">
-          <button onClick={onDelete} className="px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
+          <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
             Delete
           </button>
           <div className="space-x-3">
@@ -153,6 +155,17 @@ const PoseKeyframeEditor: React.FC<PoseKeyframeEditorProps> = ({ keyframe, prope
           </div>
         </footer>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Delete Keyframe"
+          confirmText="Delete"
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { setShowDeleteConfirm(false); onDelete(); }}
+        >
+          Delete this keyframe? This cannot be undone.
+        </ConfirmModal>
+      )}
     </div>,
     document.body
   );

@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/types';
 import TimelineRow from './TimelineRow';
+import ConfirmModal from './ConfirmModal';
 import { startPlayback, interpolateSpriteAnimation, getTotalDuration, type PlaybackHandle } from '@/lib/timelinePreview';
 import { createId } from '@/lib/createId';
 import { MATRIX_FACTOR_PROPERTIES, getActiveTimelines } from '@/lib/atlCodeGenerator';
@@ -37,6 +38,7 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playheadTime, setPlayheadTime] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const playbackRef = useRef<PlaybackHandle | null>(null);
 
   const stopPlayback = useCallback(() => {
@@ -141,8 +143,19 @@ const SpriteAnimationPanel: React.FC<SpriteAnimationPanelProps> = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-sm text-primary">{spriteLabel}</h3>
-        <button onClick={onDeleteAnimation} className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove Animation</button>
+        <button onClick={() => setShowDeleteConfirm(true)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove Animation</button>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Remove Animation"
+          confirmText="Remove"
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { setShowDeleteConfirm(false); onDeleteAnimation(); }}
+        >
+          Remove the animation for {spriteLabel}? This deletes all of its timelines and keyframes and cannot be undone.
+        </ConfirmModal>
+      )}
 
       {timelines.length >= 2 && (
         <div className="flex items-center gap-3 text-xs">

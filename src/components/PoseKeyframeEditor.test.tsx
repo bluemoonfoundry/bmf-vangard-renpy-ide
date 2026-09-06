@@ -69,9 +69,11 @@ describe('PoseKeyframeEditor', () => {
     expect(saved.easing).toBe('easein');
   });
 
-  it('Delete calls onDelete', () => {
+  it('Delete calls onDelete after confirming', () => {
     const { props } = renderEditor();
     fireEvent.click(screen.getByText('Delete'));
+    const confirmButtons = screen.getAllByText('Delete');
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
     expect(props.onDelete).toHaveBeenCalledTimes(1);
   });
 

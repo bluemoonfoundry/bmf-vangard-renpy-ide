@@ -112,7 +112,7 @@ describe('TimelineRow', () => {
     expect(await screen.findByRole('heading', { name: 'Keyframe' })).toBeInTheDocument();
   });
 
-  it('opens the keyframe editor when a dot is clicked, and deletes it on Delete', async () => {
+  it('opens the keyframe editor when a dot is clicked, and deletes it on Delete after confirming', async () => {
     const user = userEvent.setup();
     const { props } = renderRow({ timeline: alphaTimeline() });
 
@@ -121,6 +121,9 @@ describe('TimelineRow', () => {
     expect(within(dialog).getByRole('heading', { name: 'Keyframe' })).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const confirmDialog = screen.getByRole('heading', { name: 'Delete Keyframe' }).closest('[role="dialog"]') as HTMLElement;
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Delete' }));
+
     const updater = props.onChangeTimeline.mock.calls[0][0];
     expect(updater(alphaTimeline()).keyframes).toHaveLength(0);
   });
@@ -163,11 +166,12 @@ describe('TimelineRow', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('calls onRemoveTimeline when Remove is clicked', async () => {
+  it('calls onRemoveTimeline when Remove is clicked and confirmed', async () => {
     const user = userEvent.setup();
     const onRemoveTimeline = vi.fn();
     renderRow({ onRemoveTimeline });
     await user.click(screen.getByRole('button', { name: 'Remove' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(onRemoveTimeline).toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SpriteAnimationPanel from './SpriteAnimationPanel';
@@ -90,6 +90,7 @@ describe('SpriteAnimationPanel', () => {
     const { props } = renderPanel({ animation: twoTimelines });
     const removeButtons = screen.getAllByRole('button', { name: 'Remove' });
     await user.click(removeButtons[0]);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updater = (props.onChangeAnimation as any).mock.calls[0][0];
     expect(updater(twoTimelines).timelines.map(t => t.id)).toEqual(['t2']);
@@ -118,10 +119,11 @@ describe('SpriteAnimationPanel', () => {
     expect(reordered.timelines.map(t => t.id)).toEqual(['t2', 't1']);
   });
 
-  it('calls onDeleteAnimation when Remove Animation is clicked', async () => {
+  it('calls onDeleteAnimation when Remove Animation is clicked and confirmed', async () => {
     const user = userEvent.setup();
     const { props } = renderPanel();
     await user.click(screen.getByRole('button', { name: 'Remove Animation' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }));
     expect(props.onDeleteAnimation).toHaveBeenCalled();
   });
 
