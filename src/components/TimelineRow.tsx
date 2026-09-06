@@ -51,6 +51,8 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
   const [editingKeyframeId, setEditingKeyframeId] = useState<string | null>(null);
   const [draggingKeyframeId, setDraggingKeyframeId] = useState<string | null>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
+  const dragStartClientXRef = useRef(0);
+  const dragMovedRef = useRef(false);
 
   const editingKeyframe = timeline.keyframes.find(kf => kf.id === editingKeyframeId) ?? null;
   const isFirstKeyframe = editingKeyframe
@@ -104,11 +106,14 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
   const handleDotPointerDown = (e: React.PointerEvent, keyframeId: string) => {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStartClientXRef.current = e.clientX;
+    dragMovedRef.current = false;
     setDraggingKeyframeId(keyframeId);
   };
 
   const handleDotPointerMove = (e: React.PointerEvent) => {
     if (!draggingKeyframeId) return;
+    if (Math.abs(e.clientX - dragStartClientXRef.current) > 2) dragMovedRef.current = true;
     const time = timeFromClientX(e.clientX);
     onChangeTimeline(prev => ({
       ...prev,
@@ -122,6 +127,15 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
       if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
       setDraggingKeyframeId(null);
     }
+  };
+
+  const handleDotClick = (e: React.MouseEvent, keyframeId: string) => {
+    e.stopPropagation();
+    if (dragMovedRef.current) {
+      dragMovedRef.current = false; // this click is the synthetic one following a drag -- suppress opening the editor
+      return;
+    }
+    setEditingKeyframeId(keyframeId);
   };
 
   return (
@@ -205,7 +219,7 @@ const TimelineRow: React.FC<TimelineRowProps> = ({
               type="button"
               aria-label={`keyframe at ${kf.time.toFixed(2)}s`}
               onPointerDown={(e) => handleDotPointerDown(e, kf.id)}
-              onClick={(e) => { e.stopPropagation(); setEditingKeyframeId(kf.id); }}
+              onClick={(e) => handleDotClick(e, kf.id)}
               style={{ left: `${timeline.duration > 0 ? (kf.time / timeline.duration) * 100 : 0}%` }}
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-accent border-2 border-white dark:border-gray-800 shadow cursor-grab active:cursor-grabbing"
             />

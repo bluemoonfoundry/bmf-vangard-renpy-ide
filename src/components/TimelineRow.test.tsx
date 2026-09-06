@@ -141,6 +141,28 @@ describe('TimelineRow', () => {
     fireEvent.pointerUp(dot, { pointerId: 1 });
   });
 
+  it('does not reopen the editor when the click following a drag is the synthetic post-drag click', () => {
+    renderRow({ timeline: alphaTimeline() });
+    const dot = screen.getByRole('button', { name: /keyframe at 1.00s/ });
+    Object.defineProperty(dot, 'setPointerCapture', { value: vi.fn() });
+    Object.defineProperty(dot, 'hasPointerCapture', { value: vi.fn(() => true) });
+    Object.defineProperty(dot, 'releasePointerCapture', { value: vi.fn() });
+
+    fireEvent.pointerDown(dot, { pointerId: 1, clientX: 100 });
+    fireEvent.pointerMove(dot, { pointerId: 1, clientX: 150 }); // actually dragged past the threshold
+    fireEvent.pointerUp(dot, { pointerId: 1 });
+    fireEvent.click(dot); // the synthetic click browsers fire after a drag's pointerup
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('still opens the editor on a plain click with no preceding drag movement', async () => {
+    const user = userEvent.setup();
+    renderRow({ timeline: alphaTimeline() });
+    await user.click(screen.getByRole('button', { name: /keyframe at 1.00s/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('calls onRemoveTimeline when Remove is clicked', async () => {
     const user = userEvent.setup();
     const onRemoveTimeline = vi.fn();
