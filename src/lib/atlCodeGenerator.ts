@@ -7,6 +7,7 @@
  * and to name the `at <transform>` clause on the animated sprite's `show` line.
  */
 import type { AnimatableProperty, SpriteAnimation, SpriteTimeline } from '@/types';
+import { PROPERTY_ORDER } from '@/lib/animatableProperties';
 
 /** ATL property names for the six "simple" properties -- each gets its own token in generated code. */
 const ATL_PROPERTY_NAME: Partial<Record<AnimatableProperty, string>> = {
@@ -57,9 +58,6 @@ const MATRIX_FACTOR_NEUTRAL_VALUE: Partial<Record<AnimatableProperty, number>> =
  * earlier one's rather than combining with it).
  */
 export const MATRIX_FACTOR_PROPERTIES: AnimatableProperty[] = ['saturation', 'brightness', 'contrast', 'invert'];
-
-/** Canonical property order for all generated ATL lines, regardless of picker selection order. */
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
 
 /** A valid Ren'Py transform name for the sprite's (single) animation, e.g. `eileen_animation`. */
 export function transformNameFor(spriteId: string): string {

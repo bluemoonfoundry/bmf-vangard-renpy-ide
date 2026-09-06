@@ -9,14 +9,13 @@ import { createPortal } from 'react-dom';
 import type { AnimatableProperty, PoseKeyframe } from '@/types';
 import { EASING_OPTIONS } from '@/lib/easingFunctions';
 import { useModalAccessibility } from '@/hooks/useModalAccessibility';
+import { PROPERTY_ORDER, PROPERTY_LABEL } from '@/lib/animatableProperties';
 
 interface ValueRange {
   min: number;
   max: number;
   step: number;
 }
-
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
 
 /** Slider bounds per property, matching the corresponding `SceneSprite` field's expected range. */
 export const VALUE_RANGE_BY_PROPERTY: Record<AnimatableProperty, ValueRange> = {
@@ -30,19 +29,6 @@ export const VALUE_RANGE_BY_PROPERTY: Record<AnimatableProperty, ValueRange> = {
   brightness: { min: -1, max: 1, step: 0.05 },
   contrast: { min: 0.1, max: 3, step: 0.05 },
   invert: { min: 0, max: 1, step: 0.1 },
-};
-
-const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
-  x: 'X Position',
-  y: 'Y Position',
-  zoom: 'Zoom',
-  alpha: 'Alpha',
-  rotation: 'Rotation',
-  blur: 'Blur',
-  saturation: 'Saturation',
-  brightness: 'Brightness',
-  contrast: 'Contrast',
-  invert: 'Invert',
 };
 
 interface PoseKeyframeEditorProps {

@@ -12,6 +12,7 @@ import type { AnimatableProperty, PoseKeyframe, SpriteTimeline } from '@/types';
 import PoseKeyframeEditor, { VALUE_RANGE_BY_PROPERTY } from './PoseKeyframeEditor';
 import { createId } from '@/lib/createId';
 import { MATRIX_FACTOR_PROPERTIES } from '@/lib/atlCodeGenerator';
+import { PROPERTY_ORDER, PROPERTY_LABEL } from '@/lib/animatableProperties';
 
 interface TimelineRowProps {
   timeline: SpriteTimeline;
@@ -29,21 +30,6 @@ interface TimelineRowProps {
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }
-
-const PROPERTY_ORDER: AnimatableProperty[] = ['x', 'y', 'zoom', 'alpha', 'rotation', 'blur', 'saturation', 'brightness', 'contrast', 'invert'];
-
-const PROPERTY_LABEL: Record<AnimatableProperty, string> = {
-  x: 'X Position',
-  y: 'Y Position',
-  zoom: 'Zoom',
-  alpha: 'Alpha',
-  rotation: 'Rotation',
-  blur: 'Blur',
-  saturation: 'Saturation',
-  brightness: 'Brightness',
-  contrast: 'Contrast',
-  invert: 'Invert',
-};
 
 const TimelineRow: React.FC<TimelineRowProps> = ({
   timeline, propertiesClaimedBySiblings, combineMode, canLoop, hasStaticTint, currentValues, onChangeTimeline, onRemoveTimeline, onMoveUp, onMoveDown,
