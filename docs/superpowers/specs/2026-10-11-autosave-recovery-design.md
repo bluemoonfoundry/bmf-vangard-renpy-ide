@@ -52,7 +52,7 @@ userData/recovery/<project-id>/session-<sessionId>.json
 - `<project-id>` is the sha256 hex of the canonical project path, lowercased on Windows. The full path is also stored inside the file, for display and for a mismatch check.
 - A crash leaves that session's file behind. On the next open, any session file for the project that **isn't the current session's own** counts as pending recovery.
 - Because a session only ever writes its own file, a new session can never overwrite or delete a pending crash snapshot. This is what makes "Decide later" safe.
-- **Live-instance guard.** The app has no single-instance lock, so each snapshot records the main-process `pid`. `listPending` skips a snapshot whose `pid` is a different process that is still alive (`process.kill(pid, 0)` succeeds), so a second instance never offers the first instance's live session. Snapshots from the same process with a different `sessionId` (an earlier session in this run) are treated as pending.
+- **Live-instance guard.** The app has no single-instance lock, so each snapshot records the main-process `pid` and the OS boot time. A pid from an earlier boot is always treated as dead, since pids are reused after a reboot. The size limits never evict a live instance's file. `listPending` skips a snapshot whose `pid` is a different process that is still alive (`process.kill(pid, 0)` succeeds), so a second instance never offers the first instance's live session. Snapshots from the same process with a different `sessionId` (an earlier session in this run) are treated as pending.
 
 **Snapshot format** (`version: 1`):
 
@@ -61,6 +61,7 @@ userData/recovery/<project-id>/session-<sessionId>.json
   "version": 1,
   "sessionId": "…",
   "pid": 12345,
+  "bootTime": 1760200000000,
   "projectRoot": "C:\\Users\\me\\Ren'Py Projects\\ゲーム",
   "updatedAt": "2026-10-11T20:15:03.120Z",
   "files": [
@@ -89,7 +90,7 @@ Limit 2 can delete a deferred pending snapshot. That only happens if the user ch
 **Deletion rules:**
 1. **The session cleans up after itself:** the renderer calls `recovery:clear(sessionId)` when nothing is unsaved any more, but only if that session has written a snapshot. A freshly opened project therefore never deletes anything.
 2. **Intentional quit:** when the existing quit flow sets `forceQuit` (no unsaved work, or the user chose Save or Don't Save), the main process deletes the current session's file. "Don't Save" is an explicit discard. To do this, the main process records `currentRecoverySessionId`, the `sessionId` from the most recent `recovery:listPending` or `recovery:write` for `currentProjectRoot`, and resets it when a different project is loaded.
-3. **Dialog outcome:** Restore and Discard delete **all** pending files for the project. Older pending files are superseded by the newest one, which is the one offered. Decide later deletes nothing.
+3. **Dialog outcome:** Restore and Discard delete **only the offered snapshot**. Older pending files are *not* superseded by it: after "Decide later" a newer session never contains the deferred work, so they stay and are offered on later opens. After a Restore, the offered file is deleted only once this session's first snapshot, which holds the restored work, has reached disk. Decide later deletes nothing. *(Revised after final review: the original "delete all pending files" rule could delete deferred crash work the user had never seen.)*
 
 **IPC** (`namespace:action`, in `preload.js` as `electronAPI.recovery.*`). Every handler works only on `currentProjectRoot`, which `project:load` has already vetted. Paths are built only inside the main process, and `sessionId` must match a UUID pattern, so a renderer can't steer writes elsewhere.
 
