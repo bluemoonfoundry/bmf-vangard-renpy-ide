@@ -93,6 +93,7 @@ import { logger } from '@/lib/logger';
 import { pruneOrphanedEditorTabs } from '@/lib/tabReconciliation';
 import { UI_TIMING } from '@/lib/constants';
 import { DEFAULT_FILE_SIZE_THRESHOLDS, getLineCount } from '@/lib/fileSizeSeverity';
+import { createDefaultProjectSettingsMeta } from '@/lib/projectSerializer';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
@@ -103,7 +104,7 @@ import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  UserSnippet, MenuTemplate,
+  UserSnippet, MenuTemplate, ProjectSettingsMeta,
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -572,6 +573,7 @@ const App: React.FC = () => {
   const pendingRouteLayoutRefreshRef = useRef<PendingRouteLayoutRefresh | null>(null);
   const pendingTagRenameRef = useRef<{ oldTag: string; newTag: string } | null>(null);
   const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
+  const projectSettingsMetaRef = useRef<ProjectSettingsMeta>(createDefaultProjectSettingsMeta());
 
   const {
     externallyChangedFiles,
@@ -929,7 +931,7 @@ const App: React.FC = () => {
       setHasUnsavedSettings, setIsInitialAnalysisPending, perfRecorders, addToast,
       poppedOutTabs, setPoppedOutTabs,
       hydrateSetters: {
-          pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+          pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef, projectSettingsMetaRef,
           setProjectRootPath, setFileSystemTree,
           updateProjectSettings,
           setBlocks,
@@ -952,7 +954,7 @@ const App: React.FC = () => {
       handleReloadFromDisk,
       handleRefreshProject,
   } = useProjectIO({
-      blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
+      blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances, projectSettingsMetaRef,
       projectRootPath, setFileSystemTree,
       projectSettings,
       blocks, setBlocks,

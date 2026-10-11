@@ -7,7 +7,7 @@ import type {
   AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   Notecard, NotecardLink, NotecardTimelineSettings,
-  ProjectSnapshot,
+  ProjectSnapshot, ProjectSettingsMeta,
 } from '@/types';
 
 // Re-export from types so importers don't need a second import path.
@@ -21,6 +21,8 @@ export interface HydrateSetters {
   pendingStoryLayoutRefreshRef: React.MutableRefObject<import('@/types').PendingStoryLayoutRefresh | null>;
   pendingRouteLayoutRefreshRef: React.MutableRefObject<import('@/types').PendingRouteLayoutRefresh | null>;
   pendingAutoCenterRef: React.MutableRefObject<{ story: boolean; route: boolean; choice: boolean }>;
+  /** Schema/unknown-field bookkeeping for project.ide.json, read back by useProjectIO on save. */
+  projectSettingsMetaRef: React.MutableRefObject<ProjectSettingsMeta>;
   setProjectRootPath: React.Dispatch<React.SetStateAction<string | null>>;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   updateProjectSettings: (updater: (draft: ProjectSettingsSlice) => void) => void;
@@ -69,7 +71,7 @@ export interface HydrateSetters {
  */
 export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
   const {
-    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef, projectSettingsMetaRef,
     setProjectRootPath, setFileSystemTree, updateProjectSettings, setBlocks,
     setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
     setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
@@ -83,6 +85,7 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
     perfRecorders,
   } = setters;
 
+  projectSettingsMetaRef.current = snapshot.settingsMeta;
   setProjectRootPath(snapshot.rootPath);
   setFileSystemTree(snapshot.tree);
   setBlocks(snapshot.blocks);
@@ -298,7 +301,13 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
       if (loadCancelRef.current) return;
 
       if (projectData.settingsWarning) {
-        addToast('Project settings could not be read — using defaults', 'warning');
+        const backupPath = projectData.settingsWarning.backupPath;
+        addToast(
+          backupPath
+            ? `Project settings could not be read — using defaults. The unreadable file was backed up to ${backupPath}`
+            : 'Project settings could not be read — using defaults',
+          'warning',
+        );
       }
 
       setLoadingProgress(93);
@@ -306,6 +315,12 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
       // Phase 1: pure deserialization — no React state touched
       const snapshot = deserializeProjectData(projectData, blocksRef.current);
+      if (snapshot.settingsMeta.newerThanSupported) {
+        addToast(
+          'This project was saved by a newer version of Vangard Studio. Settings this version does not recognise will be kept, but may not take effect.',
+          'warning',
+        );
+      }
 
       // Write default script.rpy when the project was empty
       if (snapshot.defaultScriptBlock && window.electronAPI?.writeFile) {

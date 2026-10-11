@@ -589,7 +589,13 @@ async function run() {
     const settingsPath = path.join(rootPath, 'game', 'project.ide.json');
     try {
         const settingsContent = await fs.readFile(settingsPath, 'utf-8');
-        results.settings = JSON.parse(settingsContent);
+        const parsed = JSON.parse(settingsContent);
+        // Valid JSON that isn't an object (null, an array, a bare string...) is
+        // just as unusable as a syntax error -- treat it the same way.
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            throw new SyntaxError('project.ide.json does not contain a JSON object');
+        }
+        results.settings = parsed;
     } catch (err) {
         results.settings = {};
         // ENOENT (no settings file yet) is expected and stays silent; anything
@@ -600,6 +606,20 @@ async function run() {
                 : (err.code === 'EACCES' || err.code === 'EPERM') ? 'permission-denied'
                 : 'unknown';
             results.settingsWarning = { code: category, message: err.message };
+            // The next save rewrites project.ide.json from defaults, so keep a
+            // copy of the unreadable file first. Only the settings file is
+            // touched here -- .rpy sources were already read above and are
+            // never written by the load path.
+            if (category === 'corrupted') {
+                const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupPath = settingsPath + '.corrupt-' + stamp + '.bak';
+                try {
+                    await fs.copyFile(settingsPath, backupPath);
+                    results.settingsWarning.backupPath = backupPath;
+                } catch (backupErr) {
+                    results.settingsWarning.message += ' (backup failed: ' + backupErr.message + ')';
+                }
+            }
         }
     }
 

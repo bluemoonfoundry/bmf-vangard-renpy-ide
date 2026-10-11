@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 99,
+  "draftingMode": true,
+  "openTabs": [{ "id": "canvas", "type": "canvas" }],
+  "activeTabId": "canvas",
+  "futureLayoutEngine": { "kind": "force-directed", "seed": 42 }
+}
