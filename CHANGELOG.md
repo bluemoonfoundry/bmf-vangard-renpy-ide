@@ -13,6 +13,7 @@ All notable changes to Vangard Studio are documented here.
 
 ### Security
 - Upgraded `sharp` 0.33.5 → 0.35.5 (bundled libvips 8.18.7), fixing the inherited high-severity libvips CVEs CVE-2026-33327, CVE-2026-33328, CVE-2026-35590 and CVE-2026-35591. sharp is used only for new-project GUI image generation; its output is unchanged and now covered by a unit test. sharp now requires Node ≥ 20.9.
+- Applied non-breaking `npm audit` fixes, including `electron` 41.10.5 → 41.10.7 (high-severity advisory) and `dompurify` 3.4.13 → 3.4.16; also bumped `esbuild` to 0.28.2 (Windows dev-server file read) and aligned `vitest`/`@vitest/coverage-v8` at 4.1.11. `npm audit --omit=dev` now reports 0 vulnerabilities; the remaining build-time advisories are documented in `CONTRIBUTING.md`.
 
 ## [1.1.0]
 
