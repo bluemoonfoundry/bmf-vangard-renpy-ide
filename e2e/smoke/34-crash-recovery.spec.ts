@@ -79,6 +79,8 @@ test.describe('crash recovery', () => {
     const onDisk = await fs.readFile(scriptPath, 'utf-8');
 
     await typeUnsavedEditAndCrash(marker);
+    const crashFiles = await snapshotFiles();
+    expect(crashFiles).toHaveLength(1);
 
     const { app, window } = await launch();
     try {
@@ -89,6 +91,15 @@ test.describe('crash recovery', () => {
       await expect(window.getByRole('checkbox', { name: /Workspace changes/ })).toBeChecked();
       await window.getByRole('button', { name: 'Restore selected' }).click();
       await expect(window.getByText(/Restored 2 items/)).toBeVisible();
+
+      // The crash snapshot stays until this session's own snapshot (holding the
+      // restored work) reaches disk, so a crash right after Restore loses nothing.
+      expect(await fs.access(crashFiles[0]).then(() => true, () => false)).toBe(true);
+      await expect.poll(async () => {
+        const files = await snapshotFiles();
+        if (files.includes(crashFiles[0]) || files.length !== 1) return false;
+        return (await fs.readFile(files[0], 'utf-8')).includes(marker);
+      }, { timeout: 20_000 }).toBe(true);
 
       const block = window.locator('[data-block-id]').first();
       await block.dblclick();

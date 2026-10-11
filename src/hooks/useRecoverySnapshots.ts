@@ -26,6 +26,8 @@ export interface UseRecoverySnapshotsParams {
   buildSettingsPayload: () => ProjectSettings;
   debounceMs?: number;
   maxIntervalMs?: number;
+  /** Called after each snapshot that actually reached disk (not on failure or a size skip). */
+  onSnapshotWritten?: () => void;
 }
 
 type PayloadState = Pick<UseRecoverySnapshotsParams,
@@ -100,7 +102,10 @@ export function useRecoverySnapshots(params: UseRecoverySnapshotsParams): void {
     try {
       const result = await window.electronAPI.recovery.write(id, buildRecoveryPayload(latest.current));
       if (!result.success) throw new Error(result.error ?? 'Unknown error');
-      if (session.current.id === id) session.current.wrote = true;
+      if (!result.skipped && session.current.id === id) {
+        session.current.wrote = true;
+        latest.current.onSnapshotWritten?.();
+      }
     } catch (err) {
       if (!session.current.warned) {
         session.current.warned = true;

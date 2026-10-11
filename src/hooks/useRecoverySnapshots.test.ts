@@ -89,6 +89,31 @@ describe('useRecoverySnapshots', () => {
     expect(api.recovery.write).toHaveBeenCalledTimes(1); // forced by the 60 s cap
   });
 
+  it('reports each successful write via onSnapshotWritten', async () => {
+    const onSnapshotWritten = vi.fn();
+    renderHook(() => useRecoverySnapshots(makeParams({ onSnapshotWritten })));
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    await flush();
+    expect(onSnapshotWritten).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report a failed or size-skipped write (nothing new is protected)', async () => {
+    const onSnapshotWritten = vi.fn();
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    api.recovery.write.mockResolvedValueOnce({ success: true, skipped: 'too-large' });
+    const params = makeParams({ onSnapshotWritten });
+    const { rerender } = renderHook((p: UseRecoverySnapshotsParams) => useRecoverySnapshots(p), { initialProps: params });
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    await flush();
+    api.recovery.write.mockRejectedValueOnce(new Error('EACCES'));
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy', content: 'again' });
+    rerender({ ...params, blocks: [block], blocksRef: { current: [block] } });
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    await flush();
+    expect(api.recovery.write).toHaveBeenCalledTimes(2);
+    expect(onSnapshotWritten).not.toHaveBeenCalled();    warn.mockRestore();
+  });
+
   it('does nothing while disabled', async () => {
     renderHook(() => useRecoverySnapshots(makeParams({ enabled: false })));
     await act(async () => { vi.advanceTimersByTime(120_000); });

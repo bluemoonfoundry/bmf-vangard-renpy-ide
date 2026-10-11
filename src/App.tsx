@@ -984,8 +984,21 @@ const App: React.FC = () => {
       addToast,
   });
 
+  // After a successful restore, the offered crash snapshot is kept until this
+  // session's first snapshot (which holds the restored work) reaches disk --
+  // deleting it right away left the restored work unprotected for ~5 s.
+  const discardAfterWriteRef = useRef<string | null>(null);
+  const handleSnapshotWritten = useCallback(() => {
+    const target = discardAfterWriteRef.current;
+    const sessionId = recoverySessionIdRef.current;
+    if (!target || !sessionId) return;
+    discardAfterWriteRef.current = null;
+    void window.electronAPI?.recovery.discardPending(sessionId, target);
+  }, []);
+
   useRecoverySnapshots({
     enabled: recoveryResolved && !!projectRootPath,
+    onSnapshotWritten: handleSnapshotWritten,
     sessionIdRef: recoverySessionIdRef,
     blocks, blocksRef, editorInstances,
     dirtyBlockIds, dirtyEditors, untitledFiles, hasUnsavedSettings,
@@ -1013,8 +1026,7 @@ const App: React.FC = () => {
       applySettingsSnapshot: (snapshot) => hydrateSettingsFromSnapshot(snapshot, hydrateSettersRef.current),
     });
     if (failures.length === 0) {
-      const sessionId = recoverySessionIdRef.current;
-      if (sessionId) await window.electronAPI?.recovery.discardPending(sessionId, pendingRecovery.sessionId);
+      discardAfterWriteRef.current = pendingRecovery.sessionId;
       addToast(`Restored ${restored} item${restored === 1 ? '' : 's'} — review and save when ready`, 'success');
     } else {
       addToast(`Some recovered items could not be restored: ${failures.map(f => `${f.item} (${f.error})`).join('; ')}. They will be offered again next time.`, 'error');
