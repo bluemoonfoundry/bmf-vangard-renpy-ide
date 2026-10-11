@@ -61,8 +61,9 @@ describe('applyRecoverySnapshot', () => {
     expect(order[0]).toBe('settings');
     expect(deps.setHasUnsavedSettings).toHaveBeenCalledWith(true);
 
-    const blockUpdater = (deps.setBlocks as ReturnType<typeof vi.fn>).mock.calls[0][0] as (b: Block[]) => Block[];
-    const updated = blockUpdater(blocks());
+    // apply every setBlocks updater in call order (layout merge, then per-file content)
+    const blockUpdaters = (deps.setBlocks as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0] as (b: Block[]) => Block[]);
+    const updated = blockUpdaters.reduce((bs, u) => u(bs), blocks());
     expect(updated.find(b => b.id === 'b1')?.content).toBe('recovered A');
     expect(setValue).toHaveBeenCalledWith('recovered A');
 
@@ -98,6 +99,23 @@ describe('applyRecoverySnapshot', () => {
     const result = applyRecoverySnapshot(makePending(), { files: ['game/script.rpy'], untitled: [], settings: true }, deps);
     expect(result.restored).toBe(1);
     expect(result.failures).toEqual([{ item: 'Workspace changes', error: 'bad settings' }]);
+  });
+
+  it('restores unsaved Project-canvas block layout (position, size, colour) with workspace changes', () => {
+    const { deps } = makeDeps(blocks());
+    const settings = {
+      draftingMode: false, openTabs: [], activeTabId: 'canvas',
+      storyBlockLayouts: { 'game/script.rpy': { position: { x: 999, y: 111 }, width: 400, height: 300, color: '#ff0000' } },
+    };
+    applyRecoverySnapshot(makePending({ settings: settings as never }), { files: [], untitled: [], settings: true }, deps);
+    const updaters = (deps.setBlocks as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0] as (b: Block[]) => Block[]);
+    const result = updaters.reduce((bs, u) => u(bs), blocks());
+    const b1 = result.find(b => b.id === 'b1')!;
+    expect(b1.position).toEqual({ x: 999, y: 111 });
+    expect([b1.width, b1.height, b1.color]).toEqual([400, 300, '#ff0000']);
+    // a block with no saved layout keeps its current geometry, and content is untouched
+    expect(result.find(b => b.id === 'b2')).toEqual(blocks()[1]);
+    expect(b1.content).toBe('disk A');
   });
 
   it('relinks restored scene sprites to the live image objects', () => {

@@ -82,6 +82,14 @@ export function applyRecoverySnapshot(
       };
       const snapshot = relinkImages(deserializeProjectData(data, deps.blocksRef.current), deps.images);
       deps.applySettingsSnapshot(snapshot);
+      // Project-canvas layout (storyBlockLayouts) lives on the blocks themselves,
+      // which applySettingsSnapshot never touches. Merge geometry/colour only --
+      // content is restored per file below.
+      const layoutById = new Map(snapshot.blocks.map(b => [b.id, b]));
+      deps.setBlocks(prev => prev.map(b => {
+        const l = layoutById.get(b.id);
+        return l ? { ...b, position: l.position, width: l.width, height: l.height, color: l.color } : b;
+      }));
       deps.setHasUnsavedSettings(true);
     });
   }
