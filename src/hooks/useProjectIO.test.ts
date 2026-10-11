@@ -246,7 +246,7 @@ describe('useProjectIO', () => {
     expect(true).toBe(true); // no throw
   });
 
-  it('writes each dirty block file and clears dirty state', async () => {
+  it('writes every dirty block in a single saveFiles transaction and clears dirty state', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
     api.writeFile.mockResolvedValue({ success: true });
@@ -269,13 +269,89 @@ describe('useProjectIO', () => {
 
     await act(async () => { await result.current.handleSaveAll(); });
 
-    expect(api.writeFile).toHaveBeenCalledWith(
-      expect.stringContaining('script.rpy'),
-      block.content,
-    );
-    expect(setDirtyBlockIds).toHaveBeenCalledWith(new Set());
-    expect(setDirtyEditors).toHaveBeenCalledWith(new Set());
+    expect(api.saveFiles).toHaveBeenCalledTimes(1);
+    expect(api.saveFiles).toHaveBeenCalledWith([
+      { path: expect.stringContaining('game/script.rpy'), content: block.content },
+    ]);
+    // .rpy sources never go through the single-file writer during Save All
+    expect(api.writeFile).not.toHaveBeenCalledWith(expect.stringContaining('script.rpy'), expect.anything());
+    const clearBlocks = setDirtyBlockIds.mock.calls[0][0] as (prev: Set<string>) => Set<string>;
+    const clearEditors = setDirtyEditors.mock.calls[0][0] as (prev: Set<string>) => Set<string>;
+    expect(clearBlocks(new Set(['b1']))).toEqual(new Set());
+    expect(clearEditors(new Set(['b1']))).toEqual(new Set());
     expect(addToast).toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('only clears the dirty ids it saved, so an edit made during the save stays dirty', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const setDirtyBlockIds = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setDirtyBlockIds,
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    const updater = setDirtyBlockIds.mock.calls[0][0] as (prev: Set<string>) => Set<string>;
+    expect(updater(new Set(['b1', 'b2-edited-mid-save']))).toEqual(new Set(['b2-edited-mid-save']));
+  });
+
+  it('batches several dirty blocks into one transaction', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    installElectronAPI(api);
+    const a = createBlock({ id: 'a', filePath: 'game/a.rpy', content: 'A' });
+    const b = createBlock({ id: 'b', filePath: 'game/第一章.rpy', content: 'B' });
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [a, b],
+      blocksRef: { current: [a, b] },
+      dirtyBlockIds: new Set(['a', 'b']),
+      dirtyEditors: new Set(),
+    })));
+
+    await act(async () => { await result.current.handleSaveAll(); });
+
+    expect(api.saveFiles).toHaveBeenCalledTimes(1);
+    expect(api.saveFiles.mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('does not call saveFiles when no source file is dirty', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const { result } = renderHook(() => useProjectIO(makeParams({ dirtyBlockIds: new Set(), dirtyEditors: new Set() })));
+    await act(async () => { await result.current.handleSaveAll(); });
+    expect(api.saveFiles).not.toHaveBeenCalled();
+  });
+
+  it('warns but reports saved when the transaction committed with files still pending recovery', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.saveFiles.mockResolvedValue({ success: true, pendingRecovery: true, files: ['game/script.rpy'] });
+    installElectronAPI(api);
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const setSaveStatus = vi.fn();
+    const addToast = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setSaveStatus,
+      addToast,
+    })));
+
+    let saveResult: boolean | undefined;
+    await act(async () => { saveResult = await result.current.handleSaveAll(); });
+
+    expect(saveResult).toBe(true);
+    expect(setSaveStatus).toHaveBeenLastCalledWith('saved');
+    expect(addToast).toHaveBeenCalledWith(expect.stringContaining('finalized'), 'warning');
   });
 
   it('handleSaveAll resolves true when everything saves successfully', async () => {
@@ -303,10 +379,10 @@ describe('useProjectIO', () => {
     expect(saveResult).toBe(true);
   });
 
-  it('handleSaveAll resolves false when a block write fails', async () => {
+  it('handleSaveAll resolves false when the source transaction fails', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
-    api.writeFile.mockResolvedValue({ success: false, error: 'write failed' });
+    api.saveFiles.mockResolvedValue({ success: false, error: 'write failed' });
     installElectronAPI(api);
 
     const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
@@ -345,7 +421,7 @@ describe('useProjectIO', () => {
     expect(saveResult).toBe(false);
   });
 
-  it('does not clear dirty state or report success when the block saves but project.ide.json fails to save', async () => {
+  it('marks sources clean but keeps settings unsaved and reports an error when only project.ide.json fails', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
     api.writeFile.mockImplementation((filePath: string) => {
@@ -360,6 +436,7 @@ describe('useProjectIO', () => {
     const setDirtyBlockIds = vi.fn();
     const setDirtyEditors = vi.fn();
     const setSaveStatus = vi.fn();
+    const setHasUnsavedSettings = vi.fn();
     const addToast = vi.fn();
 
     const { result } = renderHook(() => useProjectIO(makeParams({
@@ -370,17 +447,46 @@ describe('useProjectIO', () => {
       setDirtyBlockIds,
       setDirtyEditors,
       setSaveStatus,
+      setHasUnsavedSettings,
       addToast,
+    })));
+
+    let saveResult: boolean | undefined;
+    await act(async () => { saveResult = await result.current.handleSaveAll(); });
+
+    // The .rpy source really is on disk, so it must not stay dirty -- but the
+    // workspace metadata never persisted, so the save as a whole is not clean.
+    const updater = setDirtyBlockIds.mock.calls[0][0] as (prev: Set<string>) => Set<string>;
+    expect(updater(new Set(['b1']))).toEqual(new Set());
+    expect(setHasUnsavedSettings).not.toHaveBeenCalledWith(false);
+    expect(saveResult).toBe(false);
+    expect(setSaveStatus).toHaveBeenLastCalledWith('error');
+    expect(addToast).toHaveBeenCalledWith('Script files were saved, but workspace settings were not', 'warning');
+    expect(addToast).not.toHaveBeenCalledWith('All changes saved', 'success');
+  });
+
+  it('leaves every source dirty and never writes settings when the source transaction fails', async () => {
+    const api = createMockElectronAPI();
+    api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
+    api.saveFiles.mockResolvedValue({ success: false, error: 'EPERM: operation not permitted' });
+    installElectronAPI(api);
+    const block = createBlock({ id: 'b1', filePath: 'game/script.rpy' });
+    const setDirtyBlockIds = vi.fn();
+    const setDirtyEditors = vi.fn();
+    const { result } = renderHook(() => useProjectIO(makeParams({
+      blocks: [block],
+      blocksRef: { current: [block] },
+      dirtyBlockIds: new Set(['b1']),
+      dirtyEditors: new Set(),
+      setDirtyBlockIds,
+      setDirtyEditors,
     })));
 
     await act(async () => { await result.current.handleSaveAll(); });
 
-    // The block content did get written to disk, but the overall save must
-    // not be reported as clean/successful -- the workspace metadata (open
-    // tabs, layouts, etc.) never persisted.
-    expect(setDirtyBlockIds).not.toHaveBeenCalledWith(new Set());
-    expect(setSaveStatus).toHaveBeenCalledWith('error');
-    expect(addToast).not.toHaveBeenCalledWith('All changes saved', 'success');
+    expect(setDirtyBlockIds).not.toHaveBeenCalled();
+    expect(setDirtyEditors).not.toHaveBeenCalled();
+    expect(api.writeFile).not.toHaveBeenCalledWith(expect.stringContaining('project.ide.json'), expect.anything());
   });
 
   it('saves dirty untitled tabs across both panes', async () => {
@@ -460,16 +566,15 @@ describe('useProjectIO', () => {
     await act(async () => { await result.current.handleSaveAll(); });
 
     expect(mockEditorInstance.getValue).toHaveBeenCalled();
-    expect(api.writeFile).toHaveBeenCalledWith(
-      expect.stringContaining('script.rpy'),
-      editorContent,
-    );
+    expect(api.saveFiles).toHaveBeenCalledWith([
+      { path: expect.stringContaining('script.rpy'), content: editorContent },
+    ]);
   });
 
-  it('sets setSaveStatus to error when writeFile fails', async () => {
+  it('sets setSaveStatus to error when the source transaction fails', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
-    api.writeFile.mockResolvedValue({ success: false, error: 'write failed' });
+    api.saveFiles.mockResolvedValue({ success: false, error: 'write failed' });
     installElectronAPI(api);
 
     const setSaveStatus = vi.fn();
@@ -491,10 +596,10 @@ describe('useProjectIO', () => {
     expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
   });
 
-  it('names the failing file and the underlying error in the save-failure toast', async () => {
+  it('says no file changed and includes the underlying error in the save-failure toast', async () => {
     const api = createMockElectronAPI();
     api.path.join.mockImplementation((...parts: string[]) => Promise.resolve(parts.join('/')));
-    api.writeFile.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
+    api.saveFiles.mockResolvedValue({ success: false, error: 'ENOSPC: no space left on device' });
     installElectronAPI(api);
 
     const addToast = vi.fn();
@@ -511,7 +616,7 @@ describe('useProjectIO', () => {
     await act(async () => { await result.current.handleSaveAll(); });
 
     expect(addToast).toHaveBeenCalledWith(
-      expect.stringMatching(/game\/script\.rpy.*ENOSPC: no space left on device/),
+      expect.stringMatching(/none were changed on disk.*ENOSPC: no space left on device/),
       'error',
     );
   });

@@ -62,6 +62,7 @@ export interface MockElectronAPI {
   readFile: Mock<(path: string) => Promise<string>>;
   fileExists: Mock<(path: string) => Promise<boolean>>;
   writeFile: Mock<(path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>>;
+  saveFiles: Mock<(files: { path: string; content: string }[]) => Promise<{ success: boolean; error?: string; pendingRecovery?: boolean; files?: string[] }>>;
   createDirectory: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   removeEntry: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   moveFile: Mock<(oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>>;
@@ -147,6 +148,7 @@ export function createMockElectronAPI(): MockElectronAPI {
     readFile: vi.fn().mockResolvedValue(''),
     fileExists: vi.fn().mockResolvedValue(false),
     writeFile: vi.fn().mockResolvedValue({ success: true }),
+    saveFiles: vi.fn().mockResolvedValue({ success: true, pendingRecovery: false, files: [] }),
     createDirectory: vi.fn().mockResolvedValue({ success: true }),
     removeEntry: vi.fn().mockResolvedValue({ success: true }),
     moveFile: vi.fn().mockResolvedValue({ success: true }),

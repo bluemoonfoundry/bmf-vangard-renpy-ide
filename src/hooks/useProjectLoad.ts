@@ -300,6 +300,18 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
       if (loadCancelRef.current) return;
 
+      const recovery = projectData.saveRecovery;
+      if (recovery) {
+        const count = `${recovery.files.length} file${recovery.files.length === 1 ? '' : 's'}`;
+        if (recovery.status === 'rolled-forward') {
+          addToast(`An interrupted save from last session was completed (${count}).`, 'info');
+        } else if (recovery.status === 'rolled-back') {
+          addToast(`An interrupted save from last session was discarded; ${count} kept their previous saved content.`, 'warning');
+        } else {
+          addToast(`An interrupted save from last session could not be recovered: ${recovery.error ?? 'unknown error'}. Saving is blocked until .renide/save-journal.json is resolved.`, 'error');
+        }
+      }
+
       if (projectData.settingsWarning) {
         const backupPath = projectData.settingsWarning.backupPath;
         addToast(
