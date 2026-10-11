@@ -297,9 +297,6 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
   const loadProject = useCallback(async (path: string) => {
     loadCancelRef.current = false;
-    setRecoveryResolved(false);
-    setPendingRecovery(null);
-    recoverySessionIdRef.current = crypto.randomUUID();
     const loadStartTime = performance.now();
 
     // A popped-out tab window relays RPC calls (updateBlock, setBlockContent, ...)
@@ -323,6 +320,12 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
       const projectData = await window.electronAPI!.loadProject(path);
 
       if (loadCancelRef.current) return;
+
+      // Only now is a different project actually replacing the open one: a failed
+      // or cancelled load must leave the current project's autosave session alone.
+      setRecoveryResolved(false);
+      setPendingRecovery(null);
+      recoverySessionIdRef.current = crypto.randomUUID();
 
       const recovery = projectData.saveRecovery;
       if (recovery) {

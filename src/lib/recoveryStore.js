@@ -300,3 +300,26 @@ export async function sweepExpired({ recoveryDir, limits = RECOVERY_LIMITS, now 
         await removeIfEmpty(dir);
     }
 }
+
+/**
+ * Remembers which project root each renderer session was opened for (bound when
+ * the session first asks for pending snapshots). Writes and clears are routed to
+ * the bound root rather than whatever project is current when the IPC call
+ * arrives, so a debounced autosave from project X racing a switch to project Y
+ * can never land in Y's recovery folder. Unbound sessions are rejected.
+ */
+export function createSessionRegistry() {
+    const roots = new Map();
+    return {
+        bind(sessionId, rootPath) {
+            assertSessionId(sessionId);
+            roots.set(sessionId, rootPath);
+        },
+        rootFor(sessionId) {
+            assertSessionId(sessionId);
+            const root = roots.get(sessionId);
+            if (!root) throw new Error('Recovery session is not bound to a project');
+            return root;
+        },
+    };
+}

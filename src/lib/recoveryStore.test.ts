@@ -13,6 +13,7 @@ import {
   listPending,
   discardPending,
   sweepExpired,
+  createSessionRegistry,
 } from './recoveryStore.js';
 
 const S1 = '11111111-1111-4111-8111-111111111111';
@@ -320,5 +321,21 @@ describe('sweepExpired', () => {
 
   it('is a no-op when the recovery folder does not exist', async () => {
     await expect(sweepExpired({ recoveryDir })).resolves.toBeUndefined();
+  });
+});
+
+describe('createSessionRegistry', () => {
+  it('binds a session to the root it was opened for, and keeps that binding when another project opens', () => {
+    const reg = createSessionRegistry();
+    reg.bind(S1, '/projects/X');
+    reg.bind(S2, '/projects/Y');
+    expect(reg.rootFor(S1)).toBe('/projects/X'); // X's stray autosave still goes to X, never Y
+    expect(reg.rootFor(S2)).toBe('/projects/Y');
+  });
+
+  it('rejects an unbound or invalid session id', () => {
+    const reg = createSessionRegistry();
+    expect(() => reg.rootFor(S3)).toThrow(/not bound/);
+    expect(() => reg.bind('../evil', '/p')).toThrow(/session id/);
   });
 });

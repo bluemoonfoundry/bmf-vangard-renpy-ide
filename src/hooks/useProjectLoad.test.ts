@@ -350,6 +350,17 @@ describe('useProjectLoad', () => {
     expect(params.setPendingRecovery).not.toHaveBeenCalledWith(expect.objectContaining({ sessionId: expect.any(String) }));
   });
 
+  it("leaves the open project's recovery session and autosave untouched when a load fails", async () => {
+    const params = makeParams({ recoverySessionIdRef: { current: '11111111-1111-4111-8111-111111111111' } });
+    api.loadProject.mockRejectedValue(new Error('EACCES'));
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/other'); });
+    expect(params.recoverySessionIdRef.current).toBe('11111111-1111-4111-8111-111111111111');
+    expect(params.setRecoveryResolved).not.toHaveBeenCalled();
+    expect(params.setPendingRecovery).not.toHaveBeenCalled();
+    expect(api.recovery.listPending).not.toHaveBeenCalled();
+  });
+
   it('never blocks loading when listPending fails', async () => {
     const params = makeParams();
     api.loadProject.mockResolvedValue(loadResult);

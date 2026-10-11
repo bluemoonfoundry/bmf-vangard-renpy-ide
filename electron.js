@@ -41,7 +41,7 @@ import { scanDirectoryForAssets, pathToMediaUrl } from './src/lib/assetScanner.j
 import { searchInDirectory } from './src/lib/projectSearch.js';
 import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
 import { commitSaveTransaction, recoverSaveTransaction } from './src/lib/saveTransaction.js';
-import { writeSnapshot, clearSnapshot, listPending, discardPending, sweepExpired } from './src/lib/recoveryStore.js';
+import { writeSnapshot, clearSnapshot, listPending, discardPending, sweepExpired, createSessionRegistry } from './src/lib/recoveryStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -207,13 +207,16 @@ let currentProjectRoot = null;
 // Crash-recovery snapshots (see src/lib/recoveryStore.js). RENIDE_RECOVERY_DIR is a
 // test-only override so E2E runs never touch the developer's real userData.
 const recoveryDir = process.env.RENIDE_RECOVERY_DIR || path.join(app.getPath('userData'), 'recovery');
-// The renderer session for currentProjectRoot; its file is deleted on intentional quit.
+// The renderer session for the open project; its file is deleted on intentional quit.
 let currentRecoverySessionId = null;
+// sessionId -> the project root it was opened for (see createSessionRegistry).
+const recoverySessions = createSessionRegistry();
 
 async function clearCurrentRecoverySession() {
-    if (!currentProjectRoot || !currentRecoverySessionId) return;
+    if (!currentRecoverySessionId) return;
     try {
-        await clearSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId: currentRecoverySessionId });
+        const projectRoot = recoverySessions.rootFor(currentRecoverySessionId);
+        await clearSnapshot({ recoveryDir, projectRoot, sessionId: currentRecoverySessionId });
     } catch (err) {
         logger.warn('Failed to clear recovery snapshot on quit:', err);
     }
@@ -1553,7 +1556,6 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('project:load', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
-    if (currentProjectRoot !== rootPath) currentRecoverySessionId = null;
     currentProjectRoot = rootPath; // Track for screenshots
     // Finish or undo a Save All that was interrupted last session *before*
     // reading anything, so the files loaded below are a consistent set.
@@ -1617,10 +1619,8 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('recovery:write', async (event, sessionId, payload) => {
     try {
-      if (!currentProjectRoot) throw new Error('No project is open');
-      const result = await writeSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId, payload });
-      currentRecoverySessionId = sessionId;
-      return result;
+      const projectRoot = recoverySessions.rootFor(sessionId);
+      return await writeSnapshot({ recoveryDir, projectRoot, sessionId, payload });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -1628,8 +1628,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('recovery:clear', async (event, sessionId) => {
     try {
-      if (!currentProjectRoot) throw new Error('No project is open');
-      await clearSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+      await clearSnapshot({ recoveryDir, projectRoot: recoverySessions.rootFor(sessionId), sessionId });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -1638,8 +1637,10 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('recovery:listPending', async (event, sessionId) => {
     if (!currentProjectRoot) return null;
-    currentRecoverySessionId = sessionId;
     try {
+      // Called once per project open, right after project:load: bind the session.
+      recoverySessions.bind(sessionId, currentProjectRoot);
+      currentRecoverySessionId = sessionId;
       return await listPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
     } catch (error) {
       logger.warn('Failed to list pending recovery snapshots:', error);
@@ -1649,8 +1650,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('recovery:discardPending', async (event, sessionId, targetSessionId) => {
     try {
-      if (!currentProjectRoot) throw new Error('No project is open');
-      await discardPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId, targetSessionId });
+      await discardPending({ recoveryDir, projectRoot: recoverySessions.rootFor(sessionId), sessionId, targetSessionId });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
