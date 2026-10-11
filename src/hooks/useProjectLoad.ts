@@ -66,37 +66,23 @@ export interface HydrateSetters {
 }
 
 /**
- * Applies a `ProjectSnapshot` to React state. Exported so tests can call it
- * directly with mock setters — no IPC or React hooks required.
+ * Applies the project.ide.json-derived parts of a snapshot (workspace state) without
+ * touching project identity, blocks, assets or scans. Used by hydrateFromProjectData
+ * and by crash recovery's "restore workspace changes".
  */
-export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
+export function hydrateSettingsFromSnapshot(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
   const {
-    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef, projectSettingsMetaRef,
-    setProjectRootPath, setFileSystemTree, updateProjectSettings, setBlocks,
-    setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
-    setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+    projectSettingsMetaRef, updateProjectSettings,
     setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
     setCharacterProfiles, setCharacterPortraits,
     setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
     setSceneCompositions, setSceneNames, setImagemapCompositions,
     setRouteNodeLayoutCache,
-    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
-    setSplitLayout, setSplitPrimarySize, setTabs,
-    perfRecorders,
+    setSecondaryOpenTabs, setSecondaryActiveTabId, setSplitLayout, setSplitPrimarySize, setTabs,
   } = setters;
 
   projectSettingsMetaRef.current = snapshot.settingsMeta;
-  setProjectRootPath(snapshot.rootPath);
-  setFileSystemTree(snapshot.tree);
-  setBlocks(snapshot.blocks);
-
-  pendingStoryLayoutRefreshRef.current = snapshot.pendingStoryLayoutRefresh;
-  pendingRouteLayoutRefreshRef.current = snapshot.pendingRouteLayoutRefresh;
-  pendingAutoCenterRef.current = { story: true, route: true, choice: true };
-
   setRouteNodeLayoutCache(snapshot.routeNodeLayoutCache);
-  setImages(snapshot.images);
-  setAudios(snapshot.audios);
 
   updateProjectSettings(draft => {
     const cs = snapshot.canvasSettings;
@@ -139,6 +125,34 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
   setSplitPrimarySize(snapshot.splitPrimarySize);
   setSecondaryOpenTabs(snapshot.secondaryTabs);
   setSecondaryActiveTabId(snapshot.secondaryActiveTabId);
+}
+
+/**
+ * Applies a `ProjectSnapshot` to React state. Exported so tests can call it
+ * directly with mock setters — no IPC or React hooks required.
+ */
+export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
+  const {
+    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+    setProjectRootPath, setFileSystemTree, setBlocks,
+    setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
+    setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+    setOpenTabs, setActiveTabId,
+    perfRecorders,
+  } = setters;
+
+  setProjectRootPath(snapshot.rootPath);
+  setFileSystemTree(snapshot.tree);
+  setBlocks(snapshot.blocks);
+
+  pendingStoryLayoutRefreshRef.current = snapshot.pendingStoryLayoutRefresh;
+  pendingRouteLayoutRefreshRef.current = snapshot.pendingRouteLayoutRefresh;
+  pendingAutoCenterRef.current = { story: true, route: true, choice: true };
+
+  setImages(snapshot.images);
+  setAudios(snapshot.audios);
+
+  hydrateSettingsFromSnapshot(snapshot, setters);
 
   // Trigger asset directory scans (side effect — kept here rather than in loadProject
   // because it needs setImages/setAudios to update state incrementally as results arrive).

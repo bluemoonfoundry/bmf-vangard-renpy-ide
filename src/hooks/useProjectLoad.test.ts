@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useProjectLoad, hydrateFromProjectData } from '@/hooks/useProjectLoad';
+import { useProjectLoad, hydrateFromProjectData, hydrateSettingsFromSnapshot } from '@/hooks/useProjectLoad';
 import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
 import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { ProjectSnapshot, HydrateSetters } from '@/hooks/useProjectLoad';
@@ -123,6 +123,23 @@ describe('hydrateFromProjectData', () => {
     const setters = createMockHydrateSetters();
     hydrateFromProjectData(snapshot, setters);
     expect(setters.setProjectRootPath).toHaveBeenCalledWith('/my/project');
+  });
+
+  it('hydrateSettingsFromSnapshot applies settings-derived state only', () => {
+    const notes = [{ id: 'n1' }] as never;
+    const snapshot = createMinimalSnapshot({ stickyNotes: notes, rootPath: '/other' });
+    const setters = createMockHydrateSetters();
+    hydrateSettingsFromSnapshot(snapshot, setters);
+    expect(setters.setStickyNotes).toHaveBeenCalledWith(notes);
+    expect(setters.projectSettingsMetaRef.current).toBe(snapshot.settingsMeta);
+    expect(setters.updateProjectSettings).toHaveBeenCalled();
+    expect(setters.setTabs).toHaveBeenCalledWith(snapshot.primaryTabs, snapshot.primaryActiveTabId, 'primary');
+    // never touches project identity, files or assets
+    expect(setters.setProjectRootPath).not.toHaveBeenCalled();
+    expect(setters.setBlocks).not.toHaveBeenCalled();
+    expect(setters.setImages).not.toHaveBeenCalled();
+    expect(setters.setAudios).not.toHaveBeenCalled();
+    expect(setters.setFileSystemTree).not.toHaveBeenCalled();
   });
 
   it('stores snapshot.settingsMeta in projectSettingsMetaRef for the next save', () => {
