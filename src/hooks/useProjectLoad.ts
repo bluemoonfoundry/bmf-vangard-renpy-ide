@@ -7,7 +7,7 @@ import type {
   AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   Notecard, NotecardLink, NotecardTimelineSettings,
-  ProjectSnapshot, ProjectSettingsMeta,
+  ProjectSnapshot, ProjectSettingsMeta, PendingRecovery,
 } from '@/types';
 
 // Re-export from types so importers don't need a second import path.
@@ -271,6 +271,12 @@ export interface UseProjectLoadParams {
 
   // All hydration setters (passed through to hydrateFromProjectData)
   hydrateSetters: HydrateSetters;
+
+  // Crash recovery (b70a.2.3): a fresh session id per project open; a pending snapshot
+  // opens RecoveryModal; autosave is enabled only once recovery is resolved.
+  recoverySessionIdRef: React.MutableRefObject<string | null>;
+  setPendingRecovery: (pending: PendingRecovery | null) => void;
+  setRecoveryResolved: (resolved: boolean) => void;
 }
 
 export interface UseProjectLoadReturn {
@@ -286,10 +292,14 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     perfRecorders, addToast,
     hydrateSetters,
     poppedOutTabs, setPoppedOutTabs,
+    recoverySessionIdRef, setPendingRecovery, setRecoveryResolved,
   } = params;
 
   const loadProject = useCallback(async (path: string) => {
     loadCancelRef.current = false;
+    setRecoveryResolved(false);
+    setPendingRecovery(null);
+    recoverySessionIdRef.current = crypto.randomUUID();
     const loadStartTime = performance.now();
 
     // A popped-out tab window relays RPC calls (updateBlock, setBlockContent, ...)
@@ -378,6 +388,16 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
       setHasUnsavedSettings(false);
       perfRecorders.recordLoad(performance.now() - loadStartTime);
       addToast('Project loaded successfully', 'success');
+
+      try {
+        const pending = await window.electronAPI?.recovery?.listPending(recoverySessionIdRef.current!);
+        if (loadCancelRef.current) return;
+        if (pending) setPendingRecovery(pending);
+        else setRecoveryResolved(true);
+      } catch (err) {
+        logger.warn('Could not check for recoverable unsaved work', err);
+        setRecoveryResolved(true);
+      }
     } catch (err) {
       if (loadCancelRef.current) return;
       logger.error('Failed to load project', err);
@@ -394,6 +414,7 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     updateAppSettings, setHasUnsavedSettings, setIsInitialAnalysisPending,
     perfRecorders, addToast,
     poppedOutTabs, setPoppedOutTabs,
+    recoverySessionIdRef, setPendingRecovery, setRecoveryResolved,
   ]);
 
   return { loadProject };

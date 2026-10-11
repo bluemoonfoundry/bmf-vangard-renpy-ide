@@ -312,9 +312,53 @@ describe('useProjectLoad', () => {
       hydrateSetters: createMockHydrateSetters(),
       poppedOutTabs: new Map(),
       setPoppedOutTabs: vi.fn(),
+      recoverySessionIdRef: { current: null as string | null },
+      setPendingRecovery: vi.fn(),
+      setRecoveryResolved: vi.fn(),
       ...overrides,
     };
   }
+
+  const loadResult = {
+    rootPath: '/project', files: [], images: [], audios: [],
+    tree: { name: 'game', path: '', children: [] }, settings: null,
+  } as unknown as Parameters<typeof api.loadProject.mockResolvedValue>[0];
+
+  it('starts a new recovery session and opens the dialog when a snapshot is pending', async () => {
+    const params = makeParams();
+    const pending = { sessionId: 'old', files: [], untitled: [{ id: 'u', title: 'U', content: 'x' }], settings: null, settingsStatus: null, projectRoot: '/project', updatedAt: '' };
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockResolvedValue(pending);
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+
+    const sessionId = params.recoverySessionIdRef.current;
+    expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(api.recovery.listPending).toHaveBeenCalledWith(sessionId);
+    expect(params.setRecoveryResolved).toHaveBeenCalledWith(false);
+    expect(params.setPendingRecovery).toHaveBeenCalledWith(pending);
+    expect(params.setRecoveryResolved).not.toHaveBeenCalledWith(true);
+  });
+
+  it('marks recovery resolved when nothing is pending', async () => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockResolvedValue(null);
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+    expect(params.setRecoveryResolved).toHaveBeenLastCalledWith(true);
+    expect(params.setPendingRecovery).not.toHaveBeenCalledWith(expect.objectContaining({ sessionId: expect.any(String) }));
+  });
+
+  it('never blocks loading when listPending fails', async () => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+    expect(params.setRecoveryResolved).toHaveBeenLastCalledWith(true);
+    expect(params.addToast).toHaveBeenCalledWith('Project loaded successfully', 'success');
+  });
 
   it('returns a loadProject function', () => {
     const { result } = renderHook(() => useProjectLoad(makeParams()));
