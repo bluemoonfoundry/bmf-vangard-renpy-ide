@@ -11,6 +11,9 @@ All notable changes to Vangard Studio are documented here.
 ### Fixed
 - `npm run lint` no longer reports ~1,600 errors from generated VitePress output after `npm run docs:build`
 
+### Security
+- Upgraded `sharp` 0.33.5 → 0.35.5 (bundled libvips 8.18.7), fixing the inherited high-severity libvips CVEs CVE-2026-33327, CVE-2026-33328, CVE-2026-35590 and CVE-2026-35591. sharp is used only for new-project GUI image generation; its output is unchanged and now covered by a unit test. sharp now requires Node ≥ 20.9.
+
 ## [1.1.0]
 
 ### Added
