@@ -242,12 +242,34 @@ describe('clearSnapshot / discardPending', () => {
     await clearSnapshot({ recoveryDir, projectRoot, sessionId: S1 }); // idempotent
   });
 
-  it('discardPending removes every other session file but never the current one', async () => {
+  it('discardPending removes only the offered snapshot, never the current session file', async () => {
     for (const id of [S1, S2, S3]) await writeSnapshot({ recoveryDir, projectRoot, sessionId: id, payload: payload() });
-    await discardPending({ recoveryDir, projectRoot, sessionId: S3 });
-    expect(await exists(sessionPath(S1))).toBe(false);
+    await discardPending({ recoveryDir, projectRoot, sessionId: S3, targetSessionId: S2 });
     expect(await exists(sessionPath(S2))).toBe(false);
+    expect(await exists(sessionPath(S1))).toBe(true);
     expect(await exists(sessionPath(S3))).toBe(true);
+  });
+
+  it('after Decide later and a second crash, discarding the newest snapshot keeps the deferred one for the next open', async () => {
+    // Crash 1 left S1 (edits A). The user chose Decide later; session S2 then crashed with edits B.
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload({ files: [{ relativePath: 'game/script.rpy', content: 'edits A' }] }) });
+    await age(sessionPath(S1), 60_000);
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S2, payload: payload({ files: [{ relativePath: 'game/script.rpy', content: 'edits B' }] }) });
+
+    const offered = await listPending({ recoveryDir, projectRoot, sessionId: S3, isAlive: DEAD });
+    expect(offered?.sessionId).toBe(S2);
+    await discardPending({ recoveryDir, projectRoot, sessionId: S3, targetSessionId: offered!.sessionId });
+
+    const next = await listPending({ recoveryDir, projectRoot, sessionId: S4, isAlive: DEAD });
+    expect(next?.sessionId).toBe(S1);
+    expect(next?.files[0].content).toBe('edits A');
+  });
+
+  it('discardPending refuses to target the current session or an invalid id', async () => {
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload() });
+    await expect(discardPending({ recoveryDir, projectRoot, sessionId: S1, targetSessionId: S1 })).rejects.toThrow(/current session/);
+    await expect(discardPending({ recoveryDir, projectRoot, sessionId: S1, targetSessionId: '../x' })).rejects.toThrow(/session id/);
+    expect(await exists(sessionPath(S1))).toBe(true);
   });
 });
 

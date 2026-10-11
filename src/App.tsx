@@ -1014,7 +1014,7 @@ const App: React.FC = () => {
     });
     if (failures.length === 0) {
       const sessionId = recoverySessionIdRef.current;
-      if (sessionId) await window.electronAPI?.recovery.discardPending(sessionId);
+      if (sessionId) await window.electronAPI?.recovery.discardPending(sessionId, pendingRecovery.sessionId);
       addToast(`Restored ${restored} item${restored === 1 ? '' : 's'} — review and save when ready`, 'success');
     } else {
       addToast(`Some recovered items could not be restored: ${failures.map(f => `${f.item} (${f.error})`).join('; ')}. They will be offered again next time.`, 'error');
@@ -1024,10 +1024,10 @@ const App: React.FC = () => {
 
   const handleRecoveryDiscard = useCallback(async () => {
     const sessionId = recoverySessionIdRef.current;
-    if (sessionId) await window.electronAPI?.recovery.discardPending(sessionId);
+    if (sessionId && pendingRecovery) await window.electronAPI?.recovery.discardPending(sessionId, pendingRecovery.sessionId);
     addToast('Recovered work discarded', 'info');
     resolveRecovery();
-  }, [addToast, resolveRecovery]);
+  }, [pendingRecovery, addToast, resolveRecovery]);
 
 
 

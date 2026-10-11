@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     write: (sessionId, payload) => ipcRenderer.invoke('recovery:write', sessionId, payload),
     clear: (sessionId) => ipcRenderer.invoke('recovery:clear', sessionId),
     listPending: (sessionId) => ipcRenderer.invoke('recovery:listPending', sessionId),
-    discardPending: (sessionId) => ipcRenderer.invoke('recovery:discardPending', sessionId),
+    discardPending: (sessionId, targetSessionId) => ipcRenderer.invoke('recovery:discardPending', sessionId, targetSessionId),
   },
   createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
   removeEntry: (entryPath) => ipcRenderer.invoke('fs:removeEntry', entryPath),

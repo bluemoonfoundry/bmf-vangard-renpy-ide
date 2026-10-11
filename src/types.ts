@@ -1606,7 +1606,8 @@ declare global {
             write: (sessionId: string, payload: RecoverySnapshotPayload) => Promise<RecoveryWriteResult>;
             clear: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
             listPending: (sessionId: string) => Promise<PendingRecovery | null>;
-            discardPending: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+            /** Deletes only the offered snapshot (targetSessionId); older pending snapshots stay. */
+            discardPending: (sessionId: string, targetSessionId: string) => Promise<{ success: boolean; error?: string }>;
           };
           createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
           removeEntry: (path: string) => Promise<{ success: boolean; error?: string }>;

@@ -1647,10 +1647,10 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle('recovery:discardPending', async (event, sessionId) => {
+  ipcMain.handle('recovery:discardPending', async (event, sessionId, targetSessionId) => {
     try {
       if (!currentProjectRoot) throw new Error('No project is open');
-      await discardPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+      await discardPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId, targetSessionId });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

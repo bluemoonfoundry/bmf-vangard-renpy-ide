@@ -67,7 +67,7 @@ export interface MockElectronAPI {
     write: Mock<(sessionId: string, payload: unknown) => Promise<{ success: boolean; skipped?: 'too-large'; error?: string }>>;
     clear: Mock<(sessionId: string) => Promise<{ success: boolean; error?: string }>>;
     listPending: Mock<(sessionId: string) => Promise<unknown>>;
-    discardPending: Mock<(sessionId: string) => Promise<{ success: boolean; error?: string }>>;
+    discardPending: Mock<(sessionId: string, targetSessionId: string) => Promise<{ success: boolean; error?: string }>>;
   };
   createDirectory: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   removeEntry: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;

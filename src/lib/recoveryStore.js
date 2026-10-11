@@ -243,13 +243,17 @@ export async function listPending({ recoveryDir, projectRoot, sessionId, isAlive
     return null;
 }
 
-export async function discardPending({ recoveryDir, projectRoot, sessionId }) {
+/**
+ * Deletes the snapshot that was offered (and restored or discarded). Older pending
+ * snapshots are NOT superseded by it: after "Decide later" a newer session never
+ * contains the deferred work, so they stay to be offered on the next open.
+ */
+export async function discardPending({ recoveryDir, projectRoot, sessionId, targetSessionId }) {
     assertSessionId(sessionId);
-    const dir = projectDir(recoveryDir, projectRoot);
-    for (const f of await listSessionFiles(dir)) {
-        if (!f.corrupt && f.sessionId !== sessionId) await unlinkQuiet(f.full);
-    }
-    await removeIfEmpty(dir);
+    assertSessionId(targetSessionId);
+    if (targetSessionId === sessionId) throw new Error('Refusing to discard the current session snapshot');
+    await unlinkQuiet(sessionPath(recoveryDir, projectRoot, targetSessionId));
+    await removeIfEmpty(projectDir(recoveryDir, projectRoot));
 }
 
 export async function sweepExpired({ recoveryDir, limits = RECOVERY_LIMITS, now = Date.now() }) {
