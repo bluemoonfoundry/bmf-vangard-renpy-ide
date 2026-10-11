@@ -52,6 +52,7 @@ userData/recovery/<project-id>/session-<sessionId>.json
 - `<project-id>` is the sha256 hex of the canonical project path, lowercased on Windows. The full path is also stored inside the file, for display and for a mismatch check.
 - A crash leaves that session's file behind. On the next open, any session file for the project that **isn't the current session's own** counts as pending recovery.
 - Because a session only ever writes its own file, a new session can never overwrite or delete a pending crash snapshot. This is what makes "Decide later" safe.
+- **Live-instance guard.** The app has no single-instance lock, so each snapshot records the main-process `pid`. `listPending` skips a snapshot whose `pid` is a different process that is still alive (`process.kill(pid, 0)` succeeds), so a second instance never offers the first instance's live session. Snapshots from the same process with a different `sessionId` (an earlier session in this run) are treated as pending.
 
 **Snapshot format** (`version: 1`):
 
@@ -59,6 +60,7 @@ userData/recovery/<project-id>/session-<sessionId>.json
 {
   "version": 1,
   "sessionId": "…",
+  "pid": 12345,
   "projectRoot": "C:\\Users\\me\\Ren'Py Projects\\ゲーム",
   "updatedAt": "2026-10-11T20:15:03.120Z",
   "files": [
@@ -110,11 +112,11 @@ Limit 2 can delete a deferred pending snapshot. That only happens if the user ch
 - `buildSettingsPayload()`
 - `enabled`
 
-It also exposes `notifyEdit()`, a cheap call made from the editor change path.
+The hook restarts its timer whenever `blocks`, `untitledFiles`, the dirty sets, `hasUnsavedSettings`, or the identity of the memoised settings builder change. Editor keystrokes reach `blocks` via the existing 800 ms `onContentChange` debounce, so no separate `notifyEdit()` call is needed.
 
 - **Turning it on:** `enabled` stays `false` until the startup recovery check for this project has finished. That means `listPending` returned `null`, or the user chose Restore, Discard or Decide later. A new `sessionId` is created whenever `projectRootPath` changes.
 - **Timing:**
-  - Any change to the unsaved state, or a `notifyEdit()`, restarts a 5 s timer.
+  - Any change to the unsaved state, `blocks` or `untitledFiles` restarts a 5 s timer.
   - A 60 s cap guarantees a snapshot during long continuous typing.
   - No snapshot starts while one is already being written; a change that arrives meanwhile schedules one more pass.
   - Nothing runs when nothing is unsaved.
@@ -206,7 +208,7 @@ It also exposes `notifyEdit()`, a cheap call made from the editor change path.
 | `src/hooks/useProjectIO.ts` | Extract `buildProjectSettingsPayload` |
 | `src/hooks/useProjectLoad.ts` | Call `listPending` after hydrate; recovery-resolved signal |
 | `src/hooks/useUntitledFiles.ts` | `createUntitledFile({ title, content })` |
-| `src/App.tsx` | Wire the hook, `pendingRecovery` state, the modal, `notifyEdit` from the editor change path |
+| `src/App.tsx` | Wire the hook, `pendingRecovery` state, the modal |
 | `src/test/mocks/electronAPI.ts` | Mock `recovery.*` |
 
 ## Open Questions
