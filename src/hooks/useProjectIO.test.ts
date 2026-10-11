@@ -4,6 +4,7 @@ import { useProjectIO } from '@/hooks/useProjectIO';
 import { installElectronAPI, createMockElectronAPI } from '@/test/mocks/electronAPI';
 import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { UseProjectIOParams } from '@/hooks/useProjectIO';
+import { createDefaultProjectSettingsMeta, PROJECT_SETTINGS_SCHEMA_VERSION } from '@/lib/projectSerializer';
 
 function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOParams {
   return {
@@ -11,6 +12,7 @@ function makeParams(overrides: Partial<UseProjectIOParams> = {}): UseProjectIOPa
     dirtyBlockIdsRef: { current: new Set() },
     dirtyEditorsRef: { current: new Set() },
     editorInstances: { current: new Map() },
+    projectSettingsMetaRef: { current: createDefaultProjectSettingsMeta() },
 
     projectRootPath: '/project',
     setFileSystemTree: vi.fn(),
@@ -158,6 +160,35 @@ describe('useProjectIO', () => {
 
     expect(setHasUnsavedSettings).not.toHaveBeenCalledWith(false);
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('ENOSPC'), 'error');
+  });
+
+  it('writes the current schemaVersion as the first key', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const { result } = renderHook(() => useProjectIO(makeParams()));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
+    expect(Object.keys(written)[0]).toBe('schemaVersion');
+    expect(written.schemaVersion).toBe(PROJECT_SETTINGS_SCHEMA_VERSION);
+  });
+
+  it('writes back unknown fields carried over from load, and never downgrades a newer schemaVersion', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const projectSettingsMetaRef = {
+      current: {
+        ...createDefaultProjectSettingsMeta(),
+        schemaVersion: 99,
+        loadedVersion: 99,
+        newerThanSupported: true,
+        unknownFields: { voiceLineMetadata: { e_001: { takes: 3 } } },
+      },
+    };
+    const { result } = renderHook(() => useProjectIO(makeParams({ projectSettingsMetaRef })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
+    expect(written.schemaVersion).toBe(99);
+    expect(written.voiceLineMetadata).toEqual({ e_001: { takes: 3 } });
   });
 
   it('serializes sceneCompositions to file-path-only sprites', async () => {

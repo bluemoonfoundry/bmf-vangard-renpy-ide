@@ -1221,6 +1221,12 @@ export interface ScreenLayoutComposition {
  * @property {string[]} [scannedAudioPaths] - Paths to directories scanned for audio
  */
 export interface ProjectSettings {
+  /**
+   * On-disk schema version of game/project.ide.json. Absent in files written
+   * before versioning was introduced (treated as version 0). Owned by
+   * `migrateProjectSettings` / `buildProjectSettingsForSave` in projectSerializer.
+   */
+  schemaVersion?: number;
   draftingMode: boolean;
   storyCanvasLayoutMode?: StoryCanvasLayoutMode;
   storyCanvasGroupingMode?: StoryCanvasGroupingMode;
@@ -1274,7 +1280,7 @@ export interface ProjectSettings {
  * The excluded fields are persisted separately (their own useImmer/useState in App.tsx) or
  * are session-only, per CLAUDE.md's state table.
  */
-export type PersistedProjectSettings = Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'characterPortraits' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
+export type PersistedProjectSettings = Omit<ProjectSettings, 'schemaVersion' | 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'characterPortraits' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
 
 /**
  * Combined settings interface for components that need both app and project settings.
@@ -1355,7 +1361,30 @@ export interface ProjectLoadResult {
   settings: ProjectSettings | null;
   tree: FileSystemTreeNode;
   /** Set when game/project.ide.json existed but could not be parsed/read (as opposed to simply being absent). */
-  settingsWarning?: { code: 'corrupted' | 'permission-denied' | 'unknown'; message: string } | null;
+  settingsWarning?: {
+    code: 'corrupted' | 'permission-denied' | 'unknown';
+    message: string;
+    /** Absolute path of the copy the main process made of an unparseable file before it can be overwritten. */
+    backupPath?: string;
+  } | null;
+}
+
+/**
+ * Bookkeeping produced when project.ide.json is migrated on load and consumed
+ * when it is saved again, so fields this build doesn't understand survive the
+ * round trip and the file's schema version is never silently downgraded.
+ */
+export interface ProjectSettingsMeta {
+  /** Version to write on the next save: max(current schema version, version found on disk). */
+  schemaVersion: number;
+  /** Version found on disk (0 = unversioned legacy file), or null when there were no settings. */
+  loadedVersion: number | null;
+  /** Descriptions of the migrations applied on load, in order. Empty when none ran. */
+  appliedMigrations: string[];
+  /** True when the file was written by a newer build than this one. */
+  newerThanSupported: boolean;
+  /** Top-level fields not recognised by this build, written back verbatim on save. */
+  unknownFields: Record<string, unknown>;
 }
 
 /** Result of the scanDirectory IPC call. */
@@ -1402,6 +1431,8 @@ export interface ProjectSnapshot {
   blocks: Block[];
   /** Non-null when the project had no files and a default script.rpy was synthesised — caller must write it via IPC. */
   defaultScriptBlock: Block | null;
+  /** Schema-migration bookkeeping for project.ide.json; must be kept and passed back when saving. */
+  settingsMeta: ProjectSettingsMeta;
   images: Map<string, ProjectImage>;
   audios: Map<string, RenpyAudio>;
   imageScanPaths: string[];

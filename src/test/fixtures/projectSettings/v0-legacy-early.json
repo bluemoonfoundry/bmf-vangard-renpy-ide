@@ -1,0 +1,21 @@
+{
+  "draftingMode": true,
+  "openTabs": [
+    { "id": "canvas", "type": "canvas" },
+    { "id": "punchlist", "type": "punchlist" },
+    { "id": "scene-composer", "type": "scene-composer", "sceneId": "scene-default" }
+  ],
+  "activeTabId": "punchlist",
+  "stickyNotes": [
+    { "id": "note-1", "content": "Rewrite the intro", "position": { "x": 10, "y": 20 }, "width": 200, "height": 150, "color": "yellow" }
+  ],
+  "punchlistMetadata": {
+    "note:note-1": { "status": "completed", "notes": "Done in draft 2" },
+    "label:start": { "status": "open" }
+  },
+  "sceneComposition": {
+    "background": { "id": "bg", "image": { "filePath": "game/images/bg room.png" }, "x": 0.5, "y": 0.5, "zoom": 1, "zIndex": 0, "flipH": false, "flipV": false, "rotation": 0, "alpha": 1, "blur": 0 },
+    "sprites": [],
+    "resolution": { "width": 1280, "height": 720 }
+  }
+}

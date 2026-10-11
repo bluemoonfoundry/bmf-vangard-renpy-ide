@@ -8,6 +8,7 @@
 import { useCallback } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { buildSavedStoryBlockLayouts } from '@/lib/storyCanvasLayout';
+import { buildProjectSettingsForSave } from '@/lib/projectSerializer';
 import { logger } from '@/lib/logger';
 import type {
   Block, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
@@ -15,7 +16,7 @@ import type {
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   Notecard, NotecardLink, NotecardTimelineSettings,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
-  Position,
+  Position, ProjectSettingsMeta,
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 
@@ -32,6 +33,8 @@ export interface UseProjectIOParams {
   dirtyBlockIdsRef: React.MutableRefObject<Set<string>>;
   dirtyEditorsRef: React.MutableRefObject<Set<string>>;
   editorInstances: React.MutableRefObject<Map<string, monaco.editor.IStandaloneCodeEditor>>;
+  /** Set by hydrateFromProjectData; supplies schemaVersion and unknown fields to preserve on save. */
+  projectSettingsMetaRef: React.MutableRefObject<ProjectSettingsMeta>;
 
   // Project root / file tree
   projectRootPath: string | null;
@@ -124,7 +127,7 @@ export interface UseProjectIOReturn {
 
 export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
   const {
-    blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
+    blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances, projectSettingsMetaRef,
     projectRootPath, setFileSystemTree,
     projectSettings,
     blocks, setBlocks,
@@ -203,7 +206,8 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
         scannedAudioPaths: Array.from(audioScanDirectories.keys()),
       };
       const settingsPath = await window.electronAPI.path.join(projectRootPath as string, 'game/project.ide.json') as string;
-      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      const fileContents = buildProjectSettingsForSave(settingsToSave, projectSettingsMetaRef.current);
+      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(fileContents, null, 2));
       if (!res.success) throw new Error(res.error || 'Unknown error saving workspace settings');
       setHasUnsavedSettings(false);
       return true;
@@ -212,7 +216,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
       return false;
     }
-  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
+  }, [projectRootPath, projectSettingsMetaRef, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
 
   const handleSaveAll = useCallback(async () => {
     const dirtyIds = new Set([...dirtyBlockIds, ...dirtyEditors]);

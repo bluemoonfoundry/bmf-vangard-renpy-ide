@@ -5,6 +5,7 @@ import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronA
 import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { ProjectSnapshot, HydrateSetters } from '@/hooks/useProjectLoad';
 import type { EditorTab } from '@/types';
+import { createDefaultProjectSettingsMeta } from '@/lib/projectSerializer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,6 +17,7 @@ function createMinimalSnapshot(overrides: Partial<ProjectSnapshot> = {}): Projec
     tree: { name: 'game', path: '/project/game', children: [] },
     blocks: [],
     defaultScriptBlock: null,
+    settingsMeta: createDefaultProjectSettingsMeta(),
     images: new Map(),
     audios: new Map(),
     imageScanPaths: [],
@@ -67,6 +69,7 @@ function createMockHydrateSetters(): HydrateSetters {
     pendingStoryLayoutRefreshRef: { current: null },
     pendingRouteLayoutRefreshRef: { current: null },
     pendingAutoCenterRef: { current: { story: false, route: false, choice: false } },
+    projectSettingsMetaRef: { current: createDefaultProjectSettingsMeta() },
     setProjectRootPath: vi.fn(),
     setFileSystemTree: vi.fn(),
     updateProjectSettings: vi.fn(),
@@ -120,6 +123,14 @@ describe('hydrateFromProjectData', () => {
     const setters = createMockHydrateSetters();
     hydrateFromProjectData(snapshot, setters);
     expect(setters.setProjectRootPath).toHaveBeenCalledWith('/my/project');
+  });
+
+  it('stores snapshot.settingsMeta in projectSettingsMetaRef for the next save', () => {
+    const settingsMeta = { ...createDefaultProjectSettingsMeta(), loadedVersion: 0, unknownFields: { extra: 1 } };
+    const snapshot = createMinimalSnapshot({ settingsMeta });
+    const setters = createMockHydrateSetters();
+    hydrateFromProjectData(snapshot, setters);
+    expect(setters.projectSettingsMetaRef.current).toBe(settingsMeta);
   });
 
   it('calls setBlocks with snapshot.blocks', () => {
