@@ -41,6 +41,7 @@ import { scanDirectoryForAssets, pathToMediaUrl } from './src/lib/assetScanner.j
 import { searchInDirectory } from './src/lib/projectSearch.js';
 import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
 import { commitSaveTransaction, recoverSaveTransaction } from './src/lib/saveTransaction.js';
+import { writeSnapshot, clearSnapshot, listPending, discardPending, sweepExpired } from './src/lib/recoveryStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,6 +203,21 @@ function closeAllPopoutWindows() {
 
 // --- Project Root Tracking (for screenshots and other features) ---
 let currentProjectRoot = null;
+
+// Crash-recovery snapshots (see src/lib/recoveryStore.js). RENIDE_RECOVERY_DIR is a
+// test-only override so E2E runs never touch the developer's real userData.
+const recoveryDir = process.env.RENIDE_RECOVERY_DIR || path.join(app.getPath('userData'), 'recovery');
+// The renderer session for currentProjectRoot; its file is deleted on intentional quit.
+let currentRecoverySessionId = null;
+
+async function clearCurrentRecoverySession() {
+    if (!currentProjectRoot || !currentRecoverySessionId) return;
+    try {
+        await clearSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId: currentRecoverySessionId });
+    } catch (err) {
+        logger.warn('Failed to clear recovery snapshot on quit:', err);
+    }
+}
 
 /**
  * Throws ACCESS_DENIED if filePath is not within the current project root.
@@ -1203,6 +1219,7 @@ function applyContentSecurityPolicy(session) {
 }
 
 app.whenReady().then(async () => {
+  sweepExpired({ recoveryDir }).catch(err => logger.warn('Recovery snapshot expiry sweep failed:', err));
   // Trust the --project CLI flag as a vetted root up front (see
   // vettedProjectRoots above) -- it's process.argv, not renderer input.
   await vetProjectRoot(startupProjectPath);
@@ -1536,6 +1553,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('project:load', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
+    if (currentProjectRoot !== rootPath) currentRecoverySessionId = null;
     currentProjectRoot = rootPath; // Track for screenshots
     // Finish or undo a Save All that was interrupted last session *before*
     // reading anything, so the files loaded below are a consistent set.
@@ -1592,6 +1610,48 @@ app.whenReady().then(async () => {
         { beforeRename: markSelfWrite },
       );
       return { success: true, pendingRecovery: result.pendingRecovery, files: result.files };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:write', async (event, sessionId, payload) => {
+    try {
+      if (!currentProjectRoot) throw new Error('No project is open');
+      const result = await writeSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId, payload });
+      currentRecoverySessionId = sessionId;
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:clear', async (event, sessionId) => {
+    try {
+      if (!currentProjectRoot) throw new Error('No project is open');
+      await clearSnapshot({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:listPending', async (event, sessionId) => {
+    if (!currentProjectRoot) return null;
+    currentRecoverySessionId = sessionId;
+    try {
+      return await listPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+    } catch (error) {
+      logger.warn('Failed to list pending recovery snapshots:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('recovery:discardPending', async (event, sessionId) => {
+    try {
+      if (!currentProjectRoot) throw new Error('No project is open');
+      await discardPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -1813,12 +1873,12 @@ app.whenReady().then(async () => {
 
   ipcMain.on('ide-state-saved-for-quit', () => {
     forceQuit = true;
-    app.quit();
+    clearCurrentRecoverySession().finally(() => app.quit());
   });
 
   ipcMain.on('force-quit', () => {
     forceQuit = true;
-    app.quit();
+    clearCurrentRecoverySession().finally(() => app.quit());
   });
 
   // --- Detachable tab windows ---

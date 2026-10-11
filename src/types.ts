@@ -1407,6 +1407,37 @@ export interface SaveFilesResult {
   files?: string[];
 }
 
+export type RecoveryFileStatus = 'unchanged' | 'changed' | 'deleted';
+
+/** Unsaved work the renderer sends to recovery:write (the main process adds disk fingerprints). */
+export interface RecoverySnapshotPayload {
+  files: { relativePath: string; content: string }[];
+  untitled: { id: string; title: string; content: string }[];
+  settings: ProjectSettings | null;
+}
+
+/** A crash snapshot found on project open, with each entry's disk status already resolved. */
+export interface PendingRecovery {
+  sessionId: string;
+  projectRoot: string;
+  updatedAt: string;
+  files: { relativePath: string; content: string; status: RecoveryFileStatus }[];
+  untitled: { id: string; title: string; content: string }[];
+  settings: ProjectSettings | null;
+  settingsStatus: 'unchanged' | 'changed' | null;
+}
+
+/** What the user ticked in RecoveryModal. */
+export interface RecoverySelection {
+  /** relativePaths */
+  files: string[];
+  /** untitled draft ids */
+  untitled: string[];
+  settings: boolean;
+}
+
+export interface RecoveryWriteResult { success: boolean; skipped?: 'too-large'; error?: string }
+
 /** Result of the scanDirectory IPC call. */
 export interface ScanDirectoryResult {
   images: ScannedImageAsset[];
@@ -1570,6 +1601,13 @@ declare global {
           writeFile: (path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>;
           /** Writes all files or none (journaled transaction rooted at the open project). */
           saveFiles: (files: { path: string; content: string }[]) => Promise<SaveFilesResult>;
+          /** Crash-recovery snapshots of unsaved work (main process stores them under userData). */
+          recovery: {
+            write: (sessionId: string, payload: RecoverySnapshotPayload) => Promise<RecoveryWriteResult>;
+            clear: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+            listPending: (sessionId: string) => Promise<PendingRecovery | null>;
+            discardPending: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+          };
           createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
           removeEntry: (path: string) => Promise<{ success: boolean; error?: string }>;
           moveFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;

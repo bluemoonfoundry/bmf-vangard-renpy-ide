@@ -63,6 +63,12 @@ export interface MockElectronAPI {
   fileExists: Mock<(path: string) => Promise<boolean>>;
   writeFile: Mock<(path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>>;
   saveFiles: Mock<(files: { path: string; content: string }[]) => Promise<{ success: boolean; error?: string; pendingRecovery?: boolean; files?: string[] }>>;
+  recovery: {
+    write: Mock<(sessionId: string, payload: unknown) => Promise<{ success: boolean; skipped?: 'too-large'; error?: string }>>;
+    clear: Mock<(sessionId: string) => Promise<{ success: boolean; error?: string }>>;
+    listPending: Mock<(sessionId: string) => Promise<unknown>>;
+    discardPending: Mock<(sessionId: string) => Promise<{ success: boolean; error?: string }>>;
+  };
   createDirectory: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   removeEntry: Mock<(path: string) => Promise<{ success: boolean; error?: string }>>;
   moveFile: Mock<(oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>>;
@@ -149,6 +155,12 @@ export function createMockElectronAPI(): MockElectronAPI {
     fileExists: vi.fn().mockResolvedValue(false),
     writeFile: vi.fn().mockResolvedValue({ success: true }),
     saveFiles: vi.fn().mockResolvedValue({ success: true, pendingRecovery: false, files: [] }),
+    recovery: {
+      write: vi.fn().mockResolvedValue({ success: true }),
+      clear: vi.fn().mockResolvedValue({ success: true }),
+      listPending: vi.fn().mockResolvedValue(null),
+      discardPending: vi.fn().mockResolvedValue({ success: true }),
+    },
     createDirectory: vi.fn().mockResolvedValue({ success: true }),
     removeEntry: vi.fn().mockResolvedValue({ success: true }),
     moveFile: vi.fn().mockResolvedValue({ success: true }),
