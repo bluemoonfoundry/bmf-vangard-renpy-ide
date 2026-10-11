@@ -123,6 +123,80 @@ export interface UseProjectIOReturn {
   handleSaveAll: () => Promise<boolean>;
   handleReloadFromDisk: (item: { relativePath: string; absolutePath: string }) => Promise<void>;
   handleRefreshProject: () => Promise<void>;
+  /** The exact project.ide.json object a save would write now (also used for crash-recovery snapshots). */
+  buildSettingsForDisk: () => ProjectSettings;
+}
+
+export type ProjectSettingsPayloadSource = Pick<UseProjectIOParams,
+  'projectSettings' | 'blocks' | 'routeNodeLayoutCache' | 'openTabs' | 'activeTabId' | 'splitLayout' | 'splitPrimarySize'
+  | 'secondaryOpenTabs' | 'secondaryActiveTabId' | 'stickyNotes' | 'routeStickyNotes' | 'choiceStickyNotes'
+  | 'notecards' | 'notecardLinks' | 'notecardTimeline' | 'characterProfiles' | 'characterPortraits'
+  | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'dismissedImplicitVarHint'
+  | 'sceneCompositions' | 'sceneNames' | 'imagemapCompositions' | 'imageScanDirectories' | 'audioScanDirectories'>;
+
+/**
+ * The project.ide.json payload for the current in-memory state, before the
+ * schemaVersion/unknown-field wrapping in buildProjectSettingsForSave. Shared
+ * by Save and by crash-recovery snapshots so both always agree on the shape.
+ */
+export function buildProjectSettingsPayload(src: ProjectSettingsPayloadSource): ProjectSettings {
+  // Serialize scenes: map images to just their paths to avoid circular refs and huge files
+  const serializeSprite = (s: SceneSprite): SerializedSprite => ({
+    ...s,
+    image: { filePath: s.image.filePath },
+  });
+
+  const serializableScenes: Record<string, SerializedSceneComposition> = {};
+  Object.entries(src.sceneCompositions).forEach(([id, sc]) => {
+    serializableScenes[id] = {
+      background: sc.background ? serializeSprite(sc.background) : null,
+      sprites: sc.sprites.map(serializeSprite),
+      resolution: sc.resolution,
+      animations: sc.animations,
+    };
+  });
+
+  // Serialize imagemaps: map images to just their paths
+  const serializableImagemaps: Record<string, SerializedImageMapComposition> = {};
+  Object.entries(src.imagemapCompositions).forEach(([id, im]) => {
+    serializableImagemaps[id] = {
+      screenName: im.screenName,
+      groundImage: im.groundImage ? { filePath: im.groundImage.filePath } : null,
+      hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } : null,
+      hotspots: im.hotspots,
+    };
+  });
+
+  return {
+    ...src.projectSettings,
+    storyBlockLayouts: buildSavedStoryBlockLayouts(src.blocks),
+    routeNodeLayouts: Object.fromEntries(
+      Array.from(src.routeNodeLayoutCache.entries()).map(([id, position]) => [id, { position }]),
+    ),
+    openTabs: src.openTabs,
+    activeTabId: src.activeTabId,
+    splitLayout: src.splitLayout,
+    splitPrimarySize: src.splitPrimarySize,
+    secondaryOpenTabs: src.secondaryOpenTabs,
+    secondaryActiveTabId: src.secondaryActiveTabId,
+    stickyNotes: Array.from(src.stickyNotes),
+    routeStickyNotes: Array.from(src.routeStickyNotes),
+    choiceStickyNotes: Array.from(src.choiceStickyNotes),
+    notecards: Array.from(src.notecards),
+    notecardLinks: Array.from(src.notecardLinks),
+    notecardTimeline: src.notecardTimeline,
+    characterProfiles: src.characterProfiles,
+    characterPortraits: src.characterPortraits,
+    punchlistMetadata: src.punchlistMetadata,
+    diagnosticsTasks: src.diagnosticsTasks,
+    ignoredDiagnostics: src.ignoredDiagnostics,
+    dismissedImplicitVariableHint: src.dismissedImplicitVarHint,
+    sceneCompositions: serializableScenes,
+    sceneNames: src.sceneNames,
+    imagemapCompositions: serializableImagemaps,
+    scannedImagePaths: Array.from(src.imageScanDirectories.keys()),
+    scannedAudioPaths: Array.from(src.audioScanDirectories.keys()),
+  };
 }
 
 export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
@@ -145,68 +219,22 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     addToast,
   } = params;
 
+  const buildSettingsForDisk = useCallback((): ProjectSettings => buildProjectSettingsForSave(
+    buildProjectSettingsPayload({
+      projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize,
+      secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes,
+      notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits,
+      punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
+      sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories,
+    }),
+    projectSettingsMetaRef.current,
+  ), [projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, projectSettingsMetaRef]);
+
   const handleSaveProjectSettings = useCallback(async () => {
     if (!projectRootPath || !window.electronAPI) return;
     try {
-      // Serialize scenes: map images to just their paths to avoid circular refs and huge files
-      const serializeSprite = (s: SceneSprite): SerializedSprite => ({
-          ...s,
-          image: { filePath: s.image.filePath }
-      });
-
-      const serializableScenes: Record<string, SerializedSceneComposition> = {};
-      Object.entries(sceneCompositions).forEach(([id, sc]) => {
-          serializableScenes[id] = {
-              background: sc.background ? serializeSprite(sc.background) : null,
-              sprites: sc.sprites.map(serializeSprite),
-              resolution: sc.resolution,
-              animations: sc.animations,
-          };
-      });
-
-      // Serialize imagemaps: map images to just their paths
-      const serializableImagemaps: Record<string, SerializedImageMapComposition> = {};
-      Object.entries(imagemapCompositions).forEach(([id, im]) => {
-          serializableImagemaps[id] = {
-              screenName: im.screenName,
-              groundImage: im.groundImage ? { filePath: im.groundImage.filePath } : null,
-              hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } : null,
-              hotspots: im.hotspots
-          };
-      });
-
-      const settingsToSave: ProjectSettings = {
-        ...projectSettings,
-        storyBlockLayouts: buildSavedStoryBlockLayouts(blocks),
-        routeNodeLayouts: Object.fromEntries(
-          Array.from(routeNodeLayoutCache.entries()).map(([id, position]) => [id, { position }]),
-        ),
-        openTabs,
-        activeTabId,
-        splitLayout,
-        splitPrimarySize,
-        secondaryOpenTabs,
-        secondaryActiveTabId,
-        stickyNotes: Array.from(stickyNotes),
-        routeStickyNotes: Array.from(routeStickyNotes),
-        choiceStickyNotes: Array.from(choiceStickyNotes),
-        notecards: Array.from(notecards),
-        notecardLinks: Array.from(notecardLinks),
-        notecardTimeline,
-        characterProfiles,
-        characterPortraits,
-        punchlistMetadata,
-        diagnosticsTasks,
-        ignoredDiagnostics,
-        dismissedImplicitVariableHint: dismissedImplicitVarHint,
-        sceneCompositions: serializableScenes,
-        sceneNames,
-        imagemapCompositions: serializableImagemaps,
-        scannedImagePaths: Array.from(imageScanDirectories.keys()),
-        scannedAudioPaths: Array.from(audioScanDirectories.keys()),
-      };
       const settingsPath = await window.electronAPI.path.join(projectRootPath as string, 'game/project.ide.json') as string;
-      const fileContents = buildProjectSettingsForSave(settingsToSave, projectSettingsMetaRef.current);
+      const fileContents = buildSettingsForDisk();
       const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(fileContents, null, 2));
       if (!res.success) throw new Error(res.error || 'Unknown error saving workspace settings');
       setHasUnsavedSettings(false);
@@ -216,7 +244,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
       return false;
     }
-  }, [projectRootPath, projectSettingsMetaRef, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
+  }, [projectRootPath, buildSettingsForDisk, addToast, setHasUnsavedSettings]);
 
   const handleSaveAll = useCallback(async () => {
     const dirtyIds = new Set([...dirtyBlockIds, ...dirtyEditors]);
@@ -525,5 +553,6 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     handleSaveAll,
     handleReloadFromDisk,
     handleRefreshProject,
+    buildSettingsForDisk,
   };
 }

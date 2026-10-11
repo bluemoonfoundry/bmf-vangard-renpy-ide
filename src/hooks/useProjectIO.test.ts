@@ -162,6 +162,17 @@ describe('useProjectIO', () => {
     expect(addToast).toHaveBeenCalledWith(expect.stringContaining('ENOSPC'), 'error');
   });
 
+  it('buildSettingsForDisk returns exactly what handleSaveProjectSettings writes', async () => {
+    const api = createMockElectronAPI();
+    installElectronAPI(api);
+    const notecards = [createNotecard({ id: 'nc-1' })];
+    const { result } = renderHook(() => useProjectIO(makeParams({ notecards })));
+    await act(async () => { await result.current.handleSaveProjectSettings(); });
+    const written = JSON.parse(api.writeFile.mock.calls[0][1] as string);
+    expect(JSON.parse(JSON.stringify(result.current.buildSettingsForDisk()))).toEqual(written);
+    expect(written.notecards).toEqual(notecards);
+  });
+
   it('writes the current schemaVersion as the first key', async () => {
     const api = createMockElectronAPI();
     installElectronAPI(api);
