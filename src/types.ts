@@ -1367,6 +1367,8 @@ export interface ProjectLoadResult {
     /** Absolute path of the copy the main process made of an unparseable file before it can be overwritten. */
     backupPath?: string;
   } | null;
+  /** Present when an interrupted Save All from a previous session was found and handled before loading. */
+  saveRecovery?: SaveRecoveryResult;
 }
 
 /**
@@ -1385,6 +1387,24 @@ export interface ProjectSettingsMeta {
   newerThanSupported: boolean;
   /** Top-level fields not recognised by this build, written back verbatim on save. */
   unknownFields: Record<string, unknown>;
+}
+
+/** Outcome of recovering an interrupted multi-file save on project load. */
+export interface SaveRecoveryResult {
+  /** rolled-forward: the interrupted save was completed; rolled-back: it was undone; failed: left for a retry. */
+  status: 'rolled-back' | 'rolled-forward' | 'failed';
+  /** Project-relative paths of the files in the interrupted save. */
+  files: string[];
+  error?: string;
+}
+
+/** Result of the project:saveFiles IPC call. */
+export interface SaveFilesResult {
+  success: boolean;
+  error?: string;
+  /** Committed, but some files are still being moved into place; finished on the next load or save. */
+  pendingRecovery?: boolean;
+  files?: string[];
 }
 
 /** Result of the scanDirectory IPC call. */
@@ -1548,6 +1568,8 @@ declare global {
           readFile: (path: string) => Promise<string>;
           fileExists: (path: string) => Promise<boolean>;
           writeFile: (path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>;
+          /** Writes all files or none (journaled transaction rooted at the open project). */
+          saveFiles: (files: { path: string; content: string }[]) => Promise<SaveFilesResult>;
           createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
           removeEntry: (path: string) => Promise<{ success: boolean; error?: string }>;
           moveFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;

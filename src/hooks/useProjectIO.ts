@@ -269,20 +269,41 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                return true;
           }
 
+          // Step 1: game sources, as one all-or-nothing transaction. If this
+          // fails no .rpy file on disk changed and everything stays dirty.
+          let sourcesPendingRecovery = false;
           if (window.electronAPI) {
+              const files: { path: string; content: string }[] = [];
               for (const blockId of blocksToSave) {
                   const block = currentBlocks.find(b => b.id === blockId);
                   if (block && block.filePath) {
                       const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
-                      const res = await window.electronAPI.writeFile(absPath, block.content);
-                      if (!res.success) throw new Error(`Failed to save ${block.filePath}: ${(res.error as string) || 'Unknown error'}`);
+                      files.push({ path: absPath, content: block.content });
                   }
               }
-              const settingsSaved = await handleSaveProjectSettings();
-              if (settingsSaved === false) {
-                  throw new Error('Workspace settings failed to save -- see previous toast for details');
+              if (files.length > 0) {
+                  const res = await window.electronAPI.saveFiles(files);
+                  if (!res.success) {
+                      throw new Error(`Failed to save ${files.length} script file(s) -- none were changed on disk: ${res.error || 'Unknown error'}`);
+                  }
+                  sourcesPendingRecovery = res.pendingRecovery === true;
               }
           }
+
+          // The sources are on disk now, so they are clean no matter what
+          // happens to the IDE metadata below. Only the ids that were actually
+          // saved are cleared -- an edit made while saving stays dirty.
+          const withoutSaved = (prev: Set<string>) => {
+              const next = new Set(prev);
+              blocksToSave.forEach(id => next.delete(id));
+              return next;
+          };
+          setDirtyBlockIds(withoutSaved);
+          setDirtyEditors(withoutSaved);
+
+          // Step 2: IDE metadata (project.ide.json), separately. A failure here
+          // keeps the settings dirty but must not be reported as a source failure.
+          const settingsSaved = window.electronAPI ? await handleSaveProjectSettings() : true;
 
           const dirtyUntitledIds = [...openTabs, ...secondaryOpenTabs]
             .filter(t => t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty)
@@ -293,10 +314,18 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
             if (!saved) untitledSaveFailed = true;
           }
 
-          setDirtyBlockIds(new Set());
-          setDirtyEditors(new Set());
-          setSaveStatus('saved');
           notifyFirstSave();
+          if (!settingsSaved) {
+              // handleSaveProjectSettings already toasted the underlying error.
+              setSaveStatus('error');
+              addToast('Script files were saved, but workspace settings were not', 'warning');
+              return false;
+          }
+          setSaveStatus('saved');
+          if (sourcesPendingRecovery) {
+            addToast('Saved, but some files are still being finalized -- they will be completed automatically on the next save or project load', 'warning');
+            return true;
+          }
           if (untitledSaveFailed) {
             addToast('Some changes saved — one or more untitled files were not saved', 'warning');
             return false;

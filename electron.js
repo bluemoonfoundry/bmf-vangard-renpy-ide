@@ -40,6 +40,7 @@ import { validateProjectPath, validateExternalUrl, canonicalize } from './src/li
 import { scanDirectoryForAssets, pathToMediaUrl } from './src/lib/assetScanner.js';
 import { searchInDirectory } from './src/lib/projectSearch.js';
 import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
+import { commitSaveTransaction, recoverSaveTransaction } from './src/lib/saveTransaction.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -278,6 +279,11 @@ const recentSelfWrites = new Map(); // normalizedAbsPath -> write timestamp ms
 const watchDebounceTimers = new Map(); // normalizedAbsPath -> timeout id
 const SELF_WRITE_SUPPRESS_MS = 3000;
 const WATCH_DEBOUNCE_MS = 400;
+
+/** Records that the app itself is about to write filePath, so the watcher ignores the change. */
+function markSelfWrite(filePath) {
+    recentSelfWrites.set(path.normalize(filePath).replace(/\\/g, '/'), Date.now());
+}
 
 function startProjectWatcher(rootPath) {
     if (projectWatcher) {
@@ -1531,6 +1537,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:load', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
     currentProjectRoot = rootPath; // Track for screenshots
+    // Finish or undo a Save All that was interrupted last session *before*
+    // reading anything, so the files loaded below are a consistent set.
+    const saveRecovery = await recoverSaveTransaction(rootPath, { beforeRename: markSelfWrite });
+    if (saveRecovery.status === 'failed') {
+      logger.error('Interrupted save could not be recovered:', saveRecovery.error);
+    } else if (saveRecovery.status !== 'none') {
+      logger.info(`Interrupted save ${saveRecovery.status}: ${saveRecovery.files.join(', ')}`);
+    }
     // Best-effort: remove any atomic-write temp files stranded by a previous
     // crashed/killed session. The files they were meant to replace were never
     // touched (see atomicWriteFile), so this is pure tidy-up, not recovery.
@@ -1540,6 +1554,7 @@ app.whenReady().then(async () => {
         event.sender.send('project:load-progress', value, message);
       }
     });
+    if (saveRecovery.status !== 'none') result.saveRecovery = saveRecovery;
     // Surface the project in the macOS Dock's "Recent" menu / Windows taskbar Jump List
     app.addRecentDocument(rootPath);
     // Start watching the project for external file changes
@@ -1556,6 +1571,30 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:refresh', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
     return await readProjectFiles(rootPath, { readContent: true });
+  });
+
+  // Writes a batch of project files as one all-or-nothing transaction (see
+  // src/lib/saveTransaction.js). Used by Save All for .rpy sources; the
+  // transaction is always rooted at the open project, never a renderer-supplied root.
+  ipcMain.handle('project:saveFiles', async (event, files) => {
+    try {
+      if (!currentProjectRoot) throw new Error('No project is open');
+      if (!Array.isArray(files)) throw new Error('Expected an array of files');
+      for (const f of files) {
+        if (!f || typeof f.path !== 'string' || typeof f.content !== 'string') {
+          throw new Error('Each file needs a string path and content');
+        }
+        await guardProjectPath(f.path);
+      }
+      const result = await commitSaveTransaction(
+        currentProjectRoot,
+        files.map(f => ({ path: f.path, content: f.content, encoding: 'utf-8' })),
+        { beforeRename: markSelfWrite },
+      );
+      return { success: true, pendingRecovery: result.pendingRecovery, files: result.files };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   });
 
   ipcMain.handle('fs:writeFile', async (event, filePath, content, encoding) => {

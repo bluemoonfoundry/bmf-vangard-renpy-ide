@@ -327,6 +327,30 @@ describe('useProjectLoad', () => {
     );
   });
 
+  it.each([
+    [{ status: 'rolled-forward', files: ['game/a.rpy', 'game/b.rpy'] }, /was completed \(2 files\)/, 'info'],
+    [{ status: 'rolled-back', files: ['game/a.rpy'] }, /was discarded; 1 file kept/, 'warning'],
+    [{ status: 'failed', files: [], error: 'checksum mismatch' }, /could not be recovered: checksum mismatch/, 'error'],
+  ])('toasts the outcome of an interrupted-save recovery (%o)', async (saveRecovery, message, level) => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue({
+      rootPath: '/project',
+      files: [],
+      images: [],
+      audios: [],
+      tree: { name: 'game', path: '', children: [] },
+      settings: null,
+      saveRecovery,
+    } as unknown as Parameters<typeof api.loadProject.mockResolvedValue>[0]);
+
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => {
+      await result.current.loadProject('/project');
+    });
+
+    expect(params.addToast).toHaveBeenCalledWith(expect.stringMatching(message), level);
+  });
+
   it('calls setIsLoading(true) at start of load', async () => {
     const params = makeParams();
     // loadProject() will fail when electronAPI.loadProject is the default mock
