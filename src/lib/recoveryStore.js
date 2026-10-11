@@ -1,6 +1,7 @@
 import fsPromises from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import { atomicWriteFile } from './atomicFileWrite.js';
 
 // Crash-recovery snapshots of unsaved work (bmf-vangard-renpy-ide-b70a.2.3).
@@ -115,17 +116,56 @@ async function removeIfEmpty(dir) {
     }
 }
 
+function defaultIsAlive(pid) {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (err) {
+        return err.code === 'EPERM'; // exists but owned by someone else
+    }
+}
+
+/** Wall-clock time the OS booted; pids are only meaningful within one boot. */
+export const currentBootTime = () => Date.now() - os.uptime() * 1000;
+const SAME_BOOT_TOLERANCE_MS = 2 * 60 * 1000;
+
+/**
+ * True when a snapshot belongs to another app instance that is still running.
+ * A pid recorded during an earlier boot is dead no matter what owns it now
+ * (pids are reused after a reboot -- the power-loss case).
+ */
+function isLiveForeign(snap, isAlive, bootTime) {
+    if (!snap || typeof snap.pid !== 'number' || snap.pid === process.pid) return false;
+    if (typeof snap.bootTime === 'number' && Math.abs(snap.bootTime - bootTime) > SAME_BOOT_TOLERANCE_MS) return false;
+    return isAlive(snap.pid);
+}
+
+async function readSnapshotQuiet(full) {
+    try {
+        return JSON.parse(await fsPromises.readFile(full, 'utf-8'));
+    } catch {
+        return null;
+    }
+}
+
 const unlinkQuiet = (p) => fsPromises.unlink(p).catch(err => { if (err.code !== 'ENOENT') throw err; });
 
-async function enforceBounds({ recoveryDir, projectRoot, sessionId, limits }) {
+async function enforceBounds({ recoveryDir, projectRoot, sessionId, limits, isAlive, bootTime }) {
     const ownPath = sessionPath(recoveryDir, projectRoot, sessionId);
+    // Another running instance's file is live work, not a stale snapshot -- never evict it.
+    const evictable = async (f) => f.full !== ownPath && !(f.corrupt ? false : isLiveForeign(await readSnapshotQuiet(f.full), isAlive, bootTime));
 
     // Per project: newest maxFilesPerProject session files survive (own always kept).
     const mine = (await listSessionFiles(projectDir(recoveryDir, projectRoot)))
         .filter(f => !f.corrupt)
         .sort((a, b) => b.mtimeMs - a.mtimeMs);
-    const others = mine.filter(f => f.full !== ownPath);
-    for (const f of others.slice(Math.max(0, limits.maxFilesPerProject - 1))) await unlinkQuiet(f.full);
+    const others = [];
+    for (const f of mine) if (f.full !== ownPath) others.push({ ...f, evictable: await evictable(f) });
+    // Live foreign files use up the budget first (they are never deleted);
+    // the remaining slots go to the newest evictable files.
+    const live = others.filter(f => !f.evictable).length;
+    const budget = Math.max(0, limits.maxFilesPerProject - 1 - live);
+    for (const f of others.filter(x => x.evictable).slice(budget)) await unlinkQuiet(f.full);
 
     // Global: delete least recently updated until under maxTotalBytes (own always kept).
     const all = [];
@@ -133,13 +173,17 @@ async function enforceBounds({ recoveryDir, projectRoot, sessionId, limits }) {
     let total = all.reduce((sum, f) => sum + f.size, 0);
     for (const f of all.filter(x => x.full !== ownPath).sort((a, b) => a.mtimeMs - b.mtimeMs)) {
         if (total <= limits.maxTotalBytes) break;
+        if (!(await evictable(f))) continue;
         await unlinkQuiet(f.full);
         total -= f.size;
         await removeIfEmpty(f.dir);
     }
 }
 
-export async function writeSnapshot({ recoveryDir, projectRoot, sessionId, payload, limits = RECOVERY_LIMITS, pid = process.pid }) {
+export async function writeSnapshot({
+    recoveryDir, projectRoot, sessionId, payload,
+    limits = RECOVERY_LIMITS, pid = process.pid, bootTime = currentBootTime(), isAlive = defaultIsAlive,
+}) {
     assertSessionId(sessionId);
     validatePayload(payload);
 
@@ -152,6 +196,7 @@ export async function writeSnapshot({ recoveryDir, projectRoot, sessionId, paylo
         version: SNAPSHOT_VERSION,
         sessionId,
         pid,
+        bootTime,
         projectRoot,
         updatedAt: new Date().toISOString(),
         files,
@@ -164,7 +209,7 @@ export async function writeSnapshot({ recoveryDir, projectRoot, sessionId, paylo
 
     await fsPromises.mkdir(projectDir(recoveryDir, projectRoot), { recursive: true });
     await atomicWriteFile(sessionPath(recoveryDir, projectRoot, sessionId), json, 'utf-8');
-    await enforceBounds({ recoveryDir, projectRoot, sessionId, limits });
+    await enforceBounds({ recoveryDir, projectRoot, sessionId, limits, isAlive, bootTime });
     return { success: true };
 }
 
@@ -172,15 +217,6 @@ export async function clearSnapshot({ recoveryDir, projectRoot, sessionId }) {
     assertSessionId(sessionId);
     await unlinkQuiet(sessionPath(recoveryDir, projectRoot, sessionId));
     await removeIfEmpty(projectDir(recoveryDir, projectRoot));
-}
-
-function defaultIsAlive(pid) {
-    try {
-        process.kill(pid, 0);
-        return true;
-    } catch (err) {
-        return err.code === 'EPERM'; // exists but owned by someone else
-    }
 }
 
 function isValidSnapshot(s) {
@@ -216,7 +252,7 @@ async function toPending(snap, projectRoot) {
     };
 }
 
-export async function listPending({ recoveryDir, projectRoot, sessionId, isAlive = defaultIsAlive }) {
+export async function listPending({ recoveryDir, projectRoot, sessionId, isAlive = defaultIsAlive, bootTime = currentBootTime() }) {
     assertSessionId(sessionId);
     const candidates = (await listSessionFiles(projectDir(recoveryDir, projectRoot)))
         .filter(f => !f.corrupt && f.sessionId !== sessionId)
@@ -232,7 +268,7 @@ export async function listPending({ recoveryDir, projectRoot, sessionId, isAlive
             continue;
         }
         if (normalizeRoot(snap.projectRoot) !== normalizeRoot(projectRoot)) continue;
-        if (typeof snap.pid === 'number' && snap.pid !== process.pid && isAlive(snap.pid)) continue;
+        if (isLiveForeign(snap, isAlive, bootTime)) continue;
         try {
             const pending = await toPending(snap, projectRoot);
             if (pending) return pending;

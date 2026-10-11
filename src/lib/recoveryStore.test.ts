@@ -121,6 +121,22 @@ describe('writeSnapshot', () => {
     expect(await exists(sessionPath(S4))).toBe(true);
   });
 
+  it('never deletes a live foreign instance file when enforcing the per-project limit', async () => {
+    const bootTime = Date.now() - 3_600_000;
+    const isAlive = (pid: number) => pid === 999_999;
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload(), pid: 999_999, bootTime, isAlive });
+    await age(sessionPath(S1), 30_000); // oldest
+    for (const [i, id] of [S2, S3].entries()) {
+      await writeSnapshot({ recoveryDir, projectRoot, sessionId: id, payload: payload(), bootTime, isAlive });
+      await age(sessionPath(id), (20 - i) * 1000);
+    }
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S4, payload: payload(), bootTime, isAlive });
+    expect(await exists(sessionPath(S1))).toBe(true);  // live instance kept
+    expect(await exists(sessionPath(S2))).toBe(false); // oldest dead one goes
+    expect(await exists(sessionPath(S3))).toBe(true);
+    expect(await exists(sessionPath(S4))).toBe(true);
+  });
+
   it('enforces the global size cap across projects, least recently updated first', async () => {
     const otherRoot = path.join(base, 'Other');
     await fs.mkdir(path.join(otherRoot, 'game'), { recursive: true });
@@ -192,6 +208,19 @@ describe('listPending', () => {
     await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload(), pid: 999_999 });
     expect(await listPending({ recoveryDir, projectRoot, sessionId: S2, isAlive: (pid: number) => pid === 999_999 })).toBeNull();
     expect((await listPending({ recoveryDir, projectRoot, sessionId: S2, isAlive: DEAD }))?.sessionId).toBe(S1);
+  });
+
+  it('offers a snapshot from a previous boot even if its pid is now reused by a live process', async () => {
+    const bootTime = Date.now() - 3_600_000;
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload(), pid: 999_999, bootTime: bootTime - 86_400_000 });
+    const pending = await listPending({ recoveryDir, projectRoot, sessionId: S2, isAlive: () => true, bootTime });
+    expect(pending?.sessionId).toBe(S1);
+  });
+
+  it('still skips a live foreign snapshot written during the current boot', async () => {
+    const bootTime = Date.now() - 3_600_000;
+    await writeSnapshot({ recoveryDir, projectRoot, sessionId: S1, payload: payload(), pid: 999_999, bootTime });
+    expect(await listPending({ recoveryDir, projectRoot, sessionId: S2, isAlive: () => true, bootTime })).toBeNull();
   });
 
   it('treats an earlier session from this same process as pending', async () => {
