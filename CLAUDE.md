@@ -36,6 +36,7 @@ npm run build              # Production build to dist/
 npm test                   # Vitest once
 npm run test:watch         # Vitest watch mode
 npm run lint:fix           # ESLint auto-fix
+npm run gate               # Full release gate (see CONTRIBUTING.md § Release Gate)
 ```
 
 ## Architecture & State

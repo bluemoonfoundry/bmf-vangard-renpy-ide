@@ -13,40 +13,17 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Test & Lint on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Coverage Gate
-        run: npm run test:coverage
+  gate:
+    name: Release Gate
+    # Canonical gate: CONTRIBUTING.md § Release Gate / npm run gate.
+    uses: ./.github/workflows/gate.yml
+    with:
+      os: '["ubuntu-latest", "windows-latest", "macos-latest"]'
 
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: test
+    needs: gate
     strategy:
       fail-fast: false
       matrix:

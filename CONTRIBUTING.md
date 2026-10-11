@@ -10,6 +10,7 @@ Thank you for contributing to Vangard Studio. This document covers environment s
 - [Development Setup](#development-setup)
 - [Running the App](#running-the-app)
 - [Running Tests](#running-tests)
+- [Release Gate](#release-gate)
 - [Coding Conventions](#coding-conventions)
 - [Pull Request Process](#pull-request-process)
 - [Reporting Issues](#reporting-issues)
@@ -71,11 +72,46 @@ npm run test:coverage                             # Coverage report (v8)
 
 Tests use **Vitest + JSDOM**. Setup is in `src/test/setup.ts`.
 
+**End-to-end tests** launch the real Electron app through Playwright (`e2e/`):
+
+```bash
+npm run test:e2e                                  # Rebuilds dist/, then runs the full smoke suite
+npx playwright test e2e/smoke/01-app-launch.spec.ts   # Single spec against the existing dist/ (no rebuild)
+```
+
+`npm run test:e2e` rebuilds first (its `pretest:e2e` hook runs `npm run build`) because `electron.js` loads `dist/index.html`, so a clean checkout and a warm one with an old `dist/` test the same code. Calling `npx playwright test` directly skips that rebuild; use it only for quick iteration after you have built.
+
+If every spec fails at launch with `bad option: --remote-debugging-port=0`, your shell has `ELECTRON_RUN_AS_NODE=1` set (common in terminals spawned by VS Code or other Electron hosts). The launcher strips it, but scripts that call `electron.launch()` directly must use `launchElectron()` from `e2e/electron-launch.js`.
+
 **Writing tests:**
 
 - Use `createMockElectronAPI()` from `src/test/mocks/electronAPI.ts` to stub IPC — call `installElectronAPI()` in `beforeEach` and `uninstallElectronAPI()` in `afterEach`.
 - Use factory functions from `src/test/mocks/sampleData.ts` (`createBlock()`, `createSampleAnalysisResult()`, etc.) rather than constructing objects inline — this insulates tests from type changes.
 - New hooks and utility functions should have unit tests. Canvas interaction tests are not required but are welcome.
+
+---
+
+## Release Gate
+
+This is the single definition of the release gate. A commit is releasable only when all of it passes:
+
+```bash
+npm --prefix website ci   # once: docs site dependencies (needed by docs:check)
+npm run gate              # full gate = gate:checks + test:e2e
+```
+
+| Step | Command | What it proves |
+|---|---|---|
+| 1 | `npm run typecheck` (`tsc --noEmit`) | The project type-checks |
+| 2 | `npm run lint` | No ESLint errors (generated output such as `dist/` and `website/.vitepress/dist/` is ignored) |
+| 3 | `npm run test:coverage` | The full Vitest suite passes (same tests as `npm test`) and coverage thresholds in `vite.config.ts` hold |
+| 4 | `npm run build` | The production renderer builds |
+| 5 | `npm run docs:check` | `website/doc-assertions.json` claims still match `src/`, and the VitePress site builds with no dead links (`ignoreDeadLinks: false`) |
+| 6 | `npm run test:e2e` | The Electron + Playwright smoke suite passes against a fresh build |
+
+Steps 1–5 are `npm run gate:checks`; step 6 is `npm run test:e2e`. CI runs exactly these two scripts through the reusable workflow `.github/workflows/gate.yml`, which `build.yml` (PRs and `main`; checks on Linux, Windows and macOS), `nightly.yml` and `release.yml` (checks on Linux) all call before packaging. E2E runs on Linux under `xvfb-run`. To change the gate, change the `gate:*` scripts in `package.json` and this table together; the workflows pick the change up automatically.
+
+Supported toolchain: Node 20 (CI) or 24, Electron ^41.2, Playwright ^1.49.
 
 ---
 
@@ -117,7 +153,7 @@ Keep the subject line under 72 characters. Reference the issue number in the bod
 **Before opening a PR:**
 
 1. `npm run lint:fix` — no lint errors
-2. `npm test` — all tests pass
+2. `npm run gate` — the full [release gate](#release-gate) passes (at minimum `npm test` for small changes; CI runs the whole gate on every PR)
 3. If you changed IPC handlers, verify both `electron.js` (main) and `preload.js` (bridge) are updated together
 4. If you changed a persistent data structure, check whether a migration is needed (see `migratePunchlistToTasks()` in `App.tsx` for the pattern)
 

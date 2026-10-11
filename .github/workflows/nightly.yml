@@ -12,32 +12,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Test & Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
+  gate:
+    name: Release Gate
+    # Canonical gate: CONTRIBUTING.md § Release Gate / npm run gate.
+    uses: ./.github/workflows/gate.yml
 
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: test
+    needs: gate
     strategy:
       fail-fast: false
       matrix:

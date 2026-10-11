@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { test as base, _electron as electron, expect } from 'playwright/test';
-import { APP_ENTRY, forceExit, suppressFirstRunTutorial } from '../electron-launch.js';
+import { APP_ENTRY, forceExit, launchElectron, suppressFirstRunTutorial } from '../electron-launch.js';
 
 // Regression coverage for review-hardening risk: "malformed projects" (bmf-vangard-renpy-ide-6o47.6).
 // Each test launches the app pointed at a project directory that is broken in a
@@ -20,9 +20,9 @@ async function makeScratchDir(label: string): Promise<string> {
 }
 
 async function launchWithProject(projectPath: string) {
-  const app = await electron.launch({
+  const app = await launchElectron(electron, {
     args: [APP_ENTRY, '--project', projectPath],
-    env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ isLeftSidebarOpen: true, isRightSidebarOpen: true }) },
+    env: { RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ isLeftSidebarOpen: true, isRightSidebarOpen: true }) },
   });
   await suppressFirstRunTutorial(app);
   const window = await app.firstWindow();

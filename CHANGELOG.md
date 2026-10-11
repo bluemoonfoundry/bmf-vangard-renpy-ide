@@ -4,6 +4,13 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
+### Changed
+- `npm run test:e2e` now rebuilds the renderer first (`pretest:e2e`), so the E2E gate never runs against a missing or stale `dist/`; `build.yml`, `nightly.yml` and `release.yml` all run this same command. The redundant `test:e2e:ci` script was removed. No dependency changes.
+- The release gate (typecheck, lint, coverage, build, docs assertions + dead-link build, E2E) is now defined once in `CONTRIBUTING.md` and runnable locally as `npm run gate`; `build.yml`, `nightly.yml` and `release.yml` all run it through the shared `gate.yml` workflow. Nightly builds now also run coverage, typecheck and the docs check.
+
+### Fixed
+- `npm run lint` no longer reports ~1,600 errors from generated VitePress output after `npm run docs:build`
+
 ## [1.1.0]
 
 ### Added
