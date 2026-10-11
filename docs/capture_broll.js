@@ -83,7 +83,7 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
-import { APP_ENTRY, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
+import { APP_ENTRY, electronLaunchEnv, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -709,7 +709,7 @@ async function ensureDir(dir) {
 }
 
 async function launchAppRecording(productionSettings, settingsOverride = {}) {
-    const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
+    const env = electronLaunchEnv({ ELECTRON_DISABLE_SECURITY_WARNINGS: '1' });
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
         renpyPath: FAKE_RENPY_SDK,

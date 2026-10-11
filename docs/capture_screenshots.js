@@ -22,7 +22,7 @@ import fs from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
-import { APP_ENTRY, forceExit, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
+import { APP_ENTRY, electronLaunchEnv, forceExit, suppressFirstRunTutorial } from '../e2e/electron-launch.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -551,7 +551,7 @@ async function ensureDir(dir) {
 }
 
 async function launchApp(productionSettings, extraArgs = [], settingsOverride = {}) {
-    const env = { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' };
+    const env = electronLaunchEnv({ ELECTRON_DISABLE_SECURITY_WARNINGS: '1' });
     env.RENIDE_SETTINGS_OVERRIDE = JSON.stringify({
         ...productionSettings,
         ...settingsOverride,

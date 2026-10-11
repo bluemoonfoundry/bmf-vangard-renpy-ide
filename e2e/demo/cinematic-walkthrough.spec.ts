@@ -17,6 +17,7 @@ import type { ElectronApplication, Locator, Page } from 'playwright/test';
 import { expect } from 'playwright/test';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { launchElectron } from '../electron-launch.js';
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ type Fixtures = { electronApp: ElectronApplication; window: Page };
 /* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
 const test = base.extend<Fixtures>({
   electronApp: async ({}, use) => {
-    const app = await electron.launch({
+    const app = await launchElectron(electron, {
       args: [APP_ENTRY, '--project', DEMO_PROJECT, '--window-size', '2560x1440'],
       recordVideo: {
         dir: RECORDINGS_DIR,

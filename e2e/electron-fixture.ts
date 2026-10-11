@@ -2,7 +2,7 @@ import { test as base, _electron as electron } from 'playwright/test';
 import type { ElectronApplication, Page } from 'playwright/test';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { APP_ENTRY, forceExit, suppressFirstRunTutorial } from './electron-launch.js';
+import { APP_ENTRY, forceExit, launchElectron, suppressFirstRunTutorial } from './electron-launch.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,9 +25,9 @@ const BASE_SETTINGS_OVERRIDE = JSON.stringify({
 /* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
 export const test = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
-    const app = await electron.launch({
+    const app = await launchElectron(electron, {
       args: [APP_ENTRY],
-      env: { ...process.env, RENIDE_SETTINGS_OVERRIDE: BASE_SETTINGS_OVERRIDE },
+      env: { RENIDE_SETTINGS_OVERRIDE: BASE_SETTINGS_OVERRIDE },
     });
     await suppressFirstRunTutorial(app);
     await use(app);
@@ -45,10 +45,9 @@ export const test = base.extend<ElectronFixtures>({
  *  enabled — checkRenpyPath only verifies the executable exists, it never runs it. */
 export const testWithProject = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
-    const app = await electron.launch({
+    const app = await launchElectron(electron, {
       args: [APP_ENTRY, '--project', FIXTURE_PROJECT],
       env: {
-        ...process.env,
         RENIDE_SETTINGS_OVERRIDE: JSON.stringify({
           renpyPath: FAKE_RENPY_SDK,
           isLeftSidebarOpen: true,
@@ -72,10 +71,9 @@ export const testWithProject = base.extend<ElectronFixtures>({
  *  and a markdown doc — used for tests that require real assets. */
 export const testWithDemoProject = base.extend<ElectronFixtures>({
   electronApp: async ({}, use) => {
-    const app = await electron.launch({
+    const app = await launchElectron(electron, {
       args: [APP_ENTRY, '--project', DEMO_PROJECT],
       env: {
-        ...process.env,
         RENIDE_SETTINGS_OVERRIDE: JSON.stringify({
           renpyPath: FAKE_RENPY_SDK,
           isLeftSidebarOpen: true,
