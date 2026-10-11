@@ -51,7 +51,7 @@ const hasUnsaved = (s: PayloadState) =>
   || [...s.untitledFiles.values()].some(f => f.isDirty);
 
 export function useRecoverySnapshots(params: UseRecoverySnapshotsParams): void {
-  const { enabled, sessionIdRef, blocks, dirtyBlockIds, dirtyEditors, untitledFiles, hasUnsavedSettings, buildSettingsPayload } = params;
+  const { enabled, blocks, dirtyBlockIds, dirtyEditors, untitledFiles, hasUnsavedSettings, buildSettingsPayload } = params;
   const debounceMs = params.debounceMs ?? 5000;
   const maxIntervalMs = params.maxIntervalMs ?? 60000;
 
