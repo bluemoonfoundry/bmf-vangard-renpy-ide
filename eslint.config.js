@@ -95,6 +95,10 @@ export default tseslint.config(
       'DemoProject/**',
       'docs/marketing/.venv-*/**',
       'tree-sitter-renpy/**',
+      // VitePress build output and dev cache (npm run docs:build / docs:dev);
+      // website/.vitepress/config.ts and theme/ stay linted.
+      'website/.vitepress/dist/**',
+      'website/.vitepress/cache/**',
     ],
   },
 );
