@@ -21,6 +21,9 @@ final tag's own artifacts.
 
 ## 1. Code Quality Gates
 
+The automated gate is defined once in [CONTRIBUTING.md § Release Gate](./CONTRIBUTING.md#release-gate) (`npm run gate`); CI's **Release Gate** job (`.github/workflows/gate.yml`) runs it on every build, nightly and release.
+
+- [ ] **Release Gate** job is green on the release commit (typecheck, lint, coverage, build, docs check, E2E)
 - [x] All commits intended for this release are on `main` (or the release branch) — verified 2026-08-17, `main` at `b7ffc7f`
 - [x] CI is green: **Test & Lint** job passes on the release commit — verified via `v1.0.0-rc2` build + local re-run (124 files / 2376 tests passing)
 - [x] **Coverage Gate** passes (`npm run test:coverage` — thresholds in `vite.config.ts`) — verified 2026-08-17, exit 0
