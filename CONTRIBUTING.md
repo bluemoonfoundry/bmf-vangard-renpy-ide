@@ -71,6 +71,17 @@ npm run test:coverage                             # Coverage report (v8)
 
 Tests use **Vitest + JSDOM**. Setup is in `src/test/setup.ts`.
 
+**End-to-end tests** launch the real Electron app through Playwright (`e2e/`):
+
+```bash
+npm run test:e2e                                  # Rebuilds dist/, then runs the full smoke suite
+npx playwright test e2e/smoke/01-app-launch.spec.ts   # Single spec against the existing dist/ (no rebuild)
+```
+
+`npm run test:e2e` is the release gate and is the exact command CI runs (`build.yml`, `nightly.yml`, `release.yml`, under `xvfb-run` on Linux). Its `pretest:e2e` hook runs `npm run build` first because `electron.js` loads `dist/index.html` — so a clean checkout and a warm one with an old `dist/` test the same code. Calling `npx playwright test` directly skips that rebuild; use it only for quick iteration after you have built.
+
+Supported matrix: Node 20 (CI) or 24, Electron ^41.2, Playwright ^1.49. If every spec fails at launch with `bad option: --remote-debugging-port=0`, your shell has `ELECTRON_RUN_AS_NODE=1` set (common in terminals spawned by VS Code or other Electron hosts); the launcher strips it, but scripts that call `electron.launch()` directly must use `launchElectron()` from `e2e/electron-launch.js`.
+
 **Writing tests:**
 
 - Use `createMockElectronAPI()` from `src/test/mocks/electronAPI.ts` to stub IPC — call `installElectronAPI()` in `beforeEach` and `uninstallElectronAPI()` in `afterEach`.

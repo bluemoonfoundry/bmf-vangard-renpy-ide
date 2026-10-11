@@ -61,11 +61,10 @@ jobs:
       - name: Install xvfb
         run: sudo apt-get install -y xvfb libgbm-dev
 
-      - name: Build renderer (required by Electron)
-        run: npm run build
-
       - name: Run E2E smoke suite
-        run: xvfb-run --auto-servernum npm run test:e2e:ci
+        # Same command as local: the pretest:e2e hook rebuilds dist/ first, so
+        # the suite never runs against a missing or stale renderer build.
+        run: xvfb-run --auto-servernum npm run test:e2e
 
   build:
     name: Build on ${{ matrix.os }}

@@ -4,6 +4,9 @@ All notable changes to Vangard Studio are documented here.
 
 ## [Unreleased]
 
+### Changed
+- `npm run test:e2e` now rebuilds the renderer first (`pretest:e2e`), so the E2E gate never runs against a missing or stale `dist/`; `build.yml`, `nightly.yml` and `release.yml` all run this same command. The redundant `test:e2e:ci` script was removed. No dependency changes.
+
 ## [1.1.0]
 
 ### Added
