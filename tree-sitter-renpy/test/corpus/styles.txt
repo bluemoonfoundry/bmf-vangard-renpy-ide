@@ -1,0 +1,29 @@
+==================
+Style with parent and properties
+==================
+style my_button is button:
+    xpadding 10
+    background "#333"
+
+---
+
+(source_file
+  (style_statement
+    name: (identifier)
+    parent: (identifier)
+    (style_property_statement property: (identifier) value: (expression))
+    (style_property_statement property: (identifier) value: (expression))))
+
+==================
+Style with take clause and no parent
+==================
+style my_frame take base_frame:
+    xalign 0.5
+
+---
+
+(source_file
+  (style_statement
+    name: (identifier)
+    take_from: (identifier)
+    (style_property_statement property: (identifier) value: (expression))))

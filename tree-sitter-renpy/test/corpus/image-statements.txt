@@ -1,0 +1,23 @@
+==================
+Image, scene, show with transition, hide
+==================
+image eileen happy = "eileen_happy.png"
+
+label start:
+    scene bg room with fade
+    show eileen happy at right with dissolve
+    hide eileen
+
+---
+
+(source_file
+  (image_statement name: (identifier) name: (identifier) value: (expression))
+  (label_statement
+    name: (identifier)
+    (scene_statement image: (identifier) image: (identifier) transition: (expression))
+    (show_statement
+      image: (identifier)
+      image: (identifier)
+      at_expr: (expression)
+      transition: (expression))
+    (hide_statement image: (identifier))))

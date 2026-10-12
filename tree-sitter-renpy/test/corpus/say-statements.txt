@@ -1,0 +1,18 @@
+==================
+Character say with attributes and narrator say
+==================
+label start:
+    eileen happy "Hello there!"
+    "The room is quiet."
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      character: (identifier)
+      attributes: (identifier)
+      text: (string))
+    (say_statement
+      text: (string))))

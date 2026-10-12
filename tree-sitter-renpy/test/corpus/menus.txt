@@ -1,0 +1,20 @@
+==================
+Menu with two choices and a condition
+==================
+menu:
+    "Go left":
+        jump left_path
+    "Go right" if has_key:
+        jump right_path
+
+---
+
+(source_file
+  (menu_statement
+    (menu_choice
+      text: (string)
+      (jump_statement target: (identifier)))
+    (menu_choice
+      text: (string)
+      condition: (expression)
+      (jump_statement target: (identifier)))))

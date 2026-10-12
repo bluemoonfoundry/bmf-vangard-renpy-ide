@@ -38,6 +38,7 @@
     "gate": "npm run gate:checks && npm run test:e2e",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "build:grammar": "cd tree-sitter-renpy && npm install && npm run build",
     "release:patch": "npm run version:patch && npm run build",
     "release:minor": "npm run version:minor && npm run build",
     "release:major": "npm run version:major && npm run build"
@@ -62,7 +63,8 @@
     "sharp": "^0.35.5",
     "use-immer": "^0.10.0",
     "vscode-oniguruma": "^2.0.1",
-    "vscode-textmate": "^9.3.2"
+    "vscode-textmate": "^9.3.2",
+    "web-tree-sitter": "^0.24.7"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",

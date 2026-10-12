@@ -1,0 +1,106 @@
+==================
+Screen with nested if and vbox/button widgets
+==================
+screen main_menu():
+    vbox:
+        text "Welcome"
+        if persistent.unlocked:
+            button:
+                action Start()
+                text "Play"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        (screen_language_statement
+          widget_tag: (identifier)
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression)))
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression))))))))
+
+==================================================================
+C2: screen-language if/elif/else chain (regression guard)
+==================================================================
+screen hud():
+    if health > 50:
+        text "OK"
+    elif health > 10:
+        text "Hurt"
+    else:
+        text "Dying"
+
+label after:
+    return
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property name: (identifier) value: (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property name: (identifier) value: (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression)))))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================================================================
+C3: screen property that is a single bare identifier
+==================================================================
+screen menu_frame():
+    use other_screen
+    add some_displayable
+    style_prefix some_prefix
+    if unlocked:
+        text some_var
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))))

@@ -1,0 +1,68 @@
+==================
+Nested indentation with dedent to outer scope
+==================
+# top level
+# nested
+# nested twice
+# back to nested
+# back to top
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (comment))
+
+==================
+Multi-level dedent in a single logical newline
+==================
+label a:
+    if x:
+        jump y
+jump z
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (jump_statement target: (identifier))))
+  (jump_statement target: (identifier)))
+
+==================
+Comment at an unusual column inside a block is not indentation-significant
+==================
+label a:
+    jump x
+# stray comment flush against column zero, still inside the block
+    jump y
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement target: (identifier))
+    (comment)
+    (jump_statement target: (identifier))))
+
+==================================================================
+C4: a bracket-led line at column 0 is not swallowed into the previous block
+==================================================================
+label s:
+    return
+
+(1)
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (return_statement))
+  (expression_statement (expression)))
