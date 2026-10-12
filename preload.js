@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
   fileExists: (filePath) => ipcRenderer.invoke('fs:fileExists', filePath),
   writeFile: (filePath, content, encoding) => ipcRenderer.invoke('fs:writeFile', filePath, content, encoding),
+  saveFiles: (files) => ipcRenderer.invoke('project:saveFiles', files),
+  recovery: {
+    write: (sessionId, payload) => ipcRenderer.invoke('recovery:write', sessionId, payload),
+    clear: (sessionId) => ipcRenderer.invoke('recovery:clear', sessionId),
+    listPending: (sessionId) => ipcRenderer.invoke('recovery:listPending', sessionId),
+    discardPending: (sessionId, targetSessionId) => ipcRenderer.invoke('recovery:discardPending', sessionId, targetSessionId),
+  },
   createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
   removeEntry: (entryPath) => ipcRenderer.invoke('fs:removeEntry', entryPath),
   moveFile: (oldPath, newPath) => ipcRenderer.invoke('fs:moveFile', oldPath, newPath),

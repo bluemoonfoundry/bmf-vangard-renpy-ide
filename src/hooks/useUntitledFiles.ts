@@ -35,6 +35,8 @@ export interface UseUntitledFilesReturn {
   untitledFiles: Map<string, UntitledFileState>;
   untitledFilesRef: React.MutableRefObject<Map<string, UntitledFileState>>;
   createUntitledFile: () => void;
+  /** Opens an already-dirty draft with the given content (crash recovery). Returns the new tab id. */
+  createRecoveredUntitledFile: (title: string, content: string) => string;
   updateUntitledContent: (tabId: string, content: string) => void;
   setUntitledDirty: (tabId: string, isDirty: boolean) => void;
   /** Saves the draft via a native Save dialog. Resolves true once written and the tab converted/closed, false if the dialog was canceled or the write failed (tab stays open and dirty). */
@@ -96,6 +98,21 @@ export function useUntitledFiles({
       setActiveTabId(tabId);
     }
   }, [projectRootPath, addToast, activePaneId, splitLayout, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId]);
+
+  // Used by crash recovery: opens a draft that is already dirty (its content
+  // exists nowhere on disk) in the primary pane, without stealing focus from
+  // the tab the user restored into.
+  const createRecoveredUntitledFile = useCallback((title: string, content: string) => {
+    counterRef.current += 1;
+    const tabId = `untitled-${Date.now()}-${counterRef.current}`;
+    setUntitledFiles(prev => {
+      const next = new Map(prev);
+      next.set(tabId, { title, content, isDirty: true });
+      return next;
+    });
+    setOpenTabs(prev => [...prev, { id: tabId, type: 'untitled', title }]);
+    return tabId;
+  }, [setOpenTabs]);
 
   const updateUntitledContent = useCallback((tabId: string, content: string) => {
     setUntitledFiles(prev => {
@@ -227,5 +244,5 @@ export function useUntitledFiles({
     return true;
   }, [untitledFiles, projectRootPath, blocks, addBlock, updateBlock, addToast, setFileSystemTree, setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId, setActivePaneId, setSplitLayout, discardUntitledFile, poppedOutTabs, setPoppedOutTabs]);
 
-  return { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile };
+  return { untitledFiles, untitledFilesRef, createUntitledFile, createRecoveredUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile };
 }

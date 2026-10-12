@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useProjectLoad, hydrateFromProjectData } from '@/hooks/useProjectLoad';
+import { useProjectLoad, hydrateFromProjectData, hydrateSettingsFromSnapshot } from '@/hooks/useProjectLoad';
 import { installElectronAPI, uninstallElectronAPI } from '@/test/mocks/electronAPI';
 import { createBlock, createNotecard, createNotecardLink } from '@/test/mocks/sampleData';
 import type { ProjectSnapshot, HydrateSetters } from '@/hooks/useProjectLoad';
 import type { EditorTab } from '@/types';
+import { createDefaultProjectSettingsMeta } from '@/lib/projectSerializer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,6 +17,7 @@ function createMinimalSnapshot(overrides: Partial<ProjectSnapshot> = {}): Projec
     tree: { name: 'game', path: '/project/game', children: [] },
     blocks: [],
     defaultScriptBlock: null,
+    settingsMeta: createDefaultProjectSettingsMeta(),
     images: new Map(),
     audios: new Map(),
     imageScanPaths: [],
@@ -67,6 +69,7 @@ function createMockHydrateSetters(): HydrateSetters {
     pendingStoryLayoutRefreshRef: { current: null },
     pendingRouteLayoutRefreshRef: { current: null },
     pendingAutoCenterRef: { current: { story: false, route: false, choice: false } },
+    projectSettingsMetaRef: { current: createDefaultProjectSettingsMeta() },
     setProjectRootPath: vi.fn(),
     setFileSystemTree: vi.fn(),
     updateProjectSettings: vi.fn(),
@@ -120,6 +123,31 @@ describe('hydrateFromProjectData', () => {
     const setters = createMockHydrateSetters();
     hydrateFromProjectData(snapshot, setters);
     expect(setters.setProjectRootPath).toHaveBeenCalledWith('/my/project');
+  });
+
+  it('hydrateSettingsFromSnapshot applies settings-derived state only', () => {
+    const notes = [{ id: 'n1' }] as never;
+    const snapshot = createMinimalSnapshot({ stickyNotes: notes, rootPath: '/other' });
+    const setters = createMockHydrateSetters();
+    hydrateSettingsFromSnapshot(snapshot, setters);
+    expect(setters.setStickyNotes).toHaveBeenCalledWith(notes);
+    expect(setters.projectSettingsMetaRef.current).toBe(snapshot.settingsMeta);
+    expect(setters.updateProjectSettings).toHaveBeenCalled();
+    expect(setters.setTabs).toHaveBeenCalledWith(snapshot.primaryTabs, snapshot.primaryActiveTabId, 'primary');
+    // never touches project identity, files or assets
+    expect(setters.setProjectRootPath).not.toHaveBeenCalled();
+    expect(setters.setBlocks).not.toHaveBeenCalled();
+    expect(setters.setImages).not.toHaveBeenCalled();
+    expect(setters.setAudios).not.toHaveBeenCalled();
+    expect(setters.setFileSystemTree).not.toHaveBeenCalled();
+  });
+
+  it('stores snapshot.settingsMeta in projectSettingsMetaRef for the next save', () => {
+    const settingsMeta = { ...createDefaultProjectSettingsMeta(), loadedVersion: 0, unknownFields: { extra: 1 } };
+    const snapshot = createMinimalSnapshot({ settingsMeta });
+    const setters = createMockHydrateSetters();
+    hydrateFromProjectData(snapshot, setters);
+    expect(setters.projectSettingsMetaRef.current).toBe(settingsMeta);
   });
 
   it('calls setBlocks with snapshot.blocks', () => {
@@ -284,9 +312,64 @@ describe('useProjectLoad', () => {
       hydrateSetters: createMockHydrateSetters(),
       poppedOutTabs: new Map(),
       setPoppedOutTabs: vi.fn(),
+      recoverySessionIdRef: { current: null as string | null },
+      setPendingRecovery: vi.fn(),
+      setRecoveryResolved: vi.fn(),
       ...overrides,
     };
   }
+
+  const loadResult = {
+    rootPath: '/project', files: [], images: [], audios: [],
+    tree: { name: 'game', path: '', children: [] }, settings: null,
+  } as unknown as Parameters<typeof api.loadProject.mockResolvedValue>[0];
+
+  it('starts a new recovery session and opens the dialog when a snapshot is pending', async () => {
+    const params = makeParams();
+    const pending = { sessionId: 'old', files: [], untitled: [{ id: 'u', title: 'U', content: 'x' }], settings: null, settingsStatus: null, projectRoot: '/project', updatedAt: '' };
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockResolvedValue(pending);
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+
+    const sessionId = params.recoverySessionIdRef.current;
+    expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(api.recovery.listPending).toHaveBeenCalledWith(sessionId);
+    expect(params.setRecoveryResolved).toHaveBeenCalledWith(false);
+    expect(params.setPendingRecovery).toHaveBeenCalledWith(pending);
+    expect(params.setRecoveryResolved).not.toHaveBeenCalledWith(true);
+  });
+
+  it('marks recovery resolved when nothing is pending', async () => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockResolvedValue(null);
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+    expect(params.setRecoveryResolved).toHaveBeenLastCalledWith(true);
+    expect(params.setPendingRecovery).not.toHaveBeenCalledWith(expect.objectContaining({ sessionId: expect.any(String) }));
+  });
+
+  it("leaves the open project's recovery session and autosave untouched when a load fails", async () => {
+    const params = makeParams({ recoverySessionIdRef: { current: '11111111-1111-4111-8111-111111111111' } });
+    api.loadProject.mockRejectedValue(new Error('EACCES'));
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/other'); });
+    expect(params.recoverySessionIdRef.current).toBe('11111111-1111-4111-8111-111111111111');
+    expect(params.setRecoveryResolved).not.toHaveBeenCalled();
+    expect(params.setPendingRecovery).not.toHaveBeenCalled();
+    expect(api.recovery.listPending).not.toHaveBeenCalled();
+  });
+
+  it('never blocks loading when listPending fails', async () => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue(loadResult);
+    api.recovery.listPending.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => { await result.current.loadProject('/project'); });
+    expect(params.setRecoveryResolved).toHaveBeenLastCalledWith(true);
+    expect(params.addToast).toHaveBeenCalledWith('Project loaded successfully', 'success');
+  });
 
   it('returns a loadProject function', () => {
     const { result } = renderHook(() => useProjectLoad(makeParams()));
@@ -314,6 +397,30 @@ describe('useProjectLoad', () => {
       expect.stringContaining('Project settings could not be read'),
       'warning',
     );
+  });
+
+  it.each([
+    [{ status: 'rolled-forward', files: ['game/a.rpy', 'game/b.rpy'] }, /was completed \(2 files\)/, 'info'],
+    [{ status: 'rolled-back', files: ['game/a.rpy'] }, /was discarded; 1 file kept/, 'warning'],
+    [{ status: 'failed', files: [], error: 'checksum mismatch' }, /could not be recovered: checksum mismatch/, 'error'],
+  ])('toasts the outcome of an interrupted-save recovery (%o)', async (saveRecovery, message, level) => {
+    const params = makeParams();
+    api.loadProject.mockResolvedValue({
+      rootPath: '/project',
+      files: [],
+      images: [],
+      audios: [],
+      tree: { name: 'game', path: '', children: [] },
+      settings: null,
+      saveRecovery,
+    } as unknown as Parameters<typeof api.loadProject.mockResolvedValue>[0]);
+
+    const { result } = renderHook(() => useProjectLoad(params));
+    await act(async () => {
+      await result.current.loadProject('/project');
+    });
+
+    expect(params.addToast).toHaveBeenCalledWith(expect.stringMatching(message), level);
   });
 
   it('calls setIsLoading(true) at start of load', async () => {

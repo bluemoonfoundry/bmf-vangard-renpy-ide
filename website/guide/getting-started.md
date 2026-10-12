@@ -133,8 +133,27 @@ canvas positions, sticky notes, compositions, and other IDE-specific project met
 a `.vangard/snippets.json` file for project-specific code snippets. These files are safe to
 commit to version control -- they contain only JSON with stable, mergeable keys.
 Alternatively, add them to your `.gitignore` if you prefer each team member to maintain
-their own canvas layout. (A `.renide/` directory is also created, but only holds
-diagnostics/canvas screenshots.)
+their own canvas layout. (A `.renide/` directory is also created. It holds
+diagnostics/canvas screenshots and, briefly, a journal that keeps Save All safe. You don't
+need to commit it.)
+
+### If Vangard Studio Closes Unexpectedly
+
+While you have unsaved changes, Vangard Studio keeps a recovery copy of them every few seconds.
+The copy is stored in the app's data folder, never in your project. If the app crashes or your
+computer loses power, the next time you open the project a **Recover unsaved work** dialog lists
+what it saved:
+
+- Check the items you want and click `Restore selected`. They come back as unsaved changes, and
+  nothing is written to disk until you save.
+- Files that changed on disk after the copy was made are flagged and unchecked, so restoring
+  doesn't silently replace newer work.
+- `Decide later` (or `Escape`) keeps the copy and asks again next time. `Discard…` deletes it.
+
+Save All is also crash-safe. If a save is interrupted, the next time the project opens, the
+save is either completed or rolled back, so you never end up with some files saved and others
+not. See [Troubleshooting](/reference/troubleshooting-faq#saving-and-recovery) for the messages
+you might see.
 
 ## Creating a New Project
 

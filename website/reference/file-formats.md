@@ -9,13 +9,19 @@ Vangard Studio persists project-level state in two locations inside your Ren'Py 
 | `game/project.ide.json` | Single combined file holding all IDE-specific project metadata — canvas state, sticky notes, compositions, tasks, session state. | See field table below. |
 | `.vangard/snippets.json` | Project-specific code snippets. | `version` string plus a `categories` array of `{ name, snippets: [{ title, description, code }] }`. |
 | `.renide/screenshots/` | Saved diagnostics/canvas screenshots. | Not a data file — a directory of image files. |
+| `.renide/save-journal.json` | Write-ahead journal for Save All. Exists only while a save is in progress, or after one was interrupted. | `version`, `txid`, `state` (`staging`/`committed`), `createdAt`, and `entries: [{ target, temp, sha256 }]` with project-relative paths. See [State Persistence § Transactional Save All](../architecture/STATE_PERSISTENCE.md#_6-2-transactional-save-all). |
 
 #### `game/project.ide.json` Key Fields
 
 Written by `handleSaveProjectSettings` in `src/hooks/useProjectIO.ts` on Save All / dirty tab close / app exit; read on project load. The `ProjectSettings` interface (`src/types.ts`) is the source of truth.
 
+The file is versioned. Older files are upgraded in memory when the project opens, and the upgraded version is written by the next save. Top-level keys this version of Vangard Studio doesn't recognise are kept and written back unchanged. A file saved by a newer version is never downgraded. See [State Persistence § Schema Versioning and Migrations](../architecture/STATE_PERSISTENCE.md#_7-schema-versioning-and-migrations).
+
+If the file can't be read as JSON, Vangard Studio copies it to `game/project.ide.json.corrupt-<timestamp>.bak` before opening the project with default settings. The warning toast shows the backup path. The next save overwrites `project.ide.json`, so copy anything you need from the backup first. Ren'Py packages files under `game/` into builds, so delete the backup when you're done, or add `build.classify('**.bak', None)` to `options.rpy`.
+
 | Field | Type | Description |
 |-------|------|-------------|
+| `schemaVersion` | integer | Format version of this file (currently `1`). Absent in files written before versioning, which are treated as version 0. |
 | `draftingMode` | boolean | Whether drafting mode is currently enabled. |
 | `storyCanvasLayoutMode` | string | Layout algorithm for the Project Canvas (`flow-lr`, `flow-td`, `connected-components`, `clustered-flow`). |
 | `storyCanvasGroupingMode` | string | Grouping algorithm for the Project Canvas (`none`, `connected-component`, `filename-prefix`). |
@@ -69,12 +75,16 @@ This is a different shape from `UserSnippet` (used for global snippets in `app-s
 | File | Purpose | Lifecycle |
 |------|---------|-----------|
 | `_ide_after_warp.rpy` | Warp variable overrides. Contains a `label after_warp:` block that sets variable values before warped execution begins. | Created when warping to a label with variable overrides. Automatically deleted when the game process stops. |
+| `.<file>.tmp-<uuid>` | Temp file for a single atomic write, next to its target. | Renamed over the target when the write finishes. Leftovers from a crash are deleted automatically on the next project load. |
+| `.<file>.txn-<id>` | Staged new content of a file during Save All, next to its target. | Renamed over the target when the save finishes. After a crash, the next project load either completes the save or discards these files. Don't delete them while `.renide/save-journal.json` exists: one may be the only copy of what you saved. |
+| `game/project.ide.json.corrupt-<timestamp>.bak` | Copy of an unreadable `project.ide.json`. | Created on project load when the settings file isn't valid JSON. Never deleted automatically. |
 
 ### 10.3 App-Level Files
 
 | File | Location | Purpose |
 |------|----------|---------|
 | `app-settings.json` | Electron `userData` directory | Theme, editor font, sidebar dimensions, Ren'Py SDK path, recent project list, mouse gesture preferences, global user snippets, menu templates. |
+| `recovery/<project id>/session-<id>.json` | Electron `userData` directory | Crash-recovery snapshots of unsaved work, one file per app session per project. Deleted when you save everything or quit normally; otherwise kept for at most 30 days. Safe to delete while Vangard Studio is closed. See [State Persistence § Crash-recovery snapshots](../architecture/STATE_PERSISTENCE.md#_6-4-crash-recovery-snapshots). |
 
 The `userData` directory location varies by platform:
 - **Windows**: `%APPDATA%/vangard-studio/`
@@ -111,7 +121,7 @@ my-project/
       <language>/       # Translation files per language
     project.ide.json    # IDE project metadata (created by Vangard Studio)
   .vangard/              # Project-specific snippets (created by Vangard Studio)
-  .renide/               # Screenshots only (created by Vangard Studio)
+  .renide/               # Screenshots and the Save All journal (created by Vangard Studio)
 ```
 
 All `.rpy` files remain standard Ren'Py files at all times. Deleting `game/project.ide.json`, `.vangard/`, and `.renide/` removes only IDE metadata. Your project works with or without Vangard Studio.

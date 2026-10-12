@@ -8,6 +8,7 @@
 import { useCallback } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { buildSavedStoryBlockLayouts } from '@/lib/storyCanvasLayout';
+import { buildProjectSettingsForSave } from '@/lib/projectSerializer';
 import { logger } from '@/lib/logger';
 import type {
   Block, FileSystemTreeNode, EditorTab, ProjectImage, RenpyAudio,
@@ -15,7 +16,7 @@ import type {
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   Notecard, NotecardLink, NotecardTimelineSettings,
   SerializedSprite, SerializedSceneComposition, SerializedImageMapComposition,
-  Position,
+  Position, ProjectSettingsMeta,
 } from '@/types';
 import type { UntitledFileState } from '@/hooks/useUntitledFiles';
 
@@ -32,6 +33,8 @@ export interface UseProjectIOParams {
   dirtyBlockIdsRef: React.MutableRefObject<Set<string>>;
   dirtyEditorsRef: React.MutableRefObject<Set<string>>;
   editorInstances: React.MutableRefObject<Map<string, monaco.editor.IStandaloneCodeEditor>>;
+  /** Set by hydrateFromProjectData; supplies schemaVersion and unknown fields to preserve on save. */
+  projectSettingsMetaRef: React.MutableRefObject<ProjectSettingsMeta>;
 
   // Project root / file tree
   projectRootPath: string | null;
@@ -120,11 +123,85 @@ export interface UseProjectIOReturn {
   handleSaveAll: () => Promise<boolean>;
   handleReloadFromDisk: (item: { relativePath: string; absolutePath: string }) => Promise<void>;
   handleRefreshProject: () => Promise<void>;
+  /** The exact project.ide.json object a save would write now (also used for crash-recovery snapshots). */
+  buildSettingsForDisk: () => ProjectSettings;
+}
+
+export type ProjectSettingsPayloadSource = Pick<UseProjectIOParams,
+  'projectSettings' | 'blocks' | 'routeNodeLayoutCache' | 'openTabs' | 'activeTabId' | 'splitLayout' | 'splitPrimarySize'
+  | 'secondaryOpenTabs' | 'secondaryActiveTabId' | 'stickyNotes' | 'routeStickyNotes' | 'choiceStickyNotes'
+  | 'notecards' | 'notecardLinks' | 'notecardTimeline' | 'characterProfiles' | 'characterPortraits'
+  | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'dismissedImplicitVarHint'
+  | 'sceneCompositions' | 'sceneNames' | 'imagemapCompositions' | 'imageScanDirectories' | 'audioScanDirectories'>;
+
+/**
+ * The project.ide.json payload for the current in-memory state, before the
+ * schemaVersion/unknown-field wrapping in buildProjectSettingsForSave. Shared
+ * by Save and by crash-recovery snapshots so both always agree on the shape.
+ */
+export function buildProjectSettingsPayload(src: ProjectSettingsPayloadSource): ProjectSettings {
+  // Serialize scenes: map images to just their paths to avoid circular refs and huge files
+  const serializeSprite = (s: SceneSprite): SerializedSprite => ({
+    ...s,
+    image: { filePath: s.image.filePath },
+  });
+
+  const serializableScenes: Record<string, SerializedSceneComposition> = {};
+  Object.entries(src.sceneCompositions).forEach(([id, sc]) => {
+    serializableScenes[id] = {
+      background: sc.background ? serializeSprite(sc.background) : null,
+      sprites: sc.sprites.map(serializeSprite),
+      resolution: sc.resolution,
+      animations: sc.animations,
+    };
+  });
+
+  // Serialize imagemaps: map images to just their paths
+  const serializableImagemaps: Record<string, SerializedImageMapComposition> = {};
+  Object.entries(src.imagemapCompositions).forEach(([id, im]) => {
+    serializableImagemaps[id] = {
+      screenName: im.screenName,
+      groundImage: im.groundImage ? { filePath: im.groundImage.filePath } : null,
+      hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } : null,
+      hotspots: im.hotspots,
+    };
+  });
+
+  return {
+    ...src.projectSettings,
+    storyBlockLayouts: buildSavedStoryBlockLayouts(src.blocks),
+    routeNodeLayouts: Object.fromEntries(
+      Array.from(src.routeNodeLayoutCache.entries()).map(([id, position]) => [id, { position }]),
+    ),
+    openTabs: src.openTabs,
+    activeTabId: src.activeTabId,
+    splitLayout: src.splitLayout,
+    splitPrimarySize: src.splitPrimarySize,
+    secondaryOpenTabs: src.secondaryOpenTabs,
+    secondaryActiveTabId: src.secondaryActiveTabId,
+    stickyNotes: Array.from(src.stickyNotes),
+    routeStickyNotes: Array.from(src.routeStickyNotes),
+    choiceStickyNotes: Array.from(src.choiceStickyNotes),
+    notecards: Array.from(src.notecards),
+    notecardLinks: Array.from(src.notecardLinks),
+    notecardTimeline: src.notecardTimeline,
+    characterProfiles: src.characterProfiles,
+    characterPortraits: src.characterPortraits,
+    punchlistMetadata: src.punchlistMetadata,
+    diagnosticsTasks: src.diagnosticsTasks,
+    ignoredDiagnostics: src.ignoredDiagnostics,
+    dismissedImplicitVariableHint: src.dismissedImplicitVarHint,
+    sceneCompositions: serializableScenes,
+    sceneNames: src.sceneNames,
+    imagemapCompositions: serializableImagemaps,
+    scannedImagePaths: Array.from(src.imageScanDirectories.keys()),
+    scannedAudioPaths: Array.from(src.audioScanDirectories.keys()),
+  };
 }
 
 export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
   const {
-    blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
+    blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances, projectSettingsMetaRef,
     projectRootPath, setFileSystemTree,
     projectSettings,
     blocks, setBlocks,
@@ -142,68 +219,23 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     addToast,
   } = params;
 
+  const buildSettingsForDisk = useCallback((): ProjectSettings => buildProjectSettingsForSave(
+    buildProjectSettingsPayload({
+      projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize,
+      secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes,
+      notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits,
+      punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint,
+      sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories,
+    }),
+    projectSettingsMetaRef.current,
+  ), [projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, projectSettingsMetaRef]);
+
   const handleSaveProjectSettings = useCallback(async () => {
     if (!projectRootPath || !window.electronAPI) return;
     try {
-      // Serialize scenes: map images to just their paths to avoid circular refs and huge files
-      const serializeSprite = (s: SceneSprite): SerializedSprite => ({
-          ...s,
-          image: { filePath: s.image.filePath }
-      });
-
-      const serializableScenes: Record<string, SerializedSceneComposition> = {};
-      Object.entries(sceneCompositions).forEach(([id, sc]) => {
-          serializableScenes[id] = {
-              background: sc.background ? serializeSprite(sc.background) : null,
-              sprites: sc.sprites.map(serializeSprite),
-              resolution: sc.resolution,
-              animations: sc.animations,
-          };
-      });
-
-      // Serialize imagemaps: map images to just their paths
-      const serializableImagemaps: Record<string, SerializedImageMapComposition> = {};
-      Object.entries(imagemapCompositions).forEach(([id, im]) => {
-          serializableImagemaps[id] = {
-              screenName: im.screenName,
-              groundImage: im.groundImage ? { filePath: im.groundImage.filePath } : null,
-              hoverImage: im.hoverImage ? { filePath: im.hoverImage.filePath } : null,
-              hotspots: im.hotspots
-          };
-      });
-
-      const settingsToSave: ProjectSettings = {
-        ...projectSettings,
-        storyBlockLayouts: buildSavedStoryBlockLayouts(blocks),
-        routeNodeLayouts: Object.fromEntries(
-          Array.from(routeNodeLayoutCache.entries()).map(([id, position]) => [id, { position }]),
-        ),
-        openTabs,
-        activeTabId,
-        splitLayout,
-        splitPrimarySize,
-        secondaryOpenTabs,
-        secondaryActiveTabId,
-        stickyNotes: Array.from(stickyNotes),
-        routeStickyNotes: Array.from(routeStickyNotes),
-        choiceStickyNotes: Array.from(choiceStickyNotes),
-        notecards: Array.from(notecards),
-        notecardLinks: Array.from(notecardLinks),
-        notecardTimeline,
-        characterProfiles,
-        characterPortraits,
-        punchlistMetadata,
-        diagnosticsTasks,
-        ignoredDiagnostics,
-        dismissedImplicitVariableHint: dismissedImplicitVarHint,
-        sceneCompositions: serializableScenes,
-        sceneNames,
-        imagemapCompositions: serializableImagemaps,
-        scannedImagePaths: Array.from(imageScanDirectories.keys()),
-        scannedAudioPaths: Array.from(audioScanDirectories.keys()),
-      };
       const settingsPath = await window.electronAPI.path.join(projectRootPath as string, 'game/project.ide.json') as string;
-      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(settingsToSave, null, 2));
+      const fileContents = buildSettingsForDisk();
+      const res = await window.electronAPI.writeFile(settingsPath, JSON.stringify(fileContents, null, 2));
       if (!res.success) throw new Error(res.error || 'Unknown error saving workspace settings');
       setHasUnsavedSettings(false);
       return true;
@@ -212,7 +244,7 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
       addToast(e instanceof Error ? `Failed to save workspace settings: ${e.message}` : 'Failed to save workspace settings', 'error');
       return false;
     }
-  }, [projectRootPath, projectSettings, blocks, routeNodeLayoutCache, openTabs, activeTabId, splitLayout, splitPrimarySize, secondaryOpenTabs, secondaryActiveTabId, stickyNotes, routeStickyNotes, choiceStickyNotes, notecards, notecardLinks, notecardTimeline, characterProfiles, characterPortraits, addToast, sceneCompositions, sceneNames, imagemapCompositions, imageScanDirectories, audioScanDirectories, punchlistMetadata, diagnosticsTasks, ignoredDiagnostics, dismissedImplicitVarHint, setHasUnsavedSettings]);
+  }, [projectRootPath, buildSettingsForDisk, addToast, setHasUnsavedSettings]);
 
   const handleSaveAll = useCallback(async () => {
     const dirtyIds = new Set([...dirtyBlockIds, ...dirtyEditors]);
@@ -265,20 +297,41 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
                return true;
           }
 
+          // Step 1: game sources, as one all-or-nothing transaction. If this
+          // fails no .rpy file on disk changed and everything stays dirty.
+          let sourcesPendingRecovery = false;
           if (window.electronAPI) {
+              const files: { path: string; content: string }[] = [];
               for (const blockId of blocksToSave) {
                   const block = currentBlocks.find(b => b.id === blockId);
                   if (block && block.filePath) {
                       const absPath = await window.electronAPI.path.join(projectRootPath!, block.filePath) as string;
-                      const res = await window.electronAPI.writeFile(absPath, block.content);
-                      if (!res.success) throw new Error(`Failed to save ${block.filePath}: ${(res.error as string) || 'Unknown error'}`);
+                      files.push({ path: absPath, content: block.content });
                   }
               }
-              const settingsSaved = await handleSaveProjectSettings();
-              if (settingsSaved === false) {
-                  throw new Error('Workspace settings failed to save -- see previous toast for details');
+              if (files.length > 0) {
+                  const res = await window.electronAPI.saveFiles(files);
+                  if (!res.success) {
+                      throw new Error(`Failed to save ${files.length} script file(s) -- none were changed on disk: ${res.error || 'Unknown error'}`);
+                  }
+                  sourcesPendingRecovery = res.pendingRecovery === true;
               }
           }
+
+          // The sources are on disk now, so they are clean no matter what
+          // happens to the IDE metadata below. Only the ids that were actually
+          // saved are cleared -- an edit made while saving stays dirty.
+          const withoutSaved = (prev: Set<string>) => {
+              const next = new Set(prev);
+              blocksToSave.forEach(id => next.delete(id));
+              return next;
+          };
+          setDirtyBlockIds(withoutSaved);
+          setDirtyEditors(withoutSaved);
+
+          // Step 2: IDE metadata (project.ide.json), separately. A failure here
+          // keeps the settings dirty but must not be reported as a source failure.
+          const settingsSaved = window.electronAPI ? await handleSaveProjectSettings() : true;
 
           const dirtyUntitledIds = [...openTabs, ...secondaryOpenTabs]
             .filter(t => t.type === 'untitled' && untitledFiles.get(t.id)?.isDirty)
@@ -289,10 +342,18 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
             if (!saved) untitledSaveFailed = true;
           }
 
-          setDirtyBlockIds(new Set());
-          setDirtyEditors(new Set());
-          setSaveStatus('saved');
           notifyFirstSave();
+          if (!settingsSaved) {
+              // handleSaveProjectSettings already toasted the underlying error.
+              setSaveStatus('error');
+              addToast('Script files were saved, but workspace settings were not', 'warning');
+              return false;
+          }
+          setSaveStatus('saved');
+          if (sourcesPendingRecovery) {
+            addToast('Saved, but some files are still being finalized -- they will be completed automatically on the next save or project load', 'warning');
+            return true;
+          }
           if (untitledSaveFailed) {
             addToast('Some changes saved — one or more untitled files were not saved', 'warning');
             return false;
@@ -492,5 +553,6 @@ export function useProjectIO(params: UseProjectIOParams): UseProjectIOReturn {
     handleSaveAll,
     handleReloadFromDisk,
     handleRefreshProject,
+    buildSettingsForDisk,
   };
 }

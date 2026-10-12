@@ -7,7 +7,7 @@ import type {
   AppSettings, PersistedProjectSettings, ProjectSettings, SceneComposition, ImageMapComposition,
   PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule, StickyNote,
   Notecard, NotecardLink, NotecardTimelineSettings,
-  ProjectSnapshot,
+  ProjectSnapshot, ProjectSettingsMeta, PendingRecovery,
 } from '@/types';
 
 // Re-export from types so importers don't need a second import path.
@@ -21,6 +21,8 @@ export interface HydrateSetters {
   pendingStoryLayoutRefreshRef: React.MutableRefObject<import('@/types').PendingStoryLayoutRefresh | null>;
   pendingRouteLayoutRefreshRef: React.MutableRefObject<import('@/types').PendingRouteLayoutRefresh | null>;
   pendingAutoCenterRef: React.MutableRefObject<{ story: boolean; route: boolean; choice: boolean }>;
+  /** Schema/unknown-field bookkeeping for project.ide.json, read back by useProjectIO on save. */
+  projectSettingsMetaRef: React.MutableRefObject<ProjectSettingsMeta>;
   setProjectRootPath: React.Dispatch<React.SetStateAction<string | null>>;
   setFileSystemTree: React.Dispatch<React.SetStateAction<FileSystemTreeNode | null>>;
   updateProjectSettings: (updater: (draft: ProjectSettingsSlice) => void) => void;
@@ -64,36 +66,23 @@ export interface HydrateSetters {
 }
 
 /**
- * Applies a `ProjectSnapshot` to React state. Exported so tests can call it
- * directly with mock setters — no IPC or React hooks required.
+ * Applies the project.ide.json-derived parts of a snapshot (workspace state) without
+ * touching project identity, blocks, assets or scans. Used by hydrateFromProjectData
+ * and by crash recovery's "restore workspace changes".
  */
-export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
+export function hydrateSettingsFromSnapshot(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
   const {
-    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
-    setProjectRootPath, setFileSystemTree, updateProjectSettings, setBlocks,
-    setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
-    setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+    projectSettingsMetaRef, updateProjectSettings,
     setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
     setCharacterProfiles, setCharacterPortraits,
     setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
     setSceneCompositions, setSceneNames, setImagemapCompositions,
     setRouteNodeLayoutCache,
-    setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
-    setSplitLayout, setSplitPrimarySize, setTabs,
-    perfRecorders,
+    setSecondaryOpenTabs, setSecondaryActiveTabId, setSplitLayout, setSplitPrimarySize, setTabs,
   } = setters;
 
-  setProjectRootPath(snapshot.rootPath);
-  setFileSystemTree(snapshot.tree);
-  setBlocks(snapshot.blocks);
-
-  pendingStoryLayoutRefreshRef.current = snapshot.pendingStoryLayoutRefresh;
-  pendingRouteLayoutRefreshRef.current = snapshot.pendingRouteLayoutRefresh;
-  pendingAutoCenterRef.current = { story: true, route: true, choice: true };
-
+  projectSettingsMetaRef.current = snapshot.settingsMeta;
   setRouteNodeLayoutCache(snapshot.routeNodeLayoutCache);
-  setImages(snapshot.images);
-  setAudios(snapshot.audios);
 
   updateProjectSettings(draft => {
     const cs = snapshot.canvasSettings;
@@ -136,6 +125,34 @@ export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: Hydra
   setSplitPrimarySize(snapshot.splitPrimarySize);
   setSecondaryOpenTabs(snapshot.secondaryTabs);
   setSecondaryActiveTabId(snapshot.secondaryActiveTabId);
+}
+
+/**
+ * Applies a `ProjectSnapshot` to React state. Exported so tests can call it
+ * directly with mock setters — no IPC or React hooks required.
+ */
+export function hydrateFromProjectData(snapshot: ProjectSnapshot, setters: HydrateSetters): void {
+  const {
+    pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
+    setProjectRootPath, setFileSystemTree, setBlocks,
+    setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
+    setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+    setOpenTabs, setActiveTabId,
+    perfRecorders,
+  } = setters;
+
+  setProjectRootPath(snapshot.rootPath);
+  setFileSystemTree(snapshot.tree);
+  setBlocks(snapshot.blocks);
+
+  pendingStoryLayoutRefreshRef.current = snapshot.pendingStoryLayoutRefresh;
+  pendingRouteLayoutRefreshRef.current = snapshot.pendingRouteLayoutRefresh;
+  pendingAutoCenterRef.current = { story: true, route: true, choice: true };
+
+  setImages(snapshot.images);
+  setAudios(snapshot.audios);
+
+  hydrateSettingsFromSnapshot(snapshot, setters);
 
   // Trigger asset directory scans (side effect — kept here rather than in loadProject
   // because it needs setImages/setAudios to update state incrementally as results arrive).
@@ -254,6 +271,12 @@ export interface UseProjectLoadParams {
 
   // All hydration setters (passed through to hydrateFromProjectData)
   hydrateSetters: HydrateSetters;
+
+  // Crash recovery (b70a.2.3): a fresh session id per project open; a pending snapshot
+  // opens RecoveryModal; autosave is enabled only once recovery is resolved.
+  recoverySessionIdRef: React.MutableRefObject<string | null>;
+  setPendingRecovery: (pending: PendingRecovery | null) => void;
+  setRecoveryResolved: (resolved: boolean) => void;
 }
 
 export interface UseProjectLoadReturn {
@@ -269,6 +292,7 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     perfRecorders, addToast,
     hydrateSetters,
     poppedOutTabs, setPoppedOutTabs,
+    recoverySessionIdRef, setPendingRecovery, setRecoveryResolved,
   } = params;
 
   const loadProject = useCallback(async (path: string) => {
@@ -297,8 +321,32 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
       if (loadCancelRef.current) return;
 
+      // Only now is a different project actually replacing the open one: a failed
+      // or cancelled load must leave the current project's autosave session alone.
+      setRecoveryResolved(false);
+      setPendingRecovery(null);
+      recoverySessionIdRef.current = crypto.randomUUID();
+
+      const recovery = projectData.saveRecovery;
+      if (recovery) {
+        const count = `${recovery.files.length} file${recovery.files.length === 1 ? '' : 's'}`;
+        if (recovery.status === 'rolled-forward') {
+          addToast(`An interrupted save from last session was completed (${count}).`, 'info');
+        } else if (recovery.status === 'rolled-back') {
+          addToast(`An interrupted save from last session was discarded; ${count} kept their previous saved content.`, 'warning');
+        } else {
+          addToast(`An interrupted save from last session could not be recovered: ${recovery.error ?? 'unknown error'}. Saving is blocked until .renide/save-journal.json is resolved.`, 'error');
+        }
+      }
+
       if (projectData.settingsWarning) {
-        addToast('Project settings could not be read — using defaults', 'warning');
+        const backupPath = projectData.settingsWarning.backupPath;
+        addToast(
+          backupPath
+            ? `Project settings could not be read — using defaults. The unreadable file was backed up to ${backupPath}`
+            : 'Project settings could not be read — using defaults',
+          'warning',
+        );
       }
 
       setLoadingProgress(93);
@@ -306,6 +354,12 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
 
       // Phase 1: pure deserialization — no React state touched
       const snapshot = deserializeProjectData(projectData, blocksRef.current);
+      if (snapshot.settingsMeta.newerThanSupported) {
+        addToast(
+          'This project was saved by a newer version of Vangard Studio. Settings this version does not recognise will be kept, but may not take effect.',
+          'warning',
+        );
+      }
 
       // Write default script.rpy when the project was empty
       if (snapshot.defaultScriptBlock && window.electronAPI?.writeFile) {
@@ -337,6 +391,16 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
       setHasUnsavedSettings(false);
       perfRecorders.recordLoad(performance.now() - loadStartTime);
       addToast('Project loaded successfully', 'success');
+
+      try {
+        const pending = await window.electronAPI?.recovery?.listPending(recoverySessionIdRef.current!);
+        if (loadCancelRef.current) return;
+        if (pending) setPendingRecovery(pending);
+        else setRecoveryResolved(true);
+      } catch (err) {
+        logger.warn('Could not check for recoverable unsaved work', err);
+        setRecoveryResolved(true);
+      }
     } catch (err) {
       if (loadCancelRef.current) return;
       logger.error('Failed to load project', err);
@@ -353,6 +417,7 @@ export function useProjectLoad(params: UseProjectLoadParams): UseProjectLoadRetu
     updateAppSettings, setHasUnsavedSettings, setIsInitialAnalysisPending,
     perfRecorders, addToast,
     poppedOutTabs, setPoppedOutTabs,
+    recoverySessionIdRef, setPendingRecovery, setRecoveryResolved,
   ]);
 
   return { loadProject };

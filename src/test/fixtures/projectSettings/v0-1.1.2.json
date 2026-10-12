@@ -1,0 +1,44 @@
+{
+  "draftingMode": false,
+  "storyCanvasLayoutMode": "flow-lr",
+  "storyCanvasGroupingMode": "none",
+  "storyCanvasLayoutFingerprint": "abc123",
+  "storyCanvasLayoutVersion": 3,
+  "storyCanvasLayoutWasUserAdjusted": true,
+  "storyBlockLayouts": {
+    "game/script.rpy": { "position": { "x": 100, "y": 200 }, "width": 320, "height": 200 },
+    "game/chapters/第一章.rpy": { "position": { "x": 500, "y": 200 }, "width": 320, "height": 200 }
+  },
+  "routeNodeLayouts": { "label:start": { "position": { "x": 0, "y": 0 } } },
+  "openTabs": [
+    { "id": "canvas", "type": "canvas" },
+    { "id": "diagnostics", "type": "diagnostics" }
+  ],
+  "activeTabId": "diagnostics",
+  "splitLayout": "none",
+  "splitPrimarySize": 600,
+  "secondaryOpenTabs": [],
+  "secondaryActiveTabId": "",
+  "stickyNotes": [],
+  "routeStickyNotes": [],
+  "choiceStickyNotes": [],
+  "notecards": [],
+  "notecardLinks": [],
+  "notecardTimeline": { "slotLabels": {} },
+  "characterProfiles": { "e": "Protagonist" },
+  "characterPortraits": {},
+  "punchlistMetadata": {},
+  "diagnosticsTasks": [
+    { "id": "task-1", "title": "Fix missing image", "status": "open", "createdAt": 1760000000000 }
+  ],
+  "ignoredDiagnostics": [],
+  "dismissedImplicitVariableHint": true,
+  "sceneCompositions": {
+    "scene-1": { "background": null, "sprites": [], "resolution": { "width": 1920, "height": 1080 } }
+  },
+  "sceneNames": { "scene-1": "Classroom" },
+  "imagemapCompositions": {},
+  "scannedImagePaths": ["D:\\Art\\Ren'Py Assets"],
+  "scannedAudioPaths": [],
+  "completedMilestones": ["first-save"]
+}

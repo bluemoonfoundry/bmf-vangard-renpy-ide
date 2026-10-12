@@ -92,6 +92,18 @@ describe('useUntitledFiles — createUntitledFile', () => {
   });
 });
 
+describe('useUntitledFiles — createRecoveredUntitledFile', () => {
+  it('opens a dirty draft with the given title and content', () => {
+    const setOpenTabs = vi.fn();
+    const { result } = renderHook(() => useUntitledFiles(makeProps({ setOpenTabs })));
+    let tabId = '';
+    act(() => { tabId = result.current.createRecoveredUntitledFile('script.rpy (recovered)', 'label start:\n'); });
+    expect(result.current.untitledFiles.get(tabId)).toEqual({ title: 'script.rpy (recovered)', content: 'label start:\n', isDirty: true });
+    const updater = setOpenTabs.mock.calls.at(-1)![0] as (t: EditorTab[]) => EditorTab[];
+    expect(updater([])).toEqual([{ id: tabId, type: 'untitled', title: 'script.rpy (recovered)' }]);
+  });
+});
+
 describe('useUntitledFiles — updateUntitledContent / setUntitledDirty', () => {
   it('updates content without touching isDirty', () => {
     const setOpenTabs = vi.fn();

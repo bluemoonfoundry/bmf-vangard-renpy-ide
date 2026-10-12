@@ -40,6 +40,8 @@ import { validateProjectPath, validateExternalUrl, canonicalize } from './src/li
 import { scanDirectoryForAssets, pathToMediaUrl } from './src/lib/assetScanner.js';
 import { searchInDirectory } from './src/lib/projectSearch.js';
 import { atomicWriteFile, cleanupStaleTempFiles } from './src/lib/atomicFileWrite.js';
+import { commitSaveTransaction, recoverSaveTransaction } from './src/lib/saveTransaction.js';
+import { writeSnapshot, clearSnapshot, listPending, discardPending, sweepExpired, createSessionRegistry } from './src/lib/recoveryStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,6 +204,24 @@ function closeAllPopoutWindows() {
 // --- Project Root Tracking (for screenshots and other features) ---
 let currentProjectRoot = null;
 
+// Crash-recovery snapshots (see src/lib/recoveryStore.js). RENIDE_RECOVERY_DIR is a
+// test-only override so E2E runs never touch the developer's real userData.
+const recoveryDir = process.env.RENIDE_RECOVERY_DIR || path.join(app.getPath('userData'), 'recovery');
+// The renderer session for the open project; its file is deleted on intentional quit.
+let currentRecoverySessionId = null;
+// sessionId -> the project root it was opened for (see createSessionRegistry).
+const recoverySessions = createSessionRegistry();
+
+async function clearCurrentRecoverySession() {
+    if (!currentRecoverySessionId) return;
+    try {
+        const projectRoot = recoverySessions.rootFor(currentRecoverySessionId);
+        await clearSnapshot({ recoveryDir, projectRoot, sessionId: currentRecoverySessionId });
+    } catch (err) {
+        logger.warn('Failed to clear recovery snapshot on quit:', err);
+    }
+}
+
 /**
  * Throws ACCESS_DENIED if filePath is not within the current project root.
  * Applied to all fs:* IPC handlers to prevent renderer-side path traversal.
@@ -278,6 +298,11 @@ const recentSelfWrites = new Map(); // normalizedAbsPath -> write timestamp ms
 const watchDebounceTimers = new Map(); // normalizedAbsPath -> timeout id
 const SELF_WRITE_SUPPRESS_MS = 3000;
 const WATCH_DEBOUNCE_MS = 400;
+
+/** Records that the app itself is about to write filePath, so the watcher ignores the change. */
+function markSelfWrite(filePath) {
+    recentSelfWrites.set(path.normalize(filePath).replace(/\\/g, '/'), Date.now());
+}
 
 function startProjectWatcher(rootPath) {
     if (projectWatcher) {
@@ -589,7 +614,13 @@ async function run() {
     const settingsPath = path.join(rootPath, 'game', 'project.ide.json');
     try {
         const settingsContent = await fs.readFile(settingsPath, 'utf-8');
-        results.settings = JSON.parse(settingsContent);
+        const parsed = JSON.parse(settingsContent);
+        // Valid JSON that isn't an object (null, an array, a bare string...) is
+        // just as unusable as a syntax error -- treat it the same way.
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            throw new SyntaxError('project.ide.json does not contain a JSON object');
+        }
+        results.settings = parsed;
     } catch (err) {
         results.settings = {};
         // ENOENT (no settings file yet) is expected and stays silent; anything
@@ -600,6 +631,20 @@ async function run() {
                 : (err.code === 'EACCES' || err.code === 'EPERM') ? 'permission-denied'
                 : 'unknown';
             results.settingsWarning = { code: category, message: err.message };
+            // The next save rewrites project.ide.json from defaults, so keep a
+            // copy of the unreadable file first. Only the settings file is
+            // touched here -- .rpy sources were already read above and are
+            // never written by the load path.
+            if (category === 'corrupted') {
+                const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupPath = settingsPath + '.corrupt-' + stamp + '.bak';
+                try {
+                    await fs.copyFile(settingsPath, backupPath);
+                    results.settingsWarning.backupPath = backupPath;
+                } catch (backupErr) {
+                    results.settingsWarning.message += ' (backup failed: ' + backupErr.message + ')';
+                }
+            }
         }
     }
 
@@ -1177,6 +1222,7 @@ function applyContentSecurityPolicy(session) {
 }
 
 app.whenReady().then(async () => {
+  sweepExpired({ recoveryDir }).catch(err => logger.warn('Recovery snapshot expiry sweep failed:', err));
   // Trust the --project CLI flag as a vetted root up front (see
   // vettedProjectRoots above) -- it's process.argv, not renderer input.
   await vetProjectRoot(startupProjectPath);
@@ -1511,6 +1557,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:load', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
     currentProjectRoot = rootPath; // Track for screenshots
+    // Finish or undo a Save All that was interrupted last session *before*
+    // reading anything, so the files loaded below are a consistent set.
+    const saveRecovery = await recoverSaveTransaction(rootPath, { beforeRename: markSelfWrite });
+    if (saveRecovery.status === 'failed') {
+      logger.error('Interrupted save could not be recovered:', saveRecovery.error);
+    } else if (saveRecovery.status !== 'none') {
+      logger.info(`Interrupted save ${saveRecovery.status}: ${saveRecovery.files.join(', ')}`);
+    }
     // Best-effort: remove any atomic-write temp files stranded by a previous
     // crashed/killed session. The files they were meant to replace were never
     // touched (see atomicWriteFile), so this is pure tidy-up, not recovery.
@@ -1520,6 +1574,7 @@ app.whenReady().then(async () => {
         event.sender.send('project:load-progress', value, message);
       }
     });
+    if (saveRecovery.status !== 'none') result.saveRecovery = saveRecovery;
     // Surface the project in the macOS Dock's "Recent" menu / Windows taskbar Jump List
     app.addRecentDocument(rootPath);
     // Start watching the project for external file changes
@@ -1536,6 +1591,70 @@ app.whenReady().then(async () => {
   ipcMain.handle('project:refresh', async (event, rootPath) => {
     await guardVettedProjectRoot(rootPath);
     return await readProjectFiles(rootPath, { readContent: true });
+  });
+
+  // Writes a batch of project files as one all-or-nothing transaction (see
+  // src/lib/saveTransaction.js). Used by Save All for .rpy sources; the
+  // transaction is always rooted at the open project, never a renderer-supplied root.
+  ipcMain.handle('project:saveFiles', async (event, files) => {
+    try {
+      if (!currentProjectRoot) throw new Error('No project is open');
+      if (!Array.isArray(files)) throw new Error('Expected an array of files');
+      for (const f of files) {
+        if (!f || typeof f.path !== 'string' || typeof f.content !== 'string') {
+          throw new Error('Each file needs a string path and content');
+        }
+        await guardProjectPath(f.path);
+      }
+      const result = await commitSaveTransaction(
+        currentProjectRoot,
+        files.map(f => ({ path: f.path, content: f.content, encoding: 'utf-8' })),
+        { beforeRename: markSelfWrite },
+      );
+      return { success: true, pendingRecovery: result.pendingRecovery, files: result.files };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:write', async (event, sessionId, payload) => {
+    try {
+      const projectRoot = recoverySessions.rootFor(sessionId);
+      return await writeSnapshot({ recoveryDir, projectRoot, sessionId, payload });
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:clear', async (event, sessionId) => {
+    try {
+      await clearSnapshot({ recoveryDir, projectRoot: recoverySessions.rootFor(sessionId), sessionId });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('recovery:listPending', async (event, sessionId) => {
+    if (!currentProjectRoot) return null;
+    try {
+      // Called once per project open, right after project:load: bind the session.
+      recoverySessions.bind(sessionId, currentProjectRoot);
+      currentRecoverySessionId = sessionId;
+      return await listPending({ recoveryDir, projectRoot: currentProjectRoot, sessionId });
+    } catch (error) {
+      logger.warn('Failed to list pending recovery snapshots:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('recovery:discardPending', async (event, sessionId, targetSessionId) => {
+    try {
+      await discardPending({ recoveryDir, projectRoot: recoverySessions.rootFor(sessionId), sessionId, targetSessionId });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   });
 
   ipcMain.handle('fs:writeFile', async (event, filePath, content, encoding) => {
@@ -1754,12 +1873,12 @@ app.whenReady().then(async () => {
 
   ipcMain.on('ide-state-saved-for-quit', () => {
     forceQuit = true;
-    app.quit();
+    clearCurrentRecoverySession().finally(() => app.quit());
   });
 
   ipcMain.on('force-quit', () => {
     forceQuit = true;
-    app.quit();
+    clearCurrentRecoverySession().finally(() => app.quit());
   });
 
   // --- Detachable tab windows ---

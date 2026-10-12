@@ -1221,6 +1221,12 @@ export interface ScreenLayoutComposition {
  * @property {string[]} [scannedAudioPaths] - Paths to directories scanned for audio
  */
 export interface ProjectSettings {
+  /**
+   * On-disk schema version of game/project.ide.json. Absent in files written
+   * before versioning was introduced (treated as version 0). Owned by
+   * `migrateProjectSettings` / `buildProjectSettingsForSave` in projectSerializer.
+   */
+  schemaVersion?: number;
   draftingMode: boolean;
   storyCanvasLayoutMode?: StoryCanvasLayoutMode;
   storyCanvasGroupingMode?: StoryCanvasGroupingMode;
@@ -1274,7 +1280,7 @@ export interface ProjectSettings {
  * The excluded fields are persisted separately (their own useImmer/useState in App.tsx) or
  * are session-only, per CLAUDE.md's state table.
  */
-export type PersistedProjectSettings = Omit<ProjectSettings, 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'characterPortraits' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
+export type PersistedProjectSettings = Omit<ProjectSettings, 'schemaVersion' | 'openTabs' | 'activeTabId' | 'stickyNotes' | 'characterProfiles' | 'characterPortraits' | 'punchlistMetadata' | 'diagnosticsTasks' | 'ignoredDiagnostics' | 'sceneCompositions' | 'sceneNames' | 'scannedImagePaths' | 'scannedAudioPaths'>;
 
 /**
  * Combined settings interface for components that need both app and project settings.
@@ -1355,8 +1361,82 @@ export interface ProjectLoadResult {
   settings: ProjectSettings | null;
   tree: FileSystemTreeNode;
   /** Set when game/project.ide.json existed but could not be parsed/read (as opposed to simply being absent). */
-  settingsWarning?: { code: 'corrupted' | 'permission-denied' | 'unknown'; message: string } | null;
+  settingsWarning?: {
+    code: 'corrupted' | 'permission-denied' | 'unknown';
+    message: string;
+    /** Absolute path of the copy the main process made of an unparseable file before it can be overwritten. */
+    backupPath?: string;
+  } | null;
+  /** Present when an interrupted Save All from a previous session was found and handled before loading. */
+  saveRecovery?: SaveRecoveryResult;
 }
+
+/**
+ * Bookkeeping produced when project.ide.json is migrated on load and consumed
+ * when it is saved again, so fields this build doesn't understand survive the
+ * round trip and the file's schema version is never silently downgraded.
+ */
+export interface ProjectSettingsMeta {
+  /** Version to write on the next save: max(current schema version, version found on disk). */
+  schemaVersion: number;
+  /** Version found on disk (0 = unversioned legacy file), or null when there were no settings. */
+  loadedVersion: number | null;
+  /** Descriptions of the migrations applied on load, in order. Empty when none ran. */
+  appliedMigrations: string[];
+  /** True when the file was written by a newer build than this one. */
+  newerThanSupported: boolean;
+  /** Top-level fields not recognised by this build, written back verbatim on save. */
+  unknownFields: Record<string, unknown>;
+}
+
+/** Outcome of recovering an interrupted multi-file save on project load. */
+export interface SaveRecoveryResult {
+  /** rolled-forward: the interrupted save was completed; rolled-back: it was undone; failed: left for a retry. */
+  status: 'rolled-back' | 'rolled-forward' | 'failed';
+  /** Project-relative paths of the files in the interrupted save. */
+  files: string[];
+  error?: string;
+}
+
+/** Result of the project:saveFiles IPC call. */
+export interface SaveFilesResult {
+  success: boolean;
+  error?: string;
+  /** Committed, but some files are still being moved into place; finished on the next load or save. */
+  pendingRecovery?: boolean;
+  files?: string[];
+}
+
+export type RecoveryFileStatus = 'unchanged' | 'changed' | 'deleted';
+
+/** Unsaved work the renderer sends to recovery:write (the main process adds disk fingerprints). */
+export interface RecoverySnapshotPayload {
+  files: { relativePath: string; content: string }[];
+  untitled: { id: string; title: string; content: string }[];
+  settings: ProjectSettings | null;
+}
+
+/** A crash snapshot found on project open, with each entry's disk status already resolved. */
+export interface PendingRecovery {
+  sessionId: string;
+  projectRoot: string;
+  updatedAt: string;
+  files: { relativePath: string; content: string; status: RecoveryFileStatus }[];
+  untitled: { id: string; title: string; content: string }[];
+  settings: ProjectSettings | null;
+  settingsStatus: 'unchanged' | 'changed' | null;
+}
+
+/** What the user ticked in RecoveryModal. */
+export interface RecoverySelection {
+  /** relativePaths */
+  files: string[];
+  /** untitled draft ids */
+  untitled: string[];
+  settings: boolean;
+}
+
+export interface RecoveryWriteResult { success: boolean; skipped?: 'too-large'; error?: string }
 
 /** Result of the scanDirectory IPC call. */
 export interface ScanDirectoryResult {
@@ -1402,6 +1482,8 @@ export interface ProjectSnapshot {
   blocks: Block[];
   /** Non-null when the project had no files and a default script.rpy was synthesised — caller must write it via IPC. */
   defaultScriptBlock: Block | null;
+  /** Schema-migration bookkeeping for project.ide.json; must be kept and passed back when saving. */
+  settingsMeta: ProjectSettingsMeta;
   images: Map<string, ProjectImage>;
   audios: Map<string, RenpyAudio>;
   imageScanPaths: string[];
@@ -1517,6 +1599,16 @@ declare global {
           readFile: (path: string) => Promise<string>;
           fileExists: (path: string) => Promise<boolean>;
           writeFile: (path: string, content: string, encoding?: string) => Promise<{ success: boolean; error?: string }>;
+          /** Writes all files or none (journaled transaction rooted at the open project). */
+          saveFiles: (files: { path: string; content: string }[]) => Promise<SaveFilesResult>;
+          /** Crash-recovery snapshots of unsaved work (main process stores them under userData). */
+          recovery: {
+            write: (sessionId: string, payload: RecoverySnapshotPayload) => Promise<RecoveryWriteResult>;
+            clear: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+            listPending: (sessionId: string) => Promise<PendingRecovery | null>;
+            /** Deletes only the offered snapshot (targetSessionId); older pending snapshots stay. */
+            discardPending: (sessionId: string, targetSessionId: string) => Promise<{ success: boolean; error?: string }>;
+          };
           createDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
           removeEntry: (path: string) => Promise<{ success: boolean; error?: string }>;
           moveFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;

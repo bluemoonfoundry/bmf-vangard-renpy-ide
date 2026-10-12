@@ -41,6 +41,7 @@ import Sash from '@/components/Sash';
 import StatusBar from '@/components/StatusBar';
 import KeyboardShortcutsModal from '@/components/KeyboardShortcutsModal';
 import AboutModal from '@/components/AboutModal';
+import RecoveryModal from '@/components/RecoveryModal';
 import ExternalChangesBanner from '@/components/ExternalChangesBanner';
 import UserSnippetModal from '@/components/UserSnippetModal';
 import NewProjectWizardModal from '@/components/NewProjectWizardModal';
@@ -66,7 +67,9 @@ import { useCompositionState } from '@/hooks/useCompositionState';
 import { useSettingsManagement } from '@/hooks/useSettingsManagement';
 import { useFileSystemState } from '@/hooks/useFileSystemState';
 import { useStickyNotes } from '@/hooks/useStickyNotes';
-import { useProjectLoad, type PendingStoryLayoutRefresh, type PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
+import { useProjectLoad, hydrateSettingsFromSnapshot, type HydrateSetters, type PendingStoryLayoutRefresh, type PendingRouteLayoutRefresh } from '@/hooks/useProjectLoad';
+import { useRecoverySnapshots } from '@/hooks/useRecoverySnapshots';
+import { applyRecoverySnapshot } from '@/lib/recoveryRestore';
 import { useProjectIO } from '@/hooks/useProjectIO';
 import { useFileSystemManager } from '@/hooks/useFileSystemManager';
 import { useTabContentRenderer } from '@/hooks/useTabContentRenderer';
@@ -93,6 +96,7 @@ import { logger } from '@/lib/logger';
 import { pruneOrphanedEditorTabs } from '@/lib/tabReconciliation';
 import { UI_TIMING } from '@/lib/constants';
 import { DEFAULT_FILE_SIZE_THRESHOLDS, getLineCount } from '@/lib/fileSizeSeverity';
+import { createDefaultProjectSettingsMeta } from '@/lib/projectSerializer';
 import {
   buildAfterWarpScript,
   getWarpVariableDrafts,
@@ -103,7 +107,7 @@ import type {
   Block, BlockGroup, Position, FileSystemTreeNode, EditorTab,
   Theme,
   ProjectSettings, PunchlistMetadata, DiagnosticsTask, IgnoredDiagnosticRule,
-  UserSnippet, MenuTemplate,
+  UserSnippet, MenuTemplate, ProjectSettingsMeta, PendingRecovery, RecoverySelection,
 } from '@/types';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
@@ -572,6 +576,12 @@ const App: React.FC = () => {
   const pendingRouteLayoutRefreshRef = useRef<PendingRouteLayoutRefresh | null>(null);
   const pendingTagRenameRef = useRef<{ oldTag: string; newTag: string } | null>(null);
   const pendingAutoCenterRef = useRef({ story: false, route: false, choice: false });
+  const projectSettingsMetaRef = useRef<ProjectSettingsMeta>(createDefaultProjectSettingsMeta());
+  // Crash recovery (b70a.2.3): session id per project open, the snapshot offered on
+  // open, and whether autosave may run yet (only after the offer is resolved).
+  const recoverySessionIdRef = useRef<string | null>(null);
+  const [pendingRecovery, setPendingRecovery] = useState<PendingRecovery | null>(null);
+  const [recoveryResolved, setRecoveryResolved] = useState(false);
 
   const {
     externallyChangedFiles,
@@ -892,7 +902,7 @@ const App: React.FC = () => {
   });
 
   // --- Untitled (blank) File Tabs ---
-  const { untitledFiles, untitledFilesRef, createUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile } = useUntitledFiles({
+  const { untitledFiles, untitledFilesRef, createUntitledFile, createRecoveredUntitledFile, updateUntitledContent, setUntitledDirty, saveUntitledFile, discardUntitledFile } = useUntitledFiles({
     projectRootPath, blocks, addBlock, updateBlock, setFileSystemTree, addToast,
     activePaneId, splitLayout,
     setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
@@ -921,6 +931,23 @@ const App: React.FC = () => {
 
   // --- File System Integration ---
 
+  const hydrateSetters: HydrateSetters = {
+      pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef, projectSettingsMetaRef,
+      setProjectRootPath, setFileSystemTree,
+      updateProjectSettings,
+      setBlocks,
+      setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
+      setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
+      setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
+      setCharacterProfiles, setCharacterPortraits,
+      setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
+      setSceneCompositions, setSceneNames, setImagemapCompositions,
+      setRouteNodeLayoutCache,
+      setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
+      setSplitLayout, setSplitPrimarySize, setTabs,
+      perfRecorders,
+  };
+
   const { loadProject } = useProjectLoad({
       loadCancelRef, blocksRef, pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef,
       pendingAutoCenterRef,
@@ -928,22 +955,8 @@ const App: React.FC = () => {
       updateAppSettings,
       setHasUnsavedSettings, setIsInitialAnalysisPending, perfRecorders, addToast,
       poppedOutTabs, setPoppedOutTabs,
-      hydrateSetters: {
-          pendingStoryLayoutRefreshRef, pendingRouteLayoutRefreshRef, pendingAutoCenterRef,
-          setProjectRootPath, setFileSystemTree,
-          updateProjectSettings,
-          setBlocks,
-          setImages, setAudios, setImageScanDirectories, setAudioScanDirectories, setIsScanningAssets,
-          setIsRefreshingImages, setIsRefreshingAudios, setImagesLastScanned, setAudiosLastScanned,
-          setStickyNotes, setRouteStickyNotes, setChoiceStickyNotes, setNotecards, setNotecardLinks, setNotecardTimeline,
-          setCharacterProfiles, setCharacterPortraits,
-          setPunchlistMetadata, setDiagnosticsTasks, setIgnoredDiagnostics, setDismissedImplicitVarHint,
-          setSceneCompositions, setSceneNames, setImagemapCompositions,
-          setRouteNodeLayoutCache,
-          setOpenTabs, setActiveTabId, setSecondaryOpenTabs, setSecondaryActiveTabId,
-          setSplitLayout, setSplitPrimarySize, setTabs,
-          perfRecorders,
-      },
+      hydrateSetters,
+      recoverySessionIdRef, setPendingRecovery, setRecoveryResolved,
   });
 
   const {
@@ -951,8 +964,9 @@ const App: React.FC = () => {
       handleSaveAll,
       handleReloadFromDisk,
       handleRefreshProject,
+      buildSettingsForDisk,
   } = useProjectIO({
-      blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances,
+      blocksRef, dirtyBlockIdsRef, dirtyEditorsRef, editorInstances, projectSettingsMetaRef,
       projectRootPath, setFileSystemTree,
       projectSettings,
       blocks, setBlocks,
@@ -969,6 +983,63 @@ const App: React.FC = () => {
       untitledFiles, saveUntitledFile,
       addToast,
   });
+
+  // After a successful restore, the offered crash snapshot is kept until this
+  // session's first snapshot (which holds the restored work) reaches disk --
+  // deleting it right away left the restored work unprotected for ~5 s.
+  const discardAfterWriteRef = useRef<string | null>(null);
+  const handleSnapshotWritten = useCallback(() => {
+    const target = discardAfterWriteRef.current;
+    const sessionId = recoverySessionIdRef.current;
+    if (!target || !sessionId) return;
+    discardAfterWriteRef.current = null;
+    void window.electronAPI?.recovery.discardPending(sessionId, target);
+  }, []);
+
+  useRecoverySnapshots({
+    enabled: recoveryResolved && !!projectRootPath,
+    onSnapshotWritten: handleSnapshotWritten,
+    sessionIdRef: recoverySessionIdRef,
+    blocks, blocksRef, editorInstances,
+    dirtyBlockIds, dirtyEditors, untitledFiles, hasUnsavedSettings,
+    buildSettingsPayload: buildSettingsForDisk,
+  });
+
+  // Read through a ref so the restore callback doesn't change identity every render.
+  const hydrateSettersRef = useRef(hydrateSetters);
+  hydrateSettersRef.current = hydrateSetters;
+
+  const resolveRecovery = useCallback(() => {
+    setPendingRecovery(null);
+    setRecoveryResolved(true);
+  }, []);
+
+  const handleRecoveryRestore = useCallback(async (selection: RecoverySelection) => {
+    if (!pendingRecovery || !projectRootPath) return;
+    const { restored, failures } = applyRecoverySnapshot(pendingRecovery, selection, {
+      rootPath: projectRootPath,
+      tree: fileSystemTree,
+      blocksRef, editorInstances,
+      images, audios,
+      setBlocks, setDirtyBlockIds, setHasUnsavedSettings,
+      createRecoveredUntitledFile,
+      applySettingsSnapshot: (snapshot) => hydrateSettingsFromSnapshot(snapshot, hydrateSettersRef.current),
+    });
+    if (failures.length === 0) {
+      discardAfterWriteRef.current = pendingRecovery.sessionId;
+      addToast(`Restored ${restored} item${restored === 1 ? '' : 's'} — review and save when ready`, 'success');
+    } else {
+      addToast(`Some recovered items could not be restored: ${failures.map(f => `${f.item} (${f.error})`).join('; ')}. They will be offered again next time.`, 'error');
+    }
+    resolveRecovery();
+  }, [pendingRecovery, projectRootPath, fileSystemTree, blocksRef, editorInstances, images, audios, setBlocks, setDirtyBlockIds, setHasUnsavedSettings, createRecoveredUntitledFile, addToast, resolveRecovery]);
+
+  const handleRecoveryDiscard = useCallback(async () => {
+    const sessionId = recoverySessionIdRef.current;
+    if (sessionId && pendingRecovery) await window.electronAPI?.recovery.discardPending(sessionId, pendingRecovery.sessionId);
+    addToast('Recovered work discarded', 'info');
+    resolveRecovery();
+  }, [pendingRecovery, addToast, resolveRecovery]);
 
 
 
@@ -2631,6 +2702,14 @@ const App: React.FC = () => {
       <AboutModal
         isOpen={aboutModalOpen}
         onClose={() => closeAboutModal()}
+      />
+
+      <RecoveryModal
+        isOpen={pendingRecovery !== null}
+        pending={pendingRecovery}
+        onRestore={handleRecoveryRestore}
+        onDiscard={handleRecoveryDiscard}
+        onDecideLater={resolveRecovery}
       />
       <GoToLabelModal
         isOpen={isGoToLabelOpen}
