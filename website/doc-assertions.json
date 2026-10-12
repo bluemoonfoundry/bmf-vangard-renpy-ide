@@ -75,5 +75,47 @@
     "doc": "website/guide/interface-at-a-glance.md",
     "pattern": "Color Palette",
     "files": ["src/components/StoryElementsPanel.tsx"]
+  },
+  {
+    "id": "project-settings-schema-version",
+    "claim": "project.ide.json carries schemaVersion, currently 1, with a from/to migration registry",
+    "doc": "website/architecture/STATE_PERSISTENCE.md",
+    "pattern": "PROJECT_SETTINGS_SCHEMA_VERSION = 1;",
+    "files": ["src/lib/projectSerializer.ts"]
+  },
+  {
+    "id": "corrupt-settings-backup-name",
+    "claim": "Unreadable project.ide.json is backed up as project.ide.json.corrupt-<timestamp>.bak",
+    "doc": "website/reference/file-formats.md",
+    "pattern": "'\\.corrupt-' \\+ stamp \\+ '\\.bak'",
+    "files": ["electron.js"]
+  },
+  {
+    "id": "save-journal-path",
+    "claim": "Save All journal lives at <project>/.renide/save-journal.json with .txn- staged temps",
+    "doc": "website/architecture/STATE_PERSISTENCE.md",
+    "pattern": "JOURNAL_FILE = 'save-journal\\.json'[\\s\\S]*\\.txn-",
+    "files": ["src/lib/saveTransaction.js"]
+  },
+  {
+    "id": "recovery-snapshot-limits",
+    "claim": "Recovery snapshots: 25 MB each, 3 per project, 200 MB total, 30 days",
+    "doc": "website/reference/troubleshooting-faq.md",
+    "pattern": "maxSnapshotBytes: 25 \\* 1024 \\* 1024,\\s*maxFilesPerProject: 3,\\s*maxTotalBytes: 200 \\* 1024 \\* 1024,\\s*maxAgeMs: 30 \\*",
+    "files": ["src/lib/recoveryStore.js"]
+  },
+  {
+    "id": "recovery-snapshot-dir",
+    "claim": "Recovery snapshots are stored under userData/recovery",
+    "doc": "website/reference/file-formats.md",
+    "pattern": "getPath\\('userData'\\), 'recovery'",
+    "files": ["electron.js"]
+  },
+  {
+    "id": "recovery-snapshot-timing",
+    "claim": "Snapshots are written 5 s after edits, at least every 60 s",
+    "doc": "website/architecture/STATE_PERSISTENCE.md",
+    "pattern": "debounceMs \\?\\? 5000;[\\s\\S]*maxIntervalMs \\?\\? 60000",
+    "files": ["src/hooks/useRecoverySnapshots.ts"]
   }
 ]

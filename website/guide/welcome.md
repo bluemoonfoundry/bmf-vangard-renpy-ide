@@ -65,8 +65,9 @@ how the story fits together.
 Vangard Studio works *alongside* the Ren'Py SDK, not instead of it. Your `.rpy` files stay as
 `.rpy` files. There is no proprietary format, no export step, no conversion. You can open
 a Vangard Studio project in any text editor, and you can open any existing Ren'Py project in
-Vangard Studio. The only files Vangard Studio adds to your project live in a `.renide/` directory
-(canvas positions, IDE settings, snippets) that Ren'Py ignores completely.
+Vangard Studio. The only files Vangard Studio adds to your project are `game/project.ide.json`
+(canvas positions and IDE settings), `.vangard/` (snippets), and `.renide/` (screenshots). Ren'Py
+ignores all of them.
 
 This philosophy extends to every feature. The Scene Composer generates standard Ren'Py
 `scene` and `show` statements. The Menu Constructor produces ordinary `menu:` blocks.

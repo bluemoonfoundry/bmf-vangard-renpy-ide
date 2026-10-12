@@ -34,6 +34,17 @@
 | Audio files will not play. | Ensure the file format is supported by the Web Audio API: MP3, OGG, WAV, OPUS. Other formats may not play in the IDE's audio player. |
 | External file changes are not detected. | The file watcher uses a 400ms debounce. Wait a moment and check again. If changes still do not appear, use `File` > `Refresh` to manually reconcile all files with disk state. |
 
+#### Saving and Recovery
+
+| Problem | Solution |
+|---------|----------|
+| A **Recover unsaved work** dialog appears when opening a project. | Vangard Studio didn't close normally last time, and it kept a copy of your unsaved work. Check the items you want and click `Restore selected`. They open as unsaved changes, and nothing is written to disk until you save. Files marked "changed on disk since" are unchecked because restoring them would replace newer content on disk. Click `Decide later` (or press `Escape`) to be asked again next time, or `Discard…` to delete the copy permanently. |
+| Toast: "An interrupted save from last session was completed" or "...was discarded". | A Save All was cut off by a crash or power loss. Vangard Studio either finished it or rolled it back so that no file was left half-saved. If it was discarded, the files have their previous saved content. Your unsaved edits may still be offered by the recovery dialog. |
+| Toast: "Saving is blocked until .renide/save-journal.json is resolved." | An interrupted save couldn't be completed automatically, for example because a staged file was damaged. Close the project and open `.renide/save-journal.json` in your project folder. Each `.txn-` file listed under `entries` holds the full new content of its target file. Copy anything you want to keep into the target `.rpy` files, then delete `save-journal.json` and the `.txn-` files, and reopen the project. |
+| Toast: "Project settings could not be read — using defaults." | `game/project.ide.json` was damaged. The original was copied to the `.corrupt-<timestamp>.bak` file named in the toast. Your `.rpy` files are unaffected. To get your layout and notes back, fix the JSON in the backup and copy it over `project.ide.json` while the project is closed. Delete the backup when you're done, because Ren'Py would otherwise include it in builds. |
+| Toast: "This project was saved by a newer version of Vangard Studio." | Update Vangard Studio. You can keep working: settings this version doesn't understand are kept as they are when you save. |
+| Toast: "Script files were saved, but workspace settings were not." | Your `.rpy` files are saved. Only `game/project.ide.json` (layout, notes, tasks) failed, often because another program has it open or it is read-only. Fix that and save again. |
+
 #### Editor
 
 | Problem | Solution |
@@ -74,7 +85,7 @@ A: No. Vangard Studio works alongside the SDK. You still need the Ren'Py SDK ins
 A: Yes. The IDE is fully offline. No internet connection is required for any feature. The only network activity is the optional auto-update check on launch.
 
 **Q: Is my project locked into Vangard Studio?**
-A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data in `game/project.ide.json`, `.vangard/snippets.json`, and a `.renide/` screenshots folder, all of which Ren'Py ignores. Delete those files/folders and your project is exactly as Ren'Py expects it.
+A: No. Your `.rpy` files are standard Ren'Py files. The IDE stores its own data in `game/project.ide.json`, `.vangard/snippets.json`, and a `.renide/` folder (screenshots and the Save All journal), all of which Ren'Py ignores. Delete those files/folders and your project is exactly as Ren'Py expects it.
 
 #### Projects
 
@@ -86,6 +97,15 @@ A: Yes. Project files are Git-friendly. Each team member can use Vangard Studio 
 
 **Q: What happens to my project if I stop using Vangard Studio?**
 A: Nothing. Delete `game/project.ide.json`, `.vangard/`, and `.renide/` and your project remains a standard Ren'Py project with no traces of the IDE.
+
+**Q: Does Vangard Studio autosave?**
+A: It never writes to your project files on its own. Files are saved when you press `Ctrl+S` / `Cmd+S` (Save All), close a tab, or quit and choose to save. Separately, every few seconds while you have unsaved changes, it keeps a recovery copy of them outside your project. If the app crashes or the computer loses power, the next time you open the project it offers to restore that work.
+
+**Q: Where are recovery copies stored, and how do I clear them?**
+A: In a `recovery` folder inside the app's data directory: `%APPDATA%\vangard-studio\recovery` on Windows, `~/Library/Application Support/vangard-studio/recovery` on macOS, `~/.config/vangard-studio/recovery` on Linux. Each copy is deleted when you save everything or quit normally, and none is kept longer than 30 days. Copies are limited to 3 per project and 200 MB in total. To clear them by hand, close Vangard Studio and delete the folder.
+
+**Q: Should I commit `.renide/` to version control?**
+A: No need. It only holds screenshots and, while a save is in progress, the save journal. Add `.renide/` to your `.gitignore`.
 
 #### Features
 

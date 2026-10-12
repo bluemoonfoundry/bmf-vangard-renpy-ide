@@ -279,7 +279,7 @@ const { settings, updateSettings } = useSettingsManagement();
 | Character profiles | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
 | Ignored diagnostics | `<project>/game/project.ide.json` | JSON | Save All, tab close, app exit |
 
-**Note**: All project-specific IDE metadata lives in `game/project.ide.json`. Deleting it won't affect `.rpy` files. The `.renide/` folder (if present) holds screenshots only — it is not read for settings or state.
+**Note**: All project-specific IDE metadata lives in `game/project.ide.json`. Deleting it won't affect `.rpy` files. The `.renide/` folder (if present) holds screenshots and the transient Save All journal (`save-journal.json`). It is not read for settings or state. Crash-recovery snapshots of unsaved work live outside the project, in `userData/recovery/`. See [State Persistence § 6](./STATE_PERSISTENCE.md#_6-crash-safety-and-recovery).
 
 ---
 

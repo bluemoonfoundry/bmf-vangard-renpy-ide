@@ -84,8 +84,8 @@ understanding. The writer renames a label and the programmer's screen code break
 artist adds sprites that nobody references in the script. Everyone has a different mental
 model of how the story is structured, and those models diverge further every week.
 
-Vangard Studio's canvas gives the team a shared visual language. The `.renide/` directory is
-Git-friendly (JSON files with stable keys), so canvas positions and project settings
+Vangard Studio's canvas gives the team a shared visual language. `game/project.ide.json` is
+Git-friendly (JSON with stable keys), so canvas positions and project settings
 merge cleanly alongside your `.rpy` files. Every team member sees the same block layout,
 the same arrows, the same diagnostic warnings. The writer can point to a block on the
 canvas during a meeting and say "this scene needs a new background," and the artist knows
