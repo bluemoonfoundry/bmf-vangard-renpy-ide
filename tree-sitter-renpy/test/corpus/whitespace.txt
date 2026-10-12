@@ -1,0 +1,36 @@
+==================
+Trailing whitespace after a block-opening colon (a8m8)
+==================
+label start:
+    if x: 
+        jump a
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (jump_statement
+        target: (identifier)))
+    (return_statement)))
+
+==================
+Trailing whitespace after a def colon inside init python (a8m8)
+==================
+init python:
+    def foo(a): 
+        return 1
+
+---
+
+(source_file
+  (init_python_statement
+    body: (unknown_statement
+      (identifier)
+      (identifier)
+      (expression)
+      (return_statement
+        value: (expression)))))

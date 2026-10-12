@@ -151,7 +151,7 @@
           },
           {
             "type": "PATTERN",
-            "value": ".*"
+            "value": "[^\\r\\n]*"
           }
         ]
       }
@@ -167,7 +167,7 @@
         "value": -1,
         "content": {
           "type": "PATTERN",
-          "value": "[^\\n#]*[^\\n#:]"
+          "value": "[^\\r\\n#: \\t]([^\\r\\n#]*[^\\r\\n#: \\t])?"
         }
       }
     },
@@ -311,7 +311,7 @@
     },
     "_parameter_blob": {
       "type": "PATTERN",
-      "value": "[^\\n#)]+"
+      "value": "[^\\r\\n#)]+"
     },
     "jump_statement": {
       "type": "SEQ",
@@ -2173,7 +2173,7 @@
                   "members": [
                     {
                       "type": "PATTERN",
-                      "value": "[^\"\\\\\\n]"
+                      "value": "[^\"\\\\\\r\\n]"
                     },
                     {
                       "type": "PATTERN",
@@ -2213,7 +2213,7 @@
                   "members": [
                     {
                       "type": "PATTERN",
-                      "value": "[^'\\\\\\n]"
+                      "value": "[^'\\\\\\r\\n]"
                     },
                     {
                       "type": "PATTERN",

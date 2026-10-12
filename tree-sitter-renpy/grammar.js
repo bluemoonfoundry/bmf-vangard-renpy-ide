@@ -83,7 +83,9 @@ module.exports = grammar({
       $.unknown_statement,
     ),
 
-    comment: $ => token(seq('#', /.*/)),
+    // `[^\r\n]` rather than `.`: `.` matches '\r', which would fold a CRLF
+    // line's carriage return into the comment text.
+    comment: $ => token(seq('#', /[^\r\n]*/)),
 
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
 
@@ -109,7 +111,7 @@ module.exports = grammar({
     // equal-precedence, heavily-overlapping greedy regexes in direct
     // lexical competition wherever both happen to be valid — the regex
     // now permits ':' *inside* the match but forbids it as the match's
-    // final character (`/[^\n#]*[^\n#:]/`). Tree-sitter's lexer takes the
+    // final character (`/[^\r\n#]*[^\r\n#: \t]/`). Tree-sitter's lexer takes the
     // longest match that satisfies the pattern, so:
     //   - `if d == {1: 2}:`   -> expression = ` d == {1: 2}`, the block's
     //     ':' is left for `_block`, exactly as before the fix;
@@ -121,7 +123,12 @@ module.exports = grammar({
     // handled by `unknown_statement`'s optional `_block` instead.
     //
     // The one thing this must never do is end on a ':' — that colon is
-    // always the grammar's, never the expression's.
+    // always the grammar's, never the expression's. The final character
+    // also may not be whitespace (nms4.7 / a8m8): otherwise `if x: ` (a
+    // trailing space) or a CRLF line's `if x:\r` ends on ' '/'\r', so the
+    // longest match runs straight past the block colon and swallows it.
+    // '\r' is excluded everywhere, like '\n', so CRLF input lexes the same
+    // as LF input; trailing blanks are left to `extras`.
     //
     // Explicit `prec(-1, ...)`: this task added `expression_statement` as
     // a last-resort `_statement` fallback (see below) plus `choice($.identifier,
@@ -142,7 +149,13 @@ module.exports = grammar({
     // match, and `expression` is only actually chosen when it's the sole
     // viable token at that position — which is every other place it's
     // used in this grammar.
-    expression: $ => token(prec(-1, /[^\n#]*[^\n#:]/)),
+    //
+    // The first character must be non-blank too. Leading blanks belong to
+    // `extras`; a token that can *start* with a space competes with the
+    // extras skip and, with the whitespace-free final class above, made the
+    // lexer fold the separating space into the following `identifier`
+    // (`label start:` gave name " start").
+    expression: $ => token(prec(-1, /[^\r\n#: \t]([^\r\n#]*[^\r\n#: \t])?/)),
 
     // Shared block body used by every block-taking statement: `label foo:`
     // / `if x:` / `menu:` etc.
@@ -198,7 +211,7 @@ module.exports = grammar({
     // `expression` so the tree still reports a single opaque expression
     // node type everywhere, per the spec's Q1-B granularity decision.
     parameter_list: $ => seq('(', optional(alias($._parameter_blob, $.expression)), ')'),
-    _parameter_blob: $ => /[^\n#)]+/,
+    _parameter_blob: $ => /[^\r\n#)]+/,
 
     jump_statement: $ => seq(
       'jump',
@@ -861,8 +874,8 @@ module.exports = grammar({
     //    leaf in this grammar (`comment`, `expression`, etc.) is already
     //    `token()`-wrapped.
     string: $ => choice(
-      token(seq('"', repeat(choice(/[^"\\\n]/, /\\./)), optional('"'))),
-      token(seq("'", repeat(choice(/[^'\\\n]/, /\\./)), optional("'"))),
+      token(seq('"', repeat(choice(/[^"\\\r\n]/, /\\./)), optional('"'))),
+      token(seq("'", repeat(choice(/[^'\\\r\n]/, /\\./)), optional("'"))),
     ),
   }
 });

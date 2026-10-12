@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyntaxNode } from 'web-tree-sitter';
 import { parseBlock, disposeParsedBlock } from '@/lib/tree-sitter/parseBlock';
 
 /**
@@ -53,7 +54,22 @@ function normalizeSexp(sexp: string): string {
   return sexp.replace(/\s+/g, ' ').replace(/\s*\)/g, ')').replace(/\(\s*/g, '(').trim();
 }
 
-const corpusFiles = readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.txt')).sort();
+/**
+ * Single-line named tokens (identifier, expression, string, comment, ...)
+ * whose text has leading/trailing blanks or a carriage return. Childless
+ * statements such as `return_statement` span their own trailing newline by
+ * design, so leaves containing '\n' are not tokens and are skipped.
+ */
+function paddedLeaves(node: SyntaxNode): string[] {
+  if (node.namedChildCount === 0) {
+    const text = node.text;
+    const padded = node.isNamed && !text.includes('\n') && /^[ \t]|[ \t]$|\r/.test(text);
+    return padded ? [`${node.type} ${JSON.stringify(text)}`] : [];
+  }
+  return node.namedChildren.flatMap(paddedLeaves);
+}
+
+const corpusFiles =readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.txt')).sort();
 
 describe('tree-sitter-renpy corpus (via web-tree-sitter)', () => {
   it('finds corpus files', () => {
@@ -63,14 +79,25 @@ describe('tree-sitter-renpy corpus (via web-tree-sitter)', () => {
   for (const file of corpusFiles) {
     describe(file, () => {
       for (const testCase of parseCorpusFile(readFileSync(join(CORPUS_DIR, file), 'utf8'))) {
-        it(testCase.name, async () => {
-          const block = await parseBlock(testCase.input);
-          try {
-            expect(normalizeSexp(block.tree.rootNode.toString())).toBe(normalizeSexp(testCase.expected));
-          } finally {
-            disposeParsedBlock(block);
-          }
-        });
+        // Windows-authored .rpy files are commonly CRLF; every case must
+        // produce the identical tree with either line ending.
+        for (const [suffix, input] of [
+          ['', testCase.input],
+          [' [CRLF]', testCase.input.replace(/\n/g, '\r\n')],
+        ] as const) {
+          it(testCase.name + suffix, async () => {
+            const block = await parseBlock(input);
+            try {
+              expect(normalizeSexp(block.tree.rootNode.toString())).toBe(normalizeSexp(testCase.expected));
+              // S-expressions don't show node text, so check token
+              // boundaries separately: separators and line endings belong
+              // to `extras`/the scanner, never to a named token.
+              expect(paddedLeaves(block.tree.rootNode)).toEqual([]);
+            } finally {
+              disposeParsedBlock(block);
+            }
+          });
+        }
       }
     });
   }
