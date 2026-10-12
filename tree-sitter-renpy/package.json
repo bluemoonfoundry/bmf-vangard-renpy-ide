@@ -1,0 +1,17 @@
+{
+  "name": "tree-sitter-renpy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tree-sitter grammar for the Ren'Py visual novel scripting language",
+  "main": "bindings/node",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "build:wasm": "tree-sitter build --wasm -o renpy.wasm",
+    "build": "npm run generate && npm run build:wasm && node scripts/provenance.mjs write",
+    "check": "tree-sitter generate && git diff --exit-code -- src && node scripts/provenance.mjs check",
+    "test": "tree-sitter test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.24.7"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "renpy": {
+    "artifact": "tree-sitter-renpy/renpy.wasm",
+    "build": "npm run build (tree-sitter generate && tree-sitter build --wasm)",
+    "emscripten": "emscripten/emsdk:3.1.64 (selected by tree-sitter-cli; used via Docker when emcc is not on PATH)",
+    "treeSitterCli": "0.24.7",
+    "inputs": {
+      "grammar.js": "4e7fed8e01f46415ccc1c4b1259d4a474607b7abd2931ab47f15ea9ad5ca2343",
+      "src/scanner.c": "579511f83d80509a4e5c2e576731c9be3e9015973a91efa4f74397b4f6876e24",
+      "src/parser.c": "a1e3fcdd92f13ba14b935b3cc09e7df8017b4b476baa11e7cc05595bea79e2ac",
+      "src/tree_sitter/parser.h": "a1f6ef161fbaf48a0e10fca90ef5290a062462b307b3898aa562993853b9f80a",
+      "src/tree_sitter/array.h": "5bdf6ed1a78e3409fd443e085ca967a64c188a5d082aaf7f819bccd53a471c94",
+      "src/tree_sitter/alloc.h": "b29c1c9fb7cc82f58c84b376df1297d6e2737a1d655fd356db0859e3c29c2fea"
+    },
+    "sha256": "06c56e426aa22f337f4e62cf0c66b32929eea6cd2c27d8309d52c212cb39251e"
+  },
+  "vendored": {
+    "src/lib/tree-sitter/vendor/tree-sitter-python.wasm": {
+      "upstream": "npm:tree-sitter-python@0.23.6 (tree-sitter-python.wasm)",
+      "sha256": "8c93692fb368e288a5824cee55773c9b3602804f513bda48c97661e52e9c2da2"
+    }
+  }
+}

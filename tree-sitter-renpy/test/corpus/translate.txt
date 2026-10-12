@@ -1,0 +1,28 @@
+==================
+Translate block with a say statement inside
+==================
+translate french start_label:
+    eileen "Bonjour!"
+
+---
+
+(source_file
+  (translate_statement
+    language: (identifier)
+    scope: (identifier)
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Translate strings block
+==================
+translate french strings:
+    old "Hello"
+    new "Bonjour"
+
+---
+
+(source_file
+  (translate_statement
+    language: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (say_statement character: (identifier) text: (string))))
