@@ -11,6 +11,7 @@ Thank you for contributing to Vangard Studio. This document covers environment s
 - [Running the App](#running-the-app)
 - [Running Tests](#running-tests)
 - [Release Gate](#release-gate)
+- [Dependency Advisories](#dependency-advisories)
 - [Coding Conventions](#coding-conventions)
 - [Pull Request Process](#pull-request-process)
 - [Reporting Issues](#reporting-issues)
@@ -27,7 +28,7 @@ This project follows the [Contributor Covenant](https://www.contributor-covenant
 ## Development Setup
 
 **Prerequisites:**
-- [Node.js](https://nodejs.org/) v18 or later (v20 LTS recommended)
+- [Node.js](https://nodejs.org/) v20.9 or later (required by `sharp`; CI uses Node 20)
 - npm (bundled with Node.js)
 - Git
 
@@ -112,6 +113,22 @@ npm run gate              # full gate = gate:checks + test:e2e
 Steps 1–5 are `npm run gate:checks`; step 6 is `npm run test:e2e`. CI runs exactly these two scripts through the reusable workflow `.github/workflows/gate.yml`, which `build.yml` (PRs and `main`; checks on Linux, Windows and macOS), `nightly.yml` and `release.yml` (checks on Linux) all call before packaging. E2E runs on Linux under `xvfb-run`. To change the gate, change the `gate:*` scripts in `package.json` and this table together; the workflows pick the change up automatically.
 
 Supported toolchain: Node 20 (CI) or 24, Electron ^41.2, Playwright ^1.49.
+
+---
+
+## Dependency Advisories
+
+`npm audit` is not part of the release gate: the advisory database changes daily, so the same commit could pass one day and fail the next. Instead, the release checklist requires `npm audit --omit=dev` to report **0 vulnerabilities**. Nothing that ships inside the app may carry a known advisory.
+
+Advisories in development and build tooling are accepted only when they are listed below with a reason. Review this table whenever `npm audit` output changes, and remove an entry as soon as a fix lands.
+
+`npm audit` lists 14 packages, but they come from three root advisories in two dependency chains:
+
+| Advisory | Severity | Root package → reached via | Why it is accepted | Way out |
+|---|---|---|---|---|
+| [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) — stack-exhaustion DoS on deeply nested patterns | high | `braces` ≤3.0.3 → `micromatch`, `chokidar`, `fast-glob` → `tailwindcss` 3 | Build-time only. The patterns come from our own `tailwind.config` content globs, not from users. No patched `braces` exists yet | Tailwind 4 migration, or a patched `braces` |
+| [GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) — quadratic selector parsing (CPU DoS) | moderate | `postcss-selector-parser` <7.1.6 → `postcss-nested` → `tailwindcss` 3 | Build-time only, and it parses our own CSS. Tailwind 3 needs the v6 line, so v7 can't be forced in | Tailwind 4 migration |
+| [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) — DoS via unbounded precision specifiers | moderate | `sprintf-js` ≤1.1.3 → `roarr` → `global-agent` → `@electron/get` 3 → `app-builder-lib` → `electron-builder` 26 | Packaging-time only. Format strings are electron-builder's own. No patched `sprintf-js` exists, and npm's suggested "fix" is a *downgrade* to `electron-builder` 26.5.0 | An `electron-builder` release that drops `global-agent`, or a patched `sprintf-js` |
 
 ---
 
