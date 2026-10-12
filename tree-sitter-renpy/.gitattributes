@@ -1,0 +1,12 @@
+# The grammar has significant whitespace and the corpus tests compare exact
+# input, so every text file here must be LF on all platforms (a CRLF checkout
+# under core.autocrlf=true makes `tree-sitter test` fail). Generated files are
+# also byte-compared against a fresh `tree-sitter generate` by `npm run check`.
+* text=auto eol=lf
+*.wasm binary
+
+src/parser.c linguist-generated
+src/grammar.json linguist-generated
+src/node-types.json linguist-generated
+src/tree_sitter/** linguist-generated
+bindings/** linguist-generated
