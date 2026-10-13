@@ -98,9 +98,19 @@ bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, cons
   }
 
   if (lexer->eof(lexer)) {
-    // A trailing newline right before end-of-file still needs to close out
-    // the last logical line before we start popping the indent stack.
-    if (valid_symbols[NEWLINE] && saw_newline) {
+    // End-of-file always closes out the last logical line before we start
+    // popping the indent stack — whether or not a final '\n' is physically
+    // present (nms4.8). Editor buffers and many .rpy files end without one;
+    // like tree-sitter-python, treat EOF as an implicit line end and
+    // synthesize a zero-width NEWLINE, so `label a:\n    return<EOF>` parses
+    // the same as with a trailing newline.
+    //
+    // During error recovery tree-sitter marks every external token valid at
+    // once (INDENT/DEDENT/NEWLINE are otherwise never simultaneously valid
+    // in this grammar). Don't offer a *zero-width* NEWLINE there: at EOF it
+    // could be accepted repeatedly without consuming input.
+    bool error_recovery = valid_symbols[NEWLINE] && valid_symbols[INDENT] && valid_symbols[DEDENT];
+    if (valid_symbols[NEWLINE] && (saw_newline || !error_recovery)) {
       lexer->result_symbol = NEWLINE;
       return true;
     }
