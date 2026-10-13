@@ -88,4 +88,24 @@ describe('parseBlock', () => {
     expect(blockInjections).toHaveLength(1);
     expect(blockInjections[0].tree.rootNode.hasError).toBe(false);
   });
+
+  // nms4.9: a comment after the block colon (`init python: # setup`) is a
+  // child of the python statement but not part of its body. It must not
+  // become the injection's first node — its column would drive the dedent
+  // and flatten the body's nested indentation.
+  it('excludes a header-line comment from the python: block injection span', async () => {
+    const source = 'init python: # setup\n    def foo(a):\n        return a\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      const blockInjections = result.pythonInjections.filter((i) => i.kind === 'python-block');
+      expect(blockInjections).toHaveLength(1);
+      expect(blockInjections[0].range[0]).toBe(source.indexOf('def foo'));
+      const pythonRoot = blockInjections[0].tree.rootNode;
+      expect(pythonRoot.hasError).toBe(false);
+      expect(pythonRoot.namedChildren.map((c) => c.type)).toEqual(['function_definition']);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
 });

@@ -1,0 +1,181 @@
+==================
+Comment after a label colon keeps the body attached (nms4.9)
+==================
+label start: # note
+    jump a
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (comment)
+    (jump_statement
+      target: (identifier))))
+
+==================
+Comments after menu, choice, and conditional-choice colons (nms4.9)
+==================
+menu: # pick one
+    "A": # first
+        jump a
+    "B" if x:  # cond
+        jump b
+
+---
+
+(source_file
+  (menu_statement
+    (comment)
+    (menu_choice
+      text: (string)
+      (comment)
+      (jump_statement
+        target: (identifier)))
+    (menu_choice
+      text: (string)
+      condition: (expression)
+      (comment)
+      (jump_statement
+        target: (identifier)))))
+
+==================
+Comments after if, elif, and else colons (nms4.9)
+==================
+if x:  # TODO
+    "hi"
+elif y: # e
+    return
+else: # z
+    return
+
+---
+
+(source_file
+  (if_statement
+    condition: (expression)
+    (comment)
+    (say_statement
+      text: (string))
+    (elif_clause
+      condition: (expression)
+      (comment)
+      (return_statement))
+    (else_clause
+      (comment)
+      (return_statement))))
+
+==================
+Comments after python, init python, and def colons (nms4.9)
+==================
+init python: # setup
+    def foo(a): # c
+        return a
+python: # p
+    x = 1
+
+---
+
+(source_file
+  (init_python_statement
+    body: (comment)
+    body: (unknown_statement
+      (identifier)
+      (identifier)
+      (expression)
+      (comment)
+      (return_statement
+        value: (expression))))
+  (python_statement
+    body: (comment)
+    body: (expression_statement
+      (identifier)
+      (expression))))
+
+==================
+Comments after screen and widget colons (nms4.9)
+==================
+screen s(): # sc
+    vbox: # v
+        text "x"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (comment)
+    (screen_language_statement
+      widget_tag: (identifier)
+      (comment)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property
+          (expression))))))
+
+==================
+Comments after transform, ATL block, and inline ATL colons (nms4.9)
+==================
+transform t: # t
+    parallel: # p
+        xalign 0.5
+show eileen: # atl
+    xalign 0.5
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (comment)
+    (atl_block_statement
+      (comment)
+      (atl_transform_property
+        property: (identifier)
+        value: (expression))))
+  (show_statement
+    image: (identifier)
+    atl: (comment)
+    atl: (atl_transform_property
+      property: (identifier)
+      value: (expression))))
+
+==================
+Comments after style and layeredimage colons (nms4.9)
+==================
+style a: # s
+    color "#fff"
+layeredimage e: # l
+    always "x"
+
+---
+
+(source_file
+  (style_statement
+    name: (identifier)
+    (comment)
+    (style_property_statement
+      property: (identifier)
+      value: (expression)))
+  (layeredimage_statement
+    name: (identifier)
+    (comment)
+    (style_property_statement
+      property: (identifier)
+      value: (expression))))
+
+==================
+Comment after a bodyless header stays with the header (nms4.9)
+==================
+label a: # just a header
+jump b
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (comment))
+  (jump_statement
+    target: (identifier)))

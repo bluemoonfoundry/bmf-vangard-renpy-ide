@@ -22,6 +22,10 @@
         {
           "type": "atl_with_statement",
           "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
         }
       ]
     }
@@ -1173,6 +1177,10 @@
       "required": true,
       "types": [
         {
+          "type": "comment",
+          "named": true
+        },
+        {
           "type": "style_property_statement",
           "named": true
         }
@@ -1350,6 +1358,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "comment",
+          "named": true
+        },
         {
           "type": "menu_choice",
           "named": true
@@ -1648,6 +1660,10 @@
           {
             "type": "atl_with_statement",
             "named": true
+          },
+          {
+            "type": "comment",
+            "named": true
           }
         ]
       },
@@ -1703,6 +1719,10 @@
       "required": false,
       "types": [
         {
+          "type": "comment",
+          "named": true
+        },
+        {
           "type": "screen_language_statement",
           "named": true
         }
@@ -1738,6 +1758,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "comment",
+          "named": true
+        },
         {
           "type": "screen_language_statement",
           "named": true
@@ -1791,6 +1815,10 @@
           },
           {
             "type": "atl_with_statement",
+            "named": true
+          },
+          {
+            "type": "comment",
             "named": true
           }
         ]
@@ -2016,6 +2044,10 @@
       "required": true,
       "types": [
         {
+          "type": "comment",
+          "named": true
+        },
+        {
           "type": "style_property_statement",
           "named": true
         }
@@ -2049,7 +2081,7 @@
     },
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "atl_block_statement",
@@ -2065,6 +2097,10 @@
         },
         {
           "type": "atl_with_statement",
+          "named": true
+        },
+        {
+          "type": "comment",
           "named": true
         }
       ]

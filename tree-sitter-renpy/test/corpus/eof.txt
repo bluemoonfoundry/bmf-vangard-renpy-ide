@@ -1,0 +1,105 @@
+==================
+Jump inside a label at EOF without a trailing newline (nms4.8)
+==================
+label start:
+    jump a
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier))))
+
+==================
+Define at EOF without a trailing newline (nms4.8)
+==================
+define e = 1
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression)))
+
+==================
+Return inside a label at EOF without a trailing newline (nms4.8)
+==================
+label a:
+    return
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Nested blocks closed by EOF without a trailing newline (nms4.8)
+==================
+label start:
+    if x:
+        "hi"
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (say_statement
+        text: (string)))))
+
+==================
+Bodyless label header at EOF without a trailing newline (nms4.8)
+==================
+label start:
+---
+
+(source_file
+  (label_statement
+    name: (identifier)))
+
+==================
+Comment line at EOF without a trailing newline (nms4.8)
+==================
+label a:
+    return
+# done
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (return_statement)
+    (comment)))
+
+==================
+Screen body at EOF without a trailing newline (nms4.8)
+==================
+screen s():
+    text "x"
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        (expression)))))
+
+==================
+Transform body at EOF without a trailing newline (nms4.8)
+==================
+transform t:
+    xalign 0.5
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_transform_property
+      property: (identifier)
+      value: (expression))))

@@ -223,7 +223,14 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
   const matches = injectionsQuery!.matches(tree.rootNode);
 
   for (const match of matches) {
-    const captures = match.captures.filter((c) => c.name === 'injection.content');
+    // A comment on the header line itself (`init python: # setup`, nms4.9)
+    // is a child of the python statement but not part of its body; left in,
+    // it would become `firstNode` and its column would drive `dedent`.
+    const captures = match.captures.filter(
+      (c) =>
+        c.name === 'injection.content' &&
+        !(c.node.type === 'comment' && c.node.startPosition.row === c.node.parent?.startPosition.row),
+    );
     if (captures.length === 0) continue;
 
     let firstNode = captures[0].node;

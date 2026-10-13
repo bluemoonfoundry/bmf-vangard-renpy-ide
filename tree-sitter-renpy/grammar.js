@@ -157,6 +157,17 @@ module.exports = grammar({
     // (`label start:` gave name " start").
     expression: $ => token(prec(-1, /[^\r\n#: \t]([^\r\n#]*[^\r\n#: \t])?/)),
 
+    // The ':' that opens an indented body, plus an optional trailing comment
+    // on the same line (`label start: # note`, `menu: # pick one`,
+    // `if x:  # TODO`) — nms4.9. Comments are not `extras` in this grammar,
+    // so without this the comment ended the header's line on its own: the
+    // header reduced with no body, the comment became a top-level sibling,
+    // and the indented body that followed was silently re-parented to the
+    // header's parent (hasError === false, wrong tree). The comment node
+    // lands as a child of the block-opening statement. Every block-opening
+    // ':' in the grammar goes through this rule.
+    _block_colon: $ => prec.right(seq(':', optional($.comment))),
+
     // Shared block body used by every block-taking statement: `label foo:`
     // / `if x:` / `menu:` etc.
     //
@@ -189,7 +200,7 @@ module.exports = grammar({
     // yet — another real half-typed editing state (Monaco doesn't force a
     // final newline while the user is still typing the line).
     _block: $ => seq(
-      ':',
+      $._block_colon,
       choice(
         seq($._newline, $._indent, repeat1($._statement), $._dedent),
         optional($._newline),
@@ -237,7 +248,7 @@ module.exports = grammar({
     menu_statement: $ => seq(
       'menu',
       optional(field('label', $.identifier)),
-      ':',
+      $._block_colon,
       $._newline,
       $._indent,
       repeat1($.menu_choice),
@@ -455,7 +466,7 @@ module.exports = grammar({
       'screen',
       field('name', $.identifier),
       optional(field('parameters', $.parameter_list)),
-      ':',
+      $._block_colon,
       choice(
         seq($._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
         optional($._newline),
@@ -491,7 +502,7 @@ module.exports = grammar({
       repeat(field('properties', $.property)),
       choice(
         $._newline,
-        seq(':', $._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
+        seq($._block_colon, $._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
       ),
     ),
 
@@ -589,7 +600,7 @@ module.exports = grammar({
     // same inline ATL block. Hidden, so it contributes no node of its own
     // and `transform_statement`'s tree shape is byte-for-byte what it was.
     _atl_block: $ => seq(
-      ':',
+      $._block_colon,
       $._newline,
       $._indent,
       repeat1($._atl_statement),
@@ -629,7 +640,7 @@ module.exports = grammar({
 
     atl_block_statement: $ => seq(
       choice('parallel', 'contains', 'choice', 'block', 'repeat'),
-      ':',
+      $._block_colon,
       $._newline,
       $._indent,
       repeat1($._atl_statement),
@@ -762,7 +773,7 @@ module.exports = grammar({
       field('name', $.identifier),
       optional(seq('is', field('parent', $.identifier))),
       optional(seq('take', field('take_from', $.identifier))),
-      ':',
+      $._block_colon,
       $._newline,
       $._indent,
       repeat1($.style_property_statement),
@@ -818,7 +829,7 @@ module.exports = grammar({
     layeredimage_statement: $ => seq(
       'layeredimage',
       field('name', repeat1($.identifier)),
-      ':',
+      $._block_colon,
       $._newline,
       $._indent,
       repeat1($.style_property_statement),
