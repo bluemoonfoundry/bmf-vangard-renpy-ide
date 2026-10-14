@@ -886,7 +886,12 @@ export interface AnalysisProgress {
  */
 export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onComplete?: (ms: number) => void): [RenpyAnalysisResult, boolean, AnalysisProgress | null] => {
   const [result, setResult] = useState<RenpyAnalysisResult>(EMPTY_ANALYSIS_RESULT);
-  const [isPending, setIsPending] = useState(false);
+  // The input the latest settled request was made for. Pending is derived from
+  // it during render, not set in the effect: an effect-set flag lags one render
+  // behind a new `blocks` value, so that render would report idle while `result`
+  // still belongs to the previous input (nms4.17).
+  const [settledFor, setSettledFor] = useState<{ blocks: AnalysisBlock[]; trigger: number } | null>(null);
+  const isPending = settledFor?.blocks !== blocks || settledFor.trigger !== trigger;
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const requestIdRef = useRef(0);
   const onCompleteRef = useRef(onComplete);
@@ -894,7 +899,6 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
 
   useEffect(() => {
     const currentId = ++requestIdRef.current;
-    setIsPending(true);
     setProgress(null);
 
     const worker = getAnalysisWorker();
@@ -908,7 +912,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
       r.identifiedRoutes = routeData.identifiedRoutes;
       r.routesTruncated = routeData.routesTruncated;
       setResult(r);
-      setIsPending(false);
+      setSettledFor({ blocks, trigger });
       return;
     }
 
@@ -929,7 +933,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
         onCompleteRef.current?.(performance.now() - startTime);
       }
       setProgress(null);
-      setIsPending(false);
+      setSettledFor({ blocks, trigger });
     };
 
     worker.addEventListener('message', handleMessage);
