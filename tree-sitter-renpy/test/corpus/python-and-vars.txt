@@ -73,3 +73,27 @@ while pending[0:2]:
   (while_statement
     condition: (expression)
     (dollar_statement expression: (expression))))
+
+==================
+Dotted define and default names (nms4.12)
+==================
+default persistent.seen = False
+define config.name = "Demo"
+define gui.text_size = 22
+define store.a.b = 1
+
+---
+
+(source_file
+  (default_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression)))

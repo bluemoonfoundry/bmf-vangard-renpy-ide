@@ -1,0 +1,63 @@
+==================
+Show, hide, and call screen (nms4.11)
+==================
+label a:
+    show screen hud
+    hide screen hud
+    call screen inventory
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_screen_statement
+      name: (identifier))
+    (hide_screen_statement
+      name: (identifier))
+    (call_screen_statement
+      name: (identifier))))
+
+==================
+Screen statements with arguments, nopredict, and transitions (nms4.11)
+==================
+label a:
+    show screen hud(3) with fade
+    hide screen hud with dissolve
+    call screen inv(1, x=2) nopredict
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_screen_statement
+      name: (identifier)
+      arguments: (parameter_list
+        (expression))
+      transition: (expression))
+    (hide_screen_statement
+      name: (identifier)
+      transition: (expression))
+    (call_screen_statement
+      name: (identifier)
+      arguments: (parameter_list
+        (expression)))))
+
+==================
+Names that merely start with screen stay images and labels (nms4.11)
+==================
+label a:
+    show screen_bg happy
+    call screen_intro
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      image: (identifier))
+    (call_statement
+      target: (identifier))))

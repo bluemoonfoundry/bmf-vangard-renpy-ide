@@ -68,6 +68,9 @@ module.exports = grammar({
       $.scene_statement,
       $.show_statement,
       $.hide_statement,
+      $.show_screen_statement,
+      $.hide_screen_statement,
+      $.call_screen_statement,
       $.with_statement,
       $.screen_statement,
       $.transform_statement,
@@ -207,9 +210,35 @@ module.exports = grammar({
       ),
     ),
 
+    // nms4.10: Ren'Py local labels. `.sub` is relative to the last global
+    // label (`label start:` ... `label .sub:` defines `start.sub`), and
+    // `start.sub` names it from anywhere. A dedicated token (aliased to
+    // `identifier`, so tree shapes are unchanged for plain names) rather
+    // than `seq(identifier, '.', identifier)` keeps the whole name one leaf
+    // whose text is the label as written. It requires a '.', so it never
+    // competes with `identifier` or keywords for plain names; it outranks
+    // the prec(-1) `expression` that `jump`/`call` targets also accept, so
+    // `jump .sub` is a label, not an opaque expression.
+    _dotted_label_name: $ => token(choice(
+      seq('.', /[a-zA-Z_][a-zA-Z0-9_]*/),
+      seq(/[a-zA-Z_][a-zA-Z0-9_]*/, '.', /[a-zA-Z_][a-zA-Z0-9_]*/),
+    )),
+    _label_name: $ => choice($.identifier, alias($._dotted_label_name, $.identifier)),
+
+    // nms4.12: dotted store names on `define`/`default` (`default
+    // persistent.seen = False`, `define config.name = ...`,
+    // `define gui.text_size = 22`). Same aliasing approach as
+    // `_dotted_label_name`: one `identifier` leaf whose text is the full
+    // dotted name.
+    _dotted_store_name: $ => token(seq(
+      /[a-zA-Z_][a-zA-Z0-9_]*/,
+      repeat1(seq('.', /[a-zA-Z_][a-zA-Z0-9_]*/)),
+    )),
+    _store_name: $ => choice($.identifier, alias($._dotted_store_name, $.identifier)),
+
     label_statement: $ => seq(
       'label',
-      field('name', $.identifier),
+      field('name', $._label_name),
       optional(field('parameters', $.parameter_list)),
       optional(choice('hide', 'global')),
       $._block,
@@ -227,15 +256,15 @@ module.exports = grammar({
     jump_statement: $ => seq(
       'jump',
       optional('expression'),
-      field('target', choice($.identifier, $.expression)),
+      field('target', choice($._label_name, $.expression)),
       $._newline,
     ),
 
     call_statement: $ => seq(
       'call',
       optional('expression'),
-      field('target', choice($.identifier, $.expression)),
-      optional(seq('from', field('from_label', $.identifier))),
+      field('target', choice($._label_name, $.expression)),
+      optional(seq('from', field('from_label', $._label_name))),
       $._newline,
     ),
 
@@ -373,7 +402,7 @@ module.exports = grammar({
 
     define_statement: $ => seq(
       'define',
-      field('name', $.identifier),
+      field('name', $._store_name),
       '=',
       field('value', $.expression),
       $._newline,
@@ -381,7 +410,7 @@ module.exports = grammar({
 
     default_statement: $ => seq(
       'default',
-      field('name', $.identifier),
+      field('name', $._store_name),
       '=',
       field('value', $.expression),
       $._newline,
@@ -440,6 +469,42 @@ module.exports = grammar({
       /[a-zA-Z_][a-zA-Z0-9_]*/,
       repeat(seq(/[ \t]*,[ \t]*/, /[a-zA-Z_][a-zA-Z0-9_]*/)),
     )),
+
+    // nms4.11: `show screen` / `hide screen` / `call screen`. Without these,
+    // `show screen hud` parsed silently as a show_statement of an image
+    // named `screen hud`, and `call screen inv(...)` was an ERROR. `screen`
+    // is a keyword (screen_statement), so after `show`/`hide`/`call` the
+    // lexer returns it as such and these rules win; `show screen_bg` is
+    // still an ordinary identifier. Arguments reuse `parameter_list` (an
+    // opaque blob up to the first ')'), so nested parentheses in arguments
+    // are not supported, the same limitation label parameters have.
+    show_screen_statement: $ => seq(
+      'show',
+      'screen',
+      field('name', $.identifier),
+      optional(field('arguments', $.parameter_list)),
+      optional('nopredict'),
+      optional(seq('with', field('transition', $.expression))),
+      $._newline,
+    ),
+
+    hide_screen_statement: $ => seq(
+      'hide',
+      'screen',
+      field('name', $.identifier),
+      optional(seq('with', field('transition', $.expression))),
+      $._newline,
+    ),
+
+    call_screen_statement: $ => seq(
+      'call',
+      'screen',
+      field('name', $.identifier),
+      optional(field('arguments', $.parameter_list)),
+      optional('nopredict'),
+      optional(seq('with', field('transition', $.expression))),
+      $._newline,
+    ),
 
     hide_statement: $ => seq(
       'hide',
