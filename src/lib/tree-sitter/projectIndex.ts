@@ -10,6 +10,9 @@ import type {
   BlockContribution, IndexedSymbol, ProjectSymbolIndex, SourceRange, SymbolId, SymbolKind, SymbolReference,
 } from '@/types';
 import { symbolId } from '@/lib/tree-sitter/symbolNames';
+import { djb2 } from '@/lib/contentHash';
+import { buildBlockContribution, type IndexBlock } from '@/lib/tree-sitter/blockContribution';
+import { initParser } from '@/lib/tree-sitter/parseBlock';
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -97,4 +100,44 @@ export function resolveProjectIndex(contributions: Map<string, BlockContribution
     .map((s) => s.id);
 
   return { symbols: sortedSymbols, unresolved, duplicates, contributions };
+}
+
+export interface ContributionCache { byBlockId: Map<string, BlockContribution> }
+
+export function createContributionCache(): ContributionCache {
+  return { byBlockId: new Map() };
+}
+
+export interface UpdateIndexDeps {
+  build?: (block: IndexBlock) => Promise<BlockContribution>;
+  init?: () => Promise<void>;
+}
+
+/**
+ * Rebuilds contributions only for new blocks and blocks whose content hash or
+ * file path changed, drops blocks no longer present, then resolves. Each call
+ * builds its own `next` map from a snapshot of the cache and resolves that
+ * map, so overlapping calls (a newer analysis request arriving while an older
+ * one is still parsing) never mix block lists; the last call to finish
+ * becomes the cache. Rejects (without touching the cache) when the parser
+ * cannot initialize; per-block failures become `hasError` contributions.
+ */
+export async function updateProjectIndex(
+  cache: ContributionCache,
+  blocks: IndexBlock[],
+  deps: UpdateIndexDeps = {},
+): Promise<ProjectSymbolIndex> {
+  const build = deps.build ?? buildBlockContribution;
+  await (deps.init ?? initParser)();
+  const previous = cache.byBlockId;
+  const entries = await Promise.all(
+    blocks.map(async (block): Promise<[string, BlockContribution]> => {
+      const cached = previous.get(block.id);
+      const reusable = cached && cached.contentHash === djb2(block.content) && cached.filePath === block.filePath;
+      return [block.id, reusable ? cached : await build(block)];
+    }),
+  );
+  const next = new Map(entries);
+  cache.byBlockId = next;
+  return resolveProjectIndex(next);
 }

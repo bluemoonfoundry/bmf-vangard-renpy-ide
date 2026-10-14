@@ -167,6 +167,15 @@ async function ensureInitialized(): Promise<void> {
 }
 
 /**
+ * Loads the Ren'Py/Python grammars if they aren't loaded yet. `parseBlock`
+ * does this itself; callers that must tell an initialization failure apart
+ * from a per-block parse failure (the symbol index) await this first.
+ */
+export function initParser(): Promise<void> {
+  return ensureInitialized();
+}
+
+/**
  * Determines the `PythonInjection.kind` for a captured node by walking up
  * its ancestor chain. `dollar_statement` and `python_statement` /
  * `init_python_statement` are unambiguous; every other injection point in
