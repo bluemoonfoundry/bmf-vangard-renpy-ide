@@ -30,7 +30,8 @@
  *   span with no dedent needed (column offset is a no-op for a one-line
  *   fragment sliced starting at its own first non-whitespace character).
  */
-import Parser, { Language, Query, Tree, type SyntaxNode } from 'web-tree-sitter';
+import Parser, { type Query, type Tree, type SyntaxNode } from 'web-tree-sitter';
+import treeSitterRuntimeWasmUrl from 'web-tree-sitter/tree-sitter.wasm?url';
 import renpyWasmUrl from '../../../tree-sitter-renpy/renpy.wasm?url';
 import pythonWasmUrl from './vendor/tree-sitter-python.wasm?url';
 import injectionsQuerySource from '../../../tree-sitter-renpy/queries/injections.scm?raw';
@@ -105,32 +106,59 @@ let pythonParser: Parser | null = null;
 let injectionsQuery: Query | null = null;
 let initPromise: Promise<void> | null = null;
 
+/** True under Node (Vitest runs jsdom inside a real Node process). */
+function isNode(): boolean {
+  return typeof process !== 'undefined' && !!process.versions?.node;
+}
+
+/**
+ * Fetches a wasm asset in a browser context (renderer or Web Worker).
+ *
+ * The packaged app loads `dist/index.html` via `loadFile`, so with vite's
+ * `base: './'` every asset URL is `file://`. Chromium's `fetch()` rejects the
+ * `file:` scheme, so those are read with an arraybuffer XHR, which Electron
+ * allows from a `file://` page or worker. Other schemes (the Vite dev server)
+ * use `fetch()`. Relative URLs resolve against the current script's location
+ * (the worker script, inside a worker).
+ */
+export async function fetchWasmBytes(url: string, base: string = globalThis.location?.href ?? ''): Promise<Uint8Array> {
+  const absolute = base ? new URL(url, base).href : url;
+  if (absolute.startsWith('file:')) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', absolute);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = () => {
+        // file: XHRs report status 0 on success.
+        if ((xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) && xhr.response && (xhr.response as ArrayBuffer).byteLength > 0) {
+          resolve(new Uint8Array(xhr.response as ArrayBuffer));
+        } else {
+          reject(new Error(`Failed to load wasm asset ${absolute}: status ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error(`Failed to load wasm asset ${absolute}`));
+      xhr.send();
+    });
+  }
+  const response = await fetch(absolute);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch wasm asset ${absolute}: ${response.status}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 /**
  * Loads the bytes for a `?url`-imported wasm asset.
  *
- * `web-tree-sitter`'s own `Language.load(string)` picks its loading
- * strategy by checking for a Node `process` global: under Node (this
- * repo's Vitest suite runs `jsdom` inside a real Node process, so the
- * check is true there) it calls `fs.readFileSync(url)` treating the
- * string as a literal filesystem path; otherwise it `fetch()`s it. Vite's
- * `?url` import produces a root-relative path (e.g.
- * `/tree-sitter-renpy/renpy.wasm`) that only resolves correctly against a
- * dev/build server root — under plain Node, a leading `/` resolves
- * against the current drive/filesystem root instead of the project root,
- * so `Language.load(renpyWasmUrl)` fails outside a real Vite server.
- *
- * The packaged app's renderer runs with `nodeIntegration: false` /
- * `contextIsolation: true` (see `electron.js`), so `process` is undefined
- * there and `Language.load` already takes the `fetch()` branch correctly
- * on its own — this helper only needs to special-case the Node/Vitest
- * path, resolving the root-relative URL against `process.cwd()` (the
- * repo root, which is how both `npm test` and CI invoke Vitest) and
- * reading the file directly. `node:fs`/`node:path` are imported
- * dynamically so this module stays safe to bundle for the browser target,
- * where the branch that needs them is never reached.
+ * Under Node/Vitest, Vite's `?url` import is a root-relative path (e.g.
+ * `/tree-sitter-renpy/renpy.wasm`) that only resolves against a dev/build
+ * server root, so it is resolved against `process.cwd()` (the repo root, how
+ * both `npm test` and CI invoke Vitest) and read from disk. `node:fs` /
+ * `node:path` are imported dynamically so this module stays safe to bundle
+ * for the browser, where that branch is never reached.
  */
 async function loadWasmBytes(url: string): Promise<Uint8Array> {
-  if (typeof process !== 'undefined' && process.versions?.node) {
+  if (isNode()) {
     const [{ readFileSync }, { resolve: resolvePath }] = await Promise.all([
       import('node:fs'),
       import('node:path'),
@@ -138,24 +166,40 @@ async function loadWasmBytes(url: string): Promise<Uint8Array> {
     const relative = url.replace(/^\//, '');
     return new Uint8Array(readFileSync(resolvePath(process.cwd(), relative)));
   }
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch wasm asset ${url}: ${response.status}`);
+  return fetchWasmBytes(url);
+}
+
+/**
+ * Initializes the web-tree-sitter runtime. In a browser context the runtime's
+ * own `tree-sitter.wasm` must be located explicitly: emscripten would
+ * otherwise look for it next to the (worker) script, where the build emits no
+ * such file, and would `fetch()` it, which fails for `file://`. So it is
+ * located via the bundled `?url` asset and its bytes are handed over directly.
+ * Under Node the runtime finds its wasm in node_modules by itself.
+ */
+async function initRuntime(): Promise<void> {
+  if (isNode()) {
+    await Parser.init();
+    return;
   }
-  return new Uint8Array(await response.arrayBuffer());
+  const wasmBinary = await fetchWasmBytes(treeSitterRuntimeWasmUrl);
+  await Parser.init({ locateFile: () => treeSitterRuntimeWasmUrl, wasmBinary });
 }
 
 async function ensureInitialized(): Promise<void> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    await Parser.init();
+    await initRuntime();
     const [renpyBytes, pythonBytes] = await Promise.all([
       loadWasmBytes(renpyWasmUrl),
       loadWasmBytes(pythonWasmUrl),
     ]);
+    // `Parser.Language`, not a named `Language` import: web-tree-sitter is
+    // CommonJS and assigns `Parser.Language` only once `Parser.init()` runs,
+    // so in the bundled app a named import is captured as undefined.
     const [renpyLang, pythonLang] = await Promise.all([
-      Language.load(renpyBytes),
-      Language.load(pythonBytes),
+      Parser.Language.load(renpyBytes),
+      Parser.Language.load(pythonBytes),
     ]);
     renpyParser = new Parser();
     renpyParser.setLanguage(renpyLang);
@@ -164,6 +208,15 @@ async function ensureInitialized(): Promise<void> {
     injectionsQuery = renpyLang.query(injectionsQuerySource);
   })();
   return initPromise;
+}
+
+/**
+ * Loads the Ren'Py/Python grammars if they aren't loaded yet. `parseBlock`
+ * does this itself; callers that must tell an initialization failure apart
+ * from a per-block parse failure (the symbol index) await this first.
+ */
+export function initParser(): Promise<void> {
+  return ensureInitialized();
 }
 
 /**
@@ -220,6 +273,20 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
   }
 
   const pythonInjections: PythonInjection[] = [];
+  try {
+    collectInjections(content, tree, pythonInjections);
+    const symbolTable = extractSymbolTable(tree);
+    const parseTimeMs = performance.now() - start;
+    return { tree, pythonInjections, symbolTable, parseTimeMs };
+  } catch (error) {
+    // No ParsedBlock reaches the caller, so free what was allocated here.
+    disposeParsedBlock({ tree, pythonInjections } as ParsedBlock);
+    throw error;
+  }
+}
+
+/** Parses each injection-query match as Python, appending to `out` as each tree is created. */
+function collectInjections(content: string, tree: Tree, out: PythonInjection[]): void {
   const matches = injectionsQuery!.matches(tree.rootNode);
 
   for (const match of matches) {
@@ -246,15 +313,13 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
     const pythonTree = pythonParser!.parse(spanText);
     if (!pythonTree) continue;
 
-    pythonInjections.push({
-      range: [firstNode.startIndex, lastNode.endIndex],
-      tree: pythonTree,
-      kind: injectionKindForNode(firstNode),
-    });
+    let kind: PythonInjection['kind'];
+    try {
+      kind = injectionKindForNode(firstNode);
+    } catch (error) {
+      pythonTree.delete(); // not yet in `out`, so the caller's cleanup can't see it
+      throw error;
+    }
+    out.push({ range: [firstNode.startIndex, lastNode.endIndex], tree: pythonTree, kind });
   }
-
-  const symbolTable = extractSymbolTable(tree);
-
-  const parseTimeMs = performance.now() - start;
-  return { tree, pythonInjections, symbolTable, parseTimeMs };
 }

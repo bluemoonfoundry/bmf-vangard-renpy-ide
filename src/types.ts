@@ -666,7 +666,119 @@ export interface RenpyAnalysisResult {
   identifiedRoutes: IdentifiedRoute[];
   routesTruncated: boolean;
   translationData: TranslationAnalysisResult;
+  /** Cross-file symbol index (nms4.2). Absent when indexing failed — see `indexError`. Not yet read by the UI (r7pn). */
+  symbolIndex?: ProjectSymbolIndex;
+  /** Why `symbolIndex` is missing, when index building failed. The regex fields above are unaffected. */
+  indexError?: string;
 }
+// ── Cross-file symbol index (nms4.2) ─────────────────────────────────────────
+// Plain serializable data built in the analysis worker from tree-sitter parse
+// trees. Never holds SyntaxNode/Tree objects. See
+// docs/superpowers/specs/2026-10-13-nms4.2-symbol-index-design.md.
+
+export type SymbolKind =
+  | 'label' | 'screen' | 'character' | 'variable' | 'image'
+  | 'transform' | 'style' | 'python-function' | 'python-class';
+
+/** `${kind}:${qualifiedName}` — e.g. 'label:start.sub', 'variable:persistent.seen_intro', 'image:eileen happy'. */
+export type SymbolId = string;
+
+/** `line` is 1-based; `column` and `offset` are 0-based UTF-16 code units. */
+export interface SourcePoint { line: number; column: number; offset: number }
+
+export interface SourceRange {
+  blockId: string;
+  filePath: string;
+  start: SourcePoint;
+  end: SourcePoint;
+}
+
+export type DefinitionKind =
+  | 'label' | 'menu-label' | 'screen' | 'transform' | 'style' | 'image'
+  | 'define' | 'default' | 'implicit' | 'python-assign' | 'def' | 'class';
+
+export interface SymbolDefinition {
+  symbolId: SymbolId;
+  kind: SymbolKind;
+  /** Qualified name, e.g. 'start.sub'. */
+  name: string;
+  defKind: DefinitionKind;
+  /** Whole statement. */
+  range: SourceRange;
+  /** Just the name, for navigation and rename. */
+  nameRange: SourceRange;
+  enclosingLabel: SymbolId | null;
+  /** Parameter text, initial-value expression, style parent, ... */
+  detail?: string;
+}
+
+export type ReferenceKind =
+  | 'jump' | 'call' | 'jump-expression' | 'call-expression'
+  | 'show' | 'scene' | 'hide'
+  | 'call-screen' | 'show-screen' | 'hide-screen' | 'use'
+  | 'speaker'
+  | 'read' | 'write';
+
+export type ReferenceContext =
+  | 'statement' | 'dollar' | 'python-block' | 'condition'
+  | 'screen-expression' | 'atl-expression' | 'interpolation';
+
+export interface SymbolReference {
+  /** null for dynamic `jump expression` / `call expression` targets. */
+  symbolId: SymbolId | null;
+  kind: SymbolKind;
+  name: string;
+  refKind: ReferenceKind;
+  context: ReferenceContext;
+  range: SourceRange;
+  enclosingLabel: SymbolId | null;
+}
+
+export interface MenuChoiceInfo { text: string; condition: string | null; range: SourceRange }
+
+export interface MenuInfo {
+  range: SourceRange;
+  /** Named menu (`menu foo:`) defines label foo. */
+  labelId: SymbolId | null;
+  enclosingLabel: SymbolId | null;
+  choices: MenuChoiceInfo[];
+}
+
+export interface PythonBlockInfo {
+  range: SourceRange;
+  kind: 'python' | 'init-python';
+  /** `init 5 python:` → 5 */
+  priority: number | null;
+}
+
+export interface BlockContribution {
+  blockId: string;
+  filePath: string;
+  /** djb2 of the block content (src/lib/contentHash.ts). */
+  contentHash: number;
+  hasError: boolean;
+  definitions: SymbolDefinition[];
+  references: SymbolReference[];
+  menus: MenuInfo[];
+  pythonBlocks: PythonBlockInfo[];
+}
+
+export interface IndexedSymbol {
+  id: SymbolId;
+  kind: SymbolKind;
+  name: string;
+  definitions: SymbolDefinition[];
+  references: SymbolReference[];
+}
+
+export interface ProjectSymbolIndex {
+  symbols: Map<SymbolId, IndexedSymbol>;
+  unresolved: SymbolReference[];
+  duplicates: SymbolId[];
+  /** By blockId. */
+  contributions: Map<string, BlockContribution>;
+}
+
 
 
 /**

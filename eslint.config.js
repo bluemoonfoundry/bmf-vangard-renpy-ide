@@ -71,7 +71,7 @@ export default tseslint.config(
 
   // Logger implementation files — console IS the implementation here
   {
-    files: ['src/lib/logger.ts', 'src/lib/logger.main.js'],
+    files: ['src/lib/logger.ts', 'src/lib/logger.main.js', 'src/lib/workerLogger.ts'],
     rules: {
       'no-console': 'off',
     },
