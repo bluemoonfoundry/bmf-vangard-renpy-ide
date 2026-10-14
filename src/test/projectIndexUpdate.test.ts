@@ -66,4 +66,33 @@ describe('updateProjectIndex', () => {
     expect(build).not.toHaveBeenCalled();
     expect(cache.byBlockId.size).toBe(0);
   });
+
+  it('builds changed blocks one at a time so only one block of trees is live (I2)', async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const build = vi.fn(async (block: IndexBlock) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      try {
+        return await buildBlockContribution(block);
+      } finally {
+        inFlight--;
+      }
+    });
+    const blocks = Array.from({ length: 5 }, (_, i) => ({ id: `b${i}`, filePath: `game/b${i}.rpy`, content: `label l${i}:\n    return\n` }));
+    const index = await updateProjectIndex(createContributionCache(), blocks, { build });
+    expect(build).toHaveBeenCalledTimes(5);
+    expect(maxInFlight).toBe(1);
+    expect(index.symbols.has('label:l4')).toBe(true);
+  });
+
+  it('does not report dynamic jump/call expression targets as unresolved (T7)', async () => {
+    const dynamic = { id: 'd', filePath: 'game/d.rpy', content: 'label d:\n    jump expression target\n    call expression "chapter_" + n\n' };
+    const index = await updateProjectIndex(createContributionCache(), [dynamic]);
+    const dynamicRefs = index.contributions.get('d')!.references.filter((r) => r.refKind.endsWith('-expression'));
+    expect(dynamicRefs.map((r) => r.refKind)).toEqual(['jump-expression', 'call-expression']);
+    expect(index.unresolved.filter((r) => r.refKind.endsWith('-expression'))).toEqual([]);
+    expect(index.unresolved.filter((r) => r.kind === 'label')).toEqual([]);
+  });
 });

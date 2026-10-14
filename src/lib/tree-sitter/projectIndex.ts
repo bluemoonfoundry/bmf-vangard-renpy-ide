@@ -130,14 +130,15 @@ export async function updateProjectIndex(
   const build = deps.build ?? buildBlockContribution;
   await (deps.init ?? initParser)();
   const previous = cache.byBlockId;
-  const entries = await Promise.all(
-    blocks.map(async (block): Promise<[string, BlockContribution]> => {
-      const cached = previous.get(block.id);
-      const reusable = cached && cached.contentHash === djb2(block.content) && cached.filePath === block.filePath;
-      return [block.id, reusable ? cached : await build(block)];
-    }),
-  );
-  const next = new Map(entries);
+  // Sequential on purpose: each build parses, walks and frees its trees before
+  // the next starts, so at most one block's WASM trees are live at a time
+  // (the WASM heap never shrinks). `next` is still private to this call.
+  const next = new Map<string, BlockContribution>();
+  for (const block of blocks) {
+    const cached = previous.get(block.id);
+    const reusable = cached && cached.contentHash === djb2(block.content) && cached.filePath === block.filePath;
+    next.set(block.id, reusable ? cached : await build(block));
+  }
   cache.byBlockId = next;
   return resolveProjectIndex(next);
 }
