@@ -1,0 +1,149 @@
+import { describe, it, expect } from 'vitest';
+import { parseBlock, disposeParsedBlock } from '@/lib/tree-sitter/parseBlock';
+import { createRangeContext } from '@/lib/tree-sitter/sourceRange';
+import { walkRenpyTree, enclosingLabelFor, type RenpyWalkResult } from '@/lib/tree-sitter/renpyWalk';
+
+async function walk(content: string): Promise<RenpyWalkResult> {
+  const block = await parseBlock(content);
+  try {
+    return walkRenpyTree(block.tree.rootNode, createRangeContext('b1', 'game/test.rpy', content));
+  } finally {
+    disposeParsedBlock(block);
+  }
+}
+
+const defs = (r: RenpyWalkResult) => r.definitions.map((d) => [d.symbolId, d.defKind]);
+const refs = (r: RenpyWalkResult) => r.references.map((x) => [x.symbolId, x.refKind, x.context]);
+
+describe('walkRenpyTree definitions', () => {
+  it('qualifies local labels and tracks the global label in document order', async () => {
+    const r = await walk('label start:\n    return\nlabel .sub:\n    return\nlabel start.other:\n    return\nlabel next:\n    return\nlabel .sub:\n    return\n');
+    expect(defs(r)).toEqual([
+      ['label:start', 'label'], ['label:start.sub', 'label'], ['label:start.other', 'label'],
+      ['label:next', 'label'], ['label:next.sub', 'label'],
+    ]);
+  });
+
+  it('records label name ranges and parameters', async () => {
+    const content = 'label greet(name="x"):\n    return\n';
+    const r = await walk(content);
+    const d = r.definitions[0];
+    expect(content.slice(d.nameRange.start.offset, d.nameRange.end.offset)).toBe('greet');
+    expect(d.nameRange.start).toEqual({ line: 1, column: 6, offset: 6 });
+    expect(d.detail).toBe('(name="x")');
+    expect(d.enclosingLabel).toBeNull();
+  });
+
+  it('records define/default as variable or character definitions', async () => {
+    const r = await walk('define e = Character("Eileen")\ndefine store.speed = 2\ndefault points = 0\ndefault persistent.seen = False\n');
+    expect(defs(r)).toEqual([
+      ['character:e', 'define'], ['variable:speed', 'define'],
+      ['variable:points', 'default'], ['variable:persistent.seen', 'default'],
+    ]);
+    expect(r.definitions[2].detail).toBe('0');
+  });
+
+  it('records screens, transforms, styles and multi-word images', async () => {
+    const content = 'screen inv(items):\n    text "x"\ntransform slide:\n    xalign 0.5\nstyle big is say_dialogue:\n    size 40\nimage eileen happy = "e.png"\n';
+    const r = await walk(content);
+    expect(defs(r)).toEqual([
+      ['screen:inv', 'screen'], ['transform:slide', 'transform'], ['style:big', 'style'], ['image:eileen happy', 'image'],
+    ]);
+    expect(r.definitions[2].detail).toBe('say_dialogue');
+    const image = r.definitions[3];
+    expect(content.slice(image.nameRange.start.offset, image.nameRange.end.offset)).toBe('eileen happy');
+  });
+
+  it('records named menus as labels plus menu info with choices', async () => {
+    const r = await walk('label start:\n    menu choose:\n        "Left" if brave:\n            return\n        "Right":\n            return\n');
+    expect(defs(r)).toEqual([['label:start', 'label'], ['label:choose', 'menu-label']]);
+    expect(r.menus).toHaveLength(1);
+    expect(r.menus[0].labelId).toBe('label:choose');
+    expect(r.menus[0].enclosingLabel).toBe('label:start');
+    expect(r.menus[0].choices.map((c) => [c.text, c.condition])).toEqual([['Left', 'brave'], ['Right', null]]);
+  });
+
+  it('records the label created by call ... from', async () => {
+    const r = await walk('label start:\n    call chapter from _call_chapter\n');
+    expect(defs(r)).toContainEqual(['label:_call_chapter', 'label']);
+  });
+
+  it('records python blocks with init priority', async () => {
+    const r = await walk('init 5 python:\n    x = 1\npython:\n    y = 2\n');
+    expect(r.pythonBlocks.map((p) => [p.kind, p.priority])).toEqual([['init-python', 5], ['python', null]]);
+  });
+});
+
+describe('walkRenpyTree references', () => {
+  it('records jumps and calls, qualifying local targets', async () => {
+    const r = await walk('label start:\n    jump .sub\n    call other.part\n    jump expression target_var\nlabel .sub:\n    return\n');
+    expect(refs(r)).toEqual([
+      ['label:start.sub', 'jump', 'statement'],
+      ['label:other.part', 'call', 'statement'],
+      [null, 'jump-expression', 'statement'],
+    ]);
+    expect(r.references[0].enclosingLabel).toBe('label:start');
+  });
+
+  it('records show/scene/hide image references by full name', async () => {
+    const content = 'label a:\n    scene bg room\n    show eileen happy at left\n    hide eileen\n';
+    const r = await walk(content);
+    expect(refs(r)).toEqual([
+      ['image:bg room', 'scene', 'statement'],
+      ['image:eileen happy', 'show', 'statement'],
+      ['image:eileen', 'hide', 'statement'],
+    ]);
+    const show = r.references[1];
+    expect(content.slice(show.range.start.offset, show.range.end.offset)).toBe('eileen happy');
+  });
+
+  it('records screen references from show/hide/call screen and use', async () => {
+    const r = await walk('label a:\n    show screen hud\n    hide screen hud\n    call screen inv(1)\nscreen inv(n):\n    use item_list(n)\n');
+    expect(refs(r)).toEqual([
+      ['screen:hud', 'show-screen', 'statement'],
+      ['screen:hud', 'hide-screen', 'statement'],
+      ['screen:inv', 'call-screen', 'statement'],
+      ['screen:item_list', 'use', 'statement'],
+    ]);
+  });
+
+  it('records say speakers but not narration', async () => {
+    const r = await walk('label a:\n    e "Hi"\n    "Narration."\n');
+    expect(refs(r)).toEqual([['character:e', 'speaker', 'statement']]);
+  });
+
+  it('records [var] interpolation in say and menu-choice strings, skipping [[ escapes', async () => {
+    const content = 'label a:\n    e "You have [points] and [player.hp!t] [[literal] [store.gold] [persistent.seen.x]"\n    menu:\n        "Spend [gold]":\n            return\n';
+    const r = await walk(content);
+    expect(refs(r)).toEqual([
+      ['character:e', 'speaker', 'statement'],
+      ['variable:points', 'read', 'interpolation'],
+      ['variable:player', 'read', 'interpolation'],
+      ['variable:gold', 'read', 'interpolation'],
+      ['variable:persistent.seen', 'read', 'interpolation'],
+      ['variable:gold', 'read', 'interpolation'],
+    ]);
+    const points = r.references[1];
+    expect(content.slice(points.range.start.offset, points.range.end.offset)).toBe('points');
+  });
+
+  it('records for-loop targets as writes', async () => {
+    const r = await walk('for i, item in items:\n    "x"\n');
+    expect(refs(r)).toEqual([['variable:i', 'write', 'statement'], ['variable:item', 'write', 'statement']]);
+  });
+
+  it('still extracts intact statements from a block with a syntax error', async () => {
+    const r = await walk('label start:\n    jump ok\n    show\nlabel later:\n    return\n');
+    expect(defs(r)).toEqual([['label:start', 'label'], ['label:later', 'label']]);
+    expect(refs(r)).toContainEqual(['label:ok', 'jump', 'statement']);
+  });
+});
+
+describe('enclosingLabelFor', () => {
+  it('returns the innermost label span containing the offset', () => {
+    const spans = [{ id: 'label:a', start: 0, end: 100 }, { id: 'label:b', start: 10, end: 20 }];
+    expect(enclosingLabelFor(spans, 15)).toBe('label:b');
+    expect(enclosingLabelFor(spans, 50)).toBe('label:a');
+    expect(enclosingLabelFor(spans, 150)).toBeNull();
+  });
+});
