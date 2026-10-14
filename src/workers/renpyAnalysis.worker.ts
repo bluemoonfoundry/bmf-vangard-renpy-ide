@@ -12,6 +12,7 @@ import { performRenpyAnalysis, performRouteAnalysis } from '@/hooks/useRenpyAnal
 import type { AnalysisBlock } from '@/hooks/useRenpyAnalysis';
 import type { RenpyAnalysisResult } from '@/types';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
+import { djb2 } from '@/lib/contentHash';
 import { performTranslationAnalysis } from '@/lib/renpyTranslationParser';
 
 interface WorkerRequest {
@@ -20,27 +21,6 @@ interface WorkerRequest {
 }
 
 // ── Content-hash cache ────────────────────────────────────────────────────────
-
-/**
- * Computes a fast 32-bit djb2 hash of a string for cache invalidation.
- *
- * This hash function is used to detect content changes in `.rpy` files. It's not
- * cryptographically secure, but it's fast and has good distribution for typical
- * text content.
- *
- * @param str - String to hash
- * @returns 32-bit signed integer hash
- *
- * @complexity O(n) where n = string length
- */
-function djb2(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) + str.charCodeAt(i);
-    hash |= 0; // keep 32-bit
-  }
-  return hash;
-}
 
 interface BlockSignature {
   id: string;
