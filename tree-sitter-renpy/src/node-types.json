@@ -89,6 +89,42 @@
     }
   },
   {
+    "type": "call_screen_statement",
+    "named": true,
+    "fields": {
+      "arguments": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "parameter_list",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "transition": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "call_statement",
     "named": true,
     "fields": {
@@ -232,6 +268,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -261,6 +301,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -317,6 +361,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -359,6 +407,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -388,6 +440,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -444,6 +500,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -531,6 +591,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -560,6 +624,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -619,6 +687,10 @@
           "named": true
         },
         {
+          "type": "show_screen_statement",
+          "named": true
+        },
+        {
           "type": "show_statement",
           "named": true
         },
@@ -647,6 +719,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "hide_screen_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "transition": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -695,6 +793,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -732,6 +834,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -788,6 +894,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -860,6 +970,10 @@
             "named": false
           },
           {
+            "type": "call_screen_statement",
+            "named": true
+          },
+          {
             "type": "call_statement",
             "named": true
           },
@@ -889,6 +1003,10 @@
           },
           {
             "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "hide_screen_statement",
             "named": true
           },
           {
@@ -945,6 +1063,10 @@
           },
           {
             "type": "screen_statement",
+            "named": true
+          },
+          {
+            "type": "show_screen_statement",
             "named": true
           },
           {
@@ -1039,6 +1161,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -1068,6 +1194,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -1124,6 +1254,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -1221,6 +1355,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -1250,6 +1388,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -1306,6 +1448,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -1438,6 +1584,10 @@
             "named": false
           },
           {
+            "type": "call_screen_statement",
+            "named": true
+          },
+          {
             "type": "call_statement",
             "named": true
           },
@@ -1467,6 +1617,10 @@
           },
           {
             "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "hide_screen_statement",
             "named": true
           },
           {
@@ -1523,6 +1677,10 @@
           },
           {
             "type": "screen_statement",
+            "named": true
+          },
+          {
+            "type": "show_screen_statement",
             "named": true
           },
           {
@@ -1770,6 +1928,42 @@
     }
   },
   {
+    "type": "show_screen_statement",
+    "named": true,
+    "fields": {
+      "arguments": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "parameter_list",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "transition": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "show_statement",
     "named": true,
     "fields": {
@@ -1855,6 +2049,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -1884,6 +2082,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -1940,6 +2142,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -2140,6 +2346,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -2169,6 +2379,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -2228,6 +2442,10 @@
           "named": true
         },
         {
+          "type": "show_screen_statement",
+          "named": true
+        },
+        {
           "type": "show_statement",
           "named": true
         },
@@ -2267,6 +2485,10 @@
       "required": true,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -2300,6 +2522,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -2363,6 +2589,10 @@
           "named": true
         },
         {
+          "type": "show_screen_statement",
+          "named": true
+        },
+        {
           "type": "show_statement",
           "named": true
         },
@@ -2413,6 +2643,10 @@
       "required": false,
       "types": [
         {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
           "type": "call_statement",
           "named": true
         },
@@ -2442,6 +2676,10 @@
         },
         {
           "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
           "named": true
         },
         {
@@ -2498,6 +2736,10 @@
         },
         {
           "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
           "named": true
         },
         {
@@ -2681,6 +2923,10 @@
   },
   {
     "type": "menu",
+    "named": false
+  },
+  {
+    "type": "nopredict",
     "named": false
   },
   {

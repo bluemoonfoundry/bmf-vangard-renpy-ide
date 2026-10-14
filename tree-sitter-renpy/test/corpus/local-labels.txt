@@ -1,0 +1,55 @@
+==================
+Local label defined with a leading dot and jumped to (nms4.10)
+==================
+label start:
+    jump .sub
+label .sub:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Fully qualified local label as call target and from-label (nms4.10)
+==================
+label chapter:
+    call start.sub from _call_sub
+    jump other.part
+label start.sub:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (call_statement
+      target: (identifier)
+      from_label: (identifier))
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Jump expression keeps its dynamic target (nms4.10)
+==================
+label a:
+    jump expression next_label
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier))))
