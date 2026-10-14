@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parseBlock, disposeParsedBlock } from '@/lib/tree-sitter/parseBlock';
+import * as symbolTableModule from '@/lib/tree-sitter/symbolTable';
 
 describe('parseBlock', () => {
   it('parses a simple label with a jump into a clean tree with no ERROR nodes', async () => {
@@ -107,5 +108,40 @@ describe('parseBlock', () => {
     } finally {
       disposeParsedBlock(result);
     }
+  });
+});
+
+describe('parseBlock failure cleanup', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const TWO_INJECTIONS = 'label a:\n    $ x = 1\n    $ y = 2\n';
+
+  /** Prototypes of real Tree / Node instances (web-tree-sitter does not export the classes). */
+  async function prototypes() {
+    const probe = await parseBlock('label a:\n    $ x = 1\n');
+    const treeProto = Object.getPrototypeOf(probe.tree) as { delete: () => void };
+    const nodeProto = Object.getPrototypeOf(probe.tree.rootNode) as object;
+    disposeParsedBlock(probe);
+    return { treeProto, nodeProto };
+  }
+
+  it('frees the Ren\'Py tree and the injection tree when injection processing throws part-way', async () => {
+    const { treeProto, nodeProto } = await prototypes();
+    const del = vi.spyOn(treeProto, 'delete');
+    // injectionKindForNode walks `parent` after the injection's Python tree is
+    // parsed, so this throws with the Ren'Py tree and one Python tree live.
+    vi.spyOn(nodeProto as { parent: unknown }, 'parent', 'get').mockImplementation(() => {
+      throw new Error('walk failed');
+    });
+    await expect(parseBlock(TWO_INJECTIONS)).rejects.toThrow('walk failed');
+    expect(del).toHaveBeenCalledTimes(2);
+  });
+
+  it('frees every tree when symbol table extraction throws', async () => {
+    const { treeProto } = await prototypes();
+    const del = vi.spyOn(treeProto, 'delete');
+    vi.spyOn(symbolTableModule, 'extractSymbolTable').mockImplementation(() => { throw new Error('extract failed'); });
+    await expect(parseBlock(TWO_INJECTIONS)).rejects.toThrow('extract failed');
+    expect(del).toHaveBeenCalledTimes(3);
   });
 });

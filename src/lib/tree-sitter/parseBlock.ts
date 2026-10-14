@@ -229,6 +229,20 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
   }
 
   const pythonInjections: PythonInjection[] = [];
+  try {
+    collectInjections(content, tree, pythonInjections);
+    const symbolTable = extractSymbolTable(tree);
+    const parseTimeMs = performance.now() - start;
+    return { tree, pythonInjections, symbolTable, parseTimeMs };
+  } catch (error) {
+    // No ParsedBlock reaches the caller, so free what was allocated here.
+    disposeParsedBlock({ tree, pythonInjections } as ParsedBlock);
+    throw error;
+  }
+}
+
+/** Parses each injection-query match as Python, appending to `out` as each tree is created. */
+function collectInjections(content: string, tree: Tree, out: PythonInjection[]): void {
   const matches = injectionsQuery!.matches(tree.rootNode);
 
   for (const match of matches) {
@@ -255,15 +269,13 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
     const pythonTree = pythonParser!.parse(spanText);
     if (!pythonTree) continue;
 
-    pythonInjections.push({
-      range: [firstNode.startIndex, lastNode.endIndex],
-      tree: pythonTree,
-      kind: injectionKindForNode(firstNode),
-    });
+    let kind: PythonInjection['kind'];
+    try {
+      kind = injectionKindForNode(firstNode);
+    } catch (error) {
+      pythonTree.delete(); // not yet in `out`, so the caller's cleanup can't see it
+      throw error;
+    }
+    out.push({ range: [firstNode.startIndex, lastNode.endIndex], tree: pythonTree, kind });
   }
-
-  const symbolTable = extractSymbolTable(tree);
-
-  const parseTimeMs = performance.now() - start;
-  return { tree, pythonInjections, symbolTable, parseTimeMs };
 }
