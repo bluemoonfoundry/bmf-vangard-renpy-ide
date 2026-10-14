@@ -14,6 +14,7 @@ import { createRangeContext, mapInjectionPoint, rangeFromOffsets } from '@/lib/t
 import { symbolId } from '@/lib/tree-sitter/symbolNames';
 import { enclosingLabelFor, walkRenpyTree } from '@/lib/tree-sitter/renpyWalk';
 import { walkPythonTree } from '@/lib/tree-sitter/pythonWalk';
+import { createThrottledWarn } from '@/lib/workerLogger';
 
 export interface IndexBlock { id: string; filePath: string; content: string }
 
@@ -44,6 +45,28 @@ export function isUseInjection(root: SyntaxNode, injection: PythonInjection): bo
   return false;
 }
 
+/**
+ * Drops injections nested strictly inside another one. The injection query
+ * also matches `if`/`while` conditions inside a `python:` body (the Ren'Py
+ * grammar parses the body as Ren'Py statements), and the enclosing
+ * python-block injection already covers them; walking both double-counts.
+ */
+export function outermostInjections(injections: PythonInjection[]): PythonInjection[] {
+  return injections.filter((inner) => !injections.some((outer) =>
+    outer !== inner
+    && outer.range[0] <= inner.range[0] && inner.range[1] <= outer.range[1]
+    && (outer.range[0] !== inner.range[0] || outer.range[1] !== inner.range[1])));
+}
+
+/** At most this many block failures are logged per worker lifetime. */
+const MAX_BLOCK_FAILURE_WARNINGS = 5;
+let warnBlockFailure = createThrottledWarn(MAX_BLOCK_FAILURE_WARNINGS);
+
+/** Test hook: restarts the block-failure warning budget. */
+export function resetBlockFailureWarnings(): void {
+  warnBlockFailure = createThrottledWarn(MAX_BLOCK_FAILURE_WARNINGS);
+}
+
 const byOffset = (a: { range: { start: { offset: number } } }, b: { range: { start: { offset: number } } }) =>
   a.range.start.offset - b.range.start.offset;
 
@@ -57,7 +80,8 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
   let parsed: ParsedBlock;
   try {
     parsed = await parseBlock(block.content);
-  } catch {
+  } catch (error) {
+    warnBlockFailure(`Symbol index: failed to parse ${block.filePath || block.id}`, error);
     return empty();
   }
 
@@ -68,7 +92,7 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
     const definitions: SymbolDefinition[] = [...renpy.definitions];
     const references: SymbolReference[] = [...renpy.references];
 
-    for (const injection of parsed.pythonInjections) {
+    for (const injection of outermostInjections(parsed.pythonInjections)) {
       const injectionStart = injection.range[0];
       const context = injectionContext(root, injection);
       const enclosingLabel = enclosingLabelFor(renpy.labelSpans, injectionStart);
@@ -103,7 +127,8 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
       hasError: root.hasError,
       definitions, references, menus: renpy.menus, pythonBlocks: renpy.pythonBlocks,
     };
-  } catch {
+  } catch (error) {
+    warnBlockFailure(`Symbol index: failed to extract symbols from ${block.filePath || block.id}`, error);
     return empty();
   } finally {
     disposeParsedBlock(parsed);

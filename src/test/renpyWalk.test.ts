@@ -147,3 +147,39 @@ describe('enclosingLabelFor', () => {
     expect(enclosingLabelFor(spans, 150)).toBeNull();
   });
 });
+
+describe('walkRenpyTree missing names (T4)', () => {
+  // The current grammar turns `label :` into an ERROR node, but tree-sitter
+  // error recovery can insert a zero-width MISSING name node; such a node must
+  // never become a `label:` symbol. A minimal node stand-in exercises that.
+  interface FakeNode {
+    type: string; text: string; isMissing: boolean; isNamed: boolean; startIndex: number; endIndex: number;
+    children: FakeNode[]; namedChildren: FakeNode[]; parent: FakeNode | null;
+    childForFieldName: (field: string) => FakeNode | null;
+    childrenForFieldName: (field: string) => FakeNode[];
+  }
+  const node = (type: string, text: string, start: number, fields: Record<string, FakeNode> = {}, missing = false): FakeNode => {
+    const children = Object.values(fields);
+    const n: FakeNode = {
+      type, text, isMissing: missing, isNamed: true, startIndex: start, endIndex: start + text.length,
+      children, namedChildren: children, parent: null,
+      childForFieldName: (field) => fields[field] ?? null,
+      childrenForFieldName: (field) => (fields[field] ? [fields[field]] : []),
+    };
+    children.forEach((c) => { c.parent = n; });
+    return n;
+  };
+
+  it('skips label, jump and screen statements whose name node is MISSING or empty', () => {
+    const content = 'label :\njump \nscreen :\n';
+    const root = node('source_file', content, 0, {
+      a: node('label_statement', 'label :', 0, { name: node('identifier', '', 6, {}, true) }),
+      b: node('jump_statement', 'jump ', 8, { target: node('identifier', '', 13, {}, true) }),
+      c: node('screen_statement', 'screen :', 14, { name: node('identifier', ' ', 21) }),
+    });
+    const r = walkRenpyTree(root as unknown as Parameters<typeof walkRenpyTree>[0], createRangeContext('b1', 'game/test.rpy', content));
+    expect(r.definitions).toEqual([]);
+    expect(r.references).toEqual([]);
+    expect(r.labelSpans).toEqual([]);
+  });
+});

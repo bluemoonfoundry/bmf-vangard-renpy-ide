@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as parseBlockModule from '@/lib/tree-sitter/parseBlock';
-import { buildBlockContribution } from '@/lib/tree-sitter/blockContribution';
+import { buildBlockContribution, resetBlockFailureWarnings } from '@/lib/tree-sitter/blockContribution';
 import { djb2 } from '@/lib/contentHash';
 import type { BlockContribution, SymbolReference } from '@/types';
 
@@ -123,5 +123,99 @@ describe('buildBlockContribution', () => {
     vi.spyOn(parseBlockModule, 'parseBlock').mockRejectedValue(new Error('wasm failed'));
     const c = await build('label start:\n');
     expect(c).toMatchObject({ hasError: true, definitions: [], references: [] });
+  });
+});
+
+describe('buildBlockContribution final-review fixes', () => {
+  const names = (c: BlockContribution) => c.references.map((r) => `${r.refKind}:${r.symbolId}`);
+
+  it('does not walk python bodies as Ren\'Py statements (I1)', async () => {
+    const content = [
+      'init python:',
+      '    def tally(n):',
+      '        """Counts [secret] things."""',
+      '        for j in range(n):',
+      '            if j:',
+      '                pass',
+      '        while n:',
+      '            n -= 1',
+      '        return n',
+      '',
+    ].join('\n');
+    const c = await build(content);
+    expect(c.references.filter((r) => r.name === 'j' || r.name === 'n')).toEqual([]);
+    expect(c.references.filter((r) => r.name === 'secret')).toEqual([]);
+    expect(c.references.filter((r) => r.context === 'interpolation' || r.refKind === 'speaker')).toEqual([]);
+    expect(c.pythonBlocks).toHaveLength(1);
+    expect(c.definitions.map((d) => d.symbolId)).toEqual(['python-function:tally']);
+  });
+
+  it('reads a condition inside a python body once, not once per nested injection (I1)', async () => {
+    const c = await build('init python:\n    if x:\n        y = 1\n    while z:\n        pass\n');
+    expect(names(c).filter((n) => n === 'read:variable:x')).toHaveLength(1);
+    expect(names(c).filter((n) => n === 'read:variable:z')).toHaveLength(1);
+    expect(names(c).filter((n) => n === 'write:variable:y')).toHaveLength(1);
+  });
+
+  it('never records Python keywords as names in screen code (I4 mitigation)', async () => {
+    const content = [
+      'screen pick(items):',
+      '    for i in items:',
+      '        textbutton title action SetScreenVariable("sel", i)',
+      '',
+    ].join('\n');
+    const c = await build(content);
+    const keywordish = c.references.filter((r) => ['in', 'not', 'and', 'or', 'is', 'if', 'else', 'for', 'lambda'].includes(r.name));
+    expect(keywordish).toEqual([]);
+  });
+
+  it('ignores half-typed labels with a missing or empty name (T4)', async () => {
+    const c = await build('label :\n    return\nlabel start:\n    return\n');
+    expect(c.definitions.map((d) => d.symbolId)).toEqual(['label:start']);
+    expect(c.definitions.every((d) => d.name !== '')).toBe(true);
+  });
+
+  it('does not record built-in speakers as character references', async () => {
+    const c = await build('label a:\n    extend "more"\n    narrator "n"\n    centered "c"\n    nvl "v"\n    e "hi"\n');
+    expect(c.references.filter((r) => r.refKind === 'speaker').map((r) => r.symbolId)).toEqual(['character:e']);
+  });
+
+  it('does not record `show text` as an image reference', async () => {
+    const c = await build('label a:\n    show text "Hello" at truecenter\n    show eileen happy\n');
+    expect(c.references.filter((r) => r.kind === 'image').map((r) => r.symbolId)).toEqual(['image:eileen happy']);
+  });
+});
+
+describe('buildBlockContribution failure warnings (T6)', () => {
+  afterEach(() => resetBlockFailureWarnings());
+
+  it('warns with the file path when parsing throws, and still returns an error contribution', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(parseBlockModule, 'parseBlock').mockRejectedValue(new Error('wasm failed'));
+    const c = await build('label start:\n', 'game/broken.rpy');
+    expect(c).toMatchObject({ hasError: true, definitions: [], references: [] });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('game/broken.rpy');
+  });
+
+  it('warns with the file path when extraction throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const realParse = parseBlockModule.parseBlock;
+    vi.spyOn(parseBlockModule, 'parseBlock').mockImplementation(async (content: string) => {
+      const parsed = await realParse(content);
+      Object.defineProperty(parsed.tree, 'rootNode', { get: () => { throw new Error('boom'); } });
+      return parsed;
+    });
+    const c = await build('label start:\n    return\n', 'game/odd.rpy');
+    expect(c.hasError).toBe(true);
+    expect(String(warn.mock.calls[0][0])).toContain('game/odd.rpy');
+  });
+
+  it('throttles warnings when every block fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(parseBlockModule, 'parseBlock').mockRejectedValue(new Error('wasm failed'));
+    for (let i = 0; i < 20; i++) await build('label start:\n', `game/f${i}.rpy`);
+    expect(warn.mock.calls.length).toBeGreaterThan(1);
+    expect(warn.mock.calls.length).toBeLessThanOrEqual(6);
   });
 });

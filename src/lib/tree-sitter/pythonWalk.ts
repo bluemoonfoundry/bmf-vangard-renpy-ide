@@ -46,6 +46,17 @@ const TARGET_CONTAINERS = new Set([
 ]);
 const IMPORTS = new Set(['import_statement', 'import_from_statement', 'future_import_statement']);
 
+/**
+ * Python keywords are never names. They reach this walk as identifiers when
+ * a screen-language line is split into one-word injections (grammar issue
+ * nms4.14, e.g. `for i in items:` yields an injection for `in`).
+ */
+const PYTHON_KEYWORDS: ReadonlySet<string> = new Set([
+  'in', 'not', 'and', 'or', 'is', 'if', 'else', 'elif', 'for', 'while', 'lambda', 'return', 'yield',
+  'pass', 'del', 'global', 'nonlocal', 'import', 'from', 'as', 'with', 'try', 'except', 'finally',
+  'raise', 'class', 'def', 'async', 'await', 'assert', 'break', 'continue',
+]);
+
 /** Identifier nodes bound by an assignment/for target (not attributes or subscripts). */
 function boundIdentifiers(target: SyntaxNode): SyntaxNode[] {
   if (target.type === 'identifier') return [target];
@@ -142,7 +153,7 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
   };
 
   const push = (name: string, refKind: 'read' | 'write', first: SyntaxNode, last: SyntaxNode): void => {
-    if (isIgnoredName(name)) return;
+    if (isIgnoredName(name) || PYTHON_KEYWORDS.has(name.split('.')[0])) return;
     result.uses.push({ name, refKind, start: first.startPosition, end: last.endPosition });
   };
 
