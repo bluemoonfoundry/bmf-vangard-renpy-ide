@@ -186,9 +186,31 @@ async function initRuntime(): Promise<void> {
   await Parser.init({ locateFile: () => treeSitterRuntimeWasmUrl, wasmBinary });
 }
 
+/**
+ * How long initialization may take before it counts as failed. An emscripten
+ * `Aborted(...)` (e.g. a corrupt wasm asset) leaves `Parser.init()` pending
+ * forever; without a bound every analysis request would wait on it.
+ */
+export const PARSER_INIT_TIMEOUT_MS = 10_000;
+
+function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`tree-sitter parser did not initialize within ${ms}ms`)),
+      ms,
+    );
+    promise.then(
+      () => { clearTimeout(timer); resolve(); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 async function ensureInitialized(): Promise<void> {
+  // A failure stays cached: an aborted WASM runtime cannot recover in this
+  // process, and retrying would make every later request wait out the timeout.
   if (initPromise) return initPromise;
-  initPromise = (async () => {
+  initPromise = withTimeout((async () => {
     await initRuntime();
     const [renpyBytes, pythonBytes] = await Promise.all([
       loadWasmBytes(renpyWasmUrl),
@@ -206,7 +228,7 @@ async function ensureInitialized(): Promise<void> {
     pythonParser = new Parser();
     pythonParser.setLanguage(pythonLang);
     injectionsQuery = renpyLang.query(injectionsQuerySource);
-  })();
+  })(), PARSER_INIT_TIMEOUT_MS);
   return initPromise;
 }
 
