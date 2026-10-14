@@ -87,4 +87,41 @@ describe('analysis request handler', () => {
     await run(createAnalysisRequestHandler({ updateIndex }), 1, [{ id: 'x', content: 'label x:\n    return\n' }]);
     expect(updateIndex.mock.calls[0][1]).toEqual([{ id: 'x', filePath: '', content: 'label x:\n    return\n' }]);
   });
+
+  it('posts the result with indexError under the default warn when there is no window (C1)', async () => {
+    vi.stubGlobal('window', undefined);
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const handler = createAnalysisRequestHandler({ updateIndex: async () => { throw new Error('wasm init failed'); } });
+      const messages = await run(handler, 1);
+      expect(messages.some((m) => 'error' in m)).toBe(false);
+      const result = finalResult(messages);
+      expect(result.indexError).toContain('wasm init failed');
+      expect(consoleWarn).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+      consoleWarn.mockRestore();
+    }
+  });
+
+  it('never lets a throwing warn discard the regex result (C1)', async () => {
+    const handler = createAnalysisRequestHandler({
+      updateIndex: async () => { throw new Error('boom'); },
+      warn: () => { throw new Error('warn exploded'); },
+    });
+    const messages = await run(handler, 1);
+    expect(messages.some((m) => 'error' in m)).toBe(false);
+    expect(finalResult(messages).indexError).toContain('boom');
+  });
+
+  it('re-indexes when a block is renamed with unchanged content (I3)', async () => {
+    const updateIndex = fakeUpdateIndex();
+    const handler = createAnalysisRequestHandler({ updateIndex });
+    await run(handler, 1);
+    const renamed = [{ ...blocks[0], filePath: 'game/renamed.rpy' }, blocks[1]];
+    const messages = await run(handler, 2, renamed);
+    expect(messages.length).toBeGreaterThan(1);
+    expect(updateIndex).toHaveBeenCalledTimes(2);
+    expect(updateIndex.mock.calls[1][1][0].filePath).toBe('game/renamed.rpy');
+  });
 });

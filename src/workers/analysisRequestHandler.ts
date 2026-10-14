@@ -13,8 +13,8 @@ import type { AnalysisBlock } from '@/hooks/useRenpyAnalysis';
 import type { ProjectSymbolIndex, RenpyAnalysisResult } from '@/types';
 import { formatErrorMessage } from '@/lib/formatErrorMessage';
 import { performTranslationAnalysis } from '@/lib/renpyTranslationParser';
-import { logger } from '@/lib/logger';
 import { djb2 } from '@/lib/contentHash';
+import { workerWarn } from '@/lib/workerLogger';
 import { createContributionCache, updateProjectIndex, type ContributionCache } from '@/lib/tree-sitter/projectIndex';
 import type { IndexBlock } from '@/lib/tree-sitter/blockContribution';
 
@@ -35,17 +35,18 @@ export interface AnalysisHandlerDeps {
 
 interface BlockSignature {
   id: string;
+  filePath: string;
   contentHash: number;
 }
 
 function computeSignatures(blocks: AnalysisBlock[]): BlockSignature[] {
-  return blocks.map((b) => ({ id: b.id, contentHash: djb2(b.content) }));
+  return blocks.map((b) => ({ id: b.id, filePath: b.filePath ?? '', contentHash: djb2(b.content) }));
 }
 
 function signaturesEqual(a: BlockSignature[], b: BlockSignature[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id || a[i].contentHash !== b[i].contentHash) return false;
+    if (a[i].id !== b[i].id || a[i].filePath !== b[i].filePath || a[i].contentHash !== b[i].contentHash) return false;
   }
   return true;
 }
@@ -58,7 +59,8 @@ function signaturesEqual(a: BlockSignature[], b: BlockSignature[]): boolean {
  */
 export function createAnalysisRequestHandler(deps: AnalysisHandlerDeps = {}) {
   const updateIndex = deps.updateIndex ?? updateProjectIndex;
-  const warn = deps.warn ?? ((message: string, error: unknown) => logger.warn(message, error));
+  // Not the renderer `logger`: it touches `window`, which a worker lacks (C1).
+  const warn = deps.warn ?? workerWarn;
   const contributionCache = createContributionCache();
   let cachedSignatures: BlockSignature[] = [];
   let cachedResult: RenpyAnalysisResult | null = null;
@@ -97,7 +99,11 @@ export function createAnalysisRequestHandler(deps: AnalysisHandlerDeps = {}) {
         result.indexError = formatErrorMessage(error);
         if (!warned) {
           warned = true;
-          warn('Symbol index build failed; regex analysis result is unaffected', error);
+          try {
+            warn('Symbol index build failed; regex analysis result is unaffected', error);
+          } catch {
+            // A failing warning sink must never discard the regex result.
+          }
         }
       }
 
