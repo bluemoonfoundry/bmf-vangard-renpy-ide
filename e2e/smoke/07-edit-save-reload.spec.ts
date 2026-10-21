@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { testWithProject as test, expect, FIXTURE_PROJECT } from '../electron-fixture';
+import { testWithProject as test, expect, FIXTURE_PROJECT, openBlockInEditor } from '../electron-fixture';
 
 const SCRIPT_PATH = path.join(FIXTURE_PROJECT, 'game', 'script.rpy');
 
@@ -12,7 +12,7 @@ test.describe('edit, save, and reload', () => {
     try {
       const block = window.locator('[data-block-id]').first();
       await expect(block).toBeVisible({ timeout: 30_000 });
-      await block.dblclick();
+      await openBlockInEditor(window, block);
 
       const editor = window.locator('.monaco-editor').first();
       await expect(editor).toBeVisible({ timeout: 10_000 });
@@ -40,7 +40,7 @@ test.describe('edit, save, and reload', () => {
       await expect(window.locator('[data-block-id]').first()).toBeVisible({ timeout: 30_000 });
 
       const reopenedBlock = window.locator('[data-block-id]').first();
-      await reopenedBlock.dblclick();
+      await openBlockInEditor(window, reopenedBlock);
       await expect(window.locator('.monaco-editor').first()).toBeVisible({ timeout: 10_000 });
       await expect(window.locator('.monaco-editor').first()).toContainText(marker, { timeout: 10_000 });
     } finally {

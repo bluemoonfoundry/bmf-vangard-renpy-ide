@@ -1,4 +1,4 @@
-import { testWithProject as test, expect } from '../electron-fixture';
+import { testWithProject as test, expect, openBlockInEditor } from '../electron-fixture';
 
 test.describe('tab close', () => {
   test('closing an editor tab removes it from the tab bar', async ({ window }) => {
@@ -9,7 +9,7 @@ test.describe('tab close', () => {
     const initialCount = await closeTabButtons.count();
 
     // Open an editor tab
-    await block.dblclick();
+    await openBlockInEditor(window, block);
     await expect(closeTabButtons).toHaveCount(initialCount + 1, { timeout: 10_000 });
 
     // Close the newly opened tab (last close button)

@@ -4,7 +4,7 @@ import path from 'path';
 import { _electron as electron, expect, test } from 'playwright/test';
 import type { ElectronApplication, Page } from 'playwright/test';
 import { APP_ENTRY, forceExit, launchElectron, suppressFirstRunTutorial } from '../electron-launch.js';
-import { FIXTURE_PROJECT } from '../electron-fixture';
+import { FIXTURE_PROJECT, openBlockInEditor } from '../electron-fixture';
 
 // Acceptance for bmf-vangard-renpy-ide-b70a.2.3: after a simulated crash (hard
 // exit that skips the clean-quit cleanup), the next open offers recovery, which
@@ -44,7 +44,7 @@ async function typeUnsavedEditAndCrash(marker: string) {
   const { app, window } = await launch();
   const block = window.locator('[data-block-id]').first();
   await expect(block).toBeVisible({ timeout: 30_000 });
-  await block.dblclick();
+  await openBlockInEditor(window, block);
   const editor = window.locator('.monaco-editor').first();
   await expect(editor).toBeVisible({ timeout: 10_000 });
   await editor.click();
@@ -102,7 +102,7 @@ test.describe('crash recovery', () => {
       }, { timeout: 20_000 }).toBe(true);
 
       const block = window.locator('[data-block-id]').first();
-      await block.dblclick();
+      await openBlockInEditor(window, block);
       await expect(window.locator('.monaco-editor').first()).toContainText(marker);
 
       // Restored as UNSAVED: disk is untouched until the user saves.

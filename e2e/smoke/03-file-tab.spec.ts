@@ -11,7 +11,9 @@ test.describe('file tab', () => {
     const closeTabButtons = window.getByLabel('Close tab');
     const initialTabCount = await closeTabButtons.count();
 
-    // Double-click the block to open it in an editor tab
+    // Collapse the top-left Canvas Toolbox so it can't cover the block's centre,
+    // then double-click the block to open it in an editor tab
+    await window.getByTitle('Collapse canvas controls').filter({ hasText: 'Project Canvas' }).click();
     await block.dblclick();
 
     // A new editor tab should have been added

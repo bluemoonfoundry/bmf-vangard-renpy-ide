@@ -880,13 +880,16 @@ export interface AnalysisProgress {
 
 /**
  * Hook that runs Ren'Py analysis asynchronously via a Web Worker.
- * Returns `[result, isPending, progress]` — `isPending` is true while the worker
- * is computing; `progress` carries the latest phase/percent reported by the worker.
+ * Returns `[result, isPending, progress]` — `isPending` is true until `result`
+ * answers the current `blocks`/`trigger` (from the very render they change); `progress` carries the latest phase/percent reported by the worker.
  * Falls back to synchronous analysis if Web Workers are unavailable (e.g. test env).
  */
 export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onComplete?: (ms: number) => void): [RenpyAnalysisResult, boolean, AnalysisProgress | null] => {
   const [result, setResult] = useState<RenpyAnalysisResult>(EMPTY_ANALYSIS_RESULT);
-  const [isPending, setIsPending] = useState(false);
+  // The input the current result answers. Pending is derived from it rather than
+  // set in the effect, so the render where `blocks` changes already reads as
+  // pending — consumers' effects in that same commit never see a stale result as settled.
+  const [settledFor, setSettledFor] = useState<{ blocks: AnalysisBlock[]; trigger: number } | null>(null);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const requestIdRef = useRef(0);
   const onCompleteRef = useRef(onComplete);
@@ -894,7 +897,6 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
 
   useEffect(() => {
     const currentId = ++requestIdRef.current;
-    setIsPending(true);
     setProgress(null);
 
     const worker = getAnalysisWorker();
@@ -908,7 +910,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
       r.identifiedRoutes = routeData.identifiedRoutes;
       r.routesTruncated = routeData.routesTruncated;
       setResult(r);
-      setIsPending(false);
+      setSettledFor({ blocks, trigger });
       return;
     }
 
@@ -929,7 +931,7 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
         onCompleteRef.current?.(performance.now() - startTime);
       }
       setProgress(null);
-      setIsPending(false);
+      setSettledFor({ blocks, trigger });
     };
 
     worker.addEventListener('message', handleMessage);
@@ -941,5 +943,6 @@ export const useRenpyAnalysis = (blocks: AnalysisBlock[], trigger: number, onCom
     };
   }, [blocks, trigger]);
 
+  const isPending = settledFor?.blocks !== blocks || settledFor.trigger !== trigger;
   return [result, isPending, progress];
 };

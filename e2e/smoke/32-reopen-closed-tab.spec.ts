@@ -1,4 +1,4 @@
-import { testWithProject as test, expect } from '../electron-fixture';
+import { testWithProject as test, expect, openBlockInEditor } from '../electron-fixture';
 
 test.describe('reopen closed tab', () => {
   test('Ctrl+Shift+T reopens the most recently closed tab and focuses it', async ({ window }) => {
@@ -9,7 +9,7 @@ test.describe('reopen closed tab', () => {
     const initialCount = await closeTabButtons.count();
 
     // Open an editor tab
-    await block.dblclick();
+    await openBlockInEditor(window, block);
     await expect(closeTabButtons).toHaveCount(initialCount + 1, { timeout: 10_000 });
     await expect(window.locator('.monaco-editor')).toBeVisible({ timeout: 10_000 });
 

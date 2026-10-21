@@ -5,7 +5,7 @@ import path from 'path';
 import { test as base, _electron as electron, expect } from 'playwright/test';
 import type { ElectronApplication, Page } from 'playwright/test';
 import { APP_ENTRY, forceExit, launchElectron, suppressFirstRunTutorial } from '../electron-launch.js';
-import { FIXTURE_PROJECT } from '../electron-fixture';
+import { FIXTURE_PROJECT, openBlockInEditor } from '../electron-fixture';
 
 // Coverage for the Save All transaction (bmf-vangard-renpy-ide-b70a.2.2, see
 // src/lib/saveTransaction.js) through the real main process: recovery of a
@@ -75,7 +75,7 @@ test.describe('save transaction recovery', () => {
     // the files were read rather than after.
     const block = window.locator('[data-block-id]').first();
     await expect(block).toBeVisible({ timeout: 30_000 });
-    await block.dblclick();
+    await openBlockInEditor(window, block);
     const editor = window.locator('.monaco-editor').first();
     await expect(editor).toBeVisible({ timeout: 10_000 });
     await expect(editor).toContainText('Recovered from an interrupted save.');

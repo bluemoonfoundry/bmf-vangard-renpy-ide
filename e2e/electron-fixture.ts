@@ -1,5 +1,5 @@
-import { test as base, _electron as electron } from 'playwright/test';
-import type { ElectronApplication, Page } from 'playwright/test';
+import { test as base, _electron as electron, expect } from 'playwright/test';
+import type { ElectronApplication, Locator, Page } from 'playwright/test';
 import { fileURLToPath } from 'url';
 import { mkdtempSync, rmSync } from 'fs';
 import os from 'os';
@@ -106,4 +106,14 @@ export const testWithDemoProject = base.extend<ElectronFixtures>({
 });
 /* eslint-enable react-hooks/rules-of-hooks, no-empty-pattern */
 
-export { expect } from 'playwright/test';
+/** Opens a Project Canvas block in an editor tab by focusing it and pressing
+ *  Enter (StoryCanvas's keyboard open path). Double-clicking hits the block's
+ *  centre, which the top-left Canvas Toolbox covers whenever the view hasn't
+ *  been centred on the block, so specs that only need an editor use this. */
+export async function openBlockInEditor(window: Page, block: Locator = window.locator('[data-block-id]').first()) {
+  await expect(block).toBeVisible({ timeout: 30_000 });
+  await block.focus();
+  await window.keyboard.press('Enter');
+}
+
+export { expect };

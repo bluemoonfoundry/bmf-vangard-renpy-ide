@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { testWithProject as test, expect, FIXTURE_PROJECT } from '../electron-fixture';
+import { testWithProject as test, expect, FIXTURE_PROJECT, openBlockInEditor } from '../electron-fixture';
 
 // Regression coverage for review-hardening risk: "external edits"
 // (bmf-vangard-renpy-ide-6o47.6). useExternalFileChanges.test.ts already covers
@@ -18,7 +18,7 @@ test.describe('external file changes', () => {
     try {
       const block = window.locator('[data-block-id]').first();
       await expect(block).toBeVisible({ timeout: 30_000 });
-      await block.dblclick();
+      await openBlockInEditor(window, block);
 
       const editor = window.locator('.monaco-editor').first();
       await expect(editor).toBeVisible({ timeout: 10_000 });
@@ -45,7 +45,7 @@ test.describe('external file changes', () => {
     try {
       const block = window.locator('[data-block-id]').first();
       await expect(block).toBeVisible({ timeout: 30_000 });
-      await block.dblclick();
+      await openBlockInEditor(window, block);
 
       const editor = window.locator('.monaco-editor').first();
       await expect(editor).toBeVisible({ timeout: 10_000 });

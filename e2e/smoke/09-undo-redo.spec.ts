@@ -1,10 +1,10 @@
-import { testWithProject as test, expect } from '../electron-fixture';
+import { testWithProject as test, expect, openBlockInEditor } from '../electron-fixture';
 
 test.describe('undo / redo', () => {
   test('typing in the editor then undoing reverts the change', async ({ window }) => {
     const block = window.locator('[data-block-id]').first();
     await expect(block).toBeVisible({ timeout: 30_000 });
-    await block.dblclick();
+    await openBlockInEditor(window, block);
 
     const editor = window.locator('.monaco-editor').first();
     await expect(editor).toBeVisible({ timeout: 10_000 });
