@@ -43,10 +43,12 @@ export function normalizeDefinitionName(written: string): string {
 }
 
 /**
- * Names never recorded as variable references: Python builtins and keywords
- * used as names, and Ren'Py's API namespaces, displayables, actions and
- * transitions. One constant so tuning (spec "Open Questions") happens in one
- * place.
+ * Python builtins and keywords used as names, and Ren'Py's API namespaces,
+ * displayables, actions and transitions. Walks still record references to
+ * them, since many (`time`, `random`, `id`, ...) are common user variable
+ * names; resolveProjectIndex drops one only when nothing in the project
+ * defines it, instead of reporting it unresolved (nms4.13). One constant so
+ * tuning (spec "Open Questions") happens in one place.
  */
 export const PYTHON_IGNORED_NAMES: ReadonlySet<string> = new Set([
   // Python
@@ -79,6 +81,11 @@ export const PYTHON_IGNORED_NAMES: ReadonlySet<string> = new Set([
   'Help', 'HideInterface', 'QuickSave', 'QuickLoad', 'Language', 'GetTooltip',
 ]);
 
+/** Ren'Py-internal names, never recorded as references. */
+export function isPrivateName(name: string): boolean {
+  return name.startsWith('_');
+}
+
 export function isIgnoredName(name: string): boolean {
-  return name.startsWith('_') || PYTHON_IGNORED_NAMES.has(name);
+  return isPrivateName(name) || PYTHON_IGNORED_NAMES.has(name);
 }

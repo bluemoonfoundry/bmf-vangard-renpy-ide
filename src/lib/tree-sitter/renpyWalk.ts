@@ -13,7 +13,7 @@ import type {
 } from '@/types';
 import { rangeFromOffsets, rangeOfNode, type RangeContext } from '@/lib/tree-sitter/sourceRange';
 import {
-  isIgnoredName, normalizeDefinitionName, normalizeVariableName, qualifyLabel, symbolId,
+  isPrivateName, normalizeDefinitionName, normalizeVariableName, qualifyLabel, symbolId,
 } from '@/lib/tree-sitter/symbolNames';
 
 export interface LabelSpan { id: SymbolId; start: number; end: number }
@@ -117,7 +117,7 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
       const index = match.index ?? 0;
       if (index > 0 && text[index - 1] === '[') continue; // `[[` is a literal bracket
       const { name } = normalizeVariableName(match[1].split('.'));
-      if (isIgnoredName(name)) continue;
+      if (isPrivateName(name)) continue;
       const start = stringNode.startIndex + index + 1;
       reference('variable', name, 'read', start, start + match[1].length, 'interpolation');
     }
@@ -266,7 +266,7 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         const variable = node.childForFieldName('variable');
         if (!usable(variable)) break;
         for (const match of variable.text.matchAll(NAME_RE)) {
-          if (isIgnoredName(match[0])) continue;
+          if (isPrivateName(match[0])) continue;
           const start = variable.startIndex + (match.index ?? 0);
           reference('variable', match[0], 'write', start, start + match[0].length);
         }

@@ -16,7 +16,7 @@
  *   ERROR node are never recorded.
  */
 import type { Point, SyntaxNode } from 'web-tree-sitter';
-import { isIgnoredName, normalizeVariableName } from '@/lib/tree-sitter/symbolNames';
+import { isPrivateName, normalizeVariableName } from '@/lib/tree-sitter/symbolNames';
 
 export interface PythonUse { name: string; refKind: 'read' | 'write'; start: Point; end: Point }
 
@@ -153,7 +153,7 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
   };
 
   const push = (name: string, refKind: 'read' | 'write', first: SyntaxNode, last: SyntaxNode): void => {
-    if (isIgnoredName(name) || PYTHON_KEYWORDS.has(name.split('.')[0])) return;
+    if (isPrivateName(name) || PYTHON_KEYWORDS.has(name.split('.')[0])) return;
     result.uses.push({ name, refKind, start: first.startPosition, end: last.endPosition });
   };
 

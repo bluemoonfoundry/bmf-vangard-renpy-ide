@@ -45,7 +45,8 @@ describe('walkPythonTree', () => {
       '',
     ].join('\n');
     const r = await walkPython(content);
-    expect(uses(r)).toEqual(['read:default_b', 'read:x', 'read:q']);
+    // Builtins are recorded too; resolveProjectIndex drops them when nothing defines them (nms4.13).
+    expect(uses(r)).toEqual(['read:default_b', 'read:x', 'read:range', 'read:list', 'read:map', 'read:q']);
     expect(r.defs.map((d) => [d.kind, d.name])).toEqual([['python-function', 'f']]);
   });
 
@@ -65,9 +66,9 @@ describe('walkPythonTree', () => {
     expect(uses(r)).toEqual(['read:award', 'read:bonus']);
   });
 
-  it('skips imported names, builtins, Ren\'Py namespaces and underscore names', async () => {
+  it('skips imported and underscore names but leaves builtins and Ren\'Py namespaces for resolution', async () => {
     const r = await walkPython('init python:\n    import math\n    from foo import bar as baz\n    x = math.sqrt(len(renpy.random.random())) + baz + _private\n');
-    expect(uses(r)).toEqual(['write:x']);
+    expect(uses(r)).toEqual(['read:len', 'read:renpy', 'write:x']);
   });
 
   it('does not record definitions when not allowed', async () => {
@@ -77,7 +78,7 @@ describe('walkPythonTree', () => {
 
   it('ignores identifiers inside Python ERROR nodes (screen property lists)', async () => {
     const r = await walkPython('screen s():\n    textbutton "Go" action SetVariable("points", points + 1)\n');
-    expect(uses(r)).toEqual(['read:points']);
+    expect(uses(r)).toEqual(['read:SetVariable', 'read:points']);
   });
 
   it('reports span-relative points', async () => {

@@ -9,7 +9,7 @@
 import type {
   BlockContribution, IndexedSymbol, ProjectSymbolIndex, SourceRange, SymbolId, SymbolKind, SymbolReference,
 } from '@/types';
-import { symbolId } from '@/lib/tree-sitter/symbolNames';
+import { isIgnoredName, symbolId } from '@/lib/tree-sitter/symbolNames';
 import { djb2 } from '@/lib/contentHash';
 import { buildBlockContribution, type IndexBlock } from '@/lib/tree-sitter/blockContribution';
 import { initParser } from '@/lib/tree-sitter/parseBlock';
@@ -85,6 +85,8 @@ export function resolveProjectIndex(contributions: Map<string, BlockContribution
     if (resolved.symbolId === null) continue; // dynamic jump/call: not attached, not unresolved
     const symbol = symbols.get(resolved.symbolId);
     if (symbol) symbol.references.push(resolved);
+    // A builtin or Ren'Py API name the project doesn't define (nms4.13).
+    else if (resolved.kind === 'variable' && isIgnoredName(resolved.name)) continue;
     else unresolved.push(resolved);
   }
 

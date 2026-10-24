@@ -105,3 +105,64 @@ describe('resolveProjectIndex (fixture project)', () => {
     expect([...index.contributions.keys()].sort()).toEqual([...FILES].sort());
   });
 });
+
+async function inlineIndex(files: Record<string, string>): Promise<ProjectSymbolIndex> {
+  const contributions = new Map<string, BlockContribution>();
+  for (const [file, content] of Object.entries(files)) {
+    contributions.set(file, await buildBlockContribution({ id: file, filePath: `game/${file}`, content }));
+  }
+  return resolveProjectIndex(contributions);
+}
+
+// nms4.13: names on PYTHON_IGNORED_NAMES (time, random, id, ...) are often user
+// variables. They are dropped only when nothing in the project defines them.
+describe('resolveProjectIndex (user variables named like builtins)', () => {
+  it('records reads and writes of a defaulted variable whose name is on the ignored list', async () => {
+    const index = await inlineIndex({
+      'init.rpy': 'default time = "morning"\n',
+      'script.rpy': [
+        'label start:',
+        '    "It is [time]."',
+        '    $ time = "night"',
+        '    if time == "night":',
+        '        "Late."',
+        '    return',
+        '',
+      ].join('\n'),
+    });
+    const time = index.symbols.get('variable:time')!;
+    expect(time.definitions.map((d) => d.defKind)).toEqual(['default']);
+    expect(time.references.map((r) => `${r.refKind}:${r.context}@${r.range.start.line}`)).toEqual([
+      'read:interpolation@2', 'write:dollar@3', 'read:condition@4',
+    ]);
+    expect(index.unresolved).toEqual([]);
+  });
+
+  it('promotes the first write of an ignored-list name to an implicit definition', async () => {
+    const index = await inlineIndex({
+      'script.rpy': 'label start:\n    $ random = 3\n    "Rolled [random]."\n    return\n',
+    });
+    const random = index.symbols.get('variable:random')!;
+    expect(random.definitions.map((d) => d.defKind)).toEqual(['implicit']);
+    expect(random.references.map((r) => r.refKind)).toEqual(['write', 'read']);
+  });
+
+  it('drops builtin and Ren\'Py API reads nothing defines instead of reporting them unresolved', async () => {
+    const index = await inlineIndex({
+      'script.rpy': 'default items = []\nlabel start:\n    $ n = len(items) + renpy.random.randint(1, 2)\n    return\n',
+    });
+    expect(index.unresolved).toEqual([]);
+    expect(index.symbols.has('variable:len')).toBe(false);
+    expect(index.symbols.has('variable:renpy')).toBe(false);
+    expect(refSummary(index, 'variable:items')).toEqual(['read@game/script.rpy:3']);
+  });
+
+  it('still never records underscore-prefixed names', async () => {
+    const index = await inlineIndex({
+      'script.rpy': 'default _hidden = 1\nlabel start:\n    $ x = _last_say_who\n    "[_hidden]"\n    return\n',
+    });
+    const names = [...index.symbols.values()].flatMap((s) => s.references.map((r) => r.name));
+    expect(names.filter((n) => n.startsWith('_'))).toEqual([]);
+    expect(index.unresolved.filter((r) => r.name.startsWith('_'))).toEqual([]);
+  });
+});
