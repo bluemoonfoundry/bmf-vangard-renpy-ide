@@ -49,6 +49,20 @@ test.describe('electron launch environment', () => {
     }
   });
 
+  test('forceExit returns only once Playwright has seen the app process close', async () => {
+    // Worker teardown gracefully closes any app Playwright still tracks, and that
+    // can hang on a half-exited app (bmf-vangard-renpy-ide-15bf). forceExit must
+    // not hand back until the process is fully gone.
+    const app = await launchElectron(electron, { args: [APP_ENTRY] });
+    let closed = false;
+    app.once('close', () => { closed = true; });
+    await app.firstWindow();
+    await forceExit(app);
+    expect(closed).toBe(true);
+    // Idempotent: a second call on a closed app returns immediately.
+    await forceExit(app);
+  });
+
   test('a missing renderer build fails fast with an actionable message', async () => {
     const emptyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vangard-e2e-nodist-'));
     try {

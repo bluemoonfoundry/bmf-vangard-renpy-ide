@@ -24,10 +24,15 @@ async function launchWithProject(projectPath: string) {
     args: [APP_ENTRY, '--project', projectPath],
     env: { RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ isLeftSidebarOpen: true, isRightSidebarOpen: true }) },
   });
-  await suppressFirstRunTutorial(app);
-  const window = await app.firstWindow();
-  await window.waitForLoadState('domcontentloaded');
-  return { app, window };
+  try {
+    await suppressFirstRunTutorial(app);
+    const window = await app.firstWindow();
+    await window.waitForLoadState('domcontentloaded');
+    return { app, window };
+  } catch (err) {
+    await forceExit(app);
+    throw err;
+  }
 }
 
 base.describe('malformed projects', () => {

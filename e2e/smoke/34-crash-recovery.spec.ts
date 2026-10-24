@@ -23,10 +23,15 @@ async function launch(): Promise<{ app: ElectronApplication; window: Page }> {
       RENIDE_SETTINGS_OVERRIDE: JSON.stringify({ isLeftSidebarOpen: true, isRightSidebarOpen: true }),
     },
   });
-  await suppressFirstRunTutorial(app);
-  const window = await app.firstWindow();
-  await window.waitForLoadState('domcontentloaded');
-  return { app, window };
+  try {
+    await suppressFirstRunTutorial(app);
+    const window = await app.firstWindow();
+    await window.waitForLoadState('domcontentloaded');
+    return { app, window };
+  } catch (err) {
+    await forceExit(app);
+    throw err;
+  }
 }
 
 async function snapshotFiles(): Promise<string[]> {
@@ -42,23 +47,26 @@ async function snapshotFiles(): Promise<string[]> {
 
 async function typeUnsavedEditAndCrash(marker: string) {
   const { app, window } = await launch();
-  const block = window.locator('[data-block-id]').first();
-  await expect(block).toBeVisible({ timeout: 30_000 });
-  await openBlockInEditor(window, block);
-  const editor = window.locator('.monaco-editor').first();
-  await expect(editor).toBeVisible({ timeout: 10_000 });
-  await editor.click();
-  await window.keyboard.press(process.platform === 'darwin' ? 'Meta+End' : 'Control+End');
-  await window.keyboard.press('Enter');
-  await window.keyboard.type(marker);
-  // 800 ms content debounce + 5 s snapshot debounce
-  await expect.poll(async () => {
-    for (const f of await snapshotFiles()) {
-      if ((await fs.readFile(f, 'utf-8')).includes(marker)) return true;
-    }
-    return false;
-  }, { timeout: 20_000 }).toBe(true);
-  await forceExit(app); // simulated crash
+  try {
+    const block = window.locator('[data-block-id]').first();
+    await expect(block).toBeVisible({ timeout: 30_000 });
+    await openBlockInEditor(window, block);
+    const editor = window.locator('.monaco-editor').first();
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+    await editor.click();
+    await window.keyboard.press(process.platform === 'darwin' ? 'Meta+End' : 'Control+End');
+    await window.keyboard.press('Enter');
+    await window.keyboard.type(marker);
+    // 800 ms content debounce + 5 s snapshot debounce
+    await expect.poll(async () => {
+      for (const f of await snapshotFiles()) {
+        if ((await fs.readFile(f, 'utf-8')).includes(marker)) return true;
+      }
+      return false;
+    }, { timeout: 20_000 }).toBe(true);
+  } finally {
+    await forceExit(app); // simulated crash (or cleanup if a step above failed)
+  }
 }
 
 test.describe('crash recovery', () => {
@@ -116,12 +124,15 @@ test.describe('crash recovery', () => {
     await typeUnsavedEditAndCrash(`# discard-marker-${Date.now()}`);
 
     let { app, window } = await launch();
-    await expect(window.getByRole('heading', { name: /Recover unsaved work/ })).toBeVisible({ timeout: 30_000 });
-    await window.getByRole('button', { name: 'Discard…' }).click();
-    await window.getByRole('button', { name: 'Discard recovered work' }).click();
-    await expect(window.getByText('Recovered work discarded')).toBeVisible();
-    expect(await snapshotFiles()).toEqual([]);
-    await forceExit(app);
+    try {
+      await expect(window.getByRole('heading', { name: /Recover unsaved work/ })).toBeVisible({ timeout: 30_000 });
+      await window.getByRole('button', { name: 'Discard…' }).click();
+      await window.getByRole('button', { name: 'Discard recovered work' }).click();
+      await expect(window.getByText('Recovered work discarded')).toBeVisible();
+      expect(await snapshotFiles()).toEqual([]);
+    } finally {
+      await forceExit(app);
+    }
 
     ({ app, window } = await launch());
     try {

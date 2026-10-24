@@ -1,6 +1,9 @@
+import { spawnSync } from 'child_process';
+import console from 'console';
 import { existsSync } from 'fs';
 import path from 'path';
 import process from 'process';
+import { clearTimeout, setTimeout } from 'timers';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +37,10 @@ export function assertRendererBuilt(root = path.join(__dirname, '..')) {
   }
 }
 
+/** Resolves when Playwright sees each launched app's process close: exited, with
+ *  every holder of its stdio pipes gone. */
+const appClosed = new WeakMap();
+
 /** Launches the app through Playwright's `_electron` driver with a sanitized
  *  env after checking the renderer build exists. Launcher failures are not
  *  wrapped: when the process exits early Playwright rejects internal promises
@@ -41,13 +48,49 @@ export function assertRendererBuilt(root = path.join(__dirname, '..')) {
  *  its call log already includes the child's stderr (e.g. "bad option: ..."). */
 export async function launchElectron(electron, options = {}) {
   assertRendererBuilt();
-  return electron.launch({ ...options, env: electronLaunchEnv(options.env) });
+  const app = await electron.launch({ ...options, env: electronLaunchEnv(options.env) });
+  const closed = new Promise((resolve) => app.once('close', resolve));
+  appClosed.set(app, closed);
+  return app;
+}
+
+/** How long forceExit waits for the process to close before killing its group. */
+const FORCE_EXIT_GRACE_MS = 5_000;
+
+function closesWithin(closed, ms) {
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), ms); });
+  return Promise.race([closed.then(() => true), timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Kills the app's whole process tree. Playwright launches Electron as a process
+ *  group leader on POSIX, so this also reaches Chromium children that outlive
+ *  the main process. */
+function killProcessTree(pid) {
+  try {
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(pid), '/T', '/F']);
+    else process.kill(-pid, 'SIGKILL');
+  } catch {
+    // Already gone.
+  }
 }
 
 /** Force-exits the Electron process, bypassing the window close event handler
- *  (which intercepts close to check for unsaved changes and hangs teardown). */
+ *  (which intercepts close to check for unsaved changes and hangs teardown).
+ *  Returns only once the process has closed: Playwright gracefully closes every
+ *  app it still tracks at worker teardown, and that hangs on a half-exited app
+ *  (bmf-vangard-renpy-ide-15bf). Safe to call more than once. */
 export async function forceExit(app) {
+  const closed = appClosed.get(app) ?? new Promise((resolve) => app.once('close', resolve));
   await app.evaluate(({ app: electronApp }) => electronApp.exit(0)).catch(() => {});
+  if (await closesWithin(closed, FORCE_EXIT_GRACE_MS)) return;
+
+  const pid = app.process().pid;
+  console.warn(`[e2e] Electron pid ${pid} did not close within ${FORCE_EXIT_GRACE_MS}ms of app.exit(); killing its process tree`);
+  killProcessTree(pid);
+  if (!(await closesWithin(closed, FORCE_EXIT_GRACE_MS))) {
+    console.warn(`[e2e] Electron pid ${pid} still not closed after kill`);
+  }
 }
 
 const TUTORIAL_STORAGE_KEY = 'renpy-ide-tutorial-completed';
