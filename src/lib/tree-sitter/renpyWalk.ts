@@ -254,6 +254,8 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         break;
       }
 
+      // A menu caption is a say line shown with the choices.
+      case 'menu_caption':
       case 'say_statement': {
         const who = node.childForFieldName('character');
         if (who?.type === 'identifier' && usable(who) && !BUILTIN_SPEAKERS.has(who.text)) reference('character', who.text, 'speaker', who.startIndex, who.endIndex);

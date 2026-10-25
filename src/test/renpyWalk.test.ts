@@ -63,6 +63,12 @@ describe('walkRenpyTree definitions', () => {
     expect(r.menus[0].choices.map((c) => [c.text, c.condition])).toEqual([['Left', 'brave'], ['Right', null]]);
   });
 
+  it('does not count a menu caption or set as a choice', async () => {
+    const r = await walk('label a:\n    menu:\n        set seen\n        "Where?"\n        "Left":\n            return\n        "Right":\n            pass\n');
+    expect(r.menus).toHaveLength(1);
+    expect(r.menus[0].choices.map((c) => c.text)).toEqual(['Left', 'Right']);
+  });
+
   it('records the label created by call ... from', async () => {
     const r = await walk('label start:\n    call chapter from _call_chapter\n');
     expect(defs(r)).toContainEqual(['label:_call_chapter', 'label']);
@@ -125,6 +131,17 @@ describe('walkRenpyTree references', () => {
     ]);
     const points = r.references[1];
     expect(content.slice(points.range.start.offset, points.range.end.offset)).toBe('points');
+  });
+
+  it('records interpolation reads in a menu caption', async () => {
+    const content = 'label a:\n    menu:\n        e "Where to, [name]?"\n        "Left":\n            return\n';
+    const r = await walk(content);
+    expect(refs(r)).toEqual([
+      ['character:e', 'speaker', 'statement'],
+      ['variable:name', 'read', 'interpolation'],
+    ]);
+    const name = r.references[1];
+    expect(content.slice(name.range.start.offset, name.range.end.offset)).toBe('name');
   });
 
   it('records for-loop targets as writes', async () => {

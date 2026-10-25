@@ -53,3 +53,78 @@ label a:
         text: (string)
         (return_statement)))))
 
+
+==================
+Menu with caption, conditional choice and set (nms4.22)
+==================
+label a:
+    menu:
+        set seen
+        "Where?"
+        "Left" if points > 1:
+            jump left
+        "Right":
+            pass
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (menu_statement
+      (menu_set
+        expression: (expression))
+      (menu_caption
+        text: (string))
+      (menu_choice
+        text: (string)
+        condition: (expression)
+        (jump_statement
+          target: (identifier)))
+      (menu_choice
+        text: (string)
+        (pass_statement)))))
+
+==================
+Menu caption with speaker (nms4.22)
+==================
+menu:
+    e "Where to, [name]?"
+    "Left":
+        jump left
+
+---
+
+(source_file
+  (menu_statement
+    (menu_caption
+      character: (identifier)
+      text: (string))
+    (menu_choice
+      text: (string)
+      (jump_statement
+        target: (identifier)))))
+
+==================
+Named menu with set expression and caption (nms4.22)
+==================
+menu chooser:
+    set menuset
+    e happy "Pick one."
+    "One":
+        return
+
+---
+
+(source_file
+  (menu_statement
+    label: (identifier)
+    (menu_set
+      expression: (expression))
+    (menu_caption
+      character: (identifier)
+      attributes: (identifier)
+      text: (string))
+    (menu_choice
+      text: (string)
+      (return_statement))))

@@ -297,9 +297,26 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1(choice($._comment_line, $.menu_choice)),
+      repeat1(choice($._comment_line, $.menu_choice, $.menu_caption, $.menu_set)),
       $._dedent,
     ),
+
+    // nms4.22: a say-style line with no colon inside a menu is its caption
+    // (`"Where?"`, `e "Where?"`), shown while the choices are on screen.
+    // A choice always ends in ':' (or `if <cond>:`), so the two are told
+    // apart at the end of the string.
+    menu_caption: $ => seq(
+      optional(seq(
+        field('character', $.identifier),
+        optional(field('attributes', repeat1($.identifier))),
+      )),
+      field('text', $.string),
+      $._newline,
+    ),
+
+    // nms4.22: `set <expr>` names a set of choice texts already picked;
+    // those choices are hidden.
+    menu_set: $ => seq('set', field('expression', $.expression), $._newline),
 
     menu_choice: $ => seq(
       field('text', $.string),

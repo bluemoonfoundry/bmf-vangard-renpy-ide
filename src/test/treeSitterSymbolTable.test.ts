@@ -71,6 +71,15 @@ describe('extractSymbolTable', () => {
     expect(table.menus[0].choiceTexts).toEqual(['"Go left"', '"Go right"']);
   });
 
+  it('leaves a menu caption and set out of the choice texts', async () => {
+    const { tree } = await parseBlock(
+      'menu:\n    set seen\n    e "Where?"\n    "Go left":\n        jump left\n    "Go right":\n        jump right\n'
+    );
+    const table = extractSymbolTable(tree);
+    expect(table.menus).toHaveLength(1);
+    expect(table.menus[0].choiceTexts).toEqual(['"Go left"', '"Go right"']);
+  });
+
   it('extracts transform and style statements', async () => {
     const { tree } = await parseBlock(
       'transform my_transform:\n    xalign 0.5\n\nstyle my_style is default:\n    color "#fff"\n'
