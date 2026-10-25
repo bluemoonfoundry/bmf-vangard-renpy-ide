@@ -811,7 +811,7 @@ module.exports = grammar({
 
     // Task 8: mirrors `_block`'s body-optional fix (see its comment above)
     // rather than delegating to `_block` itself, because a screen's body is
-    // `repeat1($.screen_language_statement)` (plus comment lines), not `repeat1($._statement)`.
+    // `repeat1($._screen_body_statement)`, not `repeat1($._statement)`.
     // Before this fix, `screen bar():` with no body yet (a very common
     // half-typed editing state — user has just opened the block) produced a
     // whole-statement `ERROR` (verified empirically), not a clean empty
@@ -823,7 +823,7 @@ module.exports = grammar({
       optional(field('parameters', $.parameter_list)),
       $._block_colon,
       choice(
-        seq($._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
+        seq($._newline, $._indent, repeat1($._screen_body_statement), $._dedent),
         optional($._newline),
       ),
     ),
@@ -862,6 +862,27 @@ module.exports = grammar({
 
     _screen_condition: $ => seq($.expression),
 
+    // A line in a screen body: a comment line, a widget or control-flow
+    // line, or a screen-local `default`.
+    _screen_body_statement: $ => choice(
+      $._comment_line,
+      $.screen_default_statement,
+      $.screen_language_statement,
+    ),
+
+    // nms4.32: `default device = "keyboard"` in a screen sets a screen-local
+    // variable when the screen is shown. It used to parse as a widget named
+    // `default` with positional values `device`, `=` and the value. `default`
+    // is a keyword only at the start of a screen line, where no widget has
+    // that name. The value is injected as Python like any screen expression.
+    screen_default_statement: $ => seq(
+      'default',
+      field('name', $.identifier),
+      '=',
+      field('value', $._value),
+      $._line_end,
+    ),
+
     // Every screen_language_statement must consume exactly one trailing
     // `_newline` of its own, mirroring the convention "simple" `_statement`s
     // use (see the `_statement` comment above) — this rule has no required
@@ -876,7 +897,7 @@ module.exports = grammar({
     // after `:`) means the parser always knows where one statement ends.
     _screen_line_end: $ => choice(
       $._line_end,
-      seq($._block_colon, $._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
+      seq($._block_colon, $._newline, $._indent, repeat1($._screen_body_statement), $._dedent),
     ),
 
     // A screen line's properties are positional values (`text "x"`,

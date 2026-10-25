@@ -122,6 +122,17 @@ describe('buildBlockContribution', () => {
     }
   });
 
+  it('reads a screen-local default value but defines nothing (nms4.32)', async () => {
+    const content = 'screen help:\n    default device = preferred_device\n    text "[device]"\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.definitions.map((d) => d.symbolId)).toEqual(['screen:help']);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:preferred_device', 'read', 'screen-expression'],
+      ['variable:device', 'read', 'interpolation'],
+    ]);
+  });
+
   it('reads the expression of a menu set clause (nms4.29)', async () => {
     const content = 'label start:\n    menu:\n        set store.seen\n        "A":\n            pass\n';
     const c = await build(content);

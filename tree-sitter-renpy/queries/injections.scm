@@ -92,3 +92,7 @@
 ; (nms4.29), so its variable is a read.
 ((menu_set expression: (expression) @injection.content)
  (#set! injection.language "python"))
+
+; A screen-local `default` value (nms4.32).
+((screen_default_statement value: (expression) @injection.content)
+ (#set! injection.language "python"))

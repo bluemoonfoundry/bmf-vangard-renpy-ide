@@ -135,3 +135,38 @@ screen inv(items):
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (string))))))
+
+==================
+Screen-language default (nms4.32)
+==================
+screen help:
+    default device = "keyboard"
+    text "x"
+    vbox:
+        default ctc = None # c
+        showif ctc:
+            add ctc
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    (screen_default_statement
+      name: (identifier)
+      value: (expression))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_default_statement
+        name: (identifier)
+        value: (expression)
+        (comment))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        (screen_language_statement
+          widget_tag: (identifier)
+          properties: (property (expression)))))))
