@@ -1386,11 +1386,18 @@ module.exports = grammar({
       field('name', $.identifier),
       optional(seq('is', field('parent', $.identifier))),
       optional(seq('take', field('take_from', $.identifier))),
-      $._block_colon,
-      $._newline,
-      $._indent,
-      repeat1(choice($._comment_line, $.style_property_statement)),
-      $._dedent,
+      // nms4.36: `style choice_vbox is vbox` with no colon and no body is
+      // the most common style line in a generated screens.rpy.
+      choice(
+        seq(
+          $._block_colon,
+          $._newline,
+          $._indent,
+          repeat1(choice($._comment_line, $.style_property_statement)),
+          $._dedent,
+        ),
+        $._line_end,
+      ),
     ),
 
     // Like every other "simple" statement in this grammar (see the

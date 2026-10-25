@@ -27,3 +27,49 @@ style my_frame take base_frame:
     name: (identifier)
     take_from: (identifier)
     (style_property_statement property: (identifier) value: (expression))))
+
+==================
+One-line style with parent and no body (nms4.36)
+==================
+style choice_vbox is vbox
+style choice_button is button  # inherit
+style plain
+
+style choice_vbox:
+    properties gui.text_properties("choice", accent=True)
+    xalign 0.5
+
+---
+
+(source_file
+  (style_statement
+    name: (identifier)
+    parent: (identifier))
+  (style_statement
+    name: (identifier)
+    parent: (identifier)
+    (comment))
+  (style_statement
+    name: (identifier))
+  (style_statement
+    name: (identifier)
+    (style_property_statement property: (identifier) value: (expression))
+    (style_property_statement property: (identifier) value: (expression))))
+
+==================
+One-line style before a label keeps the label's body (nms4.36)
+==================
+style window is default
+
+label start:
+    "hi"
+
+---
+
+(source_file
+  (style_statement
+    name: (identifier)
+    parent: (identifier))
+  (label_statement
+    name: (identifier)
+    (say_statement text: (string))))
