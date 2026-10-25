@@ -2811,8 +2811,22 @@
             "type": "FIELD",
             "name": "value",
             "content": {
-              "type": "SYMBOL",
-              "name": "_positional_property"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_positional_property"
+                },
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_screen_value_list"
+                  },
+                  "named": true,
+                  "value": "expression"
+                }
+              ]
             }
           }
         ]
@@ -2993,17 +3007,8 @@
               "type": "SEQ",
               "members": [
                 {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "PATTERN",
-                      "value": "[ \\t]*(\\*\\*|\\/\\/|<<|>>|<=|>=|<>|==|!=|[+\\-*\\/%@&|^<>])[ \\t]*"
-                    },
-                    {
-                      "type": "PATTERN",
-                      "value": "[ \\t]+(and|or|in|is|not[ \\t]+in|is[ \\t]+not)[ \\t]+"
-                    }
-                  ]
+                  "type": "PATTERN",
+                  "value": "[ \\t]+(\\*\\*|\\/\\/|<<|>>|<=|>=|<>|==|!=|[+\\-*\\/%@&|^<>]|and|or|in|is|not[ \\t]+in|is[ \\t]+not)[ \\t]+"
                 },
                 {
                   "type": "CHOICE",
@@ -3168,6 +3173,716 @@
                       }
                     ]
                   }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "_screen_value_list": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "PATTERN",
+                    "value": "(not[ \\t]+)+"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "REPEAT1",
+                "content": {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "PATTERN",
+                      "value": "[^\\r\\n#:'\" \\t,()\\[\\]{}]"
+                    },
+                    {
+                      "type": "PATTERN",
+                      "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                    },
+                    {
+                      "type": "PATTERN",
+                      "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                    },
+                    {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "PATTERN",
+                          "value": "[(\\[{]"
+                        },
+                        {
+                          "type": "REPEAT",
+                          "content": {
+                            "type": "CHOICE",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                              },
+                              {
+                                "type": "SEQ",
+                                "members": [
+                                  {
+                                    "type": "PATTERN",
+                                    "value": "[(\\[{]"
+                                  },
+                                  {
+                                    "type": "REPEAT",
+                                    "content": {
+                                      "type": "CHOICE",
+                                      "members": [
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                        },
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                        },
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                        },
+                                        {
+                                          "type": "SEQ",
+                                          "members": [
+                                            {
+                                              "type": "PATTERN",
+                                              "value": "[(\\[{]"
+                                            },
+                                            {
+                                              "type": "REPEAT",
+                                              "content": {
+                                                "type": "CHOICE",
+                                                "members": [
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                  },
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                  },
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                  },
+                                                  {
+                                                    "type": "SEQ",
+                                                    "members": [
+                                                      {
+                                                        "type": "PATTERN",
+                                                        "value": "[(\\[{]"
+                                                      },
+                                                      {
+                                                        "type": "REPEAT",
+                                                        "content": {
+                                                          "type": "CHOICE",
+                                                          "members": [
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                            },
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                            },
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                            }
+                                                          ]
+                                                        }
+                                                      },
+                                                      {
+                                                        "type": "PATTERN",
+                                                        "value": "[)\\]}]"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            {
+                                              "type": "PATTERN",
+                                              "value": "[)\\]}]"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "type": "PATTERN",
+                                    "value": "[)\\]}]"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "PATTERN",
+                          "value": "[)\\]}]"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "PATTERN",
+                      "value": "[ \\t]+(\\*\\*|\\/\\/|<<|>>|<=|>=|<>|==|!=|[+\\-*\\/%@&|^<>]|and|or|in|is|not[ \\t]+in|is[ \\t]+not)[ \\t]+"
+                    },
+                    {
+                      "type": "CHOICE",
+                      "members": [
+                        {
+                          "type": "PATTERN",
+                          "value": "(not[ \\t]+)+"
+                        },
+                        {
+                          "type": "BLANK"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "REPEAT1",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "PATTERN",
+                            "value": "[^\\r\\n#:'\" \\t,()\\[\\]{}]"
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                          },
+                          {
+                            "type": "SEQ",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "[(\\[{]"
+                              },
+                              {
+                                "type": "REPEAT",
+                                "content": {
+                                  "type": "CHOICE",
+                                  "members": [
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                    },
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                    },
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                    },
+                                    {
+                                      "type": "SEQ",
+                                      "members": [
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "[(\\[{]"
+                                        },
+                                        {
+                                          "type": "REPEAT",
+                                          "content": {
+                                            "type": "CHOICE",
+                                            "members": [
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                              },
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                              },
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                              },
+                                              {
+                                                "type": "SEQ",
+                                                "members": [
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "[(\\[{]"
+                                                  },
+                                                  {
+                                                    "type": "REPEAT",
+                                                    "content": {
+                                                      "type": "CHOICE",
+                                                      "members": [
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                        },
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                        },
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                        },
+                                                        {
+                                                          "type": "SEQ",
+                                                          "members": [
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "[(\\[{]"
+                                                            },
+                                                            {
+                                                              "type": "REPEAT",
+                                                              "content": {
+                                                                "type": "CHOICE",
+                                                                "members": [
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                                  },
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                                  },
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            },
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "[)\\]}]"
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "[)\\]}]"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "[)\\]}]"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "[)\\]}]"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "REPEAT1",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "PATTERN",
+                  "value": "[ \\t]*,[ \\t]*"
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "CHOICE",
+                      "members": [
+                        {
+                          "type": "PATTERN",
+                          "value": "(not[ \\t]+)+"
+                        },
+                        {
+                          "type": "BLANK"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "REPEAT1",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "PATTERN",
+                            "value": "[^\\r\\n#:'\" \\t,()\\[\\]{}]"
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                          },
+                          {
+                            "type": "SEQ",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "[(\\[{]"
+                              },
+                              {
+                                "type": "REPEAT",
+                                "content": {
+                                  "type": "CHOICE",
+                                  "members": [
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                    },
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                    },
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                    },
+                                    {
+                                      "type": "SEQ",
+                                      "members": [
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "[(\\[{]"
+                                        },
+                                        {
+                                          "type": "REPEAT",
+                                          "content": {
+                                            "type": "CHOICE",
+                                            "members": [
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                              },
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                              },
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                              },
+                                              {
+                                                "type": "SEQ",
+                                                "members": [
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "[(\\[{]"
+                                                  },
+                                                  {
+                                                    "type": "REPEAT",
+                                                    "content": {
+                                                      "type": "CHOICE",
+                                                      "members": [
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                        },
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                        },
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                        },
+                                                        {
+                                                          "type": "SEQ",
+                                                          "members": [
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "[(\\[{]"
+                                                            },
+                                                            {
+                                                              "type": "REPEAT",
+                                                              "content": {
+                                                                "type": "CHOICE",
+                                                                "members": [
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                                  },
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                                  },
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            },
+                                                            {
+                                                              "type": "PATTERN",
+                                                              "value": "[)\\]}]"
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  {
+                                                    "type": "PATTERN",
+                                                    "value": "[)\\]}]"
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        {
+                                          "type": "PATTERN",
+                                          "value": "[)\\]}]"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "[)\\]}]"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "REPEAT",
+                      "content": {
+                        "type": "SEQ",
+                        "members": [
+                          {
+                            "type": "PATTERN",
+                            "value": "[ \\t]+(\\*\\*|\\/\\/|<<|>>|<=|>=|<>|==|!=|[+\\-*\\/%@&|^<>]|and|or|in|is|not[ \\t]+in|is[ \\t]+not)[ \\t]+"
+                          },
+                          {
+                            "type": "CHOICE",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "(not[ \\t]+)+"
+                              },
+                              {
+                                "type": "BLANK"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "REPEAT1",
+                            "content": {
+                              "type": "CHOICE",
+                              "members": [
+                                {
+                                  "type": "PATTERN",
+                                  "value": "[^\\r\\n#:'\" \\t,()\\[\\]{}]"
+                                },
+                                {
+                                  "type": "PATTERN",
+                                  "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                },
+                                {
+                                  "type": "PATTERN",
+                                  "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                },
+                                {
+                                  "type": "SEQ",
+                                  "members": [
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "[(\\[{]"
+                                    },
+                                    {
+                                      "type": "REPEAT",
+                                      "content": {
+                                        "type": "CHOICE",
+                                        "members": [
+                                          {
+                                            "type": "PATTERN",
+                                            "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                          },
+                                          {
+                                            "type": "PATTERN",
+                                            "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                          },
+                                          {
+                                            "type": "PATTERN",
+                                            "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                          },
+                                          {
+                                            "type": "SEQ",
+                                            "members": [
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "[(\\[{]"
+                                              },
+                                              {
+                                                "type": "REPEAT",
+                                                "content": {
+                                                  "type": "CHOICE",
+                                                  "members": [
+                                                    {
+                                                      "type": "PATTERN",
+                                                      "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                    },
+                                                    {
+                                                      "type": "PATTERN",
+                                                      "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                    },
+                                                    {
+                                                      "type": "PATTERN",
+                                                      "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                    },
+                                                    {
+                                                      "type": "SEQ",
+                                                      "members": [
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "[(\\[{]"
+                                                        },
+                                                        {
+                                                          "type": "REPEAT",
+                                                          "content": {
+                                                            "type": "CHOICE",
+                                                            "members": [
+                                                              {
+                                                                "type": "PATTERN",
+                                                                "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                              },
+                                                              {
+                                                                "type": "PATTERN",
+                                                                "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                              },
+                                                              {
+                                                                "type": "PATTERN",
+                                                                "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                              },
+                                                              {
+                                                                "type": "SEQ",
+                                                                "members": [
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "[(\\[{]"
+                                                                  },
+                                                                  {
+                                                                    "type": "REPEAT",
+                                                                    "content": {
+                                                                      "type": "CHOICE",
+                                                                      "members": [
+                                                                        {
+                                                                          "type": "PATTERN",
+                                                                          "value": "[^\\r\\n#'\"()\\[\\]{}]"
+                                                                        },
+                                                                        {
+                                                                          "type": "PATTERN",
+                                                                          "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                                                                        },
+                                                                        {
+                                                                          "type": "PATTERN",
+                                                                          "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                                                                        }
+                                                                      ]
+                                                                    }
+                                                                  },
+                                                                  {
+                                                                    "type": "PATTERN",
+                                                                    "value": "[)\\]}]"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        },
+                                                        {
+                                                          "type": "PATTERN",
+                                                          "value": "[)\\]}]"
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              {
+                                                "type": "PATTERN",
+                                                "value": "[)\\]}]"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "type": "PATTERN",
+                                      "value": "[)\\]}]"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             }

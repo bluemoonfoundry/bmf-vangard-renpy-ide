@@ -127,6 +127,21 @@ describe('parseBlock', () => {
       disposeParsedBlock(result);
     }
   });
+
+  it('keeps a signed value with its property and a comma list in a keyword value', async () => {
+    const source = 'screen a():\n    hbox spacing -10:\n        text "x" xoffset -10 size 100 + offset\n    add "img" at a, b\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      const texts = result.pythonInjections
+        .filter((i) => i.kind === 'screen-expression')
+        .sort((a, b) => a.range[0] - b.range[0])
+        .map((i) => source.slice(i.range[0], i.range[1]));
+      expect(texts).toEqual(['-10', '"x"', '-10', '100 + offset', '"img"', 'a, b']);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
 });
 
 describe('parseBlock failure cleanup', () => {

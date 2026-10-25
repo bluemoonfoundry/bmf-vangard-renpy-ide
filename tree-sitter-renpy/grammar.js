@@ -35,14 +35,21 @@ function atItem() {
 }
 
 // nms4.14: operators that may join items of a screen property value
-// (`_screen_value`) with blanks around them. Symbol operators also match
-// with no blanks, but then they are plain item characters anyway; word
-// operators need a blank on each side. `not` may also prefix an item.
-const SCREEN_BINARY_OP = choice(
-  /[ \t]*(\*\*|\/\/|<<|>>|<=|>=|<>|==|!=|[+\-*\/%@&|^<>])[ \t]*/,
-  /[ \t]+(and|or|in|is|not[ \t]+in|is[ \t]+not)[ \t]+/,
-);
+// (`_screen_value`) with blanks around them. An operator joins only with a
+// blank on each side: `100 + offset` is one value, but in `spacing -10` or
+// `size +2` the sign belongs to the value after the property name. (Symbol
+// operators with no blanks, `a+b`, are plain item characters.) `not` may
+// also prefix an item.
+const SCREEN_BINARY_OP =
+  /[ \t]+(\*\*|\/\/|<<|>>|<=|>=|<>|==|!=|[+\-*\/%@&|^<>]|and|or|in|is|not[ \t]+in|is[ \t]+not)[ \t]+/;
 const SCREEN_NOT_PREFIX = /(not[ \t]+)+/;
+function screenValue() {
+  return seq(
+    optional(SCREEN_NOT_PREFIX),
+    atItem(),
+    repeat(seq(SCREEN_BINARY_OP, optional(SCREEN_NOT_PREFIX), atItem())),
+  );
+}
 
 module.exports = grammar({
   name: 'renpy',
@@ -803,7 +810,7 @@ module.exports = grammar({
 
     _keyword_property: $ => prec.dynamic(1, seq(
       field('name', $.identifier),
-      field('value', $._positional_property),
+      field('value', choice($._positional_property, alias($._screen_value_list, $.expression))),
     )),
 
     // nms4.14: one screen property value, as Ren'Py's simple_expression
@@ -818,14 +825,20 @@ module.exports = grammar({
     // stops at the blank before the next property name, at a top-level ':'
     // (the block colon of `hbox xalign 0.5:`), at an unquoted '#' and at
     // the end of the line. Not supported: conditional expressions (`a if c
-    // else b`), top-level commas, brackets nested deeper than
+    // else b`), top-level commas in a positional value (keyword values take
+    // them, see `_screen_value_list`), brackets nested deeper than
     // AT_GROUP_DEPTH, and brackets continued onto the next line. An
     // unbalanced bracket or unterminated string on a half-typed line is an
     // ERROR, as it was before.
-    _screen_value: $ => token(seq(
-      optional(SCREEN_NOT_PREFIX),
-      atItem(),
-      repeat(seq(SCREEN_BINARY_OP, optional(SCREEN_NOT_PREFIX), atItem())),
+    _screen_value: $ => token(screenValue()),
+
+    // A keyword value may also be a top-level comma list (`add "img" at a,
+    // b`), as Ren'Py reads keyword values; a positional value may not. The
+    // token needs at least one comma, so it never competes with
+    // `_screen_value` for a value without one.
+    _screen_value_list: $ => token(seq(
+      screenValue(),
+      repeat1(seq(/[ \t]*,[ \t]*/, screenValue())),
     )),
 
     // ATL (Animated Transform Language) — used by `transform` statements

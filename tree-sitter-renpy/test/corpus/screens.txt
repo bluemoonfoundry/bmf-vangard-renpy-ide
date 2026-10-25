@@ -220,3 +220,76 @@ screen a():
         properties: (property
           name: (identifier)
           value: (expression))))))
+
+==================================================================
+A signed value after a property name stays that property's value (nms4.14)
+==================================================================
+screen a():
+    hbox spacing -10:
+        text "x" xoffset -10
+    frame xoffset -10 yoffset 5
+    text "b" size +2 color c
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        properties: (property
+          name: (identifier)
+          value: (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))))
+
+==================================================================
+A keyword value may be a comma list (nms4.14)
+==================================================================
+screen a():
+    add "img" at a, b
+    textbutton "c" action Hide("s"), Return() xalign 0.5
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))))
