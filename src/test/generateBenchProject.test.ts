@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateBenchProject, BENCH_PRESETS, type BenchPreset } from '@/test/bench/generateBenchProject';
+import { generateBenchProject, AVOIDED_CONSTRUCTS, BENCH_PRESETS, type BenchPreset } from '@/test/bench/generateBenchProject';
 import { loadFixture } from '@/test/bench/benchFixtures';
 import { buildBlockContribution } from '@/lib/tree-sitter/blockContribution';
 
@@ -41,6 +41,22 @@ describe('generateBenchProject', () => {
 
   it('parses cleanly at baseline', async () => {
     const files = generateBenchProject({ preset: 'medium' });
+    const bad: string[] = [];
+    for (const f of files) {
+      const c = await buildBlockContribution({ id: f.filePath, filePath: f.filePath, content: f.content });
+      if (c.hasError) bad.push(f.filePath);
+    }
+    expect(bad).toEqual([]);
+  }, 120_000);
+
+  it('full-idiom variant includes every avoided construct and parses cleanly after the fixes', async () => {
+    const files = generateBenchProject({ preset: 'medium', fullIdioms: true });
+    const all = files.map((f) => f.content).join('\n');
+    for (const c of AVOIDED_CONSTRUCTS) {
+      expect(c.markers.length, c.issue).toBeGreaterThan(0);
+      for (const m of c.markers) expect(all, `${c.issue}: ${m}`).toMatch(m);
+    }
+    expect(files.some((f) => f.content.startsWith('\n'))).toBe(true);
     const bad: string[] = [];
     for (const f of files) {
       const c = await buildBlockContribution({ id: f.filePath, filePath: f.filePath, content: f.content });

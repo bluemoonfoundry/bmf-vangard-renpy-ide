@@ -19,15 +19,21 @@ export const DEFAULT_BENCH_SEED = 43;
 export interface BenchFile { filePath: string; content: string }
 export interface BenchOptions { preset: BenchPreset; seed?: number; fullIdioms?: boolean }
 
-/** Constructs left out of the default output, one per known grammar bug. */
-export const AVOIDED_CONSTRUCTS: readonly { issue: string; construct: string }[] = [
-  { issue: '3nk7', construct: 'blank line at the start of a file' },
-  { issue: 'rsxn', construct: 'comment as the first line of a block body' },
-  { issue: 'lssz', construct: 'quoted string containing "#" in define/default/image/$ values, e.g. color="#fff"' },
-  { issue: 'aj2e', construct: 'function call in an `at` clause, e.g. at Transform(...)' },
-  { issue: 'q85r', construct: '[var] interpolation inside screen-language strings' },
-  { issue: 'nms4.14', construct: 'more than one property on a screen line / spaced expressions in screen properties' },
-  { issue: 'nms4.15', construct: 'docstrings, `with ... as` and decorators in python blocks' },
+/**
+ * Constructs left out of the default output, one per known grammar bug. All
+ * are fixed now; `fullIdioms` generates each, and `markers` are the patterns
+ * that prove it did.
+ */
+export const AVOIDED_CONSTRUCTS: readonly { issue: string; construct: string; markers: readonly RegExp[] }[] = [
+  { issue: '3nk7', construct: 'blank line at the start of a file', markers: [/^\n\s*define e\d+ = /] },
+  { issue: 'rsxn', construct: 'comment as the first line of a block body', markers: [/^label \w+:\n {4}# opening comment/m] },
+  { issue: 'lssz', construct: 'quoted string containing "#" in define/default/image/$ values, e.g. color="#fff"', markers: [/color="#c8ffc8"/, /^define col_\d+ = "#abc"/m] },
+  { issue: 'aj2e', construct: 'function call in an `at` clause, e.g. at Transform(...)', markers: [/ at Transform\(zoom=1\.5\)/] },
+  { issue: 'q85r', construct: '[var] interpolation inside screen-language strings', markers: [/^\s+text "Total \[title\]"/m] },
+  { issue: 'nms4.14', construct: 'more than one property on a screen line / spaced expressions in screen properties', markers: [/textbutton "x" action Return\(1\) xalign 0\.5/] },
+  { issue: 'nms4.15', construct: 'docstrings, `with ... as` and decorators in python blocks', markers: [/"""Clamp a value\."""/, /with open\("log\.txt"\) as fh:/, /^ {4}@[\w.]+\n {4}def /m] },
+  { issue: 'nms4.19', construct: 'ATL `repeat` after other ATL statements', markers: [/^ {4}pause 0\.5\n {4}repeat$/m] },
+  { issue: 'nms4.24', construct: 'ATL warper line, e.g. linear 0.5 xalign 1.0', markers: [/^ {4}linear 0\.5 xalign 1\.0$/m] },
 ];
 
 /** Small seeded PRNG (mulberry32). */
@@ -86,11 +92,15 @@ function sharedFile(i: number, budget: number, rng: Rng, full: boolean): string 
           ...(full ? ['        """Clamp a value."""'] : []),
           '        if value > limit:', '            return limit', '        return value + 1', '',
           `    store_${tag} = [helper_${tag}(k) for k in range(${2 + rng.int(5)})]`, '');
-        if (full) out.push('init python:', '    with open("log.txt") as fh:', `        data_${tag} = fh.read()`, '');
+        if (full) {
+          out.push('init python:', '    with open("log.txt") as fh:', `        data_${tag} = fh.read()`, '');
+          out.push('init python:', `    @renpy.pure`, `    def pure_${tag}(value):`, '        return value', '');
+        }
         break;
       case 2:
         out.push(`transform move_${tag}:`, '    xalign 0.0', '    linear 1.0 xalign 1.0', '    pause 0.5',
           `    easein ${(0.5 + rng.int(3)).toFixed(1)} yalign 0.5`, '');
+        if (full) out.push(`transform loop_${tag}:`, '    xalign 0.0', '    linear 0.5 xalign 1.0', '    pause 0.5', '    repeat', '');
         break;
       case 3:
         out.push(`screen panel_${tag}(title, items):`, '    vbox:', '        xalign 0.5',
