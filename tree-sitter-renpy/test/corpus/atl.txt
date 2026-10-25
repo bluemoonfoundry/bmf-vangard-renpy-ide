@@ -182,3 +182,54 @@ label a:
       atl: (atl_displayable displayable: (string))
       atl: (atl_pause duration: (expression))
       atl: (atl_displayable displayable: (string) transition: (expression)))))
+
+==================================================================
+ATL on show / on hide event blocks (nms4.38)
+==================================================================
+transform notify_appear:
+    on show:
+        alpha 0
+        linear .25 alpha 1.0
+    on hide, replaced: # leaving
+        linear .5 alpha 0.0
+    xalign 0.5
+label a:
+    show e:
+        on show:
+            alpha 0.0
+        on replace:
+            "e2.png" with dissolve
+    e "Hi."
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_on_statement
+      event: (identifier)
+      (atl_transform_property property: (identifier) value: (expression))
+      (atl_interpolation
+        warper: (identifier)
+        duration: (expression)
+        (atl_transform_property property: (identifier) value: (expression))))
+    (atl_on_statement
+      event: (identifier)
+      event: (identifier)
+      (comment)
+      (atl_interpolation
+        warper: (identifier)
+        duration: (expression)
+        (atl_transform_property property: (identifier) value: (expression))))
+    (atl_transform_property property: (identifier) value: (expression)))
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      atl: (atl_on_statement
+        event: (identifier)
+        (atl_transform_property property: (identifier) value: (expression)))
+      atl: (atl_on_statement
+        event: (identifier)
+        (atl_displayable displayable: (string) transition: (expression))))
+    (say_statement character: (identifier) text: (string))))

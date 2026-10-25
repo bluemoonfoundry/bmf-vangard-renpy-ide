@@ -20,6 +20,10 @@
           "named": true
         },
         {
+          "type": "atl_on_statement",
+          "named": true
+        },
+        {
           "type": "atl_pause",
           "named": true
         },
@@ -137,6 +141,68 @@
       "types": [
         {
           "type": "atl_transform_property",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "atl_on_statement",
+    "named": true,
+    "fields": {
+      "event": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "atl_block_statement",
+          "named": true
+        },
+        {
+          "type": "atl_displayable",
+          "named": true
+        },
+        {
+          "type": "atl_interpolation",
+          "named": true
+        },
+        {
+          "type": "atl_on_statement",
+          "named": true
+        },
+        {
+          "type": "atl_pause",
+          "named": true
+        },
+        {
+          "type": "atl_repeat",
+          "named": true
+        },
+        {
+          "type": "atl_time_statement",
+          "named": true
+        },
+        {
+          "type": "atl_transform_property",
+          "named": true
+        },
+        {
+          "type": "atl_with_statement",
           "named": true
         },
         {
@@ -1360,6 +1426,10 @@
             "named": true
           },
           {
+            "type": "atl_on_statement",
+            "named": true
+          },
+          {
             "type": "atl_pause",
             "named": true
           },
@@ -2573,6 +2643,10 @@
             "named": true
           },
           {
+            "type": "atl_on_statement",
+            "named": true
+          },
+          {
             "type": "atl_pause",
             "named": true
           },
@@ -2872,6 +2946,10 @@
           },
           {
             "type": "atl_interpolation",
+            "named": true
+          },
+          {
+            "type": "atl_on_statement",
             "named": true
           },
           {
@@ -3296,6 +3374,10 @@
         },
         {
           "type": "atl_interpolation",
+          "named": true
+        },
+        {
+          "type": "atl_on_statement",
           "named": true
         },
         {
@@ -4096,6 +4178,10 @@
   },
   {
     "type": "offset",
+    "named": false
+  },
+  {
+    "type": "on",
     "named": false
   },
   {

@@ -1041,6 +1041,7 @@ module.exports = grammar({
       $.atl_transform_property,
       $.atl_with_statement,
       $.atl_block_statement,
+      $.atl_on_statement,
       $.atl_time_statement,
       $.atl_repeat,
       $.atl_pause,
@@ -1168,6 +1169,29 @@ module.exports = grammar({
       $._indent,
       repeat1(choice($._comment_line, $._atl_statement)),
       $._dedent,
+    ),
+
+    // nms4.38: `on show:` / `on hide, replaced:` runs its block when the
+    // transform gets one of the named events. Events are names (`show`,
+    // `hide`, `replace`, `replaced`, `start`, `update`, `hover`, ...);
+    // `show` and `hide` are statement keywords, so they are aliased back to
+    // `identifier`. `on` is a keyword only at the start of an ATL line.
+    // Before this the line was an ERROR that ended the transform early.
+    atl_on_statement: $ => seq(
+      'on',
+      field('event', $._atl_event),
+      repeat(seq(',', field('event', $._atl_event))),
+      $._block_colon,
+      $._newline,
+      $._indent,
+      repeat1(choice($._comment_line, $._atl_statement)),
+      $._dedent,
+    ),
+
+    _atl_event: $ => choice(
+      $.identifier,
+      alias('show', $.identifier),
+      alias('hide', $.identifier),
     ),
 
     atl_time_statement: $ => seq(
