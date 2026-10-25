@@ -435,3 +435,29 @@ label a:
   (label_statement
     name: (identifier)
     (return_statement)))
+
+==================
+Known limitation: keyword-led line inside a closed multi-line python string ends the block (nms4.15)
+==================
+init python:
+    HELP = """
+define x = 1
+"""
+label b:
+    return
+
+---
+
+(source_file
+  (init_python_statement
+    body: (python_block))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (say_statement
+    text: (string))
+  (say_statement
+    text: (string))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

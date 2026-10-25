@@ -6,7 +6,7 @@
     "treeSitterCli": "0.24.7",
     "inputs": {
       "grammar.js": "5156a37fcd6a8d813bedd580e236f5f1fa7ca177e8e0c3aaf62229de1ab5ace7",
-      "src/scanner.c": "9898956e55c4c29d88d09bd8703e1c7afae677330ca42d95b82ea17bd70f6b7f",
+      "src/scanner.c": "617514476502c37696a9f7c13ea6e2b6071ee154e613a89eaed307bfcdd7ecd0",
       "src/parser.c": "6d9bf9ec7ed58e2f0b590b95020c14fbfbcc3641d9cc6b7963051531966ff5c6",
       "src/tree_sitter/parser.h": "a1f6ef161fbaf48a0e10fca90ef5290a062462b307b3898aa562993853b9f80a",
       "src/tree_sitter/array.h": "5bdf6ed1a78e3409fd443e085ca967a64c188a5d082aaf7f819bccd53a471c94",

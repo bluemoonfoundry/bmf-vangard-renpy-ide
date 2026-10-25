@@ -198,11 +198,16 @@ static bool starts_renpy_statement(TSLexer *lexer, int *consumed) {
 //
 // One deliberate deviation from Ren'Py: a string or bracket left open does
 // not run on past a line, no deeper than the header, that starts with a
-// Ren'Py statement keyword (see starts_renpy_statement). Ren'Py rejects such
-// a file outright ("not terminated"), so there is no valid reading to keep,
-// and this is exactly the half-typed state editor auto-close produces while
-// a docstring is being written; without the bound the rest of the file would
-// vanish into the body. A backslash continuation is not bounded.
+// Ren'Py statement keyword (see starts_renpy_statement). When the string or
+// bracket is never closed, Ren'Py rejects the file ("not terminated"), so
+// there is no valid reading to keep, and this is exactly the half-typed state
+// editor auto-close produces while a docstring is being written; without the
+// bound the rest of the file would vanish into the body. The cost: the scanner
+// cannot see whether the string is closed later, so a valid multi-line string
+// that has a keyword-led line at or left of the header's column (`define x`
+// at column 0 inside a closed `"""` string) also ends the body there (pinned
+// as a known limitation in python-and-vars.txt). A backslash continuation is
+// not bounded.
 static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
   PythonLineState st = {0, 0, false, false};
   bool accepted = false;
