@@ -1,0 +1,162 @@
+==================
+Trailing comments on simple statements in a label (nms4.27)
+==================
+label start:
+    jump b # c
+    call x # c
+    show e # c
+    show e at left with dissolve # c
+    hide e # c
+    scene bg # c
+    with fade # c
+    stop music # c
+    voice "v.ogg" # c
+    play music "a.ogg" # c
+    nvl clear # c
+    pass # c
+    $ x = 1 # c
+    e "hi" # c
+    "Narration." # c
+    return # c
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement target: (identifier) (comment))
+    (call_statement target: (identifier) (comment))
+    (show_statement image: (identifier) (comment))
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      transition: (expression)
+      (comment))
+    (hide_statement image: (identifier) (comment))
+    (scene_statement image: (identifier) (comment))
+    (with_statement transition: (expression) (comment))
+    (stop_statement channel: (identifier) (comment))
+    (voice_statement file: (string) (comment))
+    (play_statement channel: (identifier) file: (string) (comment))
+    (nvl_statement (comment))
+    (pass_statement (comment))
+    (dollar_statement expression: (expression) (comment))
+    (say_statement character: (identifier) text: (string) (comment))
+    (say_statement text: (string) (comment))
+    (return_statement (comment))))
+
+==================
+Trailing comments after define, default, image and init offset values (nms4.27)
+==================
+init offset = -2 # c
+define x = 1 # c
+default y = "#fff" # c
+image bg = "a.png" # c
+define d = {
+    "a": 1,  # inside
+}  # after
+
+---
+
+(source_file
+  (init_offset_statement offset: (expression) (comment))
+  (define_statement name: (identifier) value: (expression) (comment))
+  (default_statement name: (identifier) value: (expression) (comment))
+  (image_statement name: (identifier) value: (expression) (comment))
+  (define_statement name: (identifier) value: (expression) (comment)))
+
+==================
+Trailing comment after a value with a quoted #
+==================
+define e = Character("E", color="#c8ffc8")  # main
+
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression)
+    (comment)))
+
+==================
+Trailing comments in a menu (nms4.27)
+==================
+label a:
+    menu:
+        "Where?" # c
+        set seen # c
+        "A": # c
+            pass
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (menu_statement
+      (menu_caption text: (string) (comment))
+      (menu_set expression: (expression) (comment))
+      (menu_choice
+        text: (string)
+        (comment)
+        (pass_statement)))))
+
+==================
+Trailing comments on screen widget lines (nms4.27)
+==================
+screen s:
+    text "x" size 20 # c
+    textbutton "Go" action Return() # c
+    text "y"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property name: (identifier) value: (expression))
+      (comment))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property name: (identifier) value: (expression))
+      (comment))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))))
+
+==================
+Trailing comments on ATL and style lines (nms4.27)
+==================
+transform t:
+    linear 1.0 xalign 1.0 # c
+    0.5 # c
+    alpha 0.5 # c
+    pause 1.0 # c
+    "a.png" # c
+    repeat # c
+
+style big:
+    size 40 # c
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression))
+      (comment))
+    (atl_pause duration: (expression) (comment))
+    (atl_transform_property property: (identifier) value: (expression) (comment))
+    (atl_time_statement duration: (expression) (comment))
+    (atl_displayable displayable: (string) (comment))
+    (atl_repeat (comment)))
+  (style_statement
+    name: (identifier)
+    (style_property_statement property: (identifier) value: (expression) (comment))))

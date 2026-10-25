@@ -122,6 +122,15 @@ describe('buildBlockContribution', () => {
     }
   });
 
+  it('keeps trailing comments out of injected expressions (nms4.27)', async () => {
+    const content = 'label a:\n    $ x = y # note z\nscreen s:\n    text "t" size big # tiny w\ntransform t:\n    alpha level # q\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind])).toEqual([
+      ['variable:x', 'write'], ['variable:y', 'read'], ['variable:big', 'read'], ['variable:level', 'read'],
+    ]);
+  });
+
   it('maps reads inside a screen value continued onto later lines (nms4.35)', async () => {
     const content = 'screen s:\n    textbutton "Go" action [\n        Hide("a"),\n        Return(choice)]\n';
     const c = await build(content);

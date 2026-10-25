@@ -173,6 +173,16 @@ module.exports = grammar({
     // body just gains a `(comment)` child.
     _comment_line: $ => seq($.comment, $._newline),
 
+    // nms4.27: the end of a simple statement's line, with an optional
+    // trailing comment (`jump b # c`, `define x = 1 # c`, `text "x" size 20
+    // # c`, `alpha 0.5 # c`). Comments are not `extras`, so before this a
+    // trailing comment was a local ERROR (and on a screen widget line it
+    // cascaded out of the screen). The comment becomes a child of the
+    // statement, as `_block_colon` does for a header's comment, and a say
+    // statement takes it the same way. Value tokens all stop before an
+    // unquoted '#', so the comment is never part of an injected expression.
+    _line_end: $ => seq(optional($.comment), $._newline),
+
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
 
     // Opaque Python-ish expression — content is handed to the injected
@@ -371,7 +381,7 @@ module.exports = grammar({
       'jump',
       optional('expression'),
       field('target', choice($._label_name, $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     call_statement: $ => seq(
@@ -379,18 +389,18 @@ module.exports = grammar({
       optional('expression'),
       field('target', choice($._label_name, $.expression)),
       optional(seq('from', field('from_label', $._label_name))),
-      $._newline,
+      $._line_end,
     ),
 
     return_statement: $ => seq(
       'return',
       optional(field('value', $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.21: `pass` (a no-op, common as a menu choice body). It used to
     // parse as an expression_statement naming a variable `pass`.
-    pass_statement: $ => seq('pass', $._newline),
+    pass_statement: $ => seq('pass', $._line_end),
 
     menu_statement: $ => seq(
       'menu',
@@ -412,12 +422,12 @@ module.exports = grammar({
         optional(field('attributes', repeat1($.identifier))),
       )),
       field('text', $.string),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.22: `set <expr>` names a set of choice texts already picked;
     // those choices are hidden.
-    menu_set: $ => seq('set', field('expression', $.expression), $._newline),
+    menu_set: $ => seq('set', field('expression', $.expression), $._line_end),
 
     menu_choice: $ => seq(
       field('text', $.string),
@@ -500,7 +510,11 @@ module.exports = grammar({
       )),
       field('text', $.string),
       optional(prec.dynamic(1, seq('with', field('transition', $.expression)))),
-      optional($._newline),
+      // nms4.27: a trailing comment is the statement's child, as on every
+      // simple statement (`_line_end`). With the newline optional, `e "hi"
+      // # c` could also end the say before the comment and read the comment
+      // as a comment line; `prec.dynamic` picks the child reading.
+      optional(choice($._newline, prec.dynamic(1, seq($.comment, $._newline)))),
     ),
 
     // Injection point (Task 9): the body is handed to tree-sitter-python via
@@ -540,7 +554,7 @@ module.exports = grammar({
       'offset',
       '=',
       field('offset', $.expression),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.33: `init:` / `init 5:` / `init -1:` runs an indented block of
@@ -585,14 +599,14 @@ module.exports = grammar({
     // trailing `_newline` explicitly — the brief's snippet omitted this,
     // which left the newline unconsumed (extras only cover space/tab/cr,
     // not '\n') and produced a parse error on the following line.
-    dollar_statement: $ => seq('$', field('expression', $._value), $._newline),
+    dollar_statement: $ => seq('$', field('expression', $._value), $._line_end),
 
     define_statement: $ => seq(
       'define',
       field('name', $._store_name),
       '=',
       field('value', $._value),
-      $._newline,
+      $._line_end,
     ),
 
     default_statement: $ => seq(
@@ -600,7 +614,7 @@ module.exports = grammar({
       field('name', $._store_name),
       '=',
       field('value', $._value),
-      $._newline,
+      $._line_end,
     ),
 
     // `name` is a whitespace-separated run of identifiers (e.g. `eileen
@@ -614,7 +628,7 @@ module.exports = grammar({
       'image',
       field('name', repeat1($.identifier)),
       choice(
-        seq('=', field('value', $._value), $._newline),
+        seq('=', field('value', $._value), $._line_end),
         field('atl', $._atl_block),
       ),
     ),
@@ -645,7 +659,7 @@ module.exports = grammar({
       optional(field('image', repeat1($.identifier))),
       repeat($._image_specifier_clause),
       optional(seq('with', field('transition', $.expression))),
-      choice($._newline, field('atl', $._atl_block)),
+      choice($._line_end, field('atl', $._atl_block)),
     ),
 
     show_statement: $ => seq(
@@ -653,7 +667,7 @@ module.exports = grammar({
       field('image', repeat1($.identifier)),
       repeat($._image_specifier_clause),
       optional(seq('with', field('transition', $.expression))),
-      choice($._newline, field('atl', $._atl_block)),
+      choice($._line_end, field('atl', $._atl_block)),
     ),
 
     _image_specifier_clause: $ => choice(
@@ -699,7 +713,7 @@ module.exports = grammar({
       optional(field('arguments', $.parameter_list)),
       optional('nopredict'),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     hide_screen_statement: $ => seq(
@@ -707,7 +721,7 @@ module.exports = grammar({
       'screen',
       field('name', $.identifier),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     call_screen_statement: $ => seq(
@@ -717,20 +731,20 @@ module.exports = grammar({
       optional(field('arguments', $.parameter_list)),
       optional('nopredict'),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     hide_statement: $ => seq(
       'hide',
       field('image', repeat1($.identifier)),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     with_statement: $ => seq(
       'with',
       field('transition', $.expression),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.20: audio statements. Before these existed, `play music "a.ogg"`
@@ -745,7 +759,7 @@ module.exports = grammar({
       field('channel', $.identifier),
       field('file', $._audio_file),
       optional(field('options', $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     queue_statement: $ => seq(
@@ -753,14 +767,14 @@ module.exports = grammar({
       field('channel', $.identifier),
       field('file', $._audio_file),
       optional(field('options', $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     stop_statement: $ => seq(
       'stop',
       field('channel', $.identifier),
       optional(field('options', $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     // `voice "v.ogg"`, or `voice sustain` (keep the previous line's voice
@@ -768,7 +782,7 @@ module.exports = grammar({
     voice_statement: $ => seq(
       'voice',
       choice('sustain', field('file', $._audio_file)),
-      $._newline,
+      $._line_end,
     ),
 
     _audio_file: $ => choice(
@@ -861,7 +875,7 @@ module.exports = grammar({
     // Requiring the newline (or the block's own internal `_newline` right
     // after `:`) means the parser always knows where one statement ends.
     _screen_line_end: $ => choice(
-      $._newline,
+      $._line_end,
       seq($._block_colon, $._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
     ),
 
@@ -1014,7 +1028,7 @@ module.exports = grammar({
     atl_transform_property: $ => seq(
       field('property', $.identifier),
       field('value', $.expression),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.24: an interpolation line, `warper duration [property value
@@ -1050,7 +1064,7 @@ module.exports = grammar({
         seq('circles', field('circles', $._simple_expression)),
       )),
       choice(
-        $._newline,
+        $._line_end,
         seq(
           $._block_colon,
           $._newline,
@@ -1094,14 +1108,14 @@ module.exports = grammar({
     atl_displayable: $ => seq(
       field('displayable', $.string),
       optional(seq('with', field('transition', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.28: a line that is only a number (`0.5`) pauses for that many
     // seconds, as `pause 0.5` does.
     atl_pause: $ => seq(
       field('duration', alias($._atl_number, $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     _atl_number: $ => token(/(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?/),
@@ -1109,7 +1123,7 @@ module.exports = grammar({
     atl_with_statement: $ => seq(
       'with',
       field('warper', $.expression),
-      $._newline,
+      $._line_end,
     ),
 
     // `repeat` is not a block keyword (Ren'Py has no `repeat:`); see
@@ -1126,7 +1140,7 @@ module.exports = grammar({
     atl_time_statement: $ => seq(
       choice('pause', 'time'),
       field('duration', $.expression),
-      $._newline,
+      $._line_end,
     ),
 
     // nms4.19: `repeat` restarts the enclosing block, `repeat 3` at most
@@ -1136,7 +1150,7 @@ module.exports = grammar({
     atl_repeat: $ => seq(
       'repeat',
       optional(field('count', $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     // Fallback so raw Python-ish lines inside `python:`/`init python:`
@@ -1186,7 +1200,7 @@ module.exports = grammar({
         seq($.identifier, optional($.expression)),
         $.expression,
       ),
-      $._newline,
+      $._line_end,
     ),
 
     // Final-review fix I4: honest catch-all for a keyword-led line that no
@@ -1233,7 +1247,7 @@ module.exports = grammar({
         $.identifier,
         repeat1($.identifier),
         optional($.expression),
-        $._newline,
+        $._line_end,
       ),
       seq(
         $.identifier,
@@ -1298,7 +1312,7 @@ module.exports = grammar({
     style_property_statement: $ => seq(
       field('property', $.identifier),
       field('value', choice(alias($.string, $.expression), $.expression)),
-      $._newline,
+      $._line_end,
     ),
 
     // "Simple" statement (no block) — consumes its own trailing `_newline`
@@ -1308,7 +1322,7 @@ module.exports = grammar({
       'camera',
       optional(field('layer', $.identifier)),
       optional(seq('at', field('at_expr', $.expression))),
-      $._newline,
+      $._line_end,
     ),
 
     // `name` is a whitespace-separated run of identifiers, same convention
@@ -1345,7 +1359,7 @@ module.exports = grammar({
     nvl_statement: $ => seq(
       'nvl',
       choice('clear', 'show', 'hide'),
-      $._newline,
+      $._line_end,
     ),
 
     // Task 8: wrapped in `token(...)` (previously a plain, non-atomic `seq`)

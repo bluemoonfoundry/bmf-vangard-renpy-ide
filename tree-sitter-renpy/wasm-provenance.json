@@ -5,14 +5,14 @@
     "emscripten": "emscripten/emsdk:3.1.64 (selected by tree-sitter-cli; used via Docker when emcc is not on PATH)",
     "treeSitterCli": "0.24.7",
     "inputs": {
-      "grammar.js": "cc16b2a82da8303353be4a52dd2b1618617402a1ed25df4034c7fa5e1a7932eb",
+      "grammar.js": "4e19d2a92732732bd3f9984bf46b9079e49e6e0f4416b717a6b89f5c08725f88",
       "src/scanner.c": "dd66de4c2897aef5fb433cab06e8795e06cfd2a9a810db3a46c5f25480e26214",
-      "src/parser.c": "59e398ec399134fb40e6eeb1851d9b0de617cee6a79dd8329e34a4c51d940c49",
+      "src/parser.c": "c7c07e0f1f87aa149cbecf53d5dd148f8a420672db3d672746235a228b4dcfcd",
       "src/tree_sitter/parser.h": "a1f6ef161fbaf48a0e10fca90ef5290a062462b307b3898aa562993853b9f80a",
       "src/tree_sitter/array.h": "5bdf6ed1a78e3409fd443e085ca967a64c188a5d082aaf7f819bccd53a471c94",
       "src/tree_sitter/alloc.h": "b29c1c9fb7cc82f58c84b376df1297d6e2737a1d655fd356db0859e3c29c2fea"
     },
-    "sha256": "d3212061d04d47d4a595c4ed36ecfe8905276017548600836ea30467489b15c4"
+    "sha256": "11a9d278c73a55be6442107f0cee024ba338a3ac474820e4151b2f430319a814"
   },
   "vendored": {
     "src/lib/tree-sitter/vendor/tree-sitter-python.wasm": {
