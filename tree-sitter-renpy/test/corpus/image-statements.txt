@@ -72,7 +72,7 @@ Image with ATL body (nms4.23)
 ==================
 image logo:
     "logo.png"
-    alpha 1.0
+    linear 1.0 alpha 1.0
 
 ---
 
@@ -81,9 +81,12 @@ image logo:
     name: (identifier)
     atl: (atl_displayable
       displayable: (string))
-    atl: (atl_transform_property
-      property: (identifier)
-      value: (expression))))
+    atl: (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property
+        property: (identifier)
+        value: (expression)))))
 
 ==================
 Multi-word image with ATL body (nms4.23)

@@ -37,9 +37,79 @@ label s:
       image: (identifier)
       image: (identifier)
       atl: (atl_transform_property property: (identifier) value: (expression))
-      atl: (atl_transform_property property: (identifier) value: (expression)))
+      atl: (atl_interpolation
+        warper: (identifier)
+        duration: (expression)
+        (atl_transform_property property: (identifier) value: (expression))))
     (scene_statement
       image: (identifier)
       image: (identifier)
       atl: (atl_transform_property property: (identifier) value: (expression)))
     (return_statement)))
+
+==================================================================
+ATL interpolation: warper, duration and properties (nms4.24)
+==================================================================
+transform slide:
+    linear 0.5 xalign 1.0
+    ease 1.0 alpha 0.0 zoom zoom_level
+    easein .5 xoffset -10
+    easeout_bounce 2.0
+    pause 1.0
+    warp _warper.linear 1.0 xalign 0.0
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression))
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression))
+    (atl_time_statement duration: (expression))
+    (atl_interpolation
+      warper: (expression)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression)))))
+
+==================================================================
+ATL interpolation tail clauses and property block (nms4.24)
+==================================================================
+transform orbit:
+    linear 2.0 pos (0.5, 0.5) knot (0.2, 0.8) clockwise circles 2
+    ease 1.0: # settle
+        xalign 0.0
+        yalign 1.0
+    linearize 0.5
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression))
+      knot: (expression)
+      circles: (expression))
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (comment)
+      (atl_transform_property property: (identifier) value: (expression))
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_transform_property property: (identifier) value: (expression))))

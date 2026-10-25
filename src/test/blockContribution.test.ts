@@ -81,6 +81,18 @@ describe('buildBlockContribution', () => {
     expect(ctx('total')).toBe('python-block');
   });
 
+  it('reads ATL interpolation durations and property values, but not the warper name (nms4.24)', async () => {
+    const content = 'transform t:\n    linear slide_time xalign target_x\n    warp my_warper 1.0 zoom z\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:slide_time', 'read', 'atl-expression'],
+      ['variable:target_x', 'read', 'atl-expression'],
+      ['variable:my_warper', 'read', 'atl-expression'],
+      ['variable:z', 'read', 'atl-expression'],
+    ]);
+  });
+
   it('does not record the screen name in `use` as a variable, but keeps its argument reads', async () => {
     const c = await build('screen a():\n    use item_list(count)\n');
     expect(c.references.map((r) => [r.symbolId, r.refKind])).toEqual([

@@ -4235,6 +4235,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "atl_interpolation"
+        },
+        {
+          "type": "SYMBOL",
           "name": "atl_transform_property"
         },
         {
@@ -4273,6 +4277,214 @@
         {
           "type": "SYMBOL",
           "name": "_newline"
+        }
+      ]
+    },
+    "atl_interpolation": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "warper",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_atl_warper"
+                },
+                "named": true,
+                "value": "identifier"
+              }
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "warp"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "warper",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_atl_value"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "FIELD",
+          "name": "duration",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_atl_value"
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_atl_property_pair"
+                },
+                "named": true,
+                "value": "atl_transform_property"
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "knot"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "knot",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_atl_value"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "STRING",
+                "value": "clockwise"
+              },
+              {
+                "type": "STRING",
+                "value": "counterclockwise"
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "circles"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "circles",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_atl_value"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_newline"
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_block_colon"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "_newline"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "_indent"
+                },
+                {
+                  "type": "REPEAT1",
+                  "content": {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "_comment_line"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "atl_transform_property"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "_dedent"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "_atl_warper": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1,
+        "content": {
+          "type": "PATTERN",
+          "value": "linear|instant|ease(in|out)?(_(back|bounce|circ|cubic|elastic|expo|quad|quart|quint))?"
+        }
+      }
+    },
+    "_atl_property_pair": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "property",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_atl_value"
+          }
+        }
+      ]
+    },
+    "_atl_value": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_screen_value"
+          },
+          "named": true,
+          "value": "expression"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          },
+          "named": true,
+          "value": "expression"
         }
       ]
     },

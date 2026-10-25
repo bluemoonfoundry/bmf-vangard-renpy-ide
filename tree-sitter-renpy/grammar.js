@@ -937,6 +937,7 @@ module.exports = grammar({
 
     _atl_statement: $ => choice(
       $.atl_displayable,
+      $.atl_interpolation,
       $.atl_transform_property,
       $.atl_with_statement,
       $.atl_block_statement,
@@ -959,6 +960,72 @@ module.exports = grammar({
       field('property', $.identifier),
       field('value', $.expression),
       $._newline,
+    ),
+
+    // nms4.24: an interpolation line, `warper duration [property value
+    // ...]` (`linear 0.5 xalign 1.0`, `ease 1.0 alpha 0.0 zoom 2.0`), or
+    // `warp f duration ...` with a warper function. Before this it was one
+    // `atl_transform_property` named `linear` whose value ran to the end of
+    // the line. The property pairs are `atl_transform_property` nodes (no
+    // newline of their own) and each value is one simple expression, built
+    // like a screen property value (`_screen_value`: blanks only around
+    // operators and inside brackets and strings), so a value ends at the
+    // blank before the next property name. The tail clauses `knot`,
+    // `clockwise`/`counterclockwise` and `circles` may be mixed in, as in
+    // Ren'Py, and instead of a newline the line may open an indented block
+    // of property lines (`linear 1.0:`).
+    //
+    // `warper` is an `identifier` for a named warper and the warper
+    // function's `expression` for `warp`. Only Ren'Py's built-in warper
+    // names are recognised (`_atl_warper`); a warper registered with
+    // `@renpy.atl_warper` under another name still parses as a property
+    // line. `pause` is also a warper in Ren'Py, but `pause 1.0` keeps its
+    // own `atl_time_statement`.
+    atl_interpolation: $ => seq(
+      choice(
+        field('warper', alias($._atl_warper, $.identifier)),
+        seq('warp', field('warper', $._atl_value)),
+      ),
+      field('duration', $._atl_value),
+      repeat(choice(
+        alias($._atl_property_pair, $.atl_transform_property),
+        seq('knot', field('knot', $._atl_value)),
+        'clockwise',
+        'counterclockwise',
+        seq('circles', field('circles', $._atl_value)),
+      )),
+      choice(
+        $._newline,
+        seq(
+          $._block_colon,
+          $._newline,
+          $._indent,
+          repeat1(choice($._comment_line, $.atl_transform_property)),
+          $._dedent,
+        ),
+      ),
+    ),
+
+    // Ren'Py's built-in warpers: `linear`, `instant`, `ease`/`easein`/
+    // `easeout`, and the Penner easings `ease_*`/`easein_*`/`easeout_*`
+    // over back, bounce, circ, cubic, elastic, expo, quad, quart and quint,
+    // as the Ren'Py ATL documentation lists them. `linearize` and other
+    // longer words stay identifiers: the identifier match is longer.
+    _atl_warper: $ => token(prec(1,
+      /linear|instant|ease(in|out)?(_(back|bounce|circ|cubic|elastic|expo|quad|quart|quint))?/,
+    )),
+
+    _atl_property_pair: $ => seq(
+      field('property', $.identifier),
+      field('value', $._atl_value),
+    ),
+
+    // One ATL simple expression inside an interpolation line. A lone word
+    // lexes as `identifier` (it wins the equal-length tie with
+    // `_screen_value`, as in `_positional_property`), so both are offered.
+    _atl_value: $ => choice(
+      alias($._screen_value, $.expression),
+      alias($.identifier, $.expression),
     ),
 
     // nms4.23: a quoted displayable line (`"logo.png"`, `"eileen happy"`)

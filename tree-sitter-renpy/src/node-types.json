@@ -16,6 +16,10 @@
           "named": true
         },
         {
+          "type": "atl_interpolation",
+          "named": true
+        },
+        {
           "type": "atl_time_statement",
           "named": true
         },
@@ -48,6 +52,70 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "atl_interpolation",
+    "named": true,
+    "fields": {
+      "circles": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "duration": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "knot": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "warper": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "atl_transform_property",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1052,6 +1120,10 @@
             "named": true
           },
           {
+            "type": "atl_interpolation",
+            "named": true
+          },
+          {
             "type": "atl_time_statement",
             "named": true
           },
@@ -1923,6 +1995,10 @@
             "named": true
           },
           {
+            "type": "atl_interpolation",
+            "named": true
+          },
+          {
             "type": "atl_time_statement",
             "named": true
           },
@@ -2116,6 +2192,10 @@
           },
           {
             "type": "atl_displayable",
+            "named": true
+          },
+          {
+            "type": "atl_interpolation",
             "named": true
           },
           {
@@ -2460,6 +2540,10 @@
         },
         {
           "type": "atl_displayable",
+          "named": true
+        },
+        {
+          "type": "atl_interpolation",
           "named": true
         },
         {
@@ -3083,7 +3167,15 @@
     "named": false
   },
   {
+    "type": "circles",
+    "named": false
+  },
+  {
     "type": "clear",
+    "named": false
+  },
+  {
+    "type": "clockwise",
     "named": false
   },
   {
@@ -3092,6 +3184,10 @@
   },
   {
     "type": "contains",
+    "named": false
+  },
+  {
+    "type": "counterclockwise",
     "named": false
   },
   {
@@ -3160,6 +3256,10 @@
   },
   {
     "type": "jump",
+    "named": false
+  },
+  {
+    "type": "knot",
     "named": false
   },
   {
@@ -3268,6 +3368,10 @@
   },
   {
     "type": "voice",
+    "named": false
+  },
+  {
+    "type": "warp",
     "named": false
   },
   {
