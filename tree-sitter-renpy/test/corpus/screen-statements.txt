@@ -61,3 +61,77 @@ label a:
       image: (identifier))
     (call_statement
       target: (identifier))))
+
+==================
+Screen for and if headers are one expression (nms4.14)
+==================
+screen inv(items):
+    for i in items:
+        text "[i]"
+    if persistent.unlocked and points > 2:
+        text "Bonus"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list
+      (expression))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))))
+
+==================
+Screen for, showif and elif headers with commas and not (nms4.14)
+==================
+screen inv(items):
+    for i, item in enumerate(items):
+        text "x"
+    showif not hidden:
+        text "y"
+    if x is not None:
+        text "z"
+    elif y not in z:
+        text "w"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list
+      (expression))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))))

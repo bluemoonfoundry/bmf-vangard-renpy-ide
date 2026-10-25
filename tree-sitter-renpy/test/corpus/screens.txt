@@ -54,13 +54,13 @@ label after:
     parameters: (parameter_list)
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property name: (identifier) value: (expression))
+      properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (expression))))
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property name: (identifier) value: (expression))
+      properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (expression))))
@@ -130,3 +130,93 @@ screen black_bg():
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (expression))))))
+
+==================================================================
+Screen property values end where the next property starts (nms4.14)
+==================================================================
+screen a():
+    textbutton i.name action SetScreenVariable("sel", i)
+    text "x" size 20 xalign 0.5
+    textbutton "Close" action [Hide("s"), Return()]
+    frame xpos 100 + offset ypos 20
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))))
+
+==================================================================
+Single-word screen values pair with their property name (nms4.14)
+==================================================================
+screen a():
+    text "a" color c
+    textbutton title action Foo
+    hbox xalign 0.5 spacing -10:
+        textbutton "x" sensitive not locked action If(a, true=Jump("x"))
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        properties: (property
+          name: (identifier)
+          value: (expression))
+        properties: (property
+          name: (identifier)
+          value: (expression))))))

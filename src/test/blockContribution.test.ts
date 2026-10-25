@@ -169,6 +169,12 @@ describe('buildBlockContribution final-review fixes', () => {
     expect(keywordish).toEqual([]);
   });
 
+  it('no reads of screen keywords', async () => {
+    const c = await build('screen inv(items):\n    for i in items:\n        textbutton i.name action SetScreenVariable("sel", i)\n');
+    expect(c.hasError).toBe(false);
+    expect(c.references.filter((r) => ['in', 'action', 'for'].includes(r.name))).toEqual([]);
+  });
+
   it('ignores half-typed labels with a missing or empty name (T4)', async () => {
     const c = await build('label :\n    return\nlabel start:\n    return\n');
     expect(c.definitions.map((d) => d.symbolId)).toEqual(['label:start']);

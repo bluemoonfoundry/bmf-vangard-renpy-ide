@@ -109,6 +109,24 @@ describe('parseBlock', () => {
       disposeParsedBlock(result);
     }
   });
+
+  // nms4.14: a screen property value is one Python expression that ends
+  // where the next property name starts, and a screen `for`/`if` header is
+  // one expression up to the block colon.
+  it('screen injections are whole expressions', async () => {
+    const source = 'screen inv(items):\n    for i in items:\n        textbutton i.name action SetScreenVariable("sel", i)\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      const texts = result.pythonInjections
+        .filter((i) => i.kind === 'screen-expression')
+        .sort((a, b) => a.range[0] - b.range[0])
+        .map((i) => source.slice(i.range[0], i.range[1]));
+      expect(texts).toEqual(['i in items', 'i.name', 'SetScreenVariable("sel", i)']);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
 });
 
 describe('parseBlock failure cleanup', () => {

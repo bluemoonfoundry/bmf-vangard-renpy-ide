@@ -34,6 +34,16 @@ function atItem() {
   return repeat1(choice(AT_ITEM_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING, atGroup(AT_GROUP_DEPTH)));
 }
 
+// nms4.14: operators that may join items of a screen property value
+// (`_screen_value`) with blanks around them. Symbol operators also match
+// with no blanks, but then they are plain item characters anyway; word
+// operators need a blank on each side. `not` may also prefix an item.
+const SCREEN_BINARY_OP = choice(
+  /[ \t]*(\*\*|\/\/|<<|>>|<=|>=|<>|==|!=|[+\-*\/%@&|^<>])[ \t]*/,
+  /[ \t]+(and|or|in|is|not[ \t]+in|is[ \t]+not)[ \t]+/,
+);
+const SCREEN_NOT_PREFIX = /(not[ \t]+)+/;
+
 module.exports = grammar({
   name: 'renpy',
 
@@ -64,16 +74,15 @@ module.exports = grammar({
   // whenever both are viable, matching real Ren'Py semantics: an inline
   // `with` immediately after a say's string always belongs to that say
   // statement, never to a following statement.
-  // Final-review fix C3 added a lone-`identifier` alternative to
-  // `property`, which makes `action Start()` reducible either as one
-  // `name value` pair or as two separate properties (`repeat($.property)`
-  // in `screen_language_statement` allows both). That's a genuine
-  // LR conflict, not a lexical one, so it must be declared here and let
-  // GLR explore both; the `prec.dynamic` weights on `property`'s
-  // alternatives then pick the `name value` reading whenever it's viable.
+  // A screen line's `action Start()` is reducible either as one `name
+  // value` pair or as two positional properties (final-review fix C3 made
+  // a lone identifier a valid positional value). That's a genuine LR
+  // conflict, not a lexical one, so it must be declared here and let GLR
+  // explore both; the `prec.dynamic` on `_keyword_property` then picks the
+  // `name value` reading whenever it's viable (see `_keyword_property`).
   conflicts: $ => [
     [$.say_statement],
-    [$.property],
+    [$._positional_property, $._keyword_property],
   ],
 
   rules: {
@@ -712,104 +721,111 @@ module.exports = grammar({
     // is a deliberate spec decision — do not split into per-widget rule
     // types even though it would look tidier; the point is that the
     // uniform shape is sufficient to represent every widget.
-    // Every screen_language_statement must consume exactly one trailing
-    // `_newline` of its own, mirroring the convention "simple" `_statement`s
-    // use (see the `_statement` comment above) — this rule sits *outside*
-    // `_block`'s pattern (it has no required leading `:'), so unlike
-    // `if_statement`/`while_statement`/etc. it can't just delegate to
-    // `_block`. The brief's snippet omitted this newline entirely, which
-    // left the grammar with no marker between sibling widgets on the same
-    // indent level: the external scanner only emits a NEWLINE token when
-    // the grammar actually asks for one at that position (see scanner.c),
-    // so an unconsumed newline is silently skipped as whitespace and two
-    // adjacent widgets (e.g. `text "Welcome"` then `if ...:`) become
-    // lexically indistinguishable from one widget with extra properties —
-    // a genuine `tree-sitter generate` conflict ("Unresolved conflict...
-    // Specify a left or right associativity... Add a conflict"), not a
-    // lexer-precedence issue. Requiring the newline (or the block's own
-    // internal `_newline` right after `:') removes the ambiguity: the
-    // parser always knows where one screen_language_statement ends.
-    screen_language_statement: $ => seq(
-      field('widget_tag', $.identifier),
-      repeat(field('properties', $.property)),
-      choice(
-        $._newline,
-        seq($._block_colon, $._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
+    //
+    // nms4.14: the control-flow tags `if`/`elif`/`for`/`while`/`showif`
+    // take one Python expression running up to the block colon (`for i in
+    // items:`, `if a and b > 2:`, `for i, x in enumerate(xs):`) instead of
+    // a property list. That expression is the line's single `property`
+    // (aliased, so it is `(property (expression))` like a positional value
+    // and `injections.scm` needs no new pattern), and the tag is aliased to
+    // `identifier` so `widget_tag` keeps its node type. Matching the tags
+    // as keywords here is what stops `for i in items` splitting into
+    // properties `i`, `in`, `items`. `else` takes nothing and stays a plain
+    // widget tag.
+    screen_language_statement: $ => choice(
+      seq(
+        field('widget_tag', $.identifier),
+        repeat(field('properties', alias($._positional_property, $.property))),
+        repeat(field('properties', alias($._keyword_property, $.property))),
+        $._screen_line_end,
+      ),
+      seq(
+        field('widget_tag', alias(choice('if', 'elif', 'for', 'while', 'showif'), $.identifier)),
+        field('properties', alias($._screen_condition, $.property)),
+        $._screen_line_end,
       ),
     ),
 
-    // A property is either a `name value` keyword pair (e.g. `action
-    // Start()`) or a single bare expression (e.g. a widget's positional
-    // argument, or — for control-flow tags like `if`/`for` reused inside
-    // screen-language — the condition/target itself, e.g. `if
-    // persistent.unlocked:`). Both alternatives can start with the exact
-    // same identifier-shaped text (`persistent...` vs `action ...`), so
-    // this can't be resolved by `expression`'s usual `prec(-1)` alone: at
-    // the position right after `if `, plain `identifier` (prec 0, matches
-    // just "persistent") would always beat plain `expression` (prec -1,
-    // would match the whole "persistent.unlocked") on precedence *before*
-    // length is even considered, splitting the dotted attribute access
-    // into a bogus name:"persistent" + value:".unlocked" pair instead of
-    // one bare expression — the brief's snippet has this bug (verified:
-    // it produced exactly that malformed split against the brief's own
-    // corpus expectation of a single `(property (expression))`).
-    //
-    // `_bare_expr_head` fixes this by requiring at least one more
-    // *immediately adjacent, no-space* character after the leading word
-    // (`repeat1`, not `repeat0`) before it's a valid token at all. That
-    // means it can never even compete for cases like `action Start()`
-    // (a space follows "action", so the blob simply fails to match there
-    // and only plain `identifier` is on offer — alt1 still wins normally),
-    // but for `persistent.unlocked` (no space before the continuing `.`)
-    // it matches the full 20 characters at the *same* (default, 0)
-    // precedence as `identifier`'s 10-character match — a tie that then
-    // falls through to tree-sitter's next tiebreaker, longest match, which
-    // the blob wins outright. This keeps `action Start()` splitting into
-    // name+value (real keyword-argument screen properties always have a
-    // separating space) while letting any expression that runs directly
-    // into its head word — dotted attributes, calls, subscripts — lex as
-    // one opaque expression, matching real Ren'Py semantics: only
-    // `if`/`for`/bare-positional tags take a single expression, and they
-    // have no notion of a `name` sub-field to split into.
-    // Final-review fix C3: a property that is a *single lone identifier*
-    // with nothing after it on the line had no matching alternative at all
-    // — `seq(name, value)` needs a following value, `_bare_expr_head`
-    // needs at least one more immediately-adjacent character (`repeat1`),
-    // and plain `$.expression` (prec -1) always loses the lexical contest
-    // to `identifier` (prec 0) at that position. That made `use
-    // other_screen`, `add some_displayable`, `text some_var`,
-    // `style_prefix some_prefix` and a bare-variable screen condition
-    // (`if x:`) unparseable — all extremely common real screen-language.
-    //
-    // The `alias($.identifier, $.expression)` alternative below fills that
-    // gap, keeping the exposed node type `expression` per this grammar's
-    // opaque-value convention (so `injections.scm`'s `(property
-    // (expression))` pattern picks it up unchanged).
-    //
-    // `prec.dynamic` is required, not decorative: `action Start()` is now
-    // genuinely ambiguous at the parser level — it can reduce either as one
-    // `property(name: action, value: " Start()")` or as the three-property
-    // sequence `property(action) property(Start) property("()")`, since
-    // `screen_language_statement` holds a `repeat($.property)`. Both are
-    // complete valid parses, so only a dynamic precedence can pick one.
-    // The higher precedence on the `name value` pair makes the
-    // keyword-argument reading win whenever it is viable, matching real
-    // Ren'Py semantics; the lone-identifier reading is then only taken
-    // when there is nothing left on the line to be a value.
-    property: $ => choice(
-      prec.dynamic(2, seq(field('name', $.identifier), field('value', $.expression))),
-      alias($._bare_expr_head, $.expression),
-      $.expression,
-      prec.dynamic(1, alias($.identifier, $.expression)),
+    _screen_condition: $ => seq($.expression),
+
+    // Every screen_language_statement must consume exactly one trailing
+    // `_newline` of its own, mirroring the convention "simple" `_statement`s
+    // use (see the `_statement` comment above) — this rule has no required
+    // leading `:`, so unlike `if_statement`/`while_statement`/etc. it can't
+    // just delegate to `_block`. Without the newline there is no marker
+    // between sibling widgets on the same indent level: the external
+    // scanner only emits a NEWLINE token when the grammar asks for one at
+    // that position (see scanner.c), so two adjacent widgets (e.g. `text
+    // "Welcome"` then `if ...:`) become indistinguishable from one widget
+    // with extra properties — a genuine `tree-sitter generate` conflict.
+    // Requiring the newline (or the block's own internal `_newline` right
+    // after `:`) means the parser always knows where one statement ends.
+    _screen_line_end: $ => choice(
+      $._newline,
+      seq($._block_colon, $._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
     ),
 
-    // lssz: a quoted string is one piece here too, like in `expression`, so
-    // `add Solid("#000")` keeps its quoted '#' instead of ending at `Solid("`
-    // (this token outranks the prec(-1) `expression`, so fixing only that
-    // one would not help screen lines).
-    _bare_expr_head: $ => token(seq(
-      /[a-zA-Z_][a-zA-Z0-9_]*/,
-      repeat1(choice(/[^\n#: \t\r'"]/, EXPR_DQ_STRING, EXPR_SQ_STRING)),
+    // A screen line's properties are positional values (`text "x"`,
+    // `textbutton i.name`, `use other_screen`, `add Solid("#000")`)
+    // followed by `name value` keyword pairs (`action Start()`, `size 20`),
+    // in that order, as Ren'Py's screen parser reads them. Both kinds are
+    // `property` nodes; a keyword pair has `name`/`value` fields and a
+    // positional value is a bare `expression` child.
+    //
+    // nms4.14: a value is one Python expression (`_screen_value` below)
+    // that ends where the next property name starts or at the end of the
+    // line, so `text "x" size 20 xalign 0.5` is three properties and
+    // `textbutton i.name action SetScreenVariable("sel", i)` is two. Before
+    // this, a value was the greedy `expression` (ran to the end of the
+    // line) or `_bare_expr_head` (stopped at the first blank, even inside
+    // brackets).
+    //
+    // Final-review fix C3: a value may be a single word (`use
+    // other_screen`, `text some_var`, `size font_size`). `_screen_value`
+    // matches a single word too, but `identifier` comes earlier in the
+    // grammar and wins that equal-length tie, so the lone `identifier`
+    // alternative is what takes it; `_screen_value` wins whenever it
+    // matches more (`i.name`, `Start()`, `100 + offset`), being the longer
+    // token at the same lexical precedence.
+    //
+    // `prec.dynamic` on `_keyword_property` is required, not decorative:
+    // `color c` can reduce as one keyword pair or as two positional values,
+    // and both are complete parses (the conflict is declared in
+    // `conflicts`). The pair reading wins whenever it is viable. Keeping
+    // positionals before keywords is what makes this pick well: a lone word
+    // followed by a pair (`textbutton title action Foo`) has only one
+    // reading with a pair in it, where a free mix of the two would tie
+    // `(title) (action Foo)` with `(title action) (Foo)`.
+    _positional_property: $ => choice(
+      alias($._screen_value, $.expression),
+      alias($.identifier, $.expression),
+    ),
+
+    _keyword_property: $ => prec.dynamic(1, seq(
+      field('name', $.identifier),
+      field('value', $._positional_property),
+    )),
+
+    // nms4.14: one screen property value, as Ren'Py's simple_expression
+    // reads it: items joined by binary operators, where blanks are allowed
+    // around an operator (`100 + offset`, `a and not b`, `x not in s`) and
+    // inside brackets and strings, and nowhere else. Each item is built
+    // like an `_at_expr_blob` item (aj2e): a run of characters other than
+    // blanks, ',', ':', '#', quotes and brackets, with quoted strings and
+    // bracket groups (bounded nesting, AT_GROUP_DEPTH) as single pieces —
+    // so `[Hide("s"), Return()]` and `SetScreenVariable("sel", i)` are one
+    // value and a quoted '#' or ':' never ends it. The token therefore
+    // stops at the blank before the next property name, at a top-level ':'
+    // (the block colon of `hbox xalign 0.5:`), at an unquoted '#' and at
+    // the end of the line. Not supported: conditional expressions (`a if c
+    // else b`), top-level commas, brackets nested deeper than
+    // AT_GROUP_DEPTH, and brackets continued onto the next line. An
+    // unbalanced bracket or unterminated string on a half-typed line is an
+    // ERROR, as it was before.
+    _screen_value: $ => token(seq(
+      optional(SCREEN_NOT_PREFIX),
+      atItem(),
+      repeat(seq(SCREEN_BINARY_OP, optional(SCREEN_NOT_PREFIX), atItem())),
     )),
 
     // ATL (Animated Transform Language) — used by `transform` statements
