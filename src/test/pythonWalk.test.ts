@@ -31,6 +31,13 @@ describe('walkPythonTree', () => {
     expect(uses(r)).toEqual(['write:points', 'write:a', 'write:b', 'write:c']);
   });
 
+  it('treats `with ... as` and `except ... as` targets as writes (nms4.34)', async () => {
+    const r = await walkPython('init python:\n    with open(p) as fh:\n        data = fh.read()\n    try:\n        pass\n    except KeyError as err:\n        last = err\n');
+    expect(uses(r)).toEqual([
+      'read:open', 'read:p', 'write:fh', 'read:fh', 'write:data', 'read:KeyError', 'write:err', 'read:err', 'write:last',
+    ]);
+  });
+
   it('normalizes store. and persistent. chains and reads only the base of other attributes', async () => {
     const r = await walkPython('label a:\n    $ store.gold = persistent.seen.flag\n    $ player.hp = 3\n');
     expect(uses(r)).toEqual(['read:persistent.seen', 'write:gold', 'read:player']);

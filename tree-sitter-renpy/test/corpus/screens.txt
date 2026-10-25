@@ -527,3 +527,37 @@ label z:
   (label_statement
     name: (identifier)
     (return_statement)))
+
+==================================================================
+Python blocks in a screen body are opaque (nms4.34)
+==================================================================
+screen s():
+    vbox:
+        python:
+            """Doc."""
+            with open(p) as fh:
+                queue = fh.read()
+        text "x"
+    python:
+        y = 2
+label z:
+    return
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      (python_statement
+        body: (python_block))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string))))
+    (python_statement
+      body: (python_block)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

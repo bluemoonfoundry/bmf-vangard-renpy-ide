@@ -2819,6 +2819,10 @@
           "named": true
         },
         {
+          "type": "python_statement",
+          "named": true
+        },
+        {
           "type": "screen_default_statement",
           "named": true
         },
@@ -2864,6 +2868,10 @@
         },
         {
           "type": "dollar_statement",
+          "named": true
+        },
+        {
+          "type": "python_statement",
           "named": true
         },
         {

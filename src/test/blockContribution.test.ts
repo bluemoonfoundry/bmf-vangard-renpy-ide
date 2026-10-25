@@ -203,6 +203,68 @@ describe('buildBlockContribution', () => {
         ['variable:hp', 'write'], ['variable:sel', 'read'],
       ]);
     });
+
+    it('walks a screen `python:` block as Python with screen-local names (nms4.34)', async () => {
+      const content = [
+        'screen s():',
+        '    python:',
+        '        """Doc."""',
+        '        def label_for(n):',
+        '            return prefix + str(n)',
+        '        with open(p) as fh:',
+        '            total = gold + 1',
+        '        store.seen = True',
+        '    text "[total] [label_for(1)]"',
+        '',
+      ].join('\n');
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      expect(c.definitions.map((d) => d.symbolId)).toEqual(['screen:s']);
+      expect(refs(c)).toEqual([
+        ['variable:prefix', 'read'], ['variable:str', 'read'],
+        ['variable:open', 'read'], ['variable:p', 'read'],
+        ['variable:gold', 'read'], ['variable:seen', 'write'],
+      ]);
+    });
+  });
+
+  describe('named stores (nms4.34)', () => {
+    const refs = (c: BlockContribution) => c.references.map((r) => [r.symbolId, r.refKind]);
+
+    it('qualifies definitions and writes in `init python in X:` with the store name', async () => {
+      const content = [
+        'init python in mystore:',
+        '    count = 0',
+        '    def bump():',
+        '        return count + other',
+        '    class Bag:',
+        '        pass',
+        '    store.flag = len(Bag())',
+        '',
+      ].join('\n');
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      expect(c.definitions.map((d) => [d.symbolId, d.name])).toEqual([
+        ['python-function:mystore.bump', 'mystore.bump'],
+        ['python-class:mystore.Bag', 'mystore.Bag'],
+      ]);
+      expect(refs(c)).toEqual([
+        ['variable:mystore.count', 'write'],
+        ['variable:mystore.count', 'read'],
+        ['variable:other', 'read'],
+        ['variable:flag', 'write'],
+        ['variable:len', 'read'],
+        ['variable:mystore.Bag', 'read'],
+      ]);
+      const count = c.references[0];
+      expect(text(content, count)).toBe('count');
+    });
+
+    it('treats `python in store:` as the default store', async () => {
+      const c = await build('init python in store:\n    def f():\n        pass\n    x = 1\n');
+      expect(c.definitions.map((d) => d.symbolId)).toEqual(['python-function:f']);
+      expect(refs(c)).toEqual([['variable:x', 'write']]);
+    });
   });
 
   it('reads the expression of a menu set clause (nms4.29)', async () => {

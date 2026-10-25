@@ -60,9 +60,26 @@ export function outermostInjections(injections: PythonInjection[]): PythonInject
 }
 
 /**
+ * The named store of the `python in X:` / `init python in X:` block an
+ * injection is the body of (nms4.34), or null for the default store.
+ * `in store` and `in store.X` are spelled relative to the default store.
+ */
+export function injectionStoreName(root: SyntaxNode, injection: PythonInjection): string | null {
+  if (injection.kind !== 'python-block') return null;
+  for (let node: SyntaxNode | null = root.descendantForIndex(injection.range[0], injection.range[1]); node; node = node.parent) {
+    if (node.type !== 'python_statement' && node.type !== 'init_python_statement') continue;
+    const store = node.childForFieldName('store')?.text ?? null;
+    if (store === null || store === 'store') return null;
+    return store.startsWith('store.') ? store.slice('store.'.length) : store;
+  }
+  return null;
+}
+
+/**
  * Drops variable references to screen-local names inside their screen
  * (nms4.31), the way pythonWalk.ts leaves out function locals. A bare name
- * written by a `$` line in a screen is screen-local too. A `persistent.x`
+ * written by a `$` line or a `python:` block in a screen (nms4.34) is
+ * screen-local too. A `persistent.x`
  * or `store.x` reference is never local: its name is dotted, or its source
  * text is not the bare name.
  */
@@ -71,7 +88,8 @@ export function withoutScreenLocals(references: SymbolReference[], scopes: Scree
   const isBare = (ref: SymbolReference) => !ref.name.includes('.')
     && content.slice(ref.range.start.offset, ref.range.end.offset) === ref.name;
   for (const ref of references) {
-    if (ref.kind !== 'variable' || ref.refKind !== 'write' || ref.context !== 'dollar' || !isBare(ref)) continue;
+    if (ref.kind !== 'variable' || ref.refKind !== 'write' || !isBare(ref)) continue;
+    if (ref.context !== 'dollar' && ref.context !== 'python-block') continue;
     screenScopeFor(scopes, ref.range.start.offset)?.locals.add(ref.name);
   }
   return references.filter((ref) => ref.kind !== 'variable' || !isBare(ref)
@@ -119,19 +137,39 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
       const toOffset = (p: Point) => mapInjectionPoint(ctx, injectionStart, p.row, p.column);
       const python = walkPythonTree(injection.tree.rootNode, { allowDefinitions: context === 'python-block' });
       const skipLeadingName = isUseInjection(root, injection);
+      // A def in a screen's `python:` block is local to the screen (nms4.34).
+      const screen = context === 'python-block' ? screenScopeFor(renpy.screenScopes, injectionStart) : null;
+      // Names bound at the top of a named store's body live in that store
+      // (nms4.34): `count = 0` in `init python in mystore:` is `mystore.count`.
+      // Other bare reads (builtins, default-store names) stay unqualified.
+      const store = injectionStoreName(root, injection);
+      const bound = new Set([
+        ...python.uses.filter((u) => u.refKind === 'write').map((u) => u.name),
+        ...python.defs.map((d) => d.name),
+      ]);
+      const qualify = (name: string, start: number, end: number, isWrite: boolean): string =>
+        store && (isWrite || bound.has(name)) && block.content.slice(start, end) === name ? `${store}.${name}` : name;
 
       for (const use of python.uses) {
         if (skipLeadingName && use.start.row === 0 && use.start.column === 0) continue;
+        const start = toOffset(use.start);
+        const end = toOffset(use.end);
+        const name = qualify(use.name, start, end, use.refKind === 'write');
         references.push({
-          symbolId: symbolId('variable', use.name), kind: 'variable', name: use.name,
+          symbolId: symbolId('variable', name), kind: 'variable', name,
           refKind: use.refKind, context,
-          range: rangeFromOffsets(ctx, toOffset(use.start), toOffset(use.end)),
+          range: rangeFromOffsets(ctx, start, end),
           enclosingLabel,
         });
       }
       for (const def of python.defs) {
+        if (screen) {
+          screen.locals.add(def.name);
+          continue;
+        }
+        const name = store ? `${store}.${def.name}` : def.name;
         definitions.push({
-          symbolId: symbolId(def.kind, def.name), kind: def.kind, name: def.name,
+          symbolId: symbolId(def.kind, name), kind: def.kind, name,
           defKind: def.kind === 'python-function' ? 'def' : 'class',
           range: rangeFromOffsets(ctx, toOffset(def.start), toOffset(def.end)),
           nameRange: rangeFromOffsets(ctx, toOffset(def.nameStart), toOffset(def.nameEnd)),

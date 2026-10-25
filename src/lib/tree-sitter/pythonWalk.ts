@@ -244,6 +244,10 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
         if (value) visit(value, scope);
         return;
       }
+      // `with open(p) as fh:` / `except E as e:` bind their target (nms4.34).
+      case 'as_pattern_target':
+        node.namedChildren.forEach((c) => visitTarget(c, scope));
+        return;
       case 'import_statement':
       case 'import_from_statement':
       case 'future_import_statement':
