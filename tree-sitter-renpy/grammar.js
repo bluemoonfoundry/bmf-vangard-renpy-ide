@@ -41,7 +41,9 @@ module.exports = grammar({
   ],
 
   rules: {
-    source_file: $ => repeat($._statement),
+    // Blank lines before the first statement (3nk7): the scanner emits NEWLINE for
+    // them, but nothing else accepts a NEWLINE at file start. Hidden, so no tree changes.
+    source_file: $ => seq(optional($._newline), repeat($._statement)),
 
     // "Simple" (non-block-taking) statements consume their own trailing
     // `_newline` explicitly (the external scanner only emits NEWLINE when

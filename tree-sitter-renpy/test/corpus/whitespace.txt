@@ -34,3 +34,51 @@ init python:
       (expression)
       (return_statement
         value: (expression)))))
+
+==================
+Leading blank line before the first statement (3nk7)
+==================
+
+label start:
+    "Hi"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      text: (string))))
+
+==================
+Several leading blank lines (3nk7)
+==================
+
+
+label start:
+    "Hi"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      text: (string))))
+
+==================
+Comment header then blank line (3nk7)
+==================
+# header
+
+label start:
+    "Hi"
+
+---
+
+(source_file
+  (comment)
+  (label_statement
+    name: (identifier)
+    (say_statement
+      text: (string))))

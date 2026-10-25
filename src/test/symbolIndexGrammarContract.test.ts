@@ -43,4 +43,10 @@ describe('grammar contract relied on by the symbol index', () => {
       ).toEqual(['persistent.seen', 'config.name']);
     });
   });
+
+  it('a leading CRLF blank line does not error', async () => {
+    await withTree('\r\nlabel start:\r\n    "Hi"\r\n', (root) => {
+      expect(root.hasError).toBe(false);
+    });
+  });
 });
