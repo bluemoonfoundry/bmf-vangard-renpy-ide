@@ -6,13 +6,13 @@
     "treeSitterCli": "0.24.7",
     "inputs": {
       "grammar.js": "780abd7a7fd5f62f76bf23cb62e918f5acdf97b99192fede63e248f6880ab415",
-      "src/scanner.c": "9a0b7fc64b2c646d8ad20ab3493fab94e1a7398c3c56b0c249337af6faea227c",
+      "src/scanner.c": "9898956e55c4c29d88d09bd8703e1c7afae677330ca42d95b82ea17bd70f6b7f",
       "src/parser.c": "45a10a78fb75b427dd461dedd9580c2c0a7f3c08425cbb166303f55ce5fc6bbd",
       "src/tree_sitter/parser.h": "a1f6ef161fbaf48a0e10fca90ef5290a062462b307b3898aa562993853b9f80a",
       "src/tree_sitter/array.h": "5bdf6ed1a78e3409fd443e085ca967a64c188a5d082aaf7f819bccd53a471c94",
       "src/tree_sitter/alloc.h": "b29c1c9fb7cc82f58c84b376df1297d6e2737a1d655fd356db0859e3c29c2fea"
     },
-    "sha256": "0507e51b16f98c30f4e50feb47402a4e097b4741d2c87e1e29bfa85be80ccf37"
+    "sha256": "25815959b76c975bcf7ebfb7e3f02c674e590c9a01c861973221eca0344d94bb"
   },
   "vendored": {
     "src/lib/tree-sitter/vendor/tree-sitter-python.wasm": {

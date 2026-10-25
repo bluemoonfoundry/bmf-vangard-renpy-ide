@@ -144,6 +144,41 @@ describe('parseBlock', () => {
     }
   });
 
+  // nms4.15 review: a half-typed docstring (editor auto-close not yet
+  // applied) must not swallow the rest of the file into the python body.
+  it('ends an unclosed triple quote at a less-indented Ren\'Py statement keyword', async () => {
+    const source = 'label a:\n    python:\n        x = """\n    "hello"\nlabel b:\n    return\n';
+    const result = await parseBlock(source);
+    try {
+      const blocks = result.pythonInjections.filter((i) => i.kind === 'python-block');
+      expect(blocks).toHaveLength(1);
+      expect(source.slice(...blocks[0].range)).toBe('x = """\n    "hello"');
+      expect(result.symbolTable.labels.map((l) => l.name)).toEqual(['a', 'b']);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
+
+  // nms4.15 review: a comment indented less than the code under it is still
+  // part of the body, but the injection starts at the first code line so the
+  // dedent leaves a clean module.
+  it('keeps a less-indented first comment in the body and injects clean Python', async () => {
+    const source = 'python:\n# c\n    x = 1\n    if x:\n        y = 2\nlabel a:\n    return\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      const block = result.tree.rootNode.namedChildren[0].childForFieldName('body')!;
+      expect(block.type).toBe('python_block');
+      expect(block.text).toBe('# c\n    x = 1\n    if x:\n        y = 2');
+      const injections = result.pythonInjections.filter((i) => i.kind === 'python-block');
+      expect(injections).toHaveLength(1);
+      expect(source.slice(...injections[0].range)).toBe('x = 1\n    if x:\n        y = 2');
+      expect(injections[0].tree.rootNode.hasError).toBe(false);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
+
   // nms4.14: a screen property value is one Python expression that ends
   // where the next property name starts, and a screen `for`/`if` header is
   // one expression up to the block colon.

@@ -375,3 +375,63 @@ label c:
   (label_statement
     name: (identifier)
     (return_statement)))
+
+==================
+Unclosed triple quote stops at a Ren'Py statement keyword (nms4.15)
+==================
+label a:
+    python:
+        x = """
+    "hello"
+label b:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (python_statement
+      body: (python_block)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Unclosed bracket stops at a Ren'Py statement keyword (nms4.15)
+==================
+label a:
+    python:
+        x = [
+    "hello"
+label b:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (python_statement
+      body: (python_block)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Column-0 comment as the first python body line (nms4.15)
+==================
+python:
+# c
+    x = 1
+label a:
+    return
+
+---
+
+(source_file
+  (python_statement
+    body: (python_block))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

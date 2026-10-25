@@ -17,13 +17,15 @@
  *   dedented relative to that column so it parses as a standalone Python
  *   module (top-level Python statements must start at column 0; the
  *   original text is indented because it's nested inside a Ren'Py
- *   `python:` block).
+ *   `python:` block). Leading comment-only lines are left out of the span
+ *   (see {@link pythonBodyStart}), so the dedent column is the first code
+ *   line's.
  * - For every other injection point (`$ expr`, screen-language
  *   `property` expressions, `if`/`elif`/`while`/menu-choice conditions,
- *   ATL property/warper/duration expressions) each match has exactly one
- *   capture, so the same grouping logic naturally yields a single-node
- *   span with no dedent needed (column offset is a no-op for a one-line
- *   fragment sliced starting at its own first non-whitespace character).
+ *   ATL property/warper/duration expressions) the capture is one
+ *   expression node, with no dedent needed (column offset is a no-op for a
+ *   one-line fragment sliced starting at its own first non-whitespace
+ *   character).
  */
 import Parser, { type Query, type Tree, type SyntaxNode } from 'web-tree-sitter';
 import treeSitterRuntimeWasmUrl from 'web-tree-sitter/tree-sitter.wasm?url';
@@ -302,6 +304,26 @@ export async function parseBlock(content: string): Promise<ParsedBlock> {
   }
 }
 
+/**
+ * Where a python body's injection starts: its first code line's first
+ * non-blank character, skipping leading comment-only and blank lines (the
+ * `python_block` itself starts at its first line, which may be a comment).
+ * Comments are invisible to Python's indentation, but `dedent` keys off the
+ * span's first column, so a leading comment indented differently from the
+ * code would leave the module indented. Returns `start` if the body holds
+ * only comments.
+ */
+function pythonBodyStart(content: string, start: number, end: number): number {
+  let i = start;
+  while (i < end && content[i] === '#') {
+    const lineEnd = content.indexOf('\n', i);
+    if (lineEnd < 0 || lineEnd >= end) return start;
+    i = lineEnd + 1;
+    while (i < end && /[ \t\r\n]/.test(content[i])) i++;
+  }
+  return i < end ? i : start;
+}
+
 /** Parses each injection-query match as Python, appending to `out` as each tree is created. */
 function collectInjections(content: string, tree: Tree, out: PythonInjection[]): void {
   const matches = injectionsQuery!.matches(tree.rootNode);
@@ -314,8 +336,12 @@ function collectInjections(content: string, tree: Tree, out: PythonInjection[]):
     if (!capture) continue;
     const node = capture.node;
 
-    const rawSpan = content.slice(node.startIndex, node.endIndex);
-    const spanText = dedent(rawSpan, node.startPosition.column);
+    const spanStart = node.type === 'python_block'
+      ? pythonBodyStart(content, node.startIndex, node.endIndex)
+      : node.startIndex;
+    const column = spanStart - (content.lastIndexOf('\n', spanStart - 1) + 1);
+    const rawSpan = content.slice(spanStart, node.endIndex);
+    const spanText = dedent(rawSpan, column);
 
     const pythonTree = pythonParser!.parse(spanText);
     if (!pythonTree) continue;
@@ -327,6 +353,6 @@ function collectInjections(content: string, tree: Tree, out: PythonInjection[]):
       pythonTree.delete(); // not yet in `out`, so the caller's cleanup can't see it
       throw error;
     }
-    out.push({ range: [node.startIndex, node.endIndex], tree: pythonTree, kind });
+    out.push({ range: [spanStart, node.endIndex], tree: pythonTree, kind });
   }
 }

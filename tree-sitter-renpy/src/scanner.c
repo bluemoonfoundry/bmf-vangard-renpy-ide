@@ -162,6 +162,30 @@ static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
   if (st->quote && !st->triple && !st->continued) st->quote = 0;
 }
 
+// At the start of a line: consumes a leading run of lowercase letters (into
+// the token, unmarked) and reports whether it is a Ren'Py statement keyword
+// followed by a space, tab or ':'. `*consumed` is the number of letters taken.
+static bool starts_renpy_statement(TSLexer *lexer, int *consumed) {
+  static const char *const keywords[] = {
+    "label", "init", "define", "default", "screen", "transform",
+    "image", "style", "translate", "python", "menu",
+  };
+  char word[12];
+  int len = 0;
+  while (lexer->lookahead >= 'a' && lexer->lookahead <= 'z' && len < (int)sizeof(word) - 1) {
+    word[len++] = (char)lexer->lookahead;
+    take(lexer, false);
+  }
+  word[len] = '\0';
+  *consumed = len;
+  int32_t next = lexer->lookahead;
+  if (len == 0 || !(next == ' ' || next == '\t' || next == ':')) return false;
+  for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
+    if (strcmp(word, keywords[i]) == 0) return true;
+  }
+  return false;
+}
+
 // Scans a python body from the first non-blank character after its header's
 // NEWLINE. `header_indent` is the header line's indentation (the top of the
 // indent stack). The body ends before the first code line indented no
@@ -171,15 +195,31 @@ static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
 // follows it, so trailing shallow comments stay outside the token. Returns
 // false, having marked nothing, if no line deeper than the header is found
 // (`python:` with no body). Callers must mark_end() beforehand.
+//
+// One deliberate deviation from Ren'Py: a string or bracket left open does
+// not run on past a line, no deeper than the header, that starts with a
+// Ren'Py statement keyword (see starts_renpy_statement). Ren'Py rejects such
+// a file outright ("not terminated"), so there is no valid reading to keep,
+// and this is exactly the half-typed state editor auto-close produces while
+// a docstring is being written; without the bound the rest of the file would
+// vanish into the body. A backslash continuation is not bounded.
 static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
   PythonLineState st = {0, 0, false, false};
   bool accepted = false;
   uint32_t column = lexer->get_column(lexer);
   while (!lexer->eof(lexer)) {
     if (lexer->lookahead != '\n') {
-      bool joined = st.bracket_depth > 0 || st.quote != 0 || st.continued;
+      bool open = st.bracket_depth > 0 || st.quote != 0;
+      bool joined = open || st.continued;
       bool deeper = joined || column > header_indent;
       if (!deeper && lexer->lookahead != '#') break;
+      if (open && !st.continued && column <= header_indent) {
+        int consumed = 0;
+        if (starts_renpy_statement(lexer, &consumed)) break;
+        // Only letters were consumed (no string/bracket state to update),
+        // and the line is accepted: extend the token over them.
+        if (consumed > 0) lexer->mark_end(lexer);
+      }
       scan_python_line(lexer, &st, deeper);
       if (deeper) accepted = true;
       if (lexer->eof(lexer)) break;
