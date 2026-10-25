@@ -124,4 +124,74 @@ describe('analysis request handler', () => {
     expect(updateIndex).toHaveBeenCalledTimes(2);
     expect(updateIndex.mock.calls[1][1][0].filePath).toBe('game/renamed.rpy');
   });
+
+  describe('cancellation', () => {
+    const PHASES = ['Parsing scripts', 'Building route graph', 'Analyzing translations', 'Indexing symbols', 'Finalizing'];
+    const phasesOf = (messages: AnalysisResponse[]) => messages.filter((m) => 'type' in m).map((m) => ('phase' in m ? m.phase : ''));
+    const withContent = (content: string): AnalysisBlock[] => [{ id: 'a', filePath: 'game/a.rpy', content }];
+    const X = withContent('label x:\n    return\n');
+    const Y = withContent('label y:\n    return\n');
+
+    /** A fake updateIndex whose calls wait on a per-call gate (open unless provided), then hit the checkpoint. */
+    function gatedUpdateIndex(gates: Array<Promise<void> | undefined>) {
+      let call = 0;
+      return vi.fn(async (_cache: ContributionCache, _blocks: IndexBlock[], deps?: { checkpoint?: () => Promise<void> }) => {
+        const gate = gates[call++];
+        if (gate) await gate;
+        await deps?.checkpoint?.();
+        return emptyIndex();
+      });
+    }
+
+    async function waitFor(predicate: () => boolean) {
+      for (let i = 0; i < 1000 && !predicate(); i++) await new Promise((r) => setTimeout(r, 0));
+      if (!predicate()) throw new Error('condition never became true');
+    }
+
+    it('a stale request that finishes last neither posts nor overwrites the cache', async () => {
+      let openA!: () => void;
+      const gateA = new Promise<void>((resolve) => { openA = resolve; });
+      const handler = createAnalysisRequestHandler({ updateIndex: gatedUpdateIndex([gateA]) });
+
+      const aMessages: AnalysisResponse[] = [];
+      const aDone = handler({ id: 1, blocks: X }, (m) => aMessages.push(m));
+      await waitFor(() => aMessages.some((m) => 'phase' in m && m.phase === 'Indexing symbols'));
+      const aCountAtB = aMessages.length;
+
+      const bMessages = await run(handler, 2, Y);
+      openA();
+      await aDone;
+
+      expect(aMessages.length).toBe(aCountAtB);
+      expect('result' in bMessages[bMessages.length - 1]).toBe(true);
+      const third = await run(handler, 3, Y);
+      expect(third).toHaveLength(1);
+      expect('result' in third[0]).toBe(true);
+      expect(phasesOf(await run(handler, 4, X))).toEqual(PHASES);
+    });
+
+    it('posts nothing at all for a request superseded before it starts', async () => {
+      const handler = createAnalysisRequestHandler({ updateIndex: fakeUpdateIndex() });
+      const a: AnalysisResponse[] = [];
+      const b: AnalysisResponse[] = [];
+      const c: AnalysisResponse[] = [];
+      await Promise.all([
+        handler({ id: 1, blocks: X }, (m) => a.push(m)),
+        handler({ id: 2, blocks: Y }, (m) => b.push(m)),
+        handler({ id: 3, blocks }, (m) => c.push(m)),
+      ]);
+      expect(a).toEqual([]);
+      expect(b).toEqual([]);
+      expect(phasesOf(c)).toEqual(PHASES);
+      expect(finalResult(c).labels).toHaveProperty('next');
+    });
+
+    it('still completes when ids restart after a remount', async () => {
+      const handler = createAnalysisRequestHandler({ updateIndex: fakeUpdateIndex() });
+      finalResult(await run(handler, 5, X));
+      const messages = await run(handler, 1, Y);
+      expect(phasesOf(messages)).toEqual(PHASES);
+      expect(finalResult(messages).labels).toHaveProperty('y');
+    });
+  });
 });

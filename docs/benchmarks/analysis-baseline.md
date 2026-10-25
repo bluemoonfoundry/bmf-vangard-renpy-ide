@@ -25,29 +25,31 @@ The "before" numbers for the tree-sitter analyzer rewrite (r7pn). Recorded, neve
 
 Times are median milliseconds (min - max in parentheses).
 
+"After cancellation" was measured at the cancellation commit (nms4.3 Task 4) on the same machine, label `after-cancellation`. The handler now awaits a cancellation checkpoint (one `MessageChannel` macrotask yield plus a token check) before each of its five phases and before every symbol-index block. index-full calls `updateProjectIndex` without a checkpoint, so it does not exercise this change; its numbers are a noise reference. regex-full and one-file-edit go through the handler: every difference from the baseline is within run-to-run noise (largest: regex-full small +0.8 ms, with the same 9.1 ms minimum; one-file-edit large, about 300 checkpoint yields per run, +1.3%). The yield is therefore not throttled: it runs on every checkpoint call.
+
 ### regex-full
 
 | Size | Baseline | After cancellation | After grammar fixes |
 |---|---|---|---|
-| small | 9.3 (9.1 - 13.3) | — | — |
-| medium | 105.1 (101.9 - 121.6) | — | — |
-| large | 1678.0 (1620.2 - 1948.0) | — | — |
+| small | 9.3 (9.1 - 13.3) | 10.1 (9.1 - 10.7) | — |
+| medium | 105.1 (101.9 - 121.6) | 107.1 (102.6 - 134.6) | — |
+| large | 1678.0 (1620.2 - 1948.0) | 1672.9 (1631.3 - 1718.2) | — |
 
 ### index-full
 
 | Size | Baseline | After cancellation | After grammar fixes |
 |---|---|---|---|
-| small | 59.2 (57.9 - 60.0) | — | — |
-| medium | 521.4 (509.8 - 536.1) | — | — |
-| large | 3979.3 (3935.4 - 4131.3) | — | — |
+| small | 59.2 (57.9 - 60.0) | 57.6 (56.6 - 61.1) | — |
+| medium | 521.4 (509.8 - 536.1) | 488.4 (483.7 - 500.0) | — |
+| large | 3979.3 (3935.4 - 4131.3) | 3824.0 (3778.2 - 3859.2) | — |
 
 ### one-file-edit
 
 | Size | Baseline | After cancellation | After grammar fixes |
 |---|---|---|---|
-| small | 11.9 (11.0 - 12.9) | — | — |
-| medium | 115.9 (113.1 - 117.9) | — | — |
-| large | 1745.4 (1688.0 - 1799.8) | — | — |
+| small | 11.9 (11.0 - 12.9) | 12.0 (11.3 - 12.2) | — |
+| medium | 115.9 (113.1 - 117.9) | 119.4 (115.2 - 124.8) | — |
+| large | 1745.4 (1688.0 - 1799.8) | 1767.5 (1715.6 - 1991.4) | — |
 
 ## Full-idiom variant (post-fix)
 
