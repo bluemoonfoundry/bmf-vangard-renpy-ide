@@ -979,13 +979,14 @@ module.exports = grammar({
     _positional_property: $ => choice(
       alias($._screen_string, $.string),
       alias($._screen_value, $.expression),
+      alias($._screen_value_list, $.expression),
       alias($._logical_item, $.expression),
       alias($.identifier, $.expression),
     ),
 
     _keyword_property: $ => prec.dynamic(1, seq(
       field('name', $.identifier),
-      field('value', choice($._positional_property, alias($._screen_value_list, $.expression))),
+      field('value', $._positional_property),
     )),
 
     // nms4.14: one screen property value, as Ren'Py's simple_expression
@@ -1000,8 +1001,8 @@ module.exports = grammar({
     // stops at the blank before the next property name, at a top-level ':'
     // (the block colon of `hbox xalign 0.5:`), at an unquoted '#' and at
     // the end of the line. Not supported: conditional expressions (`a if c
-    // else b`), top-level commas in a positional value (keyword values take
-    // them, see `_screen_value_list`), brackets nested deeper than
+    // else b`), top-level commas (a comma list is `_screen_value_list`),
+    // brackets nested deeper than
     // AT_GROUP_DEPTH. A value whose bracket or string continues onto the
     // next line is one `_logical_item` from the external scanner instead
     // (nms4.35; it supports top-level commas but no operators after a
@@ -1009,10 +1010,13 @@ module.exports = grammar({
     // half-typed line is an ERROR, as it was before.
     _screen_value: $ => token(screenValue()),
 
-    // A keyword value may also be a top-level comma list (`add "img" at a,
-    // b`), as Ren'Py reads keyword values; a positional value may not. The
-    // token needs at least one comma, so it never competes with
-    // `_screen_value` for a value without one.
+    // A value may also be a top-level comma list, one `expression`: a
+    // keyword value (`add "img" at a, b`) as Ren'Py reads keyword values,
+    // and a positional one (`add "x", "y"`). Ren'Py rejects the positional
+    // case, but taking the list as one value keeps that error to the user's
+    // line: without it the comma ended the screen there and the rest of the
+    // file parsed outside its blocks. The token needs at least one comma, so
+    // it never competes with `_screen_value` for a value without one.
     _screen_value_list: $ => token(seq(
       screenValue(),
       repeat1(seq(/[ \t]*,[ \t]*/, screenValue())),

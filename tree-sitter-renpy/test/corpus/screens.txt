@@ -453,3 +453,32 @@ screen inventory(items):
       properties: (property name: (identifier) value: (string))
       properties: (property name: (identifier) value: (expression))
       properties: (property name: (identifier) value: (expression)))))
+
+==================================================================
+A positional comma list stays one value on its line (nms4.14)
+==================================================================
+screen s():
+    text "a"
+    add "x", "y"
+    text "b"
+label z:
+    return
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

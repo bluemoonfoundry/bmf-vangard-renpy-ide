@@ -3330,6 +3330,15 @@
           "type": "ALIAS",
           "content": {
             "type": "SYMBOL",
+            "name": "_screen_value_list"
+          },
+          "named": true,
+          "value": "expression"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
             "name": "_logical_item"
           },
           "named": true,
@@ -3364,22 +3373,8 @@
             "type": "FIELD",
             "name": "value",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "_positional_property"
-                },
-                {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_screen_value_list"
-                  },
-                  "named": true,
-                  "value": "expression"
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "_positional_property"
             }
           }
         ]
