@@ -482,3 +482,48 @@ label z:
   (label_statement
     name: (identifier)
     (return_statement)))
+
+==================================================================
+Python one-liners in a screen body, and has lines (nms4.37)
+==================================================================
+screen s():
+    for i in range(3):
+
+        $ slot = i + 1  # note
+
+        text "x"
+    window:
+        has vbox
+        text "a"
+    $ x = 1
+label z:
+    return
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      (dollar_statement
+        expression: (expression)
+        (comment))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string))))
+    (dollar_statement
+      expression: (expression)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

@@ -3137,6 +3137,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "dollar_statement"
+        },
+        {
+          "type": "SYMBOL",
           "name": "screen_language_statement"
         }
       ]

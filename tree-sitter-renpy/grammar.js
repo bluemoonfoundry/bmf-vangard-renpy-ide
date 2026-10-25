@@ -886,10 +886,11 @@ module.exports = grammar({
     _screen_condition: $ => seq($.expression),
 
     // A line in a screen body: a comment line, a widget or control-flow
-    // line, or a screen-local `default`.
+    // line, a screen-local `default`, or a `$` Python line (nms4.37).
     _screen_body_statement: $ => choice(
       $._comment_line,
       $.screen_default_statement,
+      $.dollar_statement,
       $.screen_language_statement,
     ),
 

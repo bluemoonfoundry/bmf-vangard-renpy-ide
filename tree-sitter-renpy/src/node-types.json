@@ -2815,6 +2815,10 @@
           "named": true
         },
         {
+          "type": "dollar_statement",
+          "named": true
+        },
+        {
           "type": "screen_default_statement",
           "named": true
         },
@@ -2856,6 +2860,10 @@
       "types": [
         {
           "type": "comment",
+          "named": true
+        },
+        {
+          "type": "dollar_statement",
           "named": true
         },
         {

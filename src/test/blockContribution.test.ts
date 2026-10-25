@@ -141,6 +141,17 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('walks a `$` line inside a screen body as Python (nms4.37)', async () => {
+    const content = 'screen s:\n    for i in items:\n        $ slot = i + 1\n        text "x"\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    // The write is screen-local in Ren'Py; screen scope is nms4.31.
+    expect(c.references.filter((r) => r.context === 'dollar').map((r) => [r.symbolId, r.refKind])).toEqual([
+      ['variable:slot', 'write'],
+      ['variable:i', 'read'],
+    ]);
+  });
+
   it('reads the expression of a menu set clause (nms4.29)', async () => {
     const content = 'label start:\n    menu:\n        set store.seen\n        "A":\n            pass\n';
     const c = await build(content);
