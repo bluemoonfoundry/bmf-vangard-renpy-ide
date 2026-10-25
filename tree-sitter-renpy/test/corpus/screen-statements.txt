@@ -170,3 +170,60 @@ screen help:
         (screen_language_statement
           widget_tag: (identifier)
           properties: (property (expression)))))))
+
+==================
+Half-typed screen default stays local; a dangling = is a local ERROR (nms4.32)
+==================
+screen s:
+    default dev
+    text "x"
+    vbox:
+        default dev =
+        text "y"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        (ERROR))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string))))))
+
+==================
+input widget default property line (nms4.32)
+==================
+screen s:
+    input:
+        default "Name"
+        length 20
+    text "x"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))))

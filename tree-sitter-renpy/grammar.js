@@ -854,7 +854,10 @@ module.exports = grammar({
     // widget tag.
     screen_language_statement: $ => choice(
       seq(
-        field('widget_tag', $.identifier),
+        // `default` is a keyword at a screen line start (nms4.32); as a tag
+        // it still takes a widget line, for a half-typed `default dev` and
+        // for the `input` widget's `default "Name"` property line.
+        field('widget_tag', choice($.identifier, alias('default', $.identifier))),
         repeat(field('properties', alias($._positional_property, $.property))),
         repeat(field('properties', alias($._keyword_property, $.property))),
         $._screen_line_end,
@@ -881,13 +884,16 @@ module.exports = grammar({
     // `default` with positional values `device`, `=` and the value. `default`
     // is a keyword only at the start of a screen line, where no widget has
     // that name. The value is injected as Python like any screen expression.
-    screen_default_statement: $ => seq(
+    // A complete `default name = value` can also read as a widget line
+    // tagged `default` (see screen_language_statement); `prec.dynamic` picks
+    // this reading whenever it is viable.
+    screen_default_statement: $ => prec.dynamic(2, seq(
       'default',
       field('name', $.identifier),
       '=',
       field('value', $._value),
       $._line_end,
-    ),
+    )),
 
     // Every screen_language_statement must consume exactly one trailing
     // `_newline` of its own, mirroring the convention "simple" `_statement`s
