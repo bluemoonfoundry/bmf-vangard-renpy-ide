@@ -21,3 +21,48 @@ label start:
       at_expr: (expression)
       transition: (expression))
     (hide_statement image: (identifier))))
+
+==================
+Show at with
+==================
+label a:
+    show eileen happy at left with dissolve
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      image: (identifier)
+      at_expr: (expression)
+      transition: (expression))))
+
+==================
+Scene with
+==================
+label a:
+    scene bg room with fade
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (scene_statement
+      image: (identifier)
+      image: (identifier)
+      transition: (expression))))
+
+==================
+Hide
+==================
+label a:
+    hide eileen
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (hide_statement
+      image: (identifier))))
+

@@ -53,3 +53,43 @@ label a:
     name: (identifier)
     (jump_statement
       target: (identifier))))
+
+==================
+Call from
+==================
+label a:
+    call b from _call_b
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (call_statement
+      target: (identifier)
+      from_label: (identifier))))
+
+==================
+Local labels with jumps between them
+==================
+label a:
+    jump .one
+label .one:
+    jump .two
+label .two:
+    jump .one
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (jump_statement
+      target: (identifier))))
+

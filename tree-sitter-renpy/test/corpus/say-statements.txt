@@ -16,3 +16,72 @@ label start:
       text: (string))
     (say_statement
       text: (string))))
+
+==================
+Say with attributes and interpolation
+==================
+label a:
+    e happy "You have [points] points."
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      character: (identifier)
+      attributes: (identifier)
+      text: (string))))
+
+==================
+Say with inline with clause
+==================
+label a:
+    e "Hi" with dissolve
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      character: (identifier)
+      text: (string)
+      transition: (expression))))
+
+==================
+Say followed by a separate with statement (f3dw)
+==================
+label a:
+    e "Hi"
+    with dissolve
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      character: (identifier)
+      text: (string))
+    (with_statement
+      transition: (expression))))
+
+==================
+Narration and multiple speakers
+==================
+label a:
+    "Narration."
+    e "One."
+    m "Two."
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      text: (string))
+    (say_statement
+      character: (identifier)
+      text: (string))
+    (say_statement
+      character: (identifier)
+      text: (string))))
+

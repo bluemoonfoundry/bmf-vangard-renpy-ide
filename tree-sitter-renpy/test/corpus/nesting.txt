@@ -1,0 +1,58 @@
+==================
+Menu inside if inside label
+==================
+label a:
+    if met:
+        menu:
+            "Talk":
+                jump talk
+            "Leave":
+                return
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (menu_statement
+        (menu_choice
+          text: (string)
+          (jump_statement
+            target: (identifier)))
+        (menu_choice
+          text: (string)
+          (return_statement))))))
+
+==================
+ATL inside show
+==================
+label a:
+    show eileen:
+        xalign 0.5
+        linear 0.5 xalign 1.0
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      atl: (atl_transform_property
+        property: (identifier)
+        value: (expression))
+      atl: (atl_transform_property
+        property: (identifier)
+        value: (expression)))))
+
+==================
+Define with Character keyword arguments
+==================
+define e = Character("Eileen", who_color="c8ffc8")
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression)))
+

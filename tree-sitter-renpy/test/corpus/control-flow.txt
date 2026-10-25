@@ -26,3 +26,60 @@ label check:
         (jump_statement target: (identifier)))
       (else_clause
         (jump_statement target: (identifier))))))
+
+==================
+If/elif/else chain
+==================
+label a:
+    if points > 10:
+        $ r = 1
+    elif points > 5:
+        $ r = 2
+    else:
+        $ r = 3
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (dollar_statement
+        expression: (expression))
+      (elif_clause
+        condition: (expression)
+        (dollar_statement
+          expression: (expression)))
+      (else_clause
+        (dollar_statement
+          expression: (expression))))))
+
+==================
+While loop
+==================
+label a:
+    while n < 3:
+        $ n += 1
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (while_statement
+      condition: (expression)
+      (dollar_statement
+        expression: (expression)))))
+
+==================
+Return with value
+==================
+label a:
+    return 1
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (return_statement
+      value: (expression))))
+

@@ -18,3 +18,38 @@ menu:
       text: (string)
       condition: (expression)
       (jump_statement target: (identifier)))))
+
+==================
+Nested menu
+==================
+label a:
+    menu:
+        "Outer":
+            menu:
+                "Inner one":
+                    jump one
+                "Inner two":
+                    jump two
+        "Skip":
+            return
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (menu_statement
+      (menu_choice
+        text: (string)
+        (menu_statement
+          (menu_choice
+            text: (string)
+            (jump_statement
+              target: (identifier)))
+          (menu_choice
+            text: (string)
+            (jump_statement
+              target: (identifier)))))
+      (menu_choice
+        text: (string)
+        (return_statement)))))
+
