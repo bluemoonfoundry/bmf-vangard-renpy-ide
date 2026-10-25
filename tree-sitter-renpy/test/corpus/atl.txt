@@ -233,3 +233,33 @@ label a:
         event: (identifier)
         (atl_displayable displayable: (string) transition: (expression))))
     (say_statement character: (identifier) text: (string))))
+
+==================================================================
+ATL choice blocks, with and without a weight (nms4.41)
+==================================================================
+transform pick:
+    choice:
+        "a.png"
+    choice 2.0:
+        "b.png"
+    choice weight_c: # rare
+        xalign 0.5
+    pause 1.0
+    repeat
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_block_statement
+      (atl_displayable displayable: (string)))
+    (atl_block_statement
+      weight: (expression)
+      (atl_displayable displayable: (string)))
+    (atl_block_statement
+      weight: (expression)
+      (comment)
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_time_statement duration: (expression))
+    (atl_repeat)))

@@ -2,7 +2,18 @@
   {
     "type": "atl_block_statement",
     "named": true,
-    "fields": {},
+    "fields": {
+      "weight": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
       "required": true,

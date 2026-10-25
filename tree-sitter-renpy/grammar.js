@@ -1171,9 +1171,15 @@ module.exports = grammar({
     ),
 
     // `repeat` is not a block keyword (Ren'Py has no `repeat:`); see
-    // `atl_repeat`.
+    // `atl_repeat`. nms4.41: `choice` takes an optional weight (`choice
+    // 2.0:`), one simple expression, which used to be an ERROR.
     atl_block_statement: $ => seq(
-      choice('parallel', 'contains', 'choice', 'block'),
+      choice(
+        'parallel',
+        'contains',
+        seq('choice', optional(field('weight', $._simple_expression))),
+        'block',
+      ),
       $._block_colon,
       $._newline,
       $._indent,

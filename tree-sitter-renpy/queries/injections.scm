@@ -81,6 +81,10 @@
 ((atl_repeat count: (expression) @injection.content)
  (#set! injection.language "python"))
 
+; A weighted `choice 2.0:` block's weight (nms4.41).
+((atl_block_statement weight: (expression) @injection.content)
+ (#set! injection.language "python"))
+
 ; An interpolation's own expressions (nms4.24): its duration, the `warp`
 ; function, and `knot`/`circles` values. Its property values are
 ; `atl_transform_property` children, matched above. A named warper

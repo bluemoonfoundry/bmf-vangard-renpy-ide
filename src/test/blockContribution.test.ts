@@ -101,6 +101,14 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('reads the weight of an ATL choice block (nms4.41)', async () => {
+    const c = await build('transform t:\n    choice rare_weight:\n        alpha 0.0\n    choice:\n        alpha 1.0\n');
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:rare_weight', 'read', 'atl-expression'],
+    ]);
+  });
+
   it('reads the transition of an ATL displayable line (nms4.28)', async () => {
     const c = await build('image anim:\n    "a.png"\n    0.5\n    "b.png" with fade_in\n');
     expect(c.hasError).toBe(false);
