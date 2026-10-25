@@ -93,6 +93,14 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('reads an ATL repeat count (nms4.19)', async () => {
+    const c = await build('transform t:\n    alpha 0.0\n    repeat times\n');
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:times', 'read', 'atl-expression'],
+    ]);
+  });
+
   it('does not record the screen name in `use` as a variable, but keeps its argument reads', async () => {
     const c = await build('screen a():\n    use item_list(count)\n');
     expect(c.references.map((r) => [r.symbolId, r.refKind])).toEqual([

@@ -4252,6 +4252,10 @@
         {
           "type": "SYMBOL",
           "name": "atl_time_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "atl_repeat"
         }
       ]
     },
@@ -4547,10 +4551,6 @@
             {
               "type": "STRING",
               "value": "block"
-            },
-            {
-              "type": "STRING",
-              "value": "repeat"
             }
           ]
         },
@@ -4611,6 +4611,35 @@
             "type": "SYMBOL",
             "name": "expression"
           }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "atl_repeat": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "repeat"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "count",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "SYMBOL",

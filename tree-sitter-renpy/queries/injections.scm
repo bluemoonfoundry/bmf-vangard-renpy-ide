@@ -75,6 +75,9 @@
 ((atl_time_statement duration: (expression) @injection.content)
  (#set! injection.language "python"))
 
+((atl_repeat count: (expression) @injection.content)
+ (#set! injection.language "python"))
+
 ; An interpolation's own expressions (nms4.24): its duration, the `warp`
 ; function, and `knot`/`circles` values. Its property values are
 ; `atl_transform_property` children, matched above. A named warper

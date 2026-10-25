@@ -113,3 +113,39 @@ transform orbit:
       (atl_transform_property property: (identifier) value: (expression))
       (atl_transform_property property: (identifier) value: (expression)))
     (atl_transform_property property: (identifier) value: (expression))))
+
+==================================================================
+ATL repeat after other statements, with and without a count (nms4.19)
+==================================================================
+transform blink:
+    alpha 0.0
+    linear 1.0 alpha 1.0
+    repeat
+transform thrice:
+    block:
+        xalign 0.0
+        linear 0.5 xalign 1.0
+        repeat 3
+    repeat count
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_transform_property property: (identifier) value: (expression))
+    (atl_interpolation
+      warper: (identifier)
+      duration: (expression)
+      (atl_transform_property property: (identifier) value: (expression)))
+    (atl_repeat))
+  (transform_statement
+    name: (identifier)
+    (atl_block_statement
+      (atl_transform_property property: (identifier) value: (expression))
+      (atl_interpolation
+        warper: (identifier)
+        duration: (expression)
+        (atl_transform_property property: (identifier) value: (expression)))
+      (atl_repeat count: (expression)))
+    (atl_repeat count: (expression))))

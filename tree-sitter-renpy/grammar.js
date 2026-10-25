@@ -908,7 +908,7 @@ module.exports = grammar({
     // and by `at`-clause ATL blocks. Structurally similar to
     // screen_language_statement: a small fixed set of ATL-specific
     // keywords (`parallel`/`contains`/`choice`/`block`/`repeat`/`pause`/
-    // `time`/`with`) plus arbitrary `name value` property sets, all opaque
+    // `time`/`with`, and the warpers of `atl_interpolation`) plus arbitrary `name value` property sets, all opaque
     // Python-ish expressions on the value side per the same granularity
     // convention used everywhere else in this grammar. `word: $ =>
     // $.identifier` means these keyword literals win lexical ties against
@@ -942,6 +942,7 @@ module.exports = grammar({
       $.atl_with_statement,
       $.atl_block_statement,
       $.atl_time_statement,
+      $.atl_repeat,
     ),
 
     // `xalign 0.5`, `zoom 1.2`, `rotate persistent.angle` style property
@@ -1043,8 +1044,10 @@ module.exports = grammar({
       $._newline,
     ),
 
+    // `repeat` is not a block keyword (Ren'Py has no `repeat:`); see
+    // `atl_repeat`.
     atl_block_statement: $ => seq(
-      choice('parallel', 'contains', 'choice', 'block', 'repeat'),
+      choice('parallel', 'contains', 'choice', 'block'),
       $._block_colon,
       $._newline,
       $._indent,
@@ -1055,6 +1058,16 @@ module.exports = grammar({
     atl_time_statement: $ => seq(
       choice('pause', 'time'),
       field('duration', $.expression),
+      $._newline,
+    ),
+
+    // nms4.19: `repeat` restarts the enclosing block, `repeat 3` at most
+    // that many times. It used to be offered only as a block keyword
+    // (`repeat:`, which Ren'Py does not have), so a bare `repeat` line was
+    // an ERROR.
+    atl_repeat: $ => seq(
+      'repeat',
+      optional(field('count', $.expression)),
       $._newline,
     ),
 

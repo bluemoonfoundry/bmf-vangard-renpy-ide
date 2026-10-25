@@ -20,6 +20,10 @@
           "named": true
         },
         {
+          "type": "atl_repeat",
+          "named": true
+        },
+        {
           "type": "atl_time_statement",
           "named": true
         },
@@ -116,6 +120,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "atl_repeat",
+    "named": true,
+    "fields": {
+      "count": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1124,6 +1144,10 @@
             "named": true
           },
           {
+            "type": "atl_repeat",
+            "named": true
+          },
+          {
             "type": "atl_time_statement",
             "named": true
           },
@@ -1999,6 +2023,10 @@
             "named": true
           },
           {
+            "type": "atl_repeat",
+            "named": true
+          },
+          {
             "type": "atl_time_statement",
             "named": true
           },
@@ -2196,6 +2224,10 @@
           },
           {
             "type": "atl_interpolation",
+            "named": true
+          },
+          {
+            "type": "atl_repeat",
             "named": true
           },
           {
@@ -2544,6 +2576,10 @@
         },
         {
           "type": "atl_interpolation",
+          "named": true
+        },
+        {
+          "type": "atl_repeat",
           "named": true
         },
         {
