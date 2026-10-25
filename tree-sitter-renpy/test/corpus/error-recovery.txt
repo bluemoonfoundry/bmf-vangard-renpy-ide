@@ -78,3 +78,118 @@ label d:
   (label_statement
     name: (identifier)
     (return_statement)))
+
+==================
+Half-typed [ interpolation in a say string stays inside the string (nms4.3)
+==================
+label a:
+    e "one"
+    e "Hi [name"
+    e "Hi [na
+    e "two"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (say_statement character: (identifier) text: (string))
+    (say_statement character: (identifier) text: (string))
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Half-written if condition with no colon is a local MISSING (nms4.3)
+==================
+label a:
+    e "one"
+    if points >
+    e "two"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (if_statement
+      condition: (expression)
+      (MISSING ":"))
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Menu choice with no body yet (nms4.3)
+==================
+label a:
+    e "one"
+    menu:
+        "Go left":
+        "Go right":
+            jump right
+    e "two"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (menu_statement
+      (menu_choice text: (string))
+      (menu_choice
+        text: (string)
+        (jump_statement target: (identifier))))
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Screen header with an unclosed parameter list is a local ERROR (nms4.3)
+==================
+define x = 1
+screen s(a, b
+define y = 2
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (ERROR (identifier) (expression))
+  (define_statement name: (identifier) value: (expression)))
+
+==================
+Dollar with nothing after it is a local ERROR (nms4.3)
+==================
+label a:
+    e "one"
+    $
+    e "two"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (ERROR)
+    (say_statement character: (identifier) text: (string))))
+
+==================
+Empty python header mid-label keeps the following line (nms4.3)
+==================
+label a:
+    e "one"
+    python:
+    e "two"
+label b:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (python_statement)
+    (say_statement character: (identifier) text: (string)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

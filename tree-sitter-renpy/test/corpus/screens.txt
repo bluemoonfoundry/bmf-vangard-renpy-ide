@@ -366,3 +366,90 @@ screen s():
       properties: (property
         name: (identifier)
         value: (expression)))))
+
+==================
+vbox/hbox nesting with for/if, use with arguments, key, timer and imagebutton (nms4.3)
+==================
+screen inventory(items):
+    vbox:
+        spacing 10
+        for item in items:
+            hbox:
+                text item.name
+                if item.count > 1:
+                    text "x[item.count]" size 14
+                else:
+                    null width 10
+    use item_tooltip(items[0], show_price=True)
+    use navigation
+    key "K_ESCAPE" action Hide("inventory")
+    timer 5.0 repeat True action Function(tick)
+    imagebutton:
+        idle "close_idle.png"
+        hover "close_hover.png"
+        action Return()
+    imagebutton idle "a.png" hover "b.png" action Jump("start") xalign 1.0
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list (expression))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))
+        (screen_language_statement
+          widget_tag: (identifier)
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression)))
+          (screen_language_statement
+            widget_tag: (identifier)
+            properties: (property (expression))
+            (screen_language_statement
+              widget_tag: (identifier)
+              properties: (property (string))
+              properties: (property name: (identifier) value: (expression))))
+          (screen_language_statement
+            widget_tag: (identifier)
+            (screen_language_statement
+              widget_tag: (identifier)
+              properties: (property name: (identifier) value: (expression)))))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property name: (identifier) value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property name: (identifier) value: (expression))
+      properties: (property name: (identifier) value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (string)))
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property name: (identifier) value: (string))
+      properties: (property name: (identifier) value: (string))
+      properties: (property name: (identifier) value: (expression))
+      properties: (property name: (identifier) value: (expression)))))

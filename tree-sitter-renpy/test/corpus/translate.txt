@@ -82,3 +82,36 @@ define b = 2
     (translate_string old: (string) new: (string))
     (translate_string old: (string)))
   (define_statement name: (identifier) value: (expression)))
+
+==================
+Translate block for a say identifier with comments and narration (nms4.3)
+==================
+translate french start_abc123:
+
+    # e "Hello."
+    e "Bonjour."
+
+translate french start_def456:
+
+    # "It was raining."
+    "Il pleuvait."
+    e happy "Oui." with dissolve
+
+---
+
+(source_file
+  (translate_statement
+    language: (identifier)
+    scope: (identifier)
+    (comment)
+    (say_statement character: (identifier) text: (string)))
+  (translate_statement
+    language: (identifier)
+    scope: (identifier)
+    (comment)
+    (say_statement text: (string))
+    (say_statement
+      character: (identifier)
+      attributes: (identifier)
+      text: (string)
+      transition: (expression))))
