@@ -455,12 +455,15 @@ module.exports = grammar({
     // fine because it's preceded by a required '=' token, which the
     // expression regex's stop set doesn't include, so there's no
     // swallowing hazard the way there was for `parameter_list`.
+    // nms4.23: or `image logo:` followed by an ATL body, carried in `atl`
+    // the same way show/scene carry an inline ATL block.
     image_statement: $ => seq(
       'image',
       field('name', repeat1($.identifier)),
-      '=',
-      field('value', $.expression),
-      $._newline,
+      choice(
+        seq('=', field('value', $.expression), $._newline),
+        field('atl', $._atl_block),
+      ),
     ),
 
     // `at_expr` is a comma-separated name list (transform names, e.g.
@@ -769,6 +772,7 @@ module.exports = grammar({
     ),
 
     _atl_statement: $ => choice(
+      $.atl_displayable,
       $.atl_transform_property,
       $.atl_with_statement,
       $.atl_block_statement,
@@ -790,6 +794,15 @@ module.exports = grammar({
     atl_transform_property: $ => seq(
       field('property', $.identifier),
       field('value', $.expression),
+      $._newline,
+    ),
+
+    // nms4.23: a quoted displayable line (`"logo.png"`, `"eileen happy"`)
+    // shows that image, as in `image logo:` bodies and frame-by-frame
+    // animations. Only the string form; an unquoted displayable expression
+    // would be indistinguishable from a property line here.
+    atl_displayable: $ => seq(
+      field('displayable', $.string),
       $._newline,
     ),
 

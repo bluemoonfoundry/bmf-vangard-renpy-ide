@@ -66,3 +66,69 @@ label a:
     (hide_statement
       image: (identifier))))
 
+
+==================
+Image with ATL body (nms4.23)
+==================
+image logo:
+    "logo.png"
+    alpha 1.0
+
+---
+
+(source_file
+  (image_statement
+    name: (identifier)
+    atl: (atl_displayable
+      displayable: (string))
+    atl: (atl_transform_property
+      property: (identifier)
+      value: (expression))))
+
+==================
+Multi-word image with ATL body (nms4.23)
+==================
+image eileen happy:
+    "eileen_happy.png"
+    pause 1.0
+    "eileen_blink.png"
+label start:
+    show eileen happy
+
+---
+
+(source_file
+  (image_statement
+    name: (identifier)
+    name: (identifier)
+    atl: (atl_displayable
+      displayable: (string))
+    atl: (atl_time_statement
+      duration: (expression))
+    atl: (atl_displayable
+      displayable: (string)))
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      image: (identifier))))
+
+==================
+Displayable line inside a transform (nms4.23)
+==================
+transform t:
+    "logo.png"
+    # c
+    alpha 0.5
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_displayable
+      displayable: (string))
+    (comment)
+    (atl_transform_property
+      property: (identifier)
+      value: (expression))))

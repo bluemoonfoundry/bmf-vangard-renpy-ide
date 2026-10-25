@@ -62,6 +62,14 @@ describe('extractSymbolTable', () => {
     expect(table.images[0].initialValueExpr).toBe('"eileen_happy.png"');
   });
 
+  it('extracts an image statement with an ATL body', async () => {
+    const { tree } = await parseBlock('image eileen happy:\n    "eileen_happy.png"\n    alpha 1.0\n');
+    const table = extractSymbolTable(tree);
+    expect(table.images).toHaveLength(1);
+    expect(table.images[0].name).toBe('eileen happy');
+    expect(table.images[0].initialValueExpr).toBe('');
+  });
+
   it('extracts menu statements with their choice texts', async () => {
     const { tree } = await parseBlock(
       'menu:\n    "Go left":\n        jump left\n    "Go right":\n        jump right\n'

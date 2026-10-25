@@ -12,6 +12,10 @@
           "named": true
         },
         {
+          "type": "atl_displayable",
+          "named": true
+        },
+        {
           "type": "atl_time_statement",
           "named": true
         },
@@ -28,6 +32,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "atl_displayable",
+    "named": true,
+    "fields": {
+      "displayable": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1015,6 +1035,40 @@
     "type": "image_statement",
     "named": true,
     "fields": {
+      "atl": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ":",
+            "named": false
+          },
+          {
+            "type": "atl_block_statement",
+            "named": true
+          },
+          {
+            "type": "atl_displayable",
+            "named": true
+          },
+          {
+            "type": "atl_time_statement",
+            "named": true
+          },
+          {
+            "type": "atl_transform_property",
+            "named": true
+          },
+          {
+            "type": "atl_with_statement",
+            "named": true
+          },
+          {
+            "type": "comment",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": true,
         "required": true,
@@ -1027,7 +1081,7 @@
       },
       "value": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "expression",
@@ -2113,6 +2167,10 @@
             "named": true
           },
           {
+            "type": "atl_displayable",
+            "named": true
+          },
+          {
             "type": "atl_time_statement",
             "named": true
           },
@@ -2302,6 +2360,10 @@
           },
           {
             "type": "atl_block_statement",
+            "named": true
+          },
+          {
+            "type": "atl_displayable",
             "named": true
           },
           {
@@ -2642,6 +2704,10 @@
       "types": [
         {
           "type": "atl_block_statement",
+          "named": true
+        },
+        {
+          "type": "atl_displayable",
           "named": true
         },
         {

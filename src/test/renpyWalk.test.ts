@@ -63,6 +63,14 @@ describe('walkRenpyTree definitions', () => {
     expect(r.menus[0].choices.map((c) => [c.text, c.condition])).toEqual([['Left', 'brave'], ['Right', null]]);
   });
 
+  it('records an image defined with an ATL body', async () => {
+    const content = 'image logo:\n    "logo.png"\n    alpha 1.0\nimage eileen happy:\n    "e.png"\n';
+    const r = await walk(content);
+    expect(defs(r)).toEqual([['image:logo', 'image'], ['image:eileen happy', 'image']]);
+    const image = r.definitions[1];
+    expect(content.slice(image.nameRange.start.offset, image.nameRange.end.offset)).toBe('eileen happy');
+  });
+
   it('does not count a menu caption or set as a choice', async () => {
     const r = await walk('label a:\n    menu:\n        set seen\n        "Where?"\n        "Left":\n            return\n        "Right":\n            pass\n');
     expect(r.menus).toHaveLength(1);
