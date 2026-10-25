@@ -151,7 +151,8 @@ describe('analysis request handler', () => {
     it('a stale request that finishes last neither posts nor overwrites the cache', async () => {
       let openA!: () => void;
       const gateA = new Promise<void>((resolve) => { openA = resolve; });
-      const handler = createAnalysisRequestHandler({ updateIndex: gatedUpdateIndex([gateA]) });
+      const warn = vi.fn();
+      const handler = createAnalysisRequestHandler({ updateIndex: gatedUpdateIndex([gateA]), warn });
 
       const aMessages: AnalysisResponse[] = [];
       const aDone = handler({ id: 1, blocks: X }, (m) => aMessages.push(m));
@@ -163,6 +164,7 @@ describe('analysis request handler', () => {
       await aDone;
 
       expect(aMessages.length).toBe(aCountAtB);
+      expect(warn).not.toHaveBeenCalled();
       expect('result' in bMessages[bMessages.length - 1]).toBe(true);
       const third = await run(handler, 3, Y);
       expect(third).toHaveLength(1);

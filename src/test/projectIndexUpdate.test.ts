@@ -111,10 +111,24 @@ describe('updateProjectIndex', () => {
     expect(cache.byBlockId).toBe(before);
   });
 
-  it('checkpoint is called once per block', async () => {
+  it('leaves the cache untouched when the checkpoint after the last block rejects', async () => {
+    const cache = createContributionCache();
+    await updateProjectIndex(cache, [a]);
+    const before = cache.byBlockId;
+    let calls = 0;
+    const checkpoint = vi.fn(async () => {
+      calls += 1;
+      if (calls === 3) throw new AnalysisCancelledError();
+    });
+    await expect(updateProjectIndex(cache, [a, b], { checkpoint })).rejects.toBeInstanceOf(AnalysisCancelledError);
+    expect(checkpoint).toHaveBeenCalledTimes(3);
+    expect(cache.byBlockId).toBe(before);
+  });
+
+  it('checkpoint is called once per block plus once before the cache is assigned', async () => {
     const c: IndexBlock = { id: 'c', filePath: 'game/c.rpy', content: 'label c:\n    return\n' };
     const checkpoint = vi.fn(async () => {});
     await updateProjectIndex(createContributionCache(), [a, b, c], { checkpoint });
-    expect(checkpoint).toHaveBeenCalledTimes(3);
+    expect(checkpoint).toHaveBeenCalledTimes(4);
   });
 });

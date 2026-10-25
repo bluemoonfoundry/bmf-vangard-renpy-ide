@@ -114,8 +114,9 @@ export interface UpdateIndexDeps {
   build?: (block: IndexBlock) => Promise<BlockContribution>;
   init?: () => Promise<void>;
   /**
-   * Awaited before every block in the loop (reused or rebuilt). Rejecting
-   * (e.g. with AnalysisCancelledError) aborts the update.
+   * Awaited before every block in the loop (reused or rebuilt) and once more
+   * before the cache is assigned (N blocks -> N + 1 calls). Rejecting (e.g.
+   * with AnalysisCancelledError) aborts the update.
    */
   checkpoint?: () => Promise<void>;
 }
@@ -129,9 +130,10 @@ export interface UpdateIndexDeps {
  * becomes the cache. Rejects (without touching the cache) when the parser
  * cannot initialize; per-block failures become `hasError` contributions.
  *
- * `deps.checkpoint` is awaited before each block. If it rejects, the update
- * rejects with that error and `cache.byBlockId` is left untouched, because the
- * cache is only assigned after the loop completes.
+ * `deps.checkpoint` is awaited before each block and once more right before
+ * the cache is assigned, with no await in between, so a request superseded
+ * during its last block never writes the cache. If it rejects, the update
+ * rejects with that error and `cache.byBlockId` is left untouched.
  */
 export async function updateProjectIndex(
   cache: ContributionCache,
@@ -151,6 +153,7 @@ export async function updateProjectIndex(
     const reusable = cached && cached.contentHash === djb2(block.content) && cached.filePath === block.filePath;
     next.set(block.id, reusable ? cached : await build(block));
   }
+  await deps.checkpoint?.();
   cache.byBlockId = next;
   return resolveProjectIndex(next);
 }
