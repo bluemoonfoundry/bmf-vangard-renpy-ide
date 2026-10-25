@@ -150,6 +150,20 @@ describe('buildBlockContribution final-review fixes', () => {
     expect(c.definitions.map((d) => d.symbolId)).toEqual(['python-function:tally']);
   });
 
+  it('valid Python bodies do not set hasError', async () => {
+    const content = [
+      'init python:',
+      '    def f(p):',
+      '        """Doc."""',
+      '        with open(p) as fh:',
+      '            return fh.read()',
+      '',
+    ].join('\n');
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.definitions.map((d) => d.symbolId)).toContain('python-function:f');
+  });
+
   it('reads a condition inside a python body once, not once per nested injection (I1)', async () => {
     const c = await build('init python:\n    if x:\n        y = 1\n    while z:\n        pass\n');
     expect(names(c).filter((n) => n === 'read:variable:x')).toHaveLength(1);

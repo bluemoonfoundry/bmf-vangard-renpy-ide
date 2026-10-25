@@ -46,10 +46,10 @@ export function isUseInjection(root: SyntaxNode, injection: PythonInjection): bo
 }
 
 /**
- * Drops injections nested strictly inside another one. The injection query
- * also matches `if`/`while` conditions inside a `python:` body (the Ren'Py
- * grammar parses the body as Ren'Py statements), and the enclosing
- * python-block injection already covers them; walking both double-counts.
+ * Drops injections nested strictly inside another one, since walking both
+ * double-counts. Before nms4.15 the injection query also matched `if`/`while`
+ * conditions inside a `python:` body (the grammar parsed the body as Ren'Py
+ * statements); the body is now one opaque `python_block`, so this is a guard.
  */
 export function outermostInjections(injections: PythonInjection[]): PythonInjection[] {
   return injections.filter((inner) => !injections.some((outer) =>

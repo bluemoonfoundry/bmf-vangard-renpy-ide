@@ -28,12 +28,7 @@ init python:
 
 (source_file
   (init_python_statement
-    body: (unknown_statement
-      (identifier)
-      (identifier)
-      (expression)
-      (return_statement
-        value: (expression)))))
+    body: (python_block)))
 
 ==================
 Leading blank line before the first statement (3nk7)

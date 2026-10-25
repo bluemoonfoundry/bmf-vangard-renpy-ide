@@ -78,19 +78,11 @@ python: # p
 
 (source_file
   (init_python_statement
-    body: (comment)
-    body: (unknown_statement
-      (identifier)
-      (identifier)
-      (expression)
-      (comment)
-      (return_statement
-        value: (expression))))
+    (comment)
+    body: (python_block))
   (python_statement
-    body: (comment)
-    body: (expression_statement
-      (identifier)
-      (expression))))
+    (comment)
+    body: (python_block)))
 
 ==================
 Comments after screen and widget colons (nms4.9)
@@ -290,10 +282,7 @@ init python:
 
 (source_file
   (init_python_statement
-    body: (comment)
-    body: (expression_statement
-      (identifier)
-      (expression))))
+    body: (python_block)))
 
 ==================
 Comment as first line of a nested block (rsxn)

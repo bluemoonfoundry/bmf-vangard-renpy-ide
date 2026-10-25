@@ -51,6 +51,15 @@ function screenValue() {
   );
 }
 
+// nms4.15: a python header's ':' and its opaque body. See the comment after
+// `init_python_statement`'s rule.
+function pythonBody($) {
+  return seq(
+    $._block_colon,
+    optional(seq($._newline, optional(seq(field('body', $.python_block), $._newline)))),
+  );
+}
+
 module.exports = grammar({
   name: 'renpy',
 
@@ -58,6 +67,9 @@ module.exports = grammar({
     $._newline,
     $._indent,
     $._dedent,
+    // nms4.15: the whole body of a `python:` / `init python:` block, as one
+    // opaque token (see `pythonBody` and scanner.c's scan_python_block).
+    $.python_block,
   ],
 
   extras: $ => [
@@ -475,12 +487,14 @@ module.exports = grammar({
       optional($._newline),
     ),
 
-    // Injection point (Task 9): body text between `python:`/`:` and dedent
-    // is opaque here, handed to tree-sitter-python via injections.scm.
+    // Injection point (Task 9): the body is handed to tree-sitter-python via
+    // injections.scm. Ren'Py's header is `python [early] [hide] [in store]:`.
     python_statement: $ => seq(
       'python',
-      optional(choice('hide', 'early')),
-      field('body', $._block),
+      optional('early'),
+      optional('hide'),
+      optional(seq('in', field('store', $._store_name))),
+      pythonBody($),
     ),
 
     // `field()` on a bare, unnamed regex produces an invisible child — the
@@ -496,8 +510,37 @@ module.exports = grammar({
       'init',
       optional(field('priority', alias(/-?[0-9]+/, $.expression))),
       'python',
-      field('body', $._block),
+      optional('early'),
+      optional('hide'),
+      optional(seq('in', field('store', $._store_name))),
+      pythonBody($),
     ),
+
+    // nms4.15: a Python body is opaque. It used to be an ordinary `_block`
+    // of Ren'Py statements, so valid Python (docstrings, `with ... as`,
+    // decorators, or a name like `queue`/`scene` that is a Ren'Py keyword)
+    // produced ERRORs, and an ERROR could end the body early and strip the
+    // following label of its own body. Now the external scanner hands the
+    // whole body over as one `python_block` token: it runs from the first
+    // body line's first non-space character to the end of the last non-blank
+    // body line, and the body ends before the first code line indented no
+    // deeper than the header unless that line continues an open bracket,
+    // triple-quoted string or backslash (Ren'Py joins those into one logical
+    // line). Blank and comment-only lines never end it, at any indentation;
+    // a comment no deeper than the header is only kept in the token when a
+    // deeper body line follows it, so a trailing one stays outside. No indent
+    // is pushed, so the token is followed by an ordinary NEWLINE, like a
+    // simple statement.
+    //
+    // The header's own NEWLINE comes first, as for every block header. If no
+    // deeper line follows (a half-typed `python:` before more code or at
+    // EOF) the scanner emits no `python_block` and the statement just ends.
+    // The newline is optional for a buffer that ends on the colon (the
+    // scanner synthesizes an EOF NEWLINE, but this mirrors `_block`).
+    // `pythonBody` is a JS helper, not a hidden rule, so that `body` sits
+    // directly on the statement: the query engine does not resolve a field
+    // set inside a hidden rule (see injections.scm), and injections.scm
+    // matches `body: (python_block)`.
 
     // Injection point (Task 9): the expression after `$` is opaque here.
     // Unlike block-taking statements, this is a "simple" statement per the
@@ -951,7 +994,9 @@ module.exports = grammar({
     // Fallback so raw Python-ish lines inside `python:`/`init python:`
     // blocks (which this task doesn't decompose — see the injection-point
     // comments above) parse as an opaque line instead of producing an
-    // ERROR node.
+    // ERROR node. (Since nms4.15 a python body is one opaque `python_block`
+    // and never reaches this rule; it still takes bare expression lines
+    // elsewhere.)
     //
     // This is *not* simply `seq($.expression, $._newline)` as the brief's
     // snippet had it. A line like `total = points * 2` starts with a bare
@@ -1032,7 +1077,9 @@ module.exports = grammar({
     // C1's colon-permitting `expression`, is what lets a real `def` with a
     // nested `if` body parse instead of ERRORing. Its indented body is
     // ordinary `_statement`s via `_block`, matching how every other
-    // block-taking statement in this grammar handles nesting.
+    // block-taking statement in this grammar handles nesting. (Since
+    // nms4.15 python bodies are opaque `python_block`s, so this branch now
+    // only takes unknown keyword-led headers in Ren'Py code.)
     unknown_statement: $ => choice(
       seq(
         $.identifier,

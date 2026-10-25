@@ -284,9 +284,9 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         break;
       }
 
-      // Python bodies are walked by pythonWalk.ts via the injection. The
-      // Ren'Py grammar parses their lines as Ren'Py statements, so visiting
-      // the children would record Python locals, docstrings etc. (I1).
+      // Python bodies are walked by pythonWalk.ts via the injection. The body
+      // is one opaque `python_block` (nms4.15), so there is nothing Ren'Py
+      // inside to visit.
       case 'python_statement':
         out.pythonBlocks.push({ range: rangeOfNode(ctx, node), kind: 'python', priority: null });
         return;

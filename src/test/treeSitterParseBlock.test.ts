@@ -110,6 +110,40 @@ describe('parseBlock', () => {
     }
   });
 
+  // nms4.15: a python body is one opaque `python_block`, so a Windows-
+  // authored (CRLF) body must lex the same as LF and inject as one module.
+  it('CRLF python body parses as one clean injection', async () => {
+    const source = 'init python:\r\n    def f():\r\n        """Doc."""\r\n        return 1\r\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      expect(result.pythonInjections).toHaveLength(1);
+      expect(result.pythonInjections[0].kind).toBe('python-block');
+      expect(result.pythonInjections[0].tree.rootNode.hasError).toBe(false);
+      expect(source.slice(...result.pythonInjections[0].range)).toBe(
+        'def f():\r\n        """Doc."""\r\n        return 1',
+      );
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
+
+  // nms4.15 (Review Focus 2): Ren'Py joins a triple-quoted string that runs
+  // onto a less-indented line into one logical line, so the body goes on.
+  it('keeps a triple-quoted string continuation inside one python-block span', async () => {
+    const source = 'init python:\n    X = """a\nb"""\n    y = 1\nlabel c:\n    return\n';
+    const result = await parseBlock(source);
+    try {
+      expect(result.tree.rootNode.hasError).toBe(false);
+      const blocks = result.pythonInjections.filter((i) => i.kind === 'python-block');
+      expect(blocks).toHaveLength(1);
+      expect(source.slice(...blocks[0].range)).toBe('X = """a\nb"""\n    y = 1');
+      expect(blocks[0].tree.rootNode.hasError).toBe(false);
+    } finally {
+      disposeParsedBlock(result);
+    }
+  });
+
   // nms4.14: a screen property value is one Python expression that ends
   // where the next property name starts, and a screen `for`/`if` header is
   // one expression up to the block colon.

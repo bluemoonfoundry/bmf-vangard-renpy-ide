@@ -137,6 +137,4 @@ init python:
 
 (source_file
   (init_python_statement
-    body: (while_statement
-      condition: (expression)
-      (pass_statement))))
+    body: (python_block)))

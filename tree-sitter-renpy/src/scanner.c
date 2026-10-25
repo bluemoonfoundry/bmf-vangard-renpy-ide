@@ -6,6 +6,7 @@ enum TokenType {
   NEWLINE,
   INDENT,
   DEDENT,
+  PYTHON_BLOCK,
 };
 
 #define MAX_INDENT_DEPTH 128
@@ -64,6 +65,135 @@ static uint32_t next_code_line_column(TSLexer *lexer) {
   }
 }
 
+// --- Opaque python bodies (nms4.15) ---------------------------------------
+//
+// The body of a `python:` / `init python:` block is one PYTHON_BLOCK token,
+// scanned here in a single call without pushing an indent. It keeps no
+// scanner state between calls, so serialize/deserialize are unchanged.
+
+// Logical-line state carried from one physical body line to the next. Ren'Py
+// (like Python) joins lines inside an open bracket, an open triple-quoted
+// string, or after a trailing backslash, whatever their indentation.
+typedef struct {
+  uint32_t bracket_depth;
+  int32_t quote;   // the open string's quote character, or 0
+  bool triple;     // the open string is triple-quoted
+  bool continued;  // the line ended with a backslash
+} PythonLineState;
+
+static bool is_blank_char(int32_t c) { return c == ' ' || c == '\t' || c == '\r'; }
+
+// Consumes one character into the token. With `mark`, a non-blank character
+// extends the token over it, so the token ends at the last non-blank
+// character of the last line accepted into the body.
+static void take(TSLexer *lexer, bool mark) {
+  int32_t c = lexer->lookahead;
+  lexer->advance(lexer, false);
+  if (mark && !is_blank_char(c)) lexer->mark_end(lexer);
+}
+
+// After a backslash: consumes a CR, then reports whether the line ends here.
+static bool backslash_ends_line(TSLexer *lexer, bool mark) {
+  if (lexer->lookahead == '\r') take(lexer, mark);
+  return lexer->lookahead == '\n' || lexer->eof(lexer);
+}
+
+// Consumes the rest of one physical line, up to but not including its '\n'
+// (or EOF), tracking strings, brackets, a comment and a trailing backslash.
+static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
+  st->continued = false;
+  while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
+    int32_t c = lexer->lookahead;
+    if (st->quote) {
+      if (c == '\\') {
+        take(lexer, mark);
+        if (backslash_ends_line(lexer, mark)) {
+          // A backslash-newline continues a single-quoted string.
+          if (!st->triple) st->continued = true;
+        } else {
+          take(lexer, mark);  // the escaped character
+        }
+      } else if (c == st->quote && st->triple) {
+        int run = 0;
+        while (run < 3 && lexer->lookahead == st->quote) {
+          take(lexer, mark);
+          run++;
+        }
+        if (run == 3) st->quote = 0;
+      } else {
+        if (c == st->quote) st->quote = 0;
+        take(lexer, mark);
+      }
+      continue;
+    }
+    if (c == '#') {
+      while (!lexer->eof(lexer) && lexer->lookahead != '\n') take(lexer, mark);
+      break;
+    }
+    if (c == '"' || c == '\'') {
+      take(lexer, mark);
+      if (lexer->lookahead != c) {
+        st->quote = c;
+        st->triple = false;
+      } else {
+        take(lexer, mark);
+        if (lexer->lookahead == c) {
+          take(lexer, mark);
+          st->quote = c;
+          st->triple = true;
+        }
+        // Otherwise an empty string, already closed.
+      }
+      continue;
+    }
+    if (c == '\\') {
+      take(lexer, mark);
+      if (backslash_ends_line(lexer, mark)) st->continued = true;
+      continue;
+    }
+    if (c == '(' || c == '[' || c == '{') {
+      st->bracket_depth++;
+    } else if ((c == ')' || c == ']' || c == '}') && st->bracket_depth > 0) {
+      st->bracket_depth--;
+    }
+    take(lexer, mark);
+  }
+  // A single-quoted string ends with its line unless a backslash continued it.
+  if (st->quote && !st->triple && !st->continued) st->quote = 0;
+}
+
+// Scans a python body from the first non-blank character after its header's
+// NEWLINE. `header_indent` is the header line's indentation (the top of the
+// indent stack). The body ends before the first code line indented no
+// deeper than the header that does not continue an open logical line.
+// Blank lines never end it, and neither do comment-only lines; but a comment
+// no deeper than the header is only included when a deeper body line
+// follows it, so trailing shallow comments stay outside the token. Returns
+// false, having marked nothing, if no line deeper than the header is found
+// (`python:` with no body). Callers must mark_end() beforehand.
+static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
+  PythonLineState st = {0, 0, false, false};
+  bool accepted = false;
+  uint32_t column = lexer->get_column(lexer);
+  while (!lexer->eof(lexer)) {
+    if (lexer->lookahead != '\n') {
+      bool joined = st.bracket_depth > 0 || st.quote != 0 || st.continued;
+      bool deeper = joined || column > header_indent;
+      if (!deeper && lexer->lookahead != '#') break;
+      scan_python_line(lexer, &st, deeper);
+      if (deeper) accepted = true;
+      if (lexer->eof(lexer)) break;
+    }
+    take(lexer, false);  // the '\n'
+    column = 0;
+    while (is_blank_char(lexer->lookahead)) {
+      take(lexer, false);
+      column++;
+    }
+  }
+  return accepted;
+}
+
 bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 
@@ -108,6 +238,27 @@ bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, cons
       skip(lexer);
     } else {
       break;
+    }
+  }
+
+  // A python body (nms4.15). The header's NEWLINE has already moved past the
+  // line break, blank lines and indentation, so this is the first body
+  // line's first character. Only a line deeper than the header starts a
+  // body, or a comment line (comments are invisible to indentation), which
+  // needs a look past it. Skipped during error recovery, like the rsxn case
+  // below. When no body is found nothing below could match either: a
+  // comment line never gets INDENT/DEDENT, INDENT is not valid after a
+  // python header, and the header's NEWLINE already took the line break.
+  bool in_error_recovery = valid_symbols[NEWLINE] && valid_symbols[INDENT] && valid_symbols[DEDENT];
+  if (valid_symbols[PYTHON_BLOCK] && !in_error_recovery && !lexer->eof(lexer)) {
+    uint32_t header_indent = scanner->indent_stack[scanner->indent_stack_len - 1];
+    if (lexer->lookahead == '#' || lexer->get_column(lexer) > header_indent) {
+      lexer->mark_end(lexer);
+      if (scan_python_block(lexer, header_indent)) {
+        lexer->result_symbol = PYTHON_BLOCK;
+        return true;
+      }
+      return false;
     }
   }
 

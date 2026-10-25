@@ -8,21 +8,16 @@
  * `web-tree-sitter` does not execute injection queries or `#set!`
  * directives itself (see the header comment in `injections.scm`) — this
  * module is the manual consumer the query file was written for. It runs
- * the query against the parsed tree, groups captures by match (a single
- * pattern instance — e.g. the `[...]+ @injection.content` alternation used
- * for `python_statement`/`init_python_statement` bodies — produces exactly
- * one match containing one capture per top-level statement), and derives
- * one `PythonInjection` per match:
+ * the query against the parsed tree and derives one `PythonInjection` per
+ * match (each match has one capture):
  *
- * - For `python:`/`init python:` bodies there is no single contiguous node
- *   covering "the whole body" (the grammar's shared `_block` rule is
- *   hidden), so the query captures each top-level statement individually
- *   within one match. This module reconstructs one contiguous span by
- *   taking the min-start/max-end across that match's captures, then
- *   dedents the extracted text relative to the first statement's column so
- *   it parses as a standalone Python module (top-level Python statements
- *   must start at column 0; the original text is indented because it's
- *   nested inside a Ren'Py `python:` block).
+ * - For `python:`/`init python:` bodies the capture is the statement's
+ *   opaque `python_block` node (nms4.15), which spans the whole body from
+ *   its first line's first non-space character. The extracted text is
+ *   dedented relative to that column so it parses as a standalone Python
+ *   module (top-level Python statements must start at column 0; the
+ *   original text is indented because it's nested inside a Ren'Py
+ *   `python:` block).
  * - For every other injection point (`$ expr`, screen-language
  *   `property` expressions, `if`/`elif`/`while`/menu-choice conditions,
  *   ATL property/warper/duration expressions) each match has exactly one
@@ -268,7 +263,7 @@ function injectionKindForNode(node: SyntaxNode): PythonInjection['kind'] {
  * indentation to strip). Lines with less leading whitespace than `columns`
  * (e.g. blank lines) have only the whitespace they actually have removed.
  * This mirrors `textwrap.dedent` for the fixed, known indent width of the
- * captured span's first statement, so a `python:` block body extracted
+ * captured span's first line, so a `python:` block body extracted
  * from the middle of a Ren'Py file parses as a valid standalone module.
  */
 function dedent(text: string, columns: number): string {
@@ -312,36 +307,26 @@ function collectInjections(content: string, tree: Tree, out: PythonInjection[]):
   const matches = injectionsQuery!.matches(tree.rootNode);
 
   for (const match of matches) {
-    // A comment on the header line itself (`init python: # setup`, nms4.9)
-    // is a child of the python statement but not part of its body; left in,
-    // it would become `firstNode` and its column would drive `dedent`.
-    const captures = match.captures.filter(
-      (c) =>
-        c.name === 'injection.content' &&
-        !(c.node.type === 'comment' && c.node.startPosition.row === c.node.parent?.startPosition.row),
-    );
-    if (captures.length === 0) continue;
+    // One capture per match: a whole `python_block` body (nms4.15) or a
+    // single expression. A header-line comment (`init python: # setup`,
+    // nms4.9) sits outside the body and is never captured.
+    const capture = match.captures.find((c) => c.name === 'injection.content');
+    if (!capture) continue;
+    const node = capture.node;
 
-    let firstNode = captures[0].node;
-    let lastNode = captures[0].node;
-    for (const capture of captures) {
-      if (capture.node.startIndex < firstNode.startIndex) firstNode = capture.node;
-      if (capture.node.endIndex > lastNode.endIndex) lastNode = capture.node;
-    }
-
-    const rawSpan = content.slice(firstNode.startIndex, lastNode.endIndex);
-    const spanText = dedent(rawSpan, firstNode.startPosition.column);
+    const rawSpan = content.slice(node.startIndex, node.endIndex);
+    const spanText = dedent(rawSpan, node.startPosition.column);
 
     const pythonTree = pythonParser!.parse(spanText);
     if (!pythonTree) continue;
 
     let kind: PythonInjection['kind'];
     try {
-      kind = injectionKindForNode(firstNode);
+      kind = injectionKindForNode(node);
     } catch (error) {
       pythonTree.delete(); // not yet in `out`, so the caller's cleanup can't see it
       throw error;
     }
-    out.push({ range: [firstNode.startIndex, lastNode.endIndex], tree: pythonTree, kind });
+    out.push({ range: [node.startIndex, node.endIndex], tree: pythonTree, kind });
   }
 }
