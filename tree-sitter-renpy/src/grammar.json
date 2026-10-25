@@ -31,17 +31,8 @@
       "type": "CHOICE",
       "members": [
         {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "comment"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "_newline"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "_comment_line"
         },
         {
           "type": "SYMBOL",
@@ -184,6 +175,19 @@
           }
         ]
       }
+    },
+    "_comment_line": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "comment"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
     },
     "identifier": {
       "type": "PATTERN",
@@ -645,8 +649,17 @@
         {
           "type": "REPEAT1",
           "content": {
-            "type": "SYMBOL",
-            "name": "menu_choice"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_comment_line"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "menu_choice"
+              }
+            ]
           }
         },
         {
@@ -1737,8 +1750,17 @@
                 {
                   "type": "REPEAT1",
                   "content": {
-                    "type": "SYMBOL",
-                    "name": "screen_language_statement"
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "_comment_line"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "screen_language_statement"
+                      }
+                    ]
                   }
                 },
                 {
@@ -1810,8 +1832,17 @@
                 {
                   "type": "REPEAT1",
                   "content": {
-                    "type": "SYMBOL",
-                    "name": "screen_language_statement"
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "_comment_line"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "screen_language_statement"
+                      }
+                    ]
                   }
                 },
                 {
@@ -1954,8 +1985,17 @@
         {
           "type": "REPEAT1",
           "content": {
-            "type": "SYMBOL",
-            "name": "_atl_statement"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_comment_line"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_atl_statement"
+              }
+            ]
           }
         },
         {
@@ -2074,8 +2114,17 @@
         {
           "type": "REPEAT1",
           "content": {
-            "type": "SYMBOL",
-            "name": "_atl_statement"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_comment_line"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_atl_statement"
+              }
+            ]
           }
         },
         {
@@ -2340,8 +2389,17 @@
         {
           "type": "REPEAT1",
           "content": {
-            "type": "SYMBOL",
-            "name": "style_property_statement"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_comment_line"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "style_property_statement"
+              }
+            ]
           }
         },
         {
@@ -2476,8 +2534,17 @@
         {
           "type": "REPEAT1",
           "content": {
-            "type": "SYMBOL",
-            "name": "style_property_statement"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_comment_line"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "style_property_statement"
+              }
+            ]
           }
         },
         {

@@ -51,7 +51,7 @@ module.exports = grammar({
     // terminate via `_block` instead (which owns its own trailing
     // newline/indent/dedent sequence) and don't wrap here.
     _statement: $ => choice(
-      seq($.comment, $._newline),
+      $._comment_line,
       $.label_statement,
       $.jump_statement,
       $.call_statement,
@@ -91,6 +91,12 @@ module.exports = grammar({
     // `[^\r\n]` rather than `.`: `.` matches '\r', which would fold a CRLF
     // line's carriage return into the comment text.
     comment: $ => token(seq('#', /[^\r\n]*/)),
+
+    // A comment-only line inside a block body. Every body (statements, menu
+    // choices, screen language, ATL, style and layeredimage properties)
+    // accepts it, so a comment never ends a block (nms4.25). Hidden, so the
+    // body just gains a `(comment)` child.
+    _comment_line: $ => seq($.comment, $._newline),
 
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
 
@@ -282,7 +288,7 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1($.menu_choice),
+      repeat1(choice($._comment_line, $.menu_choice)),
       $._dedent,
     ),
 
@@ -523,7 +529,7 @@ module.exports = grammar({
 
     // Task 8: mirrors `_block`'s body-optional fix (see its comment above)
     // rather than delegating to `_block` itself, because a screen's body is
-    // `repeat1($.screen_language_statement)`, not `repeat1($._statement)`.
+    // `repeat1($.screen_language_statement)` (plus comment lines), not `repeat1($._statement)`.
     // Before this fix, `screen bar():` with no body yet (a very common
     // half-typed editing state — user has just opened the block) produced a
     // whole-statement `ERROR` (verified empirically), not a clean empty
@@ -535,7 +541,7 @@ module.exports = grammar({
       optional(field('parameters', $.parameter_list)),
       $._block_colon,
       choice(
-        seq($._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
+        seq($._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
         optional($._newline),
       ),
     ),
@@ -569,7 +575,7 @@ module.exports = grammar({
       repeat(field('properties', $.property)),
       choice(
         $._newline,
-        seq($._block_colon, $._newline, $._indent, repeat1($.screen_language_statement), $._dedent),
+        seq($._block_colon, $._newline, $._indent, repeat1(choice($._comment_line, $.screen_language_statement)), $._dedent),
       ),
     ),
 
@@ -670,7 +676,7 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1($._atl_statement),
+      repeat1(choice($._comment_line, $._atl_statement)),
       $._dedent,
     ),
 
@@ -710,7 +716,7 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1($._atl_statement),
+      repeat1(choice($._comment_line, $._atl_statement)),
       $._dedent,
     ),
 
@@ -843,7 +849,7 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1($.style_property_statement),
+      repeat1(choice($._comment_line, $.style_property_statement)),
       $._dedent,
     ),
 
@@ -899,7 +905,7 @@ module.exports = grammar({
       $._block_colon,
       $._newline,
       $._indent,
-      repeat1($.style_property_statement),
+      repeat1(choice($._comment_line, $.style_property_statement)),
       $._dedent,
     ),
 
