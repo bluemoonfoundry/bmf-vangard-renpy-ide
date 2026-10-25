@@ -56,6 +56,7 @@ module.exports = grammar({
       $.jump_statement,
       $.call_statement,
       $.return_statement,
+      $.pass_statement,
       $.menu_statement,
       $.if_statement,
       $.while_statement,
@@ -285,6 +286,10 @@ module.exports = grammar({
       optional(field('value', $.expression)),
       $._newline,
     ),
+
+    // nms4.21: `pass` (a no-op, common as a menu choice body). It used to
+    // parse as an expression_statement naming a variable `pass`.
+    pass_statement: $ => seq('pass', $._newline),
 
     menu_statement: $ => seq(
       'menu',

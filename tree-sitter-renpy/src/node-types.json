@@ -344,6 +344,10 @@
           "named": true
         },
         {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
           "type": "play_statement",
           "named": true
         },
@@ -496,6 +500,10 @@
         },
         {
           "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -696,6 +704,10 @@
         },
         {
           "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -925,6 +937,10 @@
           "named": true
         },
         {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
           "type": "play_statement",
           "named": true
         },
@@ -1107,6 +1123,10 @@
           },
           {
             "type": "nvl_statement",
+            "named": true
+          },
+          {
+            "type": "pass_statement",
             "named": true
           },
           {
@@ -1314,6 +1334,10 @@
         },
         {
           "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -1527,6 +1551,10 @@
           "named": true
         },
         {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
           "type": "play_statement",
           "named": true
         },
@@ -1646,6 +1674,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "pass_statement",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "play_statement",
@@ -1809,6 +1842,10 @@
           },
           {
             "type": "nvl_statement",
+            "named": true
+          },
+          {
+            "type": "pass_statement",
             "named": true
           },
           {
@@ -2333,6 +2370,10 @@
           "named": true
         },
         {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
           "type": "play_statement",
           "named": true
         },
@@ -2672,6 +2713,10 @@
           "named": true
         },
         {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
           "type": "play_statement",
           "named": true
         },
@@ -2832,6 +2877,10 @@
         },
         {
           "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -3018,6 +3067,10 @@
         },
         {
           "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -3253,6 +3306,10 @@
   },
   {
     "type": "parallel",
+    "named": false
+  },
+  {
+    "type": "pass",
     "named": false
   },
   {

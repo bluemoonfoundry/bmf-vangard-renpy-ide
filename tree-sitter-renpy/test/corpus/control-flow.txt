@@ -83,3 +83,60 @@ label a:
     (return_statement
       value: (expression))))
 
+
+==================
+Pass then return with value (nms4.21)
+==================
+label a:
+    pass
+    return 1
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (pass_statement)
+    (return_statement
+      value: (expression))))
+
+==================
+Menu choice whose body is pass (nms4.21)
+==================
+label a:
+    menu:
+        "Left":
+            jump left
+        "Right":
+            pass
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (menu_statement
+      (menu_choice
+        text: (string)
+        (jump_statement
+          target: (identifier)))
+      (menu_choice
+        text: (string)
+        (pass_statement)))
+    (return_statement)))
+
+==================
+Pass inside python bodies (nms4.21)
+==================
+init python:
+    while z:
+        pass
+
+---
+
+(source_file
+  (init_python_statement
+    body: (while_statement
+      condition: (expression)
+      (pass_statement))))
