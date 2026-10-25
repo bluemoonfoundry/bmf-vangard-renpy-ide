@@ -122,6 +122,16 @@ describe('buildBlockContribution', () => {
     }
   });
 
+  it('reads the expression of a menu set clause (nms4.29)', async () => {
+    const content = 'label start:\n    menu:\n        set store.seen\n        "A":\n            pass\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:seen', 'read', 'statement'],
+    ]);
+    expect(c.references[0].range.start).toEqual({ line: 3, column: 12, offset: content.indexOf('store.seen') });
+  });
+
   it('keeps trailing comments out of injected expressions (nms4.27)', async () => {
     const content = 'label a:\n    $ x = y # note z\nscreen s:\n    text "t" size big # tiny w\ntransform t:\n    alpha level # q\n';
     const c = await build(content);

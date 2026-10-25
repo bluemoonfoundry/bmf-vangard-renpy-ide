@@ -87,3 +87,8 @@
 ; (`linear`, `ease`) is an `identifier`, so it is not injected.
 ((atl_interpolation (expression) @injection.content)
  (#set! injection.language "python"))
+
+; A menu's `set` clause names the set of choice texts already picked
+; (nms4.29), so its variable is a read.
+((menu_set expression: (expression) @injection.content)
+ (#set! injection.language "python"))

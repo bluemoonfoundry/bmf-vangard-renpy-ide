@@ -27,6 +27,7 @@ export function injectionContext(root: SyntaxNode, injection: PythonInjection): 
   for (let node: SyntaxNode | null = root.descendantForIndex(injection.range[0], injection.range[1]); node; node = node.parent) {
     if (node.type === 'property' || node.type === 'screen_language_statement') return 'screen-expression';
     if (CONDITION_PARENTS.has(node.type)) return 'condition';
+    if (node.type === 'menu_set') return 'statement';
     if (node.type.startsWith('atl_')) return 'atl-expression';
   }
   return 'screen-expression';

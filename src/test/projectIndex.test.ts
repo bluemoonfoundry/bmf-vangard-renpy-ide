@@ -125,6 +125,17 @@ describe('resolveProjectIndex (screen strings)', () => {
   });
 });
 
+describe('resolveProjectIndex (menu set)', () => {
+  it('resolves the set named by a menu set clause to its default (nms4.29)', async () => {
+    const index = await inlineIndex({
+      'init.rpy': 'default seen = set()\n',
+      'script.rpy': 'label start:\n    menu:\n        set seen\n        "A":\n            pass\n',
+    });
+    expect(refSummary(index, 'variable:seen')).toEqual(['read@game/script.rpy:3']);
+    expect(index.unresolved).toEqual([]);
+  });
+});
+
 // nms4.13: names on PYTHON_IGNORED_NAMES (time, random, id, ...) are often user
 // variables. They are dropped only when nothing in the project defines them.
 describe('resolveProjectIndex (user variables named like builtins)', () => {
