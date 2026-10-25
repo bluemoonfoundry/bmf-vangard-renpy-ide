@@ -106,6 +106,10 @@ module.exports = grammar({
   conflicts: $ => [
     [$.say_statement],
     [$._positional_property, $._keyword_property],
+    // nms4.42: a comment line after an `old` line may sit inside the pair
+    // (a `new` line follows) or end a pair that has no `new` yet (another
+    // `old` follows); only one reading survives the next line.
+    [$.translate_string],
   ],
 
   rules: {
@@ -1330,19 +1334,47 @@ module.exports = grammar({
       ),
     ),
 
-    // `scope` is either an arbitrary namespace identifier (`translate french
-    // start_label:`) or the literal keyword `strings` (`translate french
-    // strings:`, Ren'Py's syntax for a block of translated string literals
-    // rather than translated statements). Reuses `_block`/`_statement` so
-    // the body can hold ordinary statements (say_statement, etc.) exactly
-    // like every other block-taking statement in this grammar — the
-    // brief's corpus expectation of a nested `(say_statement ...)` node
-    // falls out of that reuse for free, no special-casing needed.
-    translate_statement: $ => seq(
-      'translate',
-      field('language', $.identifier),
-      field('scope', choice($.identifier, 'strings')),
-      $._block,
+    // `translate french start_abc123:` holds ordinary statements (the
+    // translated say lines), through `_block`. `scope` is that identifier.
+    //
+    // nms4.42: `translate french strings:` holds only `old`/`new` pairs
+    // (`translate_string`) and has no `scope` field. The pairs used to parse
+    // as say statements spoken by `old` and `new`, which the symbol index
+    // recorded as speakers. `old` and `new` are keywords only inside that
+    // block. Like `_block`, the body is optional (a half-typed header).
+    translate_statement: $ => choice(
+      seq(
+        'translate',
+        field('language', $.identifier),
+        field('scope', $.identifier),
+        $._block,
+      ),
+      seq(
+        'translate',
+        field('language', $.identifier),
+        'strings',
+        $._block_colon,
+        choice(
+          seq($._newline, $._indent, repeat1(choice($._comment_line, $.translate_string)), $._dedent),
+          optional($._newline),
+        ),
+      ),
+    ),
+
+    // `old "Start"` / `new "Commencer"`: the source text and its
+    // translation. Comment lines may sit between the two. The `new` line is
+    // optional so that a pair being typed (`old` only so far) stays one
+    // node instead of an ERROR that ends the block.
+    translate_string: $ => seq(
+      'old',
+      field('old', $.string),
+      $._line_end,
+      optional(seq(
+        repeat($._comment_line),
+        'new',
+        field('new', $.string),
+        $._line_end,
+      )),
     ),
 
     style_statement: $ => seq(

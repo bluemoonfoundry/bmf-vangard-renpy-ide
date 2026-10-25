@@ -3434,15 +3434,11 @@
       },
       "scope": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "identifier",
             "named": true
-          },
-          {
-            "type": "strings",
-            "named": false
           }
         ]
       }
@@ -3592,6 +3588,10 @@
           "named": true
         },
         {
+          "type": "translate_string",
+          "named": true
+        },
+        {
           "type": "unknown_statement",
           "named": true
         },
@@ -3605,6 +3605,42 @@
         },
         {
           "type": "with_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "translate_string",
+    "named": true,
+    "fields": {
+      "new": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "old": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "comment",
           "named": true
         }
       ]
@@ -4180,6 +4216,10 @@
     "named": false
   },
   {
+    "type": "new",
+    "named": false
+  },
+  {
     "type": "nopredict",
     "named": false
   },
@@ -4189,6 +4229,10 @@
   },
   {
     "type": "offset",
+    "named": false
+  },
+  {
+    "type": "old",
     "named": false
   },
   {

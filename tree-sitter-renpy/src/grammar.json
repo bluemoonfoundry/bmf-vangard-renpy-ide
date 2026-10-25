@@ -5226,40 +5226,168 @@
       ]
     },
     "translate_statement": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "translate"
+            },
+            {
+              "type": "FIELD",
+              "name": "language",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "scope",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            },
+            {
+              "type": "SYMBOL",
+              "name": "_block"
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "translate"
+            },
+            {
+              "type": "FIELD",
+              "name": "language",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            },
+            {
+              "type": "STRING",
+              "value": "strings"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "_block_colon"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_newline"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "_indent"
+                    },
+                    {
+                      "type": "REPEAT1",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "_comment_line"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "translate_string"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "_dedent"
+                    }
+                  ]
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_newline"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "translate_string": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "translate"
+          "value": "old"
         },
         {
           "type": "FIELD",
-          "name": "language",
+          "name": "old",
           "content": {
             "type": "SYMBOL",
-            "name": "identifier"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "scope",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "identifier"
-              },
-              {
-                "type": "STRING",
-                "value": "strings"
-              }
-            ]
+            "name": "string"
           }
         },
         {
           "type": "SYMBOL",
-          "name": "_block"
+          "name": "_line_end"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_comment_line"
+                  }
+                },
+                {
+                  "type": "STRING",
+                  "value": "new"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "new",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "string"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "_line_end"
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -5636,6 +5764,9 @@
     [
       "_positional_property",
       "_keyword_property"
+    ],
+    [
+      "translate_string"
     ]
   ],
   "precedences": [],

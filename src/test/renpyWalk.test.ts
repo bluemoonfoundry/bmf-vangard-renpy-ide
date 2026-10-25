@@ -164,6 +164,11 @@ describe('walkRenpyTree references', () => {
     expect(refs(r)).toEqual([['character:e', 'speaker', 'statement']]);
   });
 
+  it('records no speakers in translate strings, only reads in the new string (nms4.42)', async () => {
+    const r = await walk('translate french strings:\n    old "Hi [name]"\n    new "Salut [nom]"\n');
+    expect(refs(r)).toEqual([['variable:nom', 'read', 'interpolation']]);
+  });
+
   it('records [var] interpolation in say and menu-choice strings, skipping [[ escapes', async () => {
     const content = 'label a:\n    e "You have [points] and [player.hp!t] [[literal] [store.gold] [persistent.seen.x]"\n    menu:\n        "Spend [gold]":\n            return\n';
     const r = await walk(content);

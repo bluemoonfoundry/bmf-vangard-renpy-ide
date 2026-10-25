@@ -273,6 +273,14 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         break;
       }
 
+      // `translate x strings:` pairs: only the translation is shown, so only
+      // its interpolations are reads (the `old` text is the lookup key).
+      case 'translate_string': {
+        const shown = node.childForFieldName('new');
+        if (shown) interpolations(shown);
+        break;
+      }
+
       case 'for_statement': {
         const variable = node.childForFieldName('variable');
         if (!usable(variable)) break;

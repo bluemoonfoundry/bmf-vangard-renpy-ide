@@ -24,5 +24,61 @@ translate french strings:
 (source_file
   (translate_statement
     language: (identifier)
+    (translate_string old: (string) new: (string))))
+
+==================
+Translate strings pairs with comments, and old/new stay names elsewhere (nms4.42)
+==================
+translate french strings:
+
+    # game/script.rpy:10
+    old "Start"
+    new "Commencer"
+
+    old "Hi [name]"
+    # still to check
+    new "Salut [name]" # informal
+
+translate french strings:
+label a:
+    new "I'm new here."
+    old "And I'm old."
+
+---
+
+(source_file
+  (translate_statement
+    language: (identifier)
+    (comment)
+    (translate_string old: (string) new: (string))
+    (translate_string old: (string) (comment) new: (string) (comment)))
+  (translate_statement
+    language: (identifier))
+  (label_statement
+    name: (identifier)
     (say_statement character: (identifier) text: (string))
     (say_statement character: (identifier) text: (string))))
+
+==================
+Translate strings pair being typed, with no new line yet (nms4.42)
+==================
+define a = 1
+translate french strings:
+    old "Start"
+    # TODO
+    old "Quit"
+    new "Quitter"
+    old "Load"
+define b = 2
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (translate_statement
+    language: (identifier)
+    (translate_string old: (string))
+    (comment)
+    (translate_string old: (string) new: (string))
+    (translate_string old: (string)))
+  (define_statement name: (identifier) value: (expression)))
