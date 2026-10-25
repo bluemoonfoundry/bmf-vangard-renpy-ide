@@ -135,21 +135,74 @@ describe('buildBlockContribution', () => {
     const c = await build(content);
     expect(c.hasError).toBe(false);
     expect(c.definitions.map((d) => d.symbolId)).toEqual(['screen:help']);
+    // `device` is screen-local (nms4.31), so its interpolation is not a store read.
     expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
       ['variable:preferred_device', 'read', 'screen-expression'],
-      ['variable:device', 'read', 'interpolation'],
     ]);
   });
 
   it('walks a `$` line inside a screen body as Python (nms4.37)', async () => {
-    const content = 'screen s:\n    for i in items:\n        $ slot = i + 1\n        text "x"\n';
+    const content = 'screen s:\n    for i in items:\n        $ slot = i + bonus\n        text "[slot]"\n';
     const c = await build(content);
     expect(c.hasError).toBe(false);
-    // The write is screen-local in Ren'Py; screen scope is nms4.31.
-    expect(c.references.filter((r) => r.context === 'dollar').map((r) => [r.symbolId, r.refKind])).toEqual([
-      ['variable:slot', 'write'],
-      ['variable:i', 'read'],
+    // `slot` and `i` are screen-local (nms4.31); only the store names remain.
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:items', 'read', 'screen-expression'],
+      ['variable:bonus', 'read', 'dollar'],
     ]);
+  });
+
+  describe('screen scope (nms4.31)', () => {
+    const refs = (c: BlockContribution) => c.references.map((r) => [r.symbolId, r.refKind]);
+
+    it('does not record screen parameters or for targets as store variables', async () => {
+      const content = [
+        'screen inv(items, title="Inventory", *rest, **extra):',
+        '    text title',
+        '    text "[title] [gold]"',
+        '    for it in items:',
+        '        textbutton it.name action Function(pick, it, rest, extra)',
+        '',
+      ].join('\n');
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([['variable:gold', 'read'], ['variable:Function', 'read'], ['variable:pick', 'read']]);
+    });
+
+    it('takes every name of a tuple for target', async () => {
+      const c = await build('screen s(pairs):\n    for n, (k, v) in enumerate(pairs):\n        text "[n] [k] [v] [caption]"\n');
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([['variable:enumerate', 'read'], ['variable:caption', 'read']]);
+    });
+
+    it('keeps `store.` and `persistent.` names global inside a screen', async () => {
+      const c = await build('screen s(score):\n    $ store.score = score\n    $ persistent.seen = True\n    text "[persistent.seen]"\n');
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([
+        ['variable:score', 'write'],
+        ['variable:persistent.seen', 'write'],
+        ['variable:persistent.seen', 'read'],
+      ]);
+    });
+
+    it('does not leak screen-local names out of the screen', async () => {
+      const content = [
+        'screen a(hp):',
+        '    default sel = 0',
+        '    text "[hp] [sel]"',
+        'screen b():',
+        '    text "[hp] [sel]"',
+        'label start:',
+        '    $ hp = sel',
+        '',
+      ].join('\n');
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([
+        ['variable:hp', 'read'], ['variable:sel', 'read'],
+        ['variable:hp', 'write'], ['variable:sel', 'read'],
+      ]);
+    });
   });
 
   it('reads the expression of a menu set clause (nms4.29)', async () => {

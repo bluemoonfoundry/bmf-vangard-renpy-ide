@@ -12,7 +12,7 @@ import { parseBlock, disposeParsedBlock, type ParsedBlock, type PythonInjection 
 import { djb2 } from '@/lib/contentHash';
 import { createRangeContext, mapInjectionPoint, rangeFromOffsets } from '@/lib/tree-sitter/sourceRange';
 import { symbolId } from '@/lib/tree-sitter/symbolNames';
-import { enclosingLabelFor, walkRenpyTree } from '@/lib/tree-sitter/renpyWalk';
+import { enclosingLabelFor, screenScopeFor, walkRenpyTree, type ScreenScope } from '@/lib/tree-sitter/renpyWalk';
 import { walkPythonTree } from '@/lib/tree-sitter/pythonWalk';
 import { createThrottledWarn } from '@/lib/workerLogger';
 
@@ -57,6 +57,25 @@ export function outermostInjections(injections: PythonInjection[]): PythonInject
     outer !== inner
     && outer.range[0] <= inner.range[0] && inner.range[1] <= outer.range[1]
     && (outer.range[0] !== inner.range[0] || outer.range[1] !== inner.range[1])));
+}
+
+/**
+ * Drops variable references to screen-local names inside their screen
+ * (nms4.31), the way pythonWalk.ts leaves out function locals. A bare name
+ * written by a `$` line in a screen is screen-local too. A `persistent.x`
+ * or `store.x` reference is never local: its name is dotted, or its source
+ * text is not the bare name.
+ */
+export function withoutScreenLocals(references: SymbolReference[], scopes: ScreenScope[], content: string): SymbolReference[] {
+  if (scopes.length === 0) return references;
+  const isBare = (ref: SymbolReference) => !ref.name.includes('.')
+    && content.slice(ref.range.start.offset, ref.range.end.offset) === ref.name;
+  for (const ref of references) {
+    if (ref.kind !== 'variable' || ref.refKind !== 'write' || ref.context !== 'dollar' || !isBare(ref)) continue;
+    screenScopeFor(scopes, ref.range.start.offset)?.locals.add(ref.name);
+  }
+  return references.filter((ref) => ref.kind !== 'variable' || !isBare(ref)
+    || !screenScopeFor(scopes, ref.range.start.offset)?.locals.has(ref.name));
 }
 
 /** At most this many block failures are logged per worker lifetime. */
@@ -122,11 +141,11 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
     }
 
     definitions.sort(byOffset);
-    references.sort(byOffset);
     return {
       blockId: block.id, filePath: block.filePath, contentHash,
       hasError: root.hasError,
-      definitions, references, menus: renpy.menus, pythonBlocks: renpy.pythonBlocks,
+      definitions, references: withoutScreenLocals(references, renpy.screenScopes, block.content).sort(byOffset),
+      menus: renpy.menus, pythonBlocks: renpy.pythonBlocks,
     };
   } catch (error) {
     warnBlockFailure(`Symbol index: failed to extract symbols from ${block.filePath || block.id}`, error);

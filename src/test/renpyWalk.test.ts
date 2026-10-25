@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseBlock, disposeParsedBlock } from '@/lib/tree-sitter/parseBlock';
 import { createRangeContext } from '@/lib/tree-sitter/sourceRange';
-import { walkRenpyTree, enclosingLabelFor, type RenpyWalkResult } from '@/lib/tree-sitter/renpyWalk';
+import { walkRenpyTree, enclosingLabelFor, parameterNames, type RenpyWalkResult } from '@/lib/tree-sitter/renpyWalk';
 
 async function walk(content: string): Promise<RenpyWalkResult> {
   const block = await parseBlock(content);
@@ -261,5 +261,22 @@ describe('walkRenpyTree missing names (T4)', () => {
     expect(r.definitions).toEqual([]);
     expect(r.references).toEqual([]);
     expect(r.labelSpans).toEqual([]);
+  });
+});
+
+describe('screen scopes (nms4.31)', () => {
+  it('reads parameter names, skipping defaults, stars and nested commas', () => {
+    expect(parameterNames('items, title="a, b", pos=(0, 1), *rest, **extra')).toEqual(['items', 'title', 'pos', 'rest', 'extra']);
+    expect(parameterNames('')).toEqual([]);
+    expect(parameterNames(String.raw`s='it\'s', t`)).toEqual(['s', 't']);
+  });
+
+  it('collects parameters, defaults and for targets per screen', async () => {
+    const content = 'screen a(hp, mp=0):\n    default sel = 0\n    for i, (k, v) in pairs:\n        text "x"\nscreen b:\n    text "y"\n';
+    const r = await walk(content);
+    expect(r.screenScopes.map((s) => [content.slice(s.start, s.end).split(':')[0], [...s.locals]])).toEqual([
+      ['screen a(hp, mp=0)', ['hp', 'mp', 'sel', 'i', 'k', 'v']],
+      ['screen b', []],
+    ]);
   });
 });

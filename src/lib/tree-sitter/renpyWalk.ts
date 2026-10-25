@@ -18,12 +18,21 @@ import {
 
 export interface LabelSpan { id: SymbolId; start: number; end: number }
 
+/**
+ * A screen body and the names local to it (nms4.31): parameters,
+ * screen-language `default` names and `for` targets. blockContribution.ts
+ * adds the bare names written by `$` lines in the screen. Ren'Py keeps all of
+ * these in the screen's own scope, so they are not store variables.
+ */
+export interface ScreenScope { start: number; end: number; locals: Set<string> }
+
 export interface RenpyWalkResult {
   definitions: SymbolDefinition[];
   references: SymbolReference[];
   menus: MenuInfo[];
   pythonBlocks: PythonBlockInfo[];
   labelSpans: LabelSpan[];
+  screenScopes: ScreenScope[];
 }
 
 const CHARACTER_CALL_RE = /^Character\s*\(/;
@@ -73,6 +82,41 @@ function unquote(text: string): string {
   return text.length > 1 && text.endsWith(quote) ? text.slice(1, -1) : text.slice(1);
 }
 
+/**
+ * Names in a parameter list (`items, title="x", *rest, **extra`): the leading
+ * name of each top-level comma-separated entry.
+ */
+export function parameterNames(text: string): string[] {
+  const names: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let entryStart = 0;
+  const take = (end: number): void => {
+    const match = text.slice(entryStart, end).trim().replace(/^\*{1,2}/, '').match(LEADING_NAME_RE);
+    if (match) names.push(match[0]);
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === '\\') i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch)) depth--;
+    else if (ch === ',' && depth === 0) {
+      take(i);
+      entryStart = i + 1;
+    }
+  }
+  take(text.length);
+  return names;
+}
+
+/** The screen scope containing `offset` (screens never nest). */
+export function screenScopeFor(scopes: ScreenScope[], offset: number): ScreenScope | null {
+  return scopes.find((scope) => scope.start <= offset && offset < scope.end) ?? null;
+}
+
 export function enclosingLabelFor(spans: LabelSpan[], offset: number): SymbolId | null {
   let best: LabelSpan | null = null;
   for (const span of spans) {
@@ -82,8 +126,11 @@ export function enclosingLabelFor(spans: LabelSpan[], offset: number): SymbolId 
 }
 
 export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkResult {
-  const out: RenpyWalkResult = { definitions: [], references: [], menus: [], pythonBlocks: [], labelSpans: [] };
+  const out: RenpyWalkResult = {
+    definitions: [], references: [], menus: [], pythonBlocks: [], labelSpans: [], screenScopes: [],
+  };
   let currentGlobal: string | null = null;
+  let currentScreen: ScreenScope | null = null;
   const labelStack: SymbolId[] = [];
   const enclosing = (): SymbolId | null => labelStack[labelStack.length - 1] ?? null;
 
@@ -211,6 +258,20 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         const detail = kind === 'screen' ? node.childForFieldName('parameters')?.text
           : kind === 'style' ? node.childForFieldName('parent')?.text : undefined;
         define(kind, nameNode.text, kind, node, nameNode.startIndex, nameNode.endIndex, detail);
+        if (kind === 'screen') {
+          const parameters = node.childForFieldName('parameters')?.namedChildren.find((c) => c.type === 'expression');
+          currentScreen = {
+            start: node.startIndex, end: node.endIndex,
+            locals: new Set(parameters ? parameterNames(parameters.text) : []),
+          };
+          out.screenScopes.push(currentScreen);
+        }
+        break;
+      }
+
+      case 'screen_default_statement': {
+        const nameNode = node.childForFieldName('name');
+        if (usable(nameNode)) currentScreen?.locals.add(nameNode.text);
         break;
       }
 
@@ -253,7 +314,14 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
       }
 
       case 'screen_language_statement': {
-        if (node.childForFieldName('widget_tag')?.text !== 'use') break;
+        const tag = node.childForFieldName('widget_tag')?.text;
+        if (tag === 'for') {
+          // `for n, (k, v) in pairs:` — the target is everything before ` in `.
+          const header = node.childrenForFieldName('properties')[0]?.text ?? '';
+          const target = header.match(/^(.*?)\s+in\s/s)?.[1] ?? '';
+          for (const match of target.matchAll(NAME_RE)) currentScreen?.locals.add(match[0]);
+        }
+        if (tag !== 'use') break;
         const property = node.childrenForFieldName('properties')[0];
         const expression = property?.namedChildren.find((c) => c.type === 'expression');
         const match = expression?.text.match(LEADING_NAME_RE);
@@ -315,6 +383,7 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
 
     for (const child of node.namedChildren) visit(child);
     if (pushedLabel) labelStack.pop();
+    if (node.type === 'screen_statement') currentScreen = null;
   };
 
   visit(root);
