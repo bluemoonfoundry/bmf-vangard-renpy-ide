@@ -1,0 +1,154 @@
+==================
+define dict spanning lines inside braces (nms4.35)
+==================
+define bubble.expand_area = {
+    "bottom_left" : (0, 0, 0, 22),
+    "thought" : (0, 0, 0, 0),
+}
+
+label start:
+    return
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Nested brackets, blank and comment lines inside a define value (nms4.35)
+==================
+define bubble.properties = {
+    "bottom_left" : {
+        "window_background" : Transform(bubble.frame, xzoom=1, yzoom=1),
+
+        # padding
+        "window_bottom_padding" : 27,
+    },
+}
+define y = 2
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (define_statement name: (identifier) value: (expression)))
+
+==================
+default list spanning lines inside brackets (nms4.35)
+==================
+default inventory = [
+    "a",
+    "b",
+]
+default gold = 0
+
+---
+
+(source_file
+  (default_statement name: (identifier) value: (expression))
+  (default_statement name: (identifier) value: (expression)))
+
+==================
+Dollar statement continued inside parentheses (nms4.35)
+==================
+label start:
+    $ x = foo(1,
+            2)
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (dollar_statement expression: (expression))
+    (return_statement)))
+
+==================
+define value in a triple-quoted string spanning lines (nms4.35)
+==================
+define t = """line one
+line two"""
+define u = 1
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (define_statement name: (identifier) value: (expression)))
+
+==================
+show at clause continued inside parentheses (nms4.35)
+==================
+label start:
+    show e at Transform(
+        xzoom=-1)
+    show e at Transform(
+        xzoom=-1), right with dissolve
+    "Hi"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      at_expr: (expression))
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      transition: (expression))
+    (say_statement text: (string))))
+
+==================
+Screen keyword value continued inside brackets (nms4.35)
+==================
+screen s:
+    textbutton "Go" action [
+        Hide("a"),
+        Return()] xalign 0.5
+    text "x"
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property name: (identifier) value: (expression))
+      properties: (property name: (identifier) value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))))
+
+==================
+Half-typed open bracket stops at a statement keyword line (nms4.35)
+==================
+define x = {
+label start:
+    $ y = foo(
+    return
+default z = [
+screen s:
+    text "x"
+
+---
+
+(source_file
+  (define_statement name: (identifier) value: (expression))
+  (label_statement
+    name: (identifier)
+    (dollar_statement expression: (expression))
+    (return_statement))
+  (default_statement name: (identifier) value: (expression))
+  (screen_statement
+    name: (identifier)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))))

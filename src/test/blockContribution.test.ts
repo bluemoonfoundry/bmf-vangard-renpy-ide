@@ -109,6 +109,28 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('maps reads on later lines of a multi-line $ value back to the source (nms4.35)', async () => {
+    for (const eol of ['\n', '\r\n']) {
+      const content = ['label start:', '    $ x = foo(1,', '            bar)', '    return', ''].join(eol);
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      const bar = find(c, 'bar', 'read');
+      expect(text(content, bar)).toBe('bar');
+      expect(bar.range.start).toEqual({ line: 3, column: 12, offset: content.indexOf('bar') });
+      expect(bar.context).toBe('dollar');
+      expect(find(c, 'x', 'write').range.start.line).toBe(2);
+    }
+  });
+
+  it('maps reads inside a screen value continued onto later lines (nms4.35)', async () => {
+    const content = 'screen s:\n    textbutton "Go" action [\n        Hide("a"),\n        Return(choice)]\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    const choice = find(c, 'choice', 'read');
+    expect(choice.range.start).toEqual({ line: 4, column: 15, offset: content.indexOf('choice') });
+    expect(choice.context).toBe('screen-expression');
+  });
+
   it('does not record the screen name in `use` as a variable, but keeps its argument reads', async () => {
     const c = await build('screen a():\n    use item_list(count)\n');
     expect(c.references.map((r) => [r.symbolId, r.refKind])).toEqual([

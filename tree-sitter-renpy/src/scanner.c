@@ -7,6 +7,8 @@ enum TokenType {
   INDENT,
   DEDENT,
   PYTHON_BLOCK,
+  LOGICAL_VALUE,
+  LOGICAL_ITEM,
 };
 
 #define MAX_INDENT_DEPTH 128
@@ -98,12 +100,38 @@ static bool backslash_ends_line(TSLexer *lexer, bool mark) {
   return lexer->lookahead == '\n' || lexer->eof(lexer);
 }
 
+// How scan_python_line reads a line. LINE_PYTHON: a python body line, whose
+// comment is part of the token. LINE_VALUE: a statement's value running to
+// the end of its logical line (nms4.35); a comment is consumed but never
+// marked, so a trailing one stays outside the token while one inside the
+// brackets is covered by the marks after it. LINE_ITEM: like LINE_VALUE, but
+// the value ends at a top-level blank, ':', '#' or unmatched closing bracket
+// (the end of a screen property value or `at` item), and items may be joined
+// by top-level commas.
+typedef enum { LINE_PYTHON, LINE_VALUE, LINE_ITEM } LineMode;
+
 // Consumes the rest of one physical line, up to but not including its '\n'
 // (or EOF), tracking strings, brackets, a comment and a trailing backslash.
-static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
+// In LINE_ITEM mode it stops where the item ends instead, and returns true
+// when the item ended (mid-line or at the line end with nothing left open).
+static bool scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark, LineMode mode) {
   st->continued = false;
   while (!lexer->eof(lexer) && lexer->lookahead != '\n') {
     int32_t c = lexer->lookahead;
+    if (mode == LINE_ITEM && !st->quote && st->bracket_depth == 0) {
+      if (c == ',' || is_blank_char(c)) {
+        // Unmarked look-ahead: only a top-level comma (blanks around it
+        // allowed) followed by more text continues the value.
+        while (is_blank_char(lexer->lookahead)) take(lexer, false);
+        if (lexer->lookahead != ',') return true;
+        take(lexer, false);
+        while (is_blank_char(lexer->lookahead)) take(lexer, false);
+        c = lexer->lookahead;
+        if (lexer->eof(lexer) || c == '\n' || c == '#' || c == ':' || c == ',') return true;
+        continue;
+      }
+      if (c == ':' || c == '#' || c == ')' || c == ']' || c == '}') return true;
+    }
     if (st->quote) {
       if (c == '\\') {
         take(lexer, mark);
@@ -127,7 +155,7 @@ static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
       continue;
     }
     if (c == '#') {
-      while (!lexer->eof(lexer) && lexer->lookahead != '\n') take(lexer, mark);
+      while (!lexer->eof(lexer) && lexer->lookahead != '\n') take(lexer, mark && mode == LINE_PYTHON);
       break;
     }
     if (c == '"' || c == '\'') {
@@ -160,6 +188,7 @@ static void scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark) {
   }
   // A single-quoted string ends with its line unless a backslash continued it.
   if (st->quote && !st->triple && !st->continued) st->quote = 0;
+  return mode == LINE_ITEM && st->bracket_depth == 0 && !st->quote && !st->continued;
 }
 
 // At the start of a line: consumes a leading run of lowercase letters (into
@@ -225,7 +254,7 @@ static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
         // and the line is accepted: extend the token over them.
         if (consumed > 0) lexer->mark_end(lexer);
       }
-      scan_python_line(lexer, &st, deeper);
+      scan_python_line(lexer, &st, deeper, LINE_PYTHON);
       if (deeper) accepted = true;
       if (lexer->eof(lexer)) break;
     }
@@ -237,6 +266,54 @@ static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
     }
   }
   return accepted;
+}
+
+// --- Values continued onto later lines (nms4.35) ---------------------------
+//
+// Ren'Py joins physical lines into one logical line while a bracket or a
+// triple-quoted string is open (or after a trailing backslash), for every
+// statement, not only python bodies: `define d = {` / `    "a": 1,` / `}`.
+// The grammar's value tokens are regexes that stop at a line end, so a value
+// that continues past its first line is scanned here instead, as one
+// LOGICAL_VALUE (the rest of the logical line, as `expression`) or
+// LOGICAL_ITEM (one screen property value or `at` list, as `_screen_value`
+// and `_at_expr_blob` end) token. The token ends at the last non-blank,
+// non-comment character, so a comment after the closing bracket stays
+// outside it, and it spans the full multi-line source slice.
+//
+// Returns false, so the grammar's own one-line tokens take the value, when
+// the value fits on its first line, and when a bracket or string is never
+// closed: at EOF, or at a line, indented no deeper than the statement
+// (`statement_indent`, the top of the indent stack), that starts a Ren'Py
+// statement keyword (starts_renpy_statement). Ren'Py rejects such a file,
+// and that is the half-typed state of a value being written (`define x = {`
+// above `label start:`), so the error stays on that line, as with the
+// python body bound. Callers must mark_end() beforehand.
+static bool scan_logical_value(TSLexer *lexer, uint32_t statement_indent, LineMode mode) {
+  PythonLineState st = {0, 0, false, false};
+  // An item that ended on its first line, or a value with nothing left open.
+  if (scan_python_line(lexer, &st, true, mode)) return false;
+  if (st.bracket_depth == 0 && st.quote == 0 && !st.continued) return false;
+  for (;;) {
+    bool open = st.bracket_depth > 0 || st.quote != 0;
+    if (lexer->eof(lexer)) return false;
+    take(lexer, false);  // the '\n'
+    uint32_t column = 0;
+    while (is_blank_char(lexer->lookahead)) {
+      take(lexer, false);
+      column++;
+    }
+    if (lexer->eof(lexer)) return false;
+    if (lexer->lookahead == '\n') continue;  // a blank line
+    if (open && !st.continued && column <= statement_indent) {
+      int consumed = 0;
+      if (starts_renpy_statement(lexer, &consumed)) return false;
+      // Only letters were consumed: extend the token over them.
+      if (consumed > 0) lexer->mark_end(lexer);
+    }
+    if (scan_python_line(lexer, &st, true, mode)) return true;
+    if (st.bracket_depth == 0 && st.quote == 0 && !st.continued) return true;
+  }
 }
 
 bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
@@ -265,9 +342,9 @@ bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, cons
   //
   // A correct implementation would have to scan forward through line
   // content on every call (the way tree-sitter-python's scanner tracks its
-  // own parenthesis state), which is out of scope here. Multi-line bracket
-  // continuation remaining unsupported is an accepted known limitation;
-  // silently misplacing statements was not.
+  // own parenthesis state). That is what scan_logical_value now does
+  // (nms4.35), for the value tokens the grammar marks as able to continue:
+  // they are offered mid-line, so a bracket is seen from the value's start.
 
   // Only consume real whitespace here (spaces/tabs/CRs/newlines). Comment
   // text is deliberately NOT consumed by the scanner: comments are the
@@ -295,6 +372,23 @@ bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, cons
   // comment line never gets INDENT/DEDENT, INDENT is not valid after a
   // python header, and the header's NEWLINE already took the line break.
   bool in_error_recovery = valid_symbols[NEWLINE] && valid_symbols[INDENT] && valid_symbols[DEDENT];
+
+  // A value continued onto later lines (nms4.35). Values never start a line,
+  // so only mid-line. A false return leaves the value to the grammar's own
+  // tokens, and nothing below matches mid-line (INDENT/DEDENT are only valid
+  // at a line start, NEWLINE needs a line break), so returning is safe.
+  if ((valid_symbols[LOGICAL_VALUE] || valid_symbols[LOGICAL_ITEM]) && !in_error_recovery &&
+      !saw_newline && !lexer->eof(lexer) && lexer->lookahead != '#') {
+    uint32_t statement_indent = scanner->indent_stack[scanner->indent_stack_len - 1];
+    LineMode mode = valid_symbols[LOGICAL_VALUE] ? LINE_VALUE : LINE_ITEM;
+    lexer->mark_end(lexer);
+    if (scan_logical_value(lexer, statement_indent, mode)) {
+      lexer->result_symbol = mode == LINE_VALUE ? LOGICAL_VALUE : LOGICAL_ITEM;
+      return true;
+    }
+    return false;
+  }
+
   if (valid_symbols[PYTHON_BLOCK] && !in_error_recovery && !lexer->eof(lexer)) {
     uint32_t header_indent = scanner->indent_stack[scanner->indent_stack_len - 1];
     if (lexer->lookahead == '#' || lexer->get_column(lexer) > header_indent) {

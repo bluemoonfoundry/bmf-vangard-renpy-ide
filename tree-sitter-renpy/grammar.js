@@ -70,6 +70,10 @@ module.exports = grammar({
     // nms4.15: the whole body of a `python:` / `init python:` block, as one
     // opaque token (see `pythonBody` and scanner.c's scan_python_block).
     $.python_block,
+    // nms4.35: a value continued onto later lines inside an open bracket or
+    // string (see `_value` and scanner.c's scan_logical_value).
+    $._logical_value,
+    $._logical_item,
   ],
 
   extras: $ => [
@@ -259,6 +263,16 @@ module.exports = grammar({
         )),
       ),
     ))),
+
+    // nms4.35: a value that runs to the end of its logical line (`define` /
+    // `default` / `image` values, `$` lines). Ren'Py joins physical lines
+    // while a bracket or triple-quoted string is open, so `define d = {` may
+    // continue for many lines; the external scanner hands such a value over
+    // as one `_logical_value` token (its text is the full multi-line slice,
+    // without a comment after the closing bracket). A value that fits on its
+    // line is the ordinary `expression` token. Screen property values and
+    // `at` lists continue the same way through `_logical_item`.
+    _value: $ => choice($.expression, alias($._logical_value, $.expression)),
 
     // The ':' that opens an indented body, plus an optional trailing comment
     // on the same line (`label start: # note`, `menu: # pick one`,
@@ -571,13 +585,13 @@ module.exports = grammar({
     // trailing `_newline` explicitly — the brief's snippet omitted this,
     // which left the newline unconsumed (extras only cover space/tab/cr,
     // not '\n') and produced a parse error on the following line.
-    dollar_statement: $ => seq('$', field('expression', $.expression), $._newline),
+    dollar_statement: $ => seq('$', field('expression', $._value), $._newline),
 
     define_statement: $ => seq(
       'define',
       field('name', $._store_name),
       '=',
-      field('value', $.expression),
+      field('value', $._value),
       $._newline,
     ),
 
@@ -585,7 +599,7 @@ module.exports = grammar({
       'default',
       field('name', $._store_name),
       '=',
-      field('value', $.expression),
+      field('value', $._value),
       $._newline,
     ),
 
@@ -600,7 +614,7 @@ module.exports = grammar({
       'image',
       field('name', repeat1($.identifier)),
       choice(
-        seq('=', field('value', $.expression), $._newline),
+        seq('=', field('value', $._value), $._newline),
         field('atl', $._atl_block),
       ),
     ),
@@ -643,7 +657,10 @@ module.exports = grammar({
     ),
 
     _image_specifier_clause: $ => choice(
-      seq('at', field('at_expr', alias($._at_expr_blob, $.expression))),
+      seq('at', field('at_expr', choice(
+        alias($._at_expr_blob, $.expression),
+        alias($._logical_item, $.expression),
+      ))),
       seq('as', field('as_name', $.identifier)),
       seq('behind', field('behind', $.identifier), repeat(seq(',', field('behind', $.identifier)))),
       seq('onlayer', field('layer', $.identifier)),
@@ -659,7 +676,9 @@ module.exports = grammar({
     // left:`), at an unquoted '#', and at the end of the line. Strings are
     // one piece, as in `expression` (lssz). Not supported: top-level
     // operators with blanks around them (`at a if c else b`) and brackets
-    // nested deeper than AT_GROUP_DEPTH.
+    // nested deeper than AT_GROUP_DEPTH. A list whose bracket continues onto
+    // the next line (`at Transform(` / `    xzoom=-1)`) is one
+    // `_logical_item` from the external scanner instead (nms4.35).
     _at_expr_blob: $ => token(seq(
       atItem(),
       repeat(seq(/[ \t]*,[ \t]*/, atItem())),
@@ -899,6 +918,7 @@ module.exports = grammar({
     _positional_property: $ => choice(
       alias($._screen_string, $.string),
       alias($._screen_value, $.expression),
+      alias($._logical_item, $.expression),
       alias($.identifier, $.expression),
     ),
 
@@ -921,9 +941,11 @@ module.exports = grammar({
     // the end of the line. Not supported: conditional expressions (`a if c
     // else b`), top-level commas in a positional value (keyword values take
     // them, see `_screen_value_list`), brackets nested deeper than
-    // AT_GROUP_DEPTH, and brackets continued onto the next line. An
-    // unbalanced bracket or unterminated string on a half-typed line is an
-    // ERROR, as it was before.
+    // AT_GROUP_DEPTH. A value whose bracket or string continues onto the
+    // next line is one `_logical_item` from the external scanner instead
+    // (nms4.35; it supports top-level commas but no operators after a
+    // multi-line item). An unbalanced bracket or unterminated string on a
+    // half-typed line is an ERROR, as it was before.
     _screen_value: $ => token(screenValue()),
 
     // A keyword value may also be a top-level comma list (`add "img" at a,

@@ -87,6 +87,14 @@ describe('walkRenpyTree definitions', () => {
     expect(r.pythonBlocks.map((p) => [p.kind, p.priority])).toEqual([['init-python', 5], ['python', null]]);
   });
 
+  it('keeps the full multi-line source of a define value as its detail (nms4.35)', async () => {
+    const value = '{\n    "a": (0, 0),\n    "b": (1, 1),  # last\n}';
+    const r = await walk(`define bubble.expand_area = ${value}\ndefault inv = [\n    "x",\n]  # done\n`);
+    expect(defs(r)).toEqual([['variable:bubble.expand_area', 'define'], ['variable:inv', 'default']]);
+    expect(r.definitions[0].detail).toBe(value);
+    expect(r.definitions[1].detail).toBe('[\n    "x",\n]');
+  });
+
   it('records definitions inside init blocks (nms4.33)', async () => {
     const r = await walk('init offset = -2\ninit 1:\n    define e = Character("E")\n    default seen = False\n');
     expect(defs(r)).toEqual([['character:e', 'define'], ['variable:seen', 'default']]);
