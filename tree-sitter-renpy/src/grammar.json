@@ -219,8 +219,97 @@
         "type": "PREC",
         "value": -1,
         "content": {
-          "type": "PATTERN",
-          "value": "[^\\r\\n#: \\t]([^\\r\\n#]*[^\\r\\n#: \\t])?"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\\\\?"
+            },
+            {
+              "type": "PATTERN",
+              "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*\\\\?"
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "PATTERN",
+                      "value": "[^\\r\\n#:'\" \\t]"
+                    },
+                    {
+                      "type": "PATTERN",
+                      "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                    },
+                    {
+                      "type": "PATTERN",
+                      "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                    }
+                  ]
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "REPEAT",
+                          "content": {
+                            "type": "CHOICE",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "[^\\r\\n#'\"]"
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                              },
+                              {
+                                "type": "PATTERN",
+                                "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "CHOICE",
+                          "members": [
+                            {
+                              "type": "PATTERN",
+                              "value": "[^\\r\\n#:'\" \\t]"
+                            },
+                            {
+                              "type": "PATTERN",
+                              "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                            },
+                            {
+                              "type": "PATTERN",
+                              "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                            },
+                            {
+                              "type": "PATTERN",
+                              "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\\\\?"
+                            },
+                            {
+                              "type": "PATTERN",
+                              "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*\\\\?"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -2358,8 +2447,21 @@
           {
             "type": "REPEAT1",
             "content": {
-              "type": "PATTERN",
-              "value": "[^\\n#: \\t\\r]"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "PATTERN",
+                  "value": "[^\\n#: \\t\\r'\"]"
+                },
+                {
+                  "type": "PATTERN",
+                  "value": "\"([^\"\\\\\\r\\n]|\\\\[^\\r\\n])*\""
+                },
+                {
+                  "type": "PATTERN",
+                  "value": "'([^'\\\\\\r\\n]|\\\\[^\\r\\n])*'"
+                }
+              ]
             }
           }
         ]

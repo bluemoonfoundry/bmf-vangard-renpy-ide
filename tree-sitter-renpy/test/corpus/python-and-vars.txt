@@ -97,3 +97,85 @@ define store.a.b = 1
   (define_statement
     name: (identifier)
     value: (expression)))
+
+==================
+Quoted # in define, default and image values (lssz)
+==================
+define BG = "#333"
+default tint = '#fff'
+define e = Character("Eileen", color="#c8ffc8")
+image black = Solid("#000")
+
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (default_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (image_statement
+    name: (identifier)
+    value: (expression)))
+
+==================
+Quoted # and : with escapes and one-line triple quotes (lssz)
+==================
+define a = "x:y"
+define d = "esc \" # still"
+define c = 'say "hi" # no'
+define f = """x # y"""
+$ z = {"k": "#v"}
+if x == "a:b":
+    $ y = 1
+
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (dollar_statement
+    expression: (expression))
+  (if_statement
+    condition: (expression)
+    (dollar_statement
+      expression: (expression))))
+
+==================
+Unterminated quote stops at the end of its line (lssz)
+==================
+define x = "abc # half
+label a:
+    $ y = 'open : # x
+    "Hello"
+define z = 1
+
+---
+
+(source_file
+  (define_statement
+    name: (identifier)
+    value: (expression))
+  (label_statement
+    name: (identifier)
+    (dollar_statement
+      expression: (expression))
+    (say_statement
+      text: (string)))
+  (define_statement
+    name: (identifier)
+    value: (expression)))

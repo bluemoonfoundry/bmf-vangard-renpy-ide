@@ -1,3 +1,21 @@
+// lssz: pieces of the string-aware opaque `expression` token (see its rule
+// below). A quoted string is lexed as one unit, so a '#' (or ':') inside it
+// never ends the expression. Escapes (`\"`, `\\`) are honoured; nothing here
+// crosses a line end, so an unterminated quote on a half-typed line stops at
+// the end of that line.
+const EXPR_DQ_STRING = /"([^"\\\r\n]|\\[^\r\n])*"/;
+const EXPR_SQ_STRING = /'([^'\\\r\n]|\\[^\r\n])*'/;
+// Unterminated forms (no closing quote, optionally a dangling '\'). Only
+// valid as the *last* piece of the token: anywhere else the next character
+// would be the quote that a terminated reading closes on, and letting it
+// reopen a string instead would run the token over a real `# comment`.
+const EXPR_DQ_UNTERMINATED = /"([^"\\\r\n]|\\[^\r\n])*\\?/;
+const EXPR_SQ_UNTERMINATED = /'([^'\\\r\n]|\\[^\r\n])*\\?/;
+// First/last character outside a string: not blank, not ':', not '#'.
+const EXPR_EDGE_CHAR = /[^\r\n#:'" \t]/;
+// Any other character outside a string: anything but '#' and quotes.
+const EXPR_INNER_CHAR = /[^\r\n#'"]/;
+
 module.exports = grammar({
   name: 'renpy',
 
@@ -171,7 +189,28 @@ module.exports = grammar({
     // extras skip and, with the whitespace-free final class above, made the
     // lexer fold the separating space into the following `identifier`
     // (`label start:` gave name " start").
-    expression: $ => token(prec(-1, /[^\r\n#: \t]([^\r\n#]*[^\r\n#: \t])?/)),
+    //
+    // lssz: the token is string-aware. A single- or double-quoted string is
+    // one piece of it, so `define e = Character("E", color="#c8ffc8")`,
+    // `image black = Solid("#000")` and `$ c = "#fff"  # x` keep their
+    // quoted '#' (and quoted ':'), while a '#' outside quotes still ends the
+    // token and starts a comment. The edge rules above apply to the
+    // characters outside strings; a string may itself be the first or last
+    // piece. An unterminated quote is accepted only as the final piece and
+    // stops at the end of the line (see the EXPR_* constants at the top).
+    // A one-line triple-quoted string (`"""x # y"""`) lexes as `""`, then
+    // `"x # y"`, then `""`, so it also keeps its '#'.
+    expression: $ => token(prec(-1, choice(
+      EXPR_DQ_UNTERMINATED,
+      EXPR_SQ_UNTERMINATED,
+      seq(
+        choice(EXPR_EDGE_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING),
+        optional(seq(
+          repeat(choice(EXPR_INNER_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING)),
+          choice(EXPR_EDGE_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING, EXPR_DQ_UNTERMINATED, EXPR_SQ_UNTERMINATED),
+        )),
+      ),
+    ))),
 
     // The ':' that opens an indented body, plus an optional trailing comment
     // on the same line (`label start: # note`, `menu: # pick one`,
@@ -735,9 +774,13 @@ module.exports = grammar({
       prec.dynamic(1, alias($.identifier, $.expression)),
     ),
 
+    // lssz: a quoted string is one piece here too, like in `expression`, so
+    // `add Solid("#000")` keeps its quoted '#' instead of ending at `Solid("`
+    // (this token outranks the prec(-1) `expression`, so fixing only that
+    // one would not help screen lines).
     _bare_expr_head: $ => token(seq(
       /[a-zA-Z_][a-zA-Z0-9_]*/,
-      repeat1(/[^\n#: \t\r]/),
+      repeat1(choice(/[^\n#: \t\r'"]/, EXPR_DQ_STRING, EXPR_SQ_STRING)),
     )),
 
     // ATL (Animated Transform Language) — used by `transform` statements

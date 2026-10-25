@@ -49,4 +49,32 @@ describe('grammar contract relied on by the symbol index', () => {
       expect(root.hasError).toBe(false);
     });
   });
+
+  it('expression text stops before a real comment and keeps quoted #', async () => {
+    // A trailing comment after define/$ is still a local ERROR (nms4.27,
+    // Task 13); the value text must already stop before it and keep the
+    // quoted '#'.
+    await withTree('define e = Character("E", color="#c8ffc8")  # main\n', (root) => {
+      expect(root.descendantsOfType('define_statement')[0].childForFieldName('value')?.text).toBe(
+        'Character("E", color="#c8ffc8")',
+      );
+      expect(root.descendantsOfType('comment').map((n) => n.text)).toEqual(['# main']);
+    });
+    await withTree('label a:\n    $ c = "#fff"  # x\n', (root) => {
+      expect(root.descendantsOfType('dollar_statement')[0].childForFieldName('expression')?.text).toBe('c = "#fff"');
+      expect(root.descendantsOfType('comment').map((n) => n.text)).toEqual(['# x']);
+    });
+    await withTree('screen s():\n    add Solid("#000")\n', (root) => {
+      expect(root.hasError).toBe(false);
+      expect(root.descendantsOfType('property')[0].text).toBe('Solid("#000")');
+    });
+    // A half-typed, unterminated quote ends with its line.
+    await withTree('define x = "abc # half\ndefine y = 1\n', (root) => {
+      expect(root.hasError).toBe(false);
+      expect(root.descendantsOfType('define_statement').map((n) => n.childForFieldName('value')?.text)).toEqual([
+        '"abc # half',
+        '1',
+      ]);
+    });
+  });
 });

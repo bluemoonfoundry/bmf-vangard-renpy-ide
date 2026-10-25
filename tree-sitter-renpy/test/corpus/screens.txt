@@ -104,3 +104,29 @@ screen menu_frame():
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (expression))))))
+
+==================================================================
+Quoted # in a screen property call (lssz)
+==================================================================
+screen black_bg():
+    add Solid("#000") xsize 10
+    frame:
+        background Solid("#333")
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      (screen_language_statement
+        widget_tag: (identifier)
+        properties: (property (expression))))))
