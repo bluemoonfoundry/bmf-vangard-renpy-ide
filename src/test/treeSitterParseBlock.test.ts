@@ -137,7 +137,8 @@ describe('parseBlock', () => {
         .filter((i) => i.kind === 'screen-expression')
         .sort((a, b) => a.range[0] - b.range[0])
         .map((i) => source.slice(i.range[0], i.range[1]));
-      expect(texts).toEqual(['-10', '"x"', '-10', '100 + offset', '"img"', 'a, b']);
+      // q85r: the lone strings "x" and "img" are `string` values, not injected as Python.
+      expect(texts).toEqual(['-10', '-10', '100 + offset', 'a, b']);
     } finally {
       disposeParsedBlock(result);
     }

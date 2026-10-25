@@ -83,13 +83,13 @@ screen inv(items):
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))))
+        properties: (property (string))))))
 
 ==================
 Screen for, showif and elif headers with commas and not (nms4.14)
@@ -116,22 +116,22 @@ screen inv(items):
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))))
+        properties: (property (string))))))

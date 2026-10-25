@@ -112,7 +112,7 @@ screen s(): # sc
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property
-          (expression))))))
+          (string))))))
 
 ==================
 Comments after transform, ATL block, and inline ATL colons (nms4.9)
@@ -352,12 +352,12 @@ screen s():
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property
-        (expression)))
+        (string)))
     (comment)
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property
-        (expression)))))
+        (string)))))
 
 ==================
 Comment as first line of a screen body (nms4.25)
@@ -376,7 +376,7 @@ screen s():
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property
-        (expression)))))
+        (string)))))
 
 ==================
 Comment inside a nested screen widget body (nms4.25)
@@ -400,12 +400,12 @@ screen s():
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property
-          (expression)))
+          (string)))
       (comment)
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property
-          (expression))))))
+          (string))))))
 
 ==================
 Comment as first line of a transform body (nms4.25)
@@ -591,7 +591,7 @@ label a:
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property
-        (expression)))
+        (string)))
     (comment))
   (label_statement
     name: (identifier)

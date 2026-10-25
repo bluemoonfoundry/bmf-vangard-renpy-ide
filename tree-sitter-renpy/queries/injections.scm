@@ -101,7 +101,9 @@
 ; `expression` child of `property` regardless of which alternative
 ; produced it, so one pattern covers both — no separate
 ; `screen_language_statement`-scoped pattern is needed since `property`
-; nodes only ever occur there.
+; nodes only ever occur there. A value that is one quoted string is a
+; `string` child, not an `expression` (q85r), so it is not injected: it is
+; Ren'Py text, whose `[var]` interpolations renpyWalk.ts reads.
 ((property (expression) @injection.content)
  (#set! injection.language "python"))
 

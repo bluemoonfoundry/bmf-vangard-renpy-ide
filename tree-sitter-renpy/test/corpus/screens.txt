@@ -19,7 +19,7 @@ screen main_menu():
       widget_tag: (identifier)
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression)))
+        properties: (property (string)))
       (screen_language_statement
         widget_tag: (identifier)
         properties: (property (expression))
@@ -30,7 +30,7 @@ screen main_menu():
             properties: (property (expression)))
           (screen_language_statement
             widget_tag: (identifier)
-            properties: (property (expression))))))))
+            properties: (property (string))))))))
 
 ==================================================================
 C2: screen-language if/elif/else chain (regression guard)
@@ -57,18 +57,18 @@ label after:
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))))
+        properties: (property (string))))
     (screen_language_statement
       widget_tag: (identifier)
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression)))))
+        properties: (property (string)))))
   (label_statement
     name: (identifier)
     (return_statement)))
@@ -154,7 +154,7 @@ screen a():
         value: (expression)))
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property (expression))
+      properties: (property (string))
       properties: (property
         name: (identifier)
         value: (expression))
@@ -163,7 +163,7 @@ screen a():
         value: (expression)))
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property (expression))
+      properties: (property (string))
       properties: (property
         name: (identifier)
         value: (expression)))
@@ -193,7 +193,7 @@ screen a():
     parameters: (parameter_list)
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property (expression))
+      properties: (property (string))
       properties: (property
         name: (identifier)
         value: (expression)))
@@ -213,7 +213,7 @@ screen a():
         value: (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))
+        properties: (property (string))
         properties: (property
           name: (identifier)
           value: (expression))
@@ -243,7 +243,7 @@ screen a():
         value: (expression))
       (screen_language_statement
         widget_tag: (identifier)
-        properties: (property (expression))
+        properties: (property (string))
         properties: (property
           name: (identifier)
           value: (expression))))
@@ -257,7 +257,7 @@ screen a():
         value: (expression)))
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property (expression))
+      properties: (property (string))
       properties: (property
         name: (identifier)
         value: (expression))
@@ -280,16 +280,89 @@ screen a():
     parameters: (parameter_list)
     (screen_language_statement
       widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property
+        name: (identifier)
+        value: (expression))
+      properties: (property
+        name: (identifier)
+        value: (expression)))))
+
+==================================================================
+A quoted screen value is a string with text interpolation (q85r)
+==================================================================
+screen s():
+    text "Trust: [trust]" size 20
+    textbutton "Go [[literal]" action Return()
+    text '{b}[name]{/b}'
+    text """Triple [x]"""
+    button tooltip "Hi [name]" action NullAction()
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
+      properties: (property
+        name: (identifier)
+        value: (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property
+        name: (identifier)
+        value: (string))
+      properties: (property
+        name: (identifier)
+        value: (expression)))))
+
+==================================================================
+A value that only contains a string stays an expression (q85r)
+==================================================================
+screen s():
+    textbutton _("Start") action Jump("x")
+    text "a" + b
+    text "[a]" xalign 0.5
+
+---
+
+(source_file
+  (screen_statement
+    name: (identifier)
+    parameters: (parameter_list)
+    (screen_language_statement
+      widget_tag: (identifier)
       properties: (property (expression))
       properties: (property
         name: (identifier)
         value: (expression)))
     (screen_language_statement
       widget_tag: (identifier)
-      properties: (property (expression))
-      properties: (property
-        name: (identifier)
-        value: (expression))
+      properties: (property (expression)))
+    (screen_language_statement
+      widget_tag: (identifier)
+      properties: (property (string))
       properties: (property
         name: (identifier)
         value: (expression)))))

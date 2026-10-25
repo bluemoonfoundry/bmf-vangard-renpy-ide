@@ -152,6 +152,18 @@ describe('walkRenpyTree references', () => {
     expect(content.slice(name.range.start.offset, name.range.end.offset)).toBe('name');
   });
 
+  it('records interpolation reads in screen strings', async () => {
+    const content = 'screen s():\n    text "Trust: [trust] / [persistent.max]"\n    textbutton "Go [[literal]" tooltip "Hi [name]" action Return()\n';
+    const r = await walk(content);
+    expect(refs(r)).toEqual([
+      ['variable:trust', 'read', 'interpolation'],
+      ['variable:persistent.max', 'read', 'interpolation'],
+      ['variable:name', 'read', 'interpolation'],
+    ]);
+    const trust = r.references[0];
+    expect(content.slice(trust.range.start.offset, trust.range.end.offset)).toBe('trust');
+  });
+
   it('records for-loop targets as writes', async () => {
     const r = await walk('for i, item in items:\n    "x"\n');
     expect(refs(r)).toEqual([['variable:i', 'write', 'statement'], ['variable:item', 'write', 'statement']]);

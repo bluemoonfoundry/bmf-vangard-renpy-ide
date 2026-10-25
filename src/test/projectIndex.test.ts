@@ -114,6 +114,17 @@ async function inlineIndex(files: Record<string, string>): Promise<ProjectSymbol
   return resolveProjectIndex(contributions);
 }
 
+describe('resolveProjectIndex (screen strings)', () => {
+  it('resolves a screen-text interpolation to its default', async () => {
+    const index = await inlineIndex({
+      'init.rpy': 'default trust = 0\n',
+      'screens.rpy': 'screen stats():\n    text "Trust: [trust]"\n',
+    });
+    expect(refSummary(index, 'variable:trust')).toEqual(['read@game/screens.rpy:2']);
+    expect(index.unresolved).toEqual([]);
+  });
+});
+
 // nms4.13: names on PYTHON_IGNORED_NAMES (time, random, id, ...) are often user
 // variables. They are dropped only when nothing in the project defines them.
 describe('resolveProjectIndex (user variables named like builtins)', () => {

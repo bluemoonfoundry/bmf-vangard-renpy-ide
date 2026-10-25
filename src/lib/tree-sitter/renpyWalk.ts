@@ -192,6 +192,15 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         break;
       }
 
+      // A screen value that is one quoted string (`text "Trust: [trust]"`,
+      // `tooltip "Hi [name]"`) is Ren'Py text, positional or keyword value.
+      case 'property': {
+        for (const child of node.namedChildren) {
+          if (child.type === 'string') interpolations(child);
+        }
+        break;
+      }
+
       case 'screen_statement':
       case 'transform_statement':
       case 'style_statement': {

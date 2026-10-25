@@ -777,7 +777,7 @@ module.exports = grammar({
     // followed by `name value` keyword pairs (`action Start()`, `size 20`),
     // in that order, as Ren'Py's screen parser reads them. Both kinds are
     // `property` nodes; a keyword pair has `name`/`value` fields and a
-    // positional value is a bare `expression` child.
+    // positional value is a bare `expression` (or, q85r, `string`) child.
     //
     // nms4.14: a value is one Python expression (`_screen_value` below)
     // that ends where the next property name starts or at the end of the
@@ -803,7 +803,27 @@ module.exports = grammar({
     // followed by a pair (`textbutton title action Foo`) has only one
     // reading with a pair in it, where a free mix of the two would tie
     // `(title) (action Foo)` with `(title action) (Foo)`.
+    //
+    // q85r: a value that is exactly one quoted string (`text "Trust:
+    // [trust]"`, `tooltip "Hi [name]"`) is a `string`, like say text, so the
+    // symbol index reads its `[var]` interpolations and it is not injected
+    // as Python. `_screen_string` (one terminated single, double or triple
+    // quoted string on one line) matches the same text as `_screen_value`
+    // for such a value and wins that equal-length tie because it is defined
+    // first: keep it above `_screen_value`. Do not give it a lexical `prec`
+    // instead; that would also beat a *longer* `_screen_value` and split
+    // `"a" + b` after `"a"`. A value that only contains a string
+    // (`_("Start")`, `"a" + b`, `"a", "b"`) is longer as a `_screen_value`
+    // (or `_screen_value_list`), so it stays an `expression`.
+    _screen_string: $ => token(choice(
+      seq('"""', repeat(seq(optional(/""?/), /[^"\\\r\n]|\\[^\r\n]/)), '"""'),
+      seq("'''", repeat(seq(optional(/''?/), /[^'\\\r\n]|\\[^\r\n]/)), "'''"),
+      EXPR_DQ_STRING,
+      EXPR_SQ_STRING,
+    )),
+
     _positional_property: $ => choice(
+      alias($._screen_string, $.string),
       alias($._screen_value, $.expression),
       alias($.identifier, $.expression),
     ),

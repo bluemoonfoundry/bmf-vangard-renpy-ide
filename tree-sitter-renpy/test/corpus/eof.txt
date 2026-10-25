@@ -88,7 +88,7 @@ screen s():
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property
-        (expression)))))
+        (string)))))
 
 ==================
 Transform body at EOF without a trailing newline (nms4.8)
