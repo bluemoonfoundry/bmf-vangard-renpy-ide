@@ -458,7 +458,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -617,7 +625,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -821,7 +837,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -1051,7 +1075,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -1222,6 +1254,22 @@
     }
   },
   {
+    "type": "init_offset_statement",
+    "named": true,
+    "fields": {
+      "offset": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "init_python_statement",
     "named": true,
     "fields": {
@@ -1262,6 +1310,184 @@
       "types": [
         {
           "type": "comment",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "init_statement",
+    "named": true,
+    "fields": {
+      "priority": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "call_screen_statement",
+          "named": true
+        },
+        {
+          "type": "call_statement",
+          "named": true
+        },
+        {
+          "type": "camera_statement",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "default_statement",
+          "named": true
+        },
+        {
+          "type": "define_statement",
+          "named": true
+        },
+        {
+          "type": "dollar_statement",
+          "named": true
+        },
+        {
+          "type": "expression_statement",
+          "named": true
+        },
+        {
+          "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "hide_screen_statement",
+          "named": true
+        },
+        {
+          "type": "hide_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
+          "named": true
+        },
+        {
+          "type": "image_statement",
+          "named": true
+        },
+        {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
+          "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
+          "named": true
+        },
+        {
+          "type": "jump_statement",
+          "named": true
+        },
+        {
+          "type": "label_statement",
+          "named": true
+        },
+        {
+          "type": "layeredimage_statement",
+          "named": true
+        },
+        {
+          "type": "menu_statement",
+          "named": true
+        },
+        {
+          "type": "nvl_statement",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
+          "named": true
+        },
+        {
+          "type": "play_statement",
+          "named": true
+        },
+        {
+          "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
+          "named": true
+        },
+        {
+          "type": "return_statement",
+          "named": true
+        },
+        {
+          "type": "say_statement",
+          "named": true
+        },
+        {
+          "type": "scene_statement",
+          "named": true
+        },
+        {
+          "type": "screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_screen_statement",
+          "named": true
+        },
+        {
+          "type": "show_statement",
+          "named": true
+        },
+        {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
+          "type": "style_statement",
+          "named": true
+        },
+        {
+          "type": "transform_statement",
+          "named": true
+        },
+        {
+          "type": "translate_statement",
+          "named": true
+        },
+        {
+          "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
+          "named": true
+        },
+        {
+          "type": "while_statement",
+          "named": true
+        },
+        {
+          "type": "with_statement",
           "named": true
         }
       ]
@@ -1369,7 +1595,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -1619,7 +1853,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -2444,7 +2686,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -2803,7 +3053,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -2970,7 +3228,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -3160,7 +3426,15 @@
           "named": true
         },
         {
+          "type": "init_offset_statement",
+          "named": true
+        },
+        {
           "type": "init_python_statement",
+          "named": true
+        },
+        {
+          "type": "init_statement",
           "named": true
         },
         {
@@ -3440,6 +3714,10 @@
   },
   {
     "type": "nvl",
+    "named": false
+  },
+  {
+    "type": "offset",
     "named": false
   },
   {

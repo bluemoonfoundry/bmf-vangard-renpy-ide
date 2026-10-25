@@ -1,0 +1,78 @@
+==================
+init offset (nms4.33)
+==================
+init offset = -2
+
+init offset = 5
+
+---
+
+(source_file
+  (init_offset_statement offset: (expression))
+  (init_offset_statement offset: (expression)))
+
+==================
+init blocks with and without a priority (nms4.33)
+==================
+init:
+    define x = 1
+
+init 5:
+    image bg = "a.png"
+    default y = 2
+
+init -1:
+    $ z = 3
+
+---
+
+(source_file
+  (init_statement
+    (define_statement name: (identifier) value: (expression)))
+  (init_statement
+    priority: (expression)
+    (image_statement name: (identifier) value: (expression))
+    (default_statement name: (identifier) value: (expression)))
+  (init_statement
+    priority: (expression)
+    (dollar_statement expression: (expression))))
+
+==================
+init blocks next to init python (nms4.33)
+==================
+init offset = -2
+
+init python:
+    a = 1
+
+init -5 python:
+    b = 2
+
+init python in store:
+    c = 3
+
+init 1:
+    define d = 4
+
+---
+
+(source_file
+  (init_offset_statement offset: (expression))
+  (init_python_statement body: (python_block))
+  (init_python_statement priority: (expression) body: (python_block))
+  (init_python_statement store: (identifier) body: (python_block))
+  (init_statement
+    priority: (expression)
+    (define_statement name: (identifier) value: (expression))))
+
+==================
+Half-typed init block with no body (nms4.33)
+==================
+init:
+define x = 1
+
+---
+
+(source_file
+  (init_statement)
+  (define_statement name: (identifier) value: (expression)))

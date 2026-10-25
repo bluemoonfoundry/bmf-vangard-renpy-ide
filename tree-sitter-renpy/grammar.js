@@ -128,6 +128,8 @@ module.exports = grammar({
       $.say_statement,
       $.python_statement,
       $.init_python_statement,
+      $.init_offset_statement,
+      $.init_statement,
       $.dollar_statement,
       $.define_statement,
       $.default_statement,
@@ -514,6 +516,27 @@ module.exports = grammar({
       optional('hide'),
       optional(seq('in', field('store', $._store_name))),
       pythonBody($),
+    ),
+
+    // nms4.33: `init offset = -2` (the first line of every default gui.rpy
+    // and screens.rpy) shifts the priority of the init code that follows in
+    // the file. `offset` is a keyword only right after `init`.
+    init_offset_statement: $ => seq(
+      'init',
+      'offset',
+      '=',
+      field('offset', $.expression),
+      $._newline,
+    ),
+
+    // nms4.33: `init:` / `init 5:` / `init -1:` runs an indented block of
+    // ordinary statements at init time. The priority shares
+    // `init_python_statement`'s token, so `init 5` is told apart from
+    // `init 5 python` only at the next token (':' or 'python').
+    init_statement: $ => seq(
+      'init',
+      optional(field('priority', alias(/-?[0-9]+/, $.expression))),
+      $._block,
     ),
 
     // nms4.15: a Python body is opaque. It used to be an ordinary `_block`

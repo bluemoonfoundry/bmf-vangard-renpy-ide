@@ -86,6 +86,11 @@ describe('walkRenpyTree definitions', () => {
     const r = await walk('init 5 python:\n    x = 1\npython:\n    y = 2\n');
     expect(r.pythonBlocks.map((p) => [p.kind, p.priority])).toEqual([['init-python', 5], ['python', null]]);
   });
+
+  it('records definitions inside init blocks (nms4.33)', async () => {
+    const r = await walk('init offset = -2\ninit 1:\n    define e = Character("E")\n    default seen = False\n');
+    expect(defs(r)).toEqual([['character:e', 'define'], ['variable:seen', 'default']]);
+  });
 });
 
 describe('walkRenpyTree references', () => {
