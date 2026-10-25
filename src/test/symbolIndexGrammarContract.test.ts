@@ -77,4 +77,30 @@ describe('grammar contract relied on by the symbol index', () => {
       ]);
     });
   });
+  it('at clause takes calls, stops at a top-level with/as or the ATL colon', async () => {
+    const source = [
+      'label a:',
+      '    show eileen happy at Transform(xzoom=-1.0), right',
+      '    scene bg at Transform(blur=4)',
+      '    show e at truecenter with dissolve',
+      '    show e at Transform(matrixcolor=TintMatrix("#f00")) as e2 with dissolve',
+      '    show e at left:',
+      '        xalign 0.5',
+      '',
+    ].join('\n');
+    await withTree(source, (root) => {
+      expect(root.hasError).toBe(false);
+      const nodes = root.descendantsOfType(['show_statement', 'scene_statement']);
+      expect(nodes.map((n) => n.childForFieldName('at_expr')?.text)).toEqual([
+        'Transform(xzoom=-1.0), right',
+        'Transform(blur=4)',
+        'truecenter',
+        'Transform(matrixcolor=TintMatrix("#f00"))',
+        'left',
+      ]);
+      expect(nodes.map((n) => n.childForFieldName('transition')?.text ?? null)).toEqual([
+        null, null, 'dissolve', 'dissolve', null,
+      ]);
+    });
+  });
 });

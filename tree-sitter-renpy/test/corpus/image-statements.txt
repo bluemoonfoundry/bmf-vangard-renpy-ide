@@ -132,3 +132,42 @@ transform t:
     (atl_transform_property
       property: (identifier)
       value: (expression))))
+
+==================
+show at a Transform call (aj2e)
+==================
+label a:
+    show eileen happy at Transform(xzoom=-1.0), right
+    scene bg at Transform(blur=4)
+    show e at truecenter with dissolve
+    show e at Transform(matrixcolor=TintMatrix("#f00")) as e2 with dissolve
+    show e at left:
+        xalign 0.5
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      image: (identifier)
+      at_expr: (expression))
+    (scene_statement
+      image: (identifier)
+      at_expr: (expression))
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      transition: (expression))
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      as_name: (identifier)
+      transition: (expression))
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      atl: (atl_transform_property
+        property: (identifier)
+        value: (expression)))))

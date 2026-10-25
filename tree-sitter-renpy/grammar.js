@@ -16,6 +16,24 @@ const EXPR_EDGE_CHAR = /[^\r\n#:'" \t]/;
 // Any other character outside a string: anything but '#' and quotes.
 const EXPR_INNER_CHAR = /[^\r\n#'"]/;
 
+// aj2e: pieces of the `at`-clause value (`_at_expr_blob`). Outside brackets
+// a value item is any run of characters except blanks, ',', ':', '#',
+// quotes and brackets; a quoted string or a bracket group is one piece of
+// it. Inside a group anything goes except '#', a quote or a line end (a
+// string is one piece there too), and groups nest up to AT_GROUP_DEPTH
+// levels: a token is a regular language, so the nesting has to be bounded.
+const AT_ITEM_CHAR = /[^\r\n#:'" \t,()\[\]{}]/;
+const AT_GROUP_CHAR = /[^\r\n#'"()\[\]{}]/;
+const AT_GROUP_DEPTH = 4;
+function atGroup(depth) {
+  const pieces = [AT_GROUP_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING];
+  if (depth > 1) pieces.push(atGroup(depth - 1));
+  return seq(/[(\[{]/, repeat(choice(...pieces)), /[)\]}]/);
+}
+function atItem() {
+  return repeat1(choice(AT_ITEM_CHAR, EXPR_DQ_STRING, EXPR_SQ_STRING, atGroup(AT_GROUP_DEPTH)));
+}
+
 module.exports = grammar({
   name: 'renpy',
 
@@ -505,8 +523,8 @@ module.exports = grammar({
       ),
     ),
 
-    // `at_expr` is a comma-separated name list (transform names, e.g.
-    // `at right` or `at right, appear`), reusing the same narrow-blob
+    // `at_expr` is a comma-separated transform list (e.g. `at right` or
+    // `at right, appear`; since aj2e also calls, see `_at_expr_blob`), reusing the same narrow-blob
     // technique as `_for_target_blob` above rather than the shared
     // `$.expression` regex. This matters because `at_expr` is *not* the
     // last optional clause in scene/show_statement — `as`/`with` clauses
@@ -541,9 +559,20 @@ module.exports = grammar({
       choice($._newline, field('atl', $._atl_block)),
     ),
 
+    // aj2e: each comma-separated item may be a call or any other
+    // expression without top-level blanks (`at Transform(xzoom=-1.0),
+    // right`, `at Transform(matrixcolor=TintMatrix("#f00"))`). Blanks are
+    // allowed only around the top-level commas and inside brackets, so the
+    // token still ends at the blank before a following `with`/`as` keyword
+    // (or `behind`/`onlayer`/`zorder`, which this grammar does not parse
+    // yet), at a top-level ':' that opens an inline ATL block (`show e at
+    // left:`), at an unquoted '#', and at the end of the line. Strings are
+    // one piece, as in `expression` (lssz). Not supported: top-level
+    // operators with blanks around them (`at a if c else b`) and brackets
+    // nested deeper than AT_GROUP_DEPTH.
     _at_expr_blob: $ => token(seq(
-      /[a-zA-Z_][a-zA-Z0-9_]*/,
-      repeat(seq(/[ \t]*,[ \t]*/, /[a-zA-Z_][a-zA-Z0-9_]*/)),
+      atItem(),
+      repeat(seq(/[ \t]*,[ \t]*/, atItem())),
     )),
 
     // nms4.11: `show screen` / `hide screen` / `call screen`. Without these,
