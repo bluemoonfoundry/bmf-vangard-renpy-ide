@@ -134,6 +134,11 @@ describe('walkRenpyTree references', () => {
     ]);
   });
 
+  it('ends a hide image name before its onlayer clause (nms4.30)', async () => {
+    const r = await walk('label a:\n    hide e onlayer over\n');
+    expect(refs(r)).toEqual([['image:e', 'hide', 'statement']]);
+  });
+
   it('records screen references from show/hide/call screen and use', async () => {
     const r = await walk('label a:\n    show screen hud\n    hide screen hud\n    call screen inv(1)\nscreen inv(n):\n    use item_list(n)\n');
     expect(refs(r)).toEqual([

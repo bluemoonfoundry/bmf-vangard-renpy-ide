@@ -670,6 +670,9 @@ module.exports = grammar({
       choice($._line_end, field('atl', $._atl_block)),
     ),
 
+    // The one specifier clause `hide` takes too (nms4.30).
+    _onlayer_clause: $ => seq('onlayer', field('layer', $.identifier)),
+
     _image_specifier_clause: $ => choice(
       seq('at', field('at_expr', choice(
         alias($._at_expr_blob, $.expression),
@@ -677,7 +680,7 @@ module.exports = grammar({
       ))),
       seq('as', field('as_name', $.identifier)),
       seq('behind', field('behind', $.identifier), repeat(seq(',', field('behind', $.identifier)))),
-      seq('onlayer', field('layer', $.identifier)),
+      $._onlayer_clause,
       seq('zorder', field('zorder', $._simple_expression)),
     ),
 
@@ -734,9 +737,12 @@ module.exports = grammar({
       $._line_end,
     ),
 
+    // `hide e onlayer over`: of the show/scene specifier clauses, Ren'Py's
+    // hide takes only `onlayer`, so the image name ends before it (nms4.30).
     hide_statement: $ => seq(
       'hide',
       field('image', repeat1($.identifier)),
+      optional($._onlayer_clause),
       optional(seq('with', field('transition', $.expression))),
       $._line_end,
     ),

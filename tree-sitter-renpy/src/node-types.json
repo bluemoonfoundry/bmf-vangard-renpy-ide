@@ -1117,6 +1117,16 @@
           }
         ]
       },
+      "layer": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "transition": {
         "multiple": false,
         "required": false,

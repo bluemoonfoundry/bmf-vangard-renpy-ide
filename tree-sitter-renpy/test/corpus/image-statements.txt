@@ -251,3 +251,27 @@ label a:
     (scene_statement
       layer: (identifier)
       transition: (expression))))
+
+==================
+hide with an onlayer clause (nms4.30)
+==================
+label a:
+    hide e onlayer over
+    hide e happy onlayer master with dissolve
+    hide onlayer_bg
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (hide_statement
+      image: (identifier)
+      layer: (identifier))
+    (hide_statement
+      image: (identifier)
+      image: (identifier)
+      layer: (identifier)
+      transition: (expression))
+    (hide_statement
+      image: (identifier))))
