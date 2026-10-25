@@ -42,3 +42,39 @@ menu:
 
 (source_file
   (ERROR))
+
+==================
+Half-typed jump and call with no target stay local (nms4.40)
+==================
+label a:
+    e "one"
+    jump
+    e "two"
+label b:
+    e "one"
+    call
+    e "two"
+label c:
+    jump
+label d:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (jump_statement)
+    (say_statement character: (identifier) text: (string)))
+  (label_statement
+    name: (identifier)
+    (say_statement character: (identifier) text: (string))
+    (call_statement)
+    (say_statement character: (identifier) text: (string)))
+  (label_statement
+    name: (identifier)
+    (jump_statement))
+  (label_statement
+    name: (identifier)
+    (return_statement)))

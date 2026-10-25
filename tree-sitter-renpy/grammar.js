@@ -377,18 +377,28 @@ module.exports = grammar({
     parameter_list: $ => seq('(', optional(alias($._parameter_blob, $.expression)), ')'),
     _parameter_blob: $ => /[^\r\n#)]+/,
 
+    // nms4.40: the target is optional so that a half-typed `jump` / `call`
+    // line (nothing typed after the keyword yet) stays one target-less
+    // statement, as a bodyless `label a:` header does. With the target
+    // required, the scanner never emits the NEWLINE (it is not valid after
+    // the keyword), and the ERROR swallowed the line before, ended the label
+    // and stripped the next label of its name.
     jump_statement: $ => seq(
       'jump',
-      optional('expression'),
-      field('target', choice($._label_name, $.expression)),
+      optional(seq(
+        optional('expression'),
+        field('target', choice($._label_name, $.expression)),
+      )),
       $._line_end,
     ),
 
     call_statement: $ => seq(
       'call',
-      optional('expression'),
-      field('target', choice($._label_name, $.expression)),
-      optional(seq('from', field('from_label', $._label_name))),
+      optional(seq(
+        optional('expression'),
+        field('target', choice($._label_name, $.expression)),
+        optional(seq('from', field('from_label', $._label_name))),
+      )),
       $._line_end,
     ),
 

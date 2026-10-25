@@ -112,6 +112,16 @@ describe('walkRenpyTree references', () => {
     expect(r.references[0].enclosingLabel).toBe('label:start');
   });
 
+  it('records nothing for a half-typed jump or call and keeps the next label (nms4.40)', async () => {
+    const r = await walk('label a:\n    e "one"\n    jump\nlabel b:\n    call\n    jump c\n');
+    expect(defs(r)).toEqual([['label:a', 'label'], ['label:b', 'label']]);
+    expect(refs(r)).toEqual([
+      ['character:e', 'speaker', 'statement'],
+      ['label:c', 'jump', 'statement'],
+    ]);
+    expect(r.references.map((x) => x.enclosingLabel)).toEqual(['label:a', 'label:b']);
+  });
+
   it('records show/scene/hide image references by full name', async () => {
     const content = 'label a:\n    scene bg room\n    show eileen happy at left\n    hide eileen\n';
     const r = await walk(content);

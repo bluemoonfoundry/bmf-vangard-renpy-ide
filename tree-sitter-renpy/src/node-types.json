@@ -414,7 +414,7 @@
       },
       "target": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "expression",
@@ -1743,7 +1743,7 @@
     "fields": {
       "target": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "expression",
