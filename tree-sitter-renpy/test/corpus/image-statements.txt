@@ -200,3 +200,54 @@ image anim:
     atl: (atl_pause
       duration: (expression))
     atl: (atl_repeat)))
+
+==================
+show and scene with behind, onlayer and zorder clauses (nms4.30)
+==================
+label a:
+    show e at left behind bg
+    show e onlayer over zorder 2
+    show e as e2 behind bg at right
+    show e happy behind a, b with dissolve
+    show e zorder z + 1 at left:
+        xalign 0.5
+    scene bg onlayer master
+    scene onlayer over with fade
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      at_expr: (expression)
+      behind: (identifier))
+    (show_statement
+      image: (identifier)
+      layer: (identifier)
+      zorder: (expression))
+    (show_statement
+      image: (identifier)
+      as_name: (identifier)
+      behind: (identifier)
+      at_expr: (expression))
+    (show_statement
+      image: (identifier)
+      image: (identifier)
+      behind: (identifier)
+      behind: (identifier)
+      transition: (expression))
+    (show_statement
+      image: (identifier)
+      zorder: (expression)
+      at_expr: (expression)
+      atl: (atl_transform_property
+        property: (identifier)
+        value: (expression)))
+    (scene_statement
+      image: (identifier)
+      layer: (identifier))
+    (scene_statement
+      layer: (identifier)
+      transition: (expression))))

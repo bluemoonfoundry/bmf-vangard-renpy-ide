@@ -2026,8 +2026,18 @@
     "type": "scene_statement",
     "named": true,
     "fields": {
+      "as_name": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "at_expr": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -2082,7 +2092,27 @@
           }
         ]
       },
+      "behind": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "image": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "layer": {
         "multiple": true,
         "required": false,
         "types": [
@@ -2094,6 +2124,16 @@
       },
       "transition": {
         "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "zorder": {
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -2225,7 +2265,7 @@
     "named": true,
     "fields": {
       "as_name": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -2235,7 +2275,7 @@
         ]
       },
       "at_expr": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -2290,6 +2330,16 @@
           }
         ]
       },
+      "behind": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "image": {
         "multiple": true,
         "required": true,
@@ -2300,8 +2350,28 @@
           }
         ]
       },
+      "layer": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "transition": {
         "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "zorder": {
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -3217,6 +3287,10 @@
     "named": false
   },
   {
+    "type": ",",
+    "named": false
+  },
+  {
     "type": ":",
     "named": false
   },
@@ -3230,6 +3304,10 @@
   },
   {
     "type": "at",
+    "named": false
+  },
+  {
+    "type": "behind",
     "named": false
   },
   {
@@ -3365,6 +3443,10 @@
     "named": false
   },
   {
+    "type": "onlayer",
+    "named": false
+  },
+  {
     "type": "parallel",
     "named": false
   },
@@ -3462,6 +3544,10 @@
   },
   {
     "type": "with",
+    "named": false
+  },
+  {
+    "type": "zorder",
     "named": false
   }
 ]

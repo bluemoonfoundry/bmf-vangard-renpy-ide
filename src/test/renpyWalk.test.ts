@@ -111,6 +111,16 @@ describe('walkRenpyTree references', () => {
     expect(content.slice(show.range.start.offset, show.range.end.offset)).toBe('eileen happy');
   });
 
+  it('ends the image name before onlayer/zorder/behind clauses (nms4.30)', async () => {
+    const content = 'label a:\n    show e happy onlayer over\n    show e zorder 2 behind bg\n    scene bg room onlayer master\n';
+    const r = await walk(content);
+    expect(refs(r)).toEqual([
+      ['image:e happy', 'show', 'statement'],
+      ['image:e', 'show', 'statement'],
+      ['image:bg room', 'scene', 'statement'],
+    ]);
+  });
+
   it('records screen references from show/hide/call screen and use', async () => {
     const r = await walk('label a:\n    show screen hud\n    hide screen hud\n    call screen inv(1)\nscreen inv(n):\n    use item_list(n)\n');
     expect(refs(r)).toEqual([

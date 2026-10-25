@@ -582,29 +582,31 @@ module.exports = grammar({
       ),
     ),
 
-    // `at_expr` is a comma-separated transform list (e.g. `at right` or
-    // `at right, appear`; since aj2e also calls, see `_at_expr_blob`), reusing the same narrow-blob
-    // technique as `_for_target_blob` above rather than the shared
-    // `$.expression` regex. This matters because `at_expr` is *not* the
-    // last optional clause in scene/show_statement — `as`/`with` clauses
-    // can follow it — and `$.expression`'s stop set (only `#`/`:`/'\n')
-    // has no notion of a keyword boundary, so it would greedily swallow
-    // straight through " with dissolve" as part of the at-expression
-    // (verified: this happened with the brief's literal `$.expression`
-    // field before this fix). A comma-list token naturally stops at the
-    // first following space that isn't part of a `, name` continuation,
-    // which is exactly the boundary we need here.
-    // Final-review fix I5: both rules used to end in a bare, required
-    // `$._newline`, so an *inline* ATL block attached directly to the
+    // show/scene: an image name (a run of identifiers), then the image
+    // specifier clauses in any order, as Ren'Py's parser reads them —
+    // `at` (transform list), `as` (tag), `behind` (comma list of tags),
+    // `onlayer` (layer) and `zorder` (simple expression), each at most once
+    // in Ren'Py but repeats are accepted here — then an optional `with`
+    // transition, then a newline or an inline ATL block. nms4.30: before
+    // `behind`/`onlayer`/`zorder` were parsed, `show e onlayer over zorder
+    // 2` gave the image name `e onlayer over zorder` (a wrong `image:`
+    // reference in the symbol index). They are keywords only here, so the
+    // image name ends before them and they stay usable as names elsewhere.
+    //
+    // `at_expr` uses the narrow `_at_expr_blob` token, and `zorder` takes
+    // one `_simple_expression`, because neither is the last thing on the
+    // line: `$.expression`'s stop set (only `#`, `:` and the line end) has
+    // no notion of a keyword boundary and would run through " with dissolve".
+    //
+    // Final-review fix I5: an inline ATL block attached directly to the
     // statement — `show eileen:` / `    xalign 0.5`, extremely common real
-    // Ren'Py that avoids needing a separate named `transform` — produced a
-    // whole-statement ERROR. `_atl_block` (shared with
-    // `transform_statement`, whose body shape it was factored out of) is
-    // now offered as an alternative terminator to the plain newline.
+    // Ren'Py that avoids needing a separate named `transform` — is offered
+    // as an alternative terminator to the plain newline. `_atl_block` is
+    // shared with `transform_statement`.
     scene_statement: $ => seq(
       'scene',
       optional(field('image', repeat1($.identifier))),
-      optional(seq('at', field('at_expr', alias($._at_expr_blob, $.expression)))),
+      repeat($._image_specifier_clause),
       optional(seq('with', field('transition', $.expression))),
       choice($._newline, field('atl', $._atl_block)),
     ),
@@ -612,19 +614,25 @@ module.exports = grammar({
     show_statement: $ => seq(
       'show',
       field('image', repeat1($.identifier)),
-      optional(seq('at', field('at_expr', alias($._at_expr_blob, $.expression)))),
-      optional(seq('as', field('as_name', $.identifier))),
+      repeat($._image_specifier_clause),
       optional(seq('with', field('transition', $.expression))),
       choice($._newline, field('atl', $._atl_block)),
+    ),
+
+    _image_specifier_clause: $ => choice(
+      seq('at', field('at_expr', alias($._at_expr_blob, $.expression))),
+      seq('as', field('as_name', $.identifier)),
+      seq('behind', field('behind', $.identifier), repeat(seq(',', field('behind', $.identifier)))),
+      seq('onlayer', field('layer', $.identifier)),
+      seq('zorder', field('zorder', $._simple_expression)),
     ),
 
     // aj2e: each comma-separated item may be a call or any other
     // expression without top-level blanks (`at Transform(xzoom=-1.0),
     // right`, `at Transform(matrixcolor=TintMatrix("#f00"))`). Blanks are
     // allowed only around the top-level commas and inside brackets, so the
-    // token still ends at the blank before a following `with`/`as` keyword
-    // (or `behind`/`onlayer`/`zorder`, which this grammar does not parse
-    // yet), at a top-level ':' that opens an inline ATL block (`show e at
+    // token still ends at the blank before a following `with`/`as`/
+    // `behind`/`onlayer`/`zorder` keyword, at a top-level ':' that opens an inline ATL block (`show e at
     // left:`), at an unquoted '#', and at the end of the line. Strings are
     // one piece, as in `expression` (lssz). Not supported: top-level
     // operators with blanks around them (`at a if c else b`) and brackets
@@ -986,15 +994,15 @@ module.exports = grammar({
     atl_interpolation: $ => seq(
       choice(
         field('warper', alias($._atl_warper, $.identifier)),
-        seq('warp', field('warper', $._atl_value)),
+        seq('warp', field('warper', $._simple_expression)),
       ),
-      field('duration', $._atl_value),
+      field('duration', $._simple_expression),
       repeat(choice(
         alias($._atl_property_pair, $.atl_transform_property),
-        seq('knot', field('knot', $._atl_value)),
+        seq('knot', field('knot', $._simple_expression)),
         'clockwise',
         'counterclockwise',
-        seq('circles', field('circles', $._atl_value)),
+        seq('circles', field('circles', $._simple_expression)),
       )),
       choice(
         $._newline,
@@ -1019,13 +1027,14 @@ module.exports = grammar({
 
     _atl_property_pair: $ => seq(
       field('property', $.identifier),
-      field('value', $._atl_value),
+      field('value', $._simple_expression),
     ),
 
-    // One ATL simple expression inside an interpolation line. A lone word
+    // One simple expression (Ren'Py's `simple_expression`): an ATL
+    // interpolation's values and a show/scene `zorder`. A lone word
     // lexes as `identifier` (it wins the equal-length tie with
     // `_screen_value`, as in `_positional_property`), so both are offered.
-    _atl_value: $ => choice(
+    _simple_expression: $ => choice(
       alias($._screen_value, $.expression),
       alias($.identifier, $.expression),
     ),
