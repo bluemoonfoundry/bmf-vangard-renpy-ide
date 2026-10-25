@@ -152,3 +152,21 @@ screen s:
     (screen_language_statement
       widget_tag: (identifier)
       properties: (property (string)))))
+
+==================
+Open bracket followed directly by a keyword line ends the value (nms4.35)
+==================
+label a:
+    $ y = foo(
+label b:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (dollar_statement expression: (expression)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
