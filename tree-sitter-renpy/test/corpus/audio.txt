@@ -1,0 +1,84 @@
+==================
+Play, queue, stop and voice inside a label (nms4.20)
+==================
+label a:
+    play music "a.ogg" fadein 1.0
+    queue sound "b.ogg"
+    stop music fadeout 0.5
+    voice "v.ogg"
+    play sound ["a.ogg", "b.ogg"]
+    play music main_theme loop
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (play_statement
+      channel: (identifier)
+      file: (string)
+      options: (expression))
+    (queue_statement
+      channel: (identifier)
+      file: (string))
+    (stop_statement
+      channel: (identifier)
+      options: (expression))
+    (voice_statement
+      file: (string))
+    (play_statement
+      channel: (identifier)
+      file: (expression))
+    (play_statement
+      channel: (identifier)
+      file: (expression)
+      options: (expression))))
+
+==================
+Audio file names containing # (nms4.20)
+==================
+play sound "sfx/#1.ogg"
+queue music ["a.ogg", "sfx/#2.ogg"] loop
+
+---
+
+(source_file
+  (play_statement
+    channel: (identifier)
+    file: (string))
+  (queue_statement
+    channel: (identifier)
+    file: (expression)
+    options: (expression)))
+
+==================
+Dotted audio variable and several options (nms4.20)
+==================
+play music audio.theme fadeout 1.0 fadein 2.0 if_changed
+
+---
+
+(source_file
+  (play_statement
+    channel: (identifier)
+    file: (expression)
+    options: (expression)))
+
+==================
+Bare stop and voice sustain (nms4.20)
+==================
+label a:
+    stop sound
+    voice sustain
+    "Hello"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (stop_statement
+      channel: (identifier))
+    (voice_statement)
+    (say_statement
+      text: (string))))

@@ -74,6 +74,10 @@ module.exports = grammar({
       $.hide_screen_statement,
       $.call_screen_statement,
       $.with_statement,
+      $.play_statement,
+      $.queue_statement,
+      $.stop_statement,
+      $.voice_statement,
       $.screen_statement,
       $.transform_statement,
       $.translate_statement,
@@ -526,6 +530,68 @@ module.exports = grammar({
       field('transition', $.expression),
       $._newline,
     ),
+
+    // nms4.20: audio statements. Before these existed, `play music "a.ogg"`
+    // parsed as dialogue spoken by `play` and `stop music` as an
+    // unknown_statement. The file is a bounded value (a string, a dotted
+    // name, or a bracketed list) rather than the greedy `expression`, which
+    // would run on through the option clauses; the clauses (`fadein 1.0`,
+    // `loop`, `if_changed`, `volume 0.5`, ...) are kept as one opaque
+    // `options` expression.
+    play_statement: $ => seq(
+      'play',
+      field('channel', $.identifier),
+      field('file', $._audio_file),
+      optional(field('options', $.expression)),
+      $._newline,
+    ),
+
+    queue_statement: $ => seq(
+      'queue',
+      field('channel', $.identifier),
+      field('file', $._audio_file),
+      optional(field('options', $.expression)),
+      $._newline,
+    ),
+
+    stop_statement: $ => seq(
+      'stop',
+      field('channel', $.identifier),
+      optional(field('options', $.expression)),
+      $._newline,
+    ),
+
+    // `voice "v.ogg"`, or `voice sustain` (keep the previous line's voice
+    // playing).
+    voice_statement: $ => seq(
+      'voice',
+      choice('sustain', field('file', $._audio_file)),
+      $._newline,
+    ),
+
+    _audio_file: $ => choice(
+      $.string,
+      alias($._audio_name, $.expression),
+      alias($._audio_list, $.expression),
+    ),
+
+    // `main_theme`, `audio.theme`.
+    _audio_name: $ => token(seq(
+      /[a-zA-Z_][a-zA-Z0-9_]*/,
+      repeat(seq('.', /[a-zA-Z_][a-zA-Z0-9_]*/)),
+    )),
+
+    // `["a.ogg", "b.ogg"]`. String-aware so a '#' inside a quoted file name
+    // is not read as a comment.
+    _audio_list: $ => token(seq(
+      '[',
+      repeat(choice(
+        /[^\]"'\r\n]/,
+        seq('"', repeat(choice(/[^"\\\r\n]/, /\\./)), '"'),
+        seq("'", repeat(choice(/[^'\\\r\n]/, /\\./)), "'"),
+      )),
+      ']',
+    )),
 
     // Task 8: mirrors `_block`'s body-optional fix (see its comment above)
     // rather than delegating to `_block` itself, because a screen's body is

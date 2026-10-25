@@ -124,6 +124,22 @@
         },
         {
           "type": "SYMBOL",
+          "name": "play_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "queue_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "voice_statement"
+        },
+        {
+          "type": "SYMBOL",
           "name": "screen_statement"
         },
         {
@@ -1697,6 +1713,304 @@
           "name": "_newline"
         }
       ]
+    },
+    "play_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "play"
+        },
+        {
+          "type": "FIELD",
+          "name": "channel",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "file",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_audio_file"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "options",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "queue_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "queue"
+        },
+        {
+          "type": "FIELD",
+          "name": "channel",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "file",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_audio_file"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "options",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "stop_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "stop"
+        },
+        {
+          "type": "FIELD",
+          "name": "channel",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "options",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "voice_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "voice"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "sustain"
+            },
+            {
+              "type": "FIELD",
+              "name": "file",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_audio_file"
+              }
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "_audio_file": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "string"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_audio_name"
+          },
+          "named": true,
+          "value": "expression"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_audio_list"
+          },
+          "named": true,
+          "value": "expression"
+        }
+      ]
+    },
+    "_audio_name": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "[a-zA-Z_][a-zA-Z0-9_]*"
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "."
+                },
+                {
+                  "type": "PATTERN",
+                  "value": "[a-zA-Z_][a-zA-Z0-9_]*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "_audio_list": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "["
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "PATTERN",
+                  "value": "[^\\]\"'\\r\\n]"
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": "\""
+                    },
+                    {
+                      "type": "REPEAT",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "PATTERN",
+                            "value": "[^\"\\\\\\r\\n]"
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "\\\\."
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "\""
+                    }
+                  ]
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": "'"
+                    },
+                    {
+                      "type": "REPEAT",
+                      "content": {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "PATTERN",
+                            "value": "[^'\\\\\\r\\n]"
+                          },
+                          {
+                            "type": "PATTERN",
+                            "value": "\\\\."
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "'"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "]"
+          }
+        ]
+      }
     },
     "screen_statement": {
       "type": "SEQ",

@@ -344,7 +344,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -372,6 +380,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -385,6 +397,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -483,7 +499,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -511,6 +535,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -524,6 +552,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -667,7 +699,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -695,6 +735,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -708,6 +752,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -877,7 +925,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -905,6 +961,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -918,6 +978,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -1046,7 +1110,15 @@
             "named": true
           },
           {
+            "type": "play_statement",
+            "named": true
+          },
+          {
             "type": "python_statement",
+            "named": true
+          },
+          {
+            "type": "queue_statement",
             "named": true
           },
           {
@@ -1074,6 +1146,10 @@
             "named": true
           },
           {
+            "type": "stop_statement",
+            "named": true
+          },
+          {
             "type": "style_statement",
             "named": true
           },
@@ -1087,6 +1163,10 @@
           },
           {
             "type": "unknown_statement",
+            "named": true
+          },
+          {
+            "type": "voice_statement",
             "named": true
           },
           {
@@ -1237,7 +1317,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -1265,6 +1353,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -1278,6 +1370,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -1431,7 +1527,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -1459,6 +1563,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -1472,6 +1580,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -1533,6 +1645,46 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "play_statement",
+    "named": true,
+    "fields": {
+      "channel": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "file": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "options": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1660,7 +1812,15 @@
             "named": true
           },
           {
+            "type": "play_statement",
+            "named": true
+          },
+          {
             "type": "python_statement",
+            "named": true
+          },
+          {
+            "type": "queue_statement",
             "named": true
           },
           {
@@ -1688,6 +1848,10 @@
             "named": true
           },
           {
+            "type": "stop_statement",
+            "named": true
+          },
+          {
             "type": "style_statement",
             "named": true
           },
@@ -1704,11 +1868,55 @@
             "named": true
           },
           {
+            "type": "voice_statement",
+            "named": true
+          },
+          {
             "type": "while_statement",
             "named": true
           },
           {
             "type": "with_statement",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "queue_statement",
+    "named": true,
+    "fields": {
+      "channel": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "file": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "options": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
             "named": true
           }
         ]
@@ -2125,7 +2333,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -2153,6 +2369,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -2169,6 +2389,10 @@
           "named": true
         },
         {
+          "type": "voice_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -2177,6 +2401,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "stop_statement",
+    "named": true,
+    "fields": {
+      "channel": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "options": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -2422,7 +2672,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -2450,6 +2708,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -2463,6 +2725,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -2569,7 +2835,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -2597,6 +2871,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -2613,6 +2891,10 @@
           "named": true
         },
         {
+          "type": "voice_statement",
+          "named": true
+        },
+        {
           "type": "while_statement",
           "named": true
         },
@@ -2621,6 +2903,26 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "voice_statement",
+    "named": true,
+    "fields": {
+      "file": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -2719,7 +3021,15 @@
           "named": true
         },
         {
+          "type": "play_statement",
+          "named": true
+        },
+        {
           "type": "python_statement",
+          "named": true
+        },
+        {
+          "type": "queue_statement",
           "named": true
         },
         {
@@ -2747,6 +3057,10 @@
           "named": true
         },
         {
+          "type": "stop_statement",
+          "named": true
+        },
+        {
           "type": "style_statement",
           "named": true
         },
@@ -2760,6 +3074,10 @@
         },
         {
           "type": "unknown_statement",
+          "named": true
+        },
+        {
+          "type": "voice_statement",
           "named": true
         },
         {
@@ -2942,7 +3260,15 @@
     "named": false
   },
   {
+    "type": "play",
+    "named": false
+  },
+  {
     "type": "python",
+    "named": false
+  },
+  {
+    "type": "queue",
     "named": false
   },
   {
@@ -2966,11 +3292,19 @@
     "named": false
   },
   {
+    "type": "stop",
+    "named": false
+  },
+  {
     "type": "strings",
     "named": false
   },
   {
     "type": "style",
+    "named": false
+  },
+  {
+    "type": "sustain",
     "named": false
   },
   {
@@ -2987,6 +3321,10 @@
   },
   {
     "type": "translate",
+    "named": false
+  },
+  {
+    "type": "voice",
     "named": false
   },
   {

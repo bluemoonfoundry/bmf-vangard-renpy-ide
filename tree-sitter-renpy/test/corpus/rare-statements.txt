@@ -48,9 +48,9 @@ label start:
 ==================================================================
 I4: unrecognized keyword-led statements are not fabricated say-statements
 ==================================================================
-stop sound
 window show
-play music fadein
+window auto
+window auto dissolve
 
 ---
 
