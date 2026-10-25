@@ -152,7 +152,9 @@ describe('parseBlock', () => {
     try {
       const blocks = result.pythonInjections.filter((i) => i.kind === 'python-block');
       expect(blocks).toHaveLength(1);
-      expect(source.slice(...blocks[0].range)).toBe('x = """\n    "hello"');
+      // `"hello"` is a say line, a label-body statement, so it bounds the
+      // nested body too and stays in `label a`.
+      expect(source.slice(...blocks[0].range)).toBe('x = """');
       expect(result.symbolTable.labels.map((l) => l.name)).toEqual(['a', 'b']);
     } finally {
       disposeParsedBlock(result);

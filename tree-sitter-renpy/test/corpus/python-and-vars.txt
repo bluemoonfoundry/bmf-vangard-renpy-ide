@@ -392,7 +392,9 @@ label b:
   (label_statement
     name: (identifier)
     (python_statement
-      body: (python_block)))
+      body: (python_block))
+    (say_statement
+      text: (string)))
   (label_statement
     name: (identifier)
     (return_statement)))
@@ -413,7 +415,9 @@ label b:
   (label_statement
     name: (identifier)
     (python_statement
-      body: (python_block)))
+      body: (python_block))
+    (say_statement
+      text: (string)))
   (label_statement
     name: (identifier)
     (return_statement)))
@@ -458,6 +462,88 @@ label b:
     text: (string))
   (say_statement
     text: (string))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Unclosed bracket in a label's python body stops at label-body statements (nms4.15)
+==================
+label a:
+    python:
+        x = 1
+        y = [
+    e "after"
+    jump c
+label c:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (python_statement
+      body: (python_block))
+    (say_statement
+      character: (identifier)
+      text: (string))
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Unclosed triple quote in a label's python body stops at label-body statements (nms4.15)
+==================
+label a:
+    python:
+        x = 1
+        y = """
+    e "after"
+    jump c
+label c:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (python_statement
+      body: (python_block))
+    (say_statement
+      character: (identifier)
+      text: (string))
+    (jump_statement
+      target: (identifier)))
+  (label_statement
+    name: (identifier)
+    (return_statement)))
+
+==================
+Closed multi-line string in a label's python body keeps its deeper lines (nms4.15)
+==================
+label a:
+    python:
+        x = """
+            jump nowhere
+            e "inside"
+        """
+    jump c
+label c:
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (python_statement
+      body: (python_block))
+    (jump_statement
+      target: (identifier)))
   (label_statement
     name: (identifier)
     (return_statement)))

@@ -191,14 +191,39 @@ static bool scan_python_line(TSLexer *lexer, PythonLineState *st, bool mark, Lin
   return mode == LINE_ITEM && st->bracket_depth == 0 && !st->quote && !st->continued;
 }
 
-// At the start of a line: consumes a leading run of lowercase letters (into
-// the token, unmarked) and reports whether it is a Ren'Py statement keyword
-// followed by a space, tab or ':'. `*consumed` is the number of letters taken.
-static bool starts_renpy_statement(TSLexer *lexer, int *consumed) {
+static bool is_word_char(int32_t c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+static bool word_in(const char *word, const char *const *list, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    if (strcmp(word, list[i]) == 0) return true;
+  }
+  return false;
+}
+
+// At the start of a line: reports whether the line starts a Ren'Py statement
+// that bounds an unclosed string or bracket. Always: a top-level statement
+// keyword followed by a space, tab or ':'. When `nested` (the python body
+// sits inside a label or other block), also a label-body statement: a
+// keyword such as `jump` or `return` followed by a space, tab, ':' or the
+// line end; a `$` line; or a say line (a quoted string, optionally after
+// space-separated identifiers: `"narration"`, `e "hi"`, `e happy "hi"`).
+// Consumes only identifier characters and blanks (into the token, unmarked),
+// never a quote or bracket; `*consumed` is the number of characters taken.
+static bool starts_renpy_statement(TSLexer *lexer, bool nested, int *consumed) {
   static const char *const keywords[] = {
     "label", "init", "define", "default", "screen", "transform",
     "image", "style", "translate", "python", "menu",
   };
+  static const char *const body_keywords[] = {
+    "jump", "call", "return", "show", "scene", "hide", "with", "pause",
+    "play", "queue", "stop", "voice", "if", "elif", "else", "while",
+    "menu", "pass", "window", "nvl",
+  };
+  *consumed = 0;
+  int32_t first = lexer->lookahead;
+  if (nested && (first == '$' || first == '"' || first == '\'')) return true;
   char word[12];
   int len = 0;
   while (lexer->lookahead >= 'a' && lexer->lookahead <= 'z' && len < (int)sizeof(word) - 1) {
@@ -208,11 +233,32 @@ static bool starts_renpy_statement(TSLexer *lexer, int *consumed) {
   word[len] = '\0';
   *consumed = len;
   int32_t next = lexer->lookahead;
-  if (len == 0 || !(next == ' ' || next == '\t' || next == ':')) return false;
-  for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
-    if (strcmp(word, keywords[i]) == 0) return true;
+  if (len > 0 && (next == ' ' || next == '\t' || next == ':') &&
+      word_in(word, keywords, sizeof(keywords) / sizeof(keywords[0]))) {
+    return true;
   }
-  return false;
+  if (!nested) return false;
+  bool line_end = next == '\n' || next == '\r' || lexer->eof(lexer);
+  if (len > 0 && (next == ' ' || next == '\t' || next == ':' || line_end) &&
+      word_in(word, body_keywords, sizeof(body_keywords) / sizeof(body_keywords[0]))) {
+    return true;
+  }
+  // The say-line shape: identifiers separated by blanks, then a quote.
+  if (len == 0 && !(first == '_' || (first >= 'A' && first <= 'Z'))) return false;
+  for (;;) {
+    while (is_word_char(lexer->lookahead)) {
+      take(lexer, false);
+      (*consumed)++;
+    }
+    if (lexer->lookahead != ' ' && lexer->lookahead != '\t') return false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      take(lexer, false);
+      (*consumed)++;
+    }
+    int32_t c = lexer->lookahead;
+    if (c == '"' || c == '\'') return true;
+    if (!(c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) return false;
+  }
 }
 
 // Scans a python body from the first non-blank character after its header's
@@ -226,14 +272,21 @@ static bool starts_renpy_statement(TSLexer *lexer, int *consumed) {
 // (`python:` with no body). Callers must mark_end() beforehand.
 //
 // One deliberate deviation from Ren'Py: a string or bracket left open does
-// not run on past a line, no deeper than the header, that starts with a
-// Ren'Py statement keyword (see starts_renpy_statement). When the string or
-// bracket is never closed, Ren'Py rejects the file ("not terminated"), so
-// there is no valid reading to keep, and this is exactly the half-typed state
-// editor auto-close produces while a docstring is being written; without the
-// bound the rest of the file would vanish into the body. The cost: the scanner
+// not run on past a line, no deeper than the header, that starts a Ren'Py
+// statement (see starts_renpy_statement). There are two bounds. At any
+// depth: a top-level statement keyword (`label`, `define`, `screen`, ...).
+// When the header is indented (the body is nested in a label or other
+// block): also a label-body statement (`jump`, `return`, `show`, `if`, ...,
+// a `$` line, or a say line such as `e "hi"`), since that is what follows a
+// nested python body. Lines deeper than the header are never checked, so a
+// closed string's continuation lines indented past the header stay in the
+// body whatever they contain. When the string or bracket is never closed,
+// Ren'Py rejects the file ("not terminated"), so there is no valid reading
+// to keep, and this is exactly the half-typed state editor auto-close
+// produces while a docstring is being written; without the bound the rest
+// of the file (or of the enclosing label) would vanish into the body. The cost: the scanner
 // cannot see whether the string is closed later, so a valid multi-line string
-// that has a keyword-led line at or left of the header's column (`define x`
+// that has a statement-led line at or left of the header's column (`define x`
 // at column 0 inside a closed `"""` string) also ends the body there (pinned
 // as a known limitation in python-and-vars.txt). A backslash continuation is
 // not bounded.
@@ -249,9 +302,10 @@ static bool scan_python_block(TSLexer *lexer, uint32_t header_indent) {
       if (!deeper && lexer->lookahead != '#') break;
       if (open && !st.continued && column <= header_indent) {
         int consumed = 0;
-        if (starts_renpy_statement(lexer, &consumed)) break;
-        // Only letters were consumed (no string/bracket state to update),
-        // and the line is accepted: extend the token over them.
+        if (starts_renpy_statement(lexer, header_indent > 0, &consumed)) break;
+        // Only identifier characters and blanks were consumed (no
+        // string/bracket state to update), and the line is accepted:
+        // extend the token over them.
         if (consumed > 0) lexer->mark_end(lexer);
       }
       scan_python_line(lexer, &st, deeper, LINE_PYTHON);
@@ -307,8 +361,9 @@ static bool scan_logical_value(TSLexer *lexer, uint32_t statement_indent, LineMo
     if (lexer->lookahead == '\n') continue;  // a blank line
     if (open && !st.continued && column <= statement_indent) {
       int consumed = 0;
-      if (starts_renpy_statement(lexer, &consumed)) return false;
-      // Only letters were consumed: extend the token over them.
+      if (starts_renpy_statement(lexer, false, &consumed)) return false;
+      // Only identifier characters and blanks were consumed: extend the
+      // token over them.
       if (consumed > 0) lexer->mark_end(lexer);
     }
     if (scan_python_line(lexer, &st, true, mode)) return true;
