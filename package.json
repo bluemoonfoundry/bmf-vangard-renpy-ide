@@ -28,6 +28,7 @@
     "version:major": "node version.js major",
     "version:set": "node version.js set",
     "test": "vitest run",
+    "bench": "vitest run --config vitest.bench.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "pretest:e2e": "npm run build",
