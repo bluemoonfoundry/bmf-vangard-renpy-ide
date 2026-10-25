@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildBlockContribution, type IndexBlock } from '@/lib/tree-sitter/blockContribution';
 import { createContributionCache, updateProjectIndex } from '@/lib/tree-sitter/projectIndex';
+import { AnalysisCancelledError } from '@/lib/analysisCancellation';
 
 const a: IndexBlock = { id: 'a', filePath: 'game/a.rpy', content: 'label a:\n    jump b\n' };
 const b: IndexBlock = { id: 'b', filePath: 'game/b.rpy', content: 'label b:\n    return\n' };
@@ -94,5 +95,26 @@ describe('updateProjectIndex', () => {
     expect(dynamicRefs.map((r) => r.refKind)).toEqual(['jump-expression', 'call-expression']);
     expect(index.unresolved.filter((r) => r.refKind.endsWith('-expression'))).toEqual([]);
     expect(index.unresolved.filter((r) => r.kind === 'label')).toEqual([]);
+  });
+
+  it('calls checkpoint before each block and stops without touching the cache when it rejects', async () => {
+    const cache = createContributionCache();
+    await updateProjectIndex(cache, [a]);
+    const before = cache.byBlockId;
+    let calls = 0;
+    const checkpoint = vi.fn(async () => {
+      calls += 1;
+      if (calls === 2) throw new AnalysisCancelledError();
+    });
+    await expect(updateProjectIndex(cache, [a, b], { checkpoint })).rejects.toBeInstanceOf(AnalysisCancelledError);
+    expect(checkpoint).toHaveBeenCalledTimes(2);
+    expect(cache.byBlockId).toBe(before);
+  });
+
+  it('checkpoint is called once per block', async () => {
+    const c: IndexBlock = { id: 'c', filePath: 'game/c.rpy', content: 'label c:\n    return\n' };
+    const checkpoint = vi.fn(async () => {});
+    await updateProjectIndex(createContributionCache(), [a, b, c], { checkpoint });
+    expect(checkpoint).toHaveBeenCalledTimes(3);
   });
 });

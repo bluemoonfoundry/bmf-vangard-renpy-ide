@@ -113,6 +113,11 @@ export function createContributionCache(): ContributionCache {
 export interface UpdateIndexDeps {
   build?: (block: IndexBlock) => Promise<BlockContribution>;
   init?: () => Promise<void>;
+  /**
+   * Awaited before every block in the loop (reused or rebuilt). Rejecting
+   * (e.g. with AnalysisCancelledError) aborts the update.
+   */
+  checkpoint?: () => Promise<void>;
 }
 
 /**
@@ -123,6 +128,10 @@ export interface UpdateIndexDeps {
  * one is still parsing) never mix block lists; the last call to finish
  * becomes the cache. Rejects (without touching the cache) when the parser
  * cannot initialize; per-block failures become `hasError` contributions.
+ *
+ * `deps.checkpoint` is awaited before each block. If it rejects, the update
+ * rejects with that error and `cache.byBlockId` is left untouched, because the
+ * cache is only assigned after the loop completes.
  */
 export async function updateProjectIndex(
   cache: ContributionCache,
@@ -137,6 +146,7 @@ export async function updateProjectIndex(
   // (the WASM heap never shrinks). `next` is still private to this call.
   const next = new Map<string, BlockContribution>();
   for (const block of blocks) {
+    await deps.checkpoint?.();
     const cached = previous.get(block.id);
     const reusable = cached && cached.contentHash === djb2(block.content) && cached.filePath === block.filePath;
     next.set(block.id, reusable ? cached : await build(block));
