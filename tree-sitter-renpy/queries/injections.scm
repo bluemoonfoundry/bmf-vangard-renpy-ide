@@ -75,6 +75,9 @@
 ((atl_time_statement duration: (expression) @injection.content)
  (#set! injection.language "python"))
 
+((atl_displayable transition: (expression) @injection.content)
+ (#set! injection.language "python"))
+
 ((atl_repeat count: (expression) @injection.content)
  (#set! injection.language "python"))
 

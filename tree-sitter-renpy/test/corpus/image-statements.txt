@@ -174,3 +174,29 @@ label a:
       atl: (atl_transform_property
         property: (identifier)
         value: (expression)))))
+
+==================
+Frame animation image with pauses, transition and repeat (nms4.28)
+==================
+image anim:
+    "a.png"
+    0.5
+    "b.png" with dissolve
+    0.5
+    repeat
+
+---
+
+(source_file
+  (image_statement
+    name: (identifier)
+    atl: (atl_displayable
+      displayable: (string))
+    atl: (atl_pause
+      duration: (expression))
+    atl: (atl_displayable
+      displayable: (string)
+      transition: (expression))
+    atl: (atl_pause
+      duration: (expression))
+    atl: (atl_repeat)))

@@ -943,6 +943,7 @@ module.exports = grammar({
       $.atl_block_statement,
       $.atl_time_statement,
       $.atl_repeat,
+      $.atl_pause,
     ),
 
     // `xalign 0.5`, `zoom 1.2`, `rotate persistent.angle` style property
@@ -1031,12 +1032,25 @@ module.exports = grammar({
 
     // nms4.23: a quoted displayable line (`"logo.png"`, `"eileen happy"`)
     // shows that image, as in `image logo:` bodies and frame-by-frame
-    // animations. Only the string form; an unquoted displayable expression
-    // would be indistinguishable from a property line here.
+    // animations. nms4.28: it may end in a transition (`"b.png" with
+    // dissolve`). Only the string form: an unquoted displayable expression
+    // is indistinguishable from a property line here without Ren'Py's list
+    // of property names (`Solid("#000")` reads as property `Solid`, and a
+    // lone `eileen_happy` line is an ERROR).
     atl_displayable: $ => seq(
       field('displayable', $.string),
+      optional(seq('with', field('transition', $.expression))),
       $._newline,
     ),
+
+    // nms4.28: a line that is only a number (`0.5`) pauses for that many
+    // seconds, as `pause 0.5` does.
+    atl_pause: $ => seq(
+      field('duration', alias($._atl_number, $.expression)),
+      $._newline,
+    ),
+
+    _atl_number: $ => token(/(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?/),
 
     atl_with_statement: $ => seq(
       'with',

@@ -4256,6 +4256,10 @@
         {
           "type": "SYMBOL",
           "name": "atl_repeat"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "atl_pause"
         }
       ]
     },
@@ -4504,10 +4508,64 @@
           }
         },
         {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "with"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "transition",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "expression"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
           "type": "SYMBOL",
           "name": "_newline"
         }
       ]
+    },
+    "atl_pause": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "duration",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_atl_number"
+            },
+            "named": true,
+            "value": "expression"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_newline"
+        }
+      ]
+    },
+    "_atl_number": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "(\\d+(\\.\\d*)?|\\.\\d+)([eE][+-]?\\d+)?"
+      }
     },
     "atl_with_statement": {
       "type": "SEQ",

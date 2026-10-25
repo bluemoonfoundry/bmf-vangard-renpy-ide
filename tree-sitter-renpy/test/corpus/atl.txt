@@ -149,3 +149,36 @@ transform thrice:
         (atl_transform_property property: (identifier) value: (expression)))
       (atl_repeat count: (expression)))
     (atl_repeat count: (expression))))
+
+==================================================================
+ATL displayable with a transition and bare-number pauses (nms4.28)
+==================================================================
+transform flash:
+    "white.png" with dissolve
+    .25
+    "black.png" with Dissolve(0.5)
+    2
+    1e1
+label a:
+    show eileen:
+        "eileen_a.png"
+        0.5
+        "eileen_b.png" with dissolve
+
+---
+
+(source_file
+  (transform_statement
+    name: (identifier)
+    (atl_displayable displayable: (string) transition: (expression))
+    (atl_pause duration: (expression))
+    (atl_displayable displayable: (string) transition: (expression))
+    (atl_pause duration: (expression))
+    (atl_pause duration: (expression)))
+  (label_statement
+    name: (identifier)
+    (show_statement
+      image: (identifier)
+      atl: (atl_displayable displayable: (string))
+      atl: (atl_pause duration: (expression))
+      atl: (atl_displayable displayable: (string) transition: (expression)))))

@@ -101,6 +101,14 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('reads the transition of an ATL displayable line (nms4.28)', async () => {
+    const c = await build('image anim:\n    "a.png"\n    0.5\n    "b.png" with fade_in\n');
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:fade_in', 'read', 'atl-expression'],
+    ]);
+  });
+
   it('does not record the screen name in `use` as a variable, but keeps its argument reads', async () => {
     const c = await build('screen a():\n    use item_list(count)\n');
     expect(c.references.map((r) => [r.symbolId, r.refKind])).toEqual([

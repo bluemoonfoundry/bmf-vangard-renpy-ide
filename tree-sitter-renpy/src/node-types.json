@@ -20,6 +20,10 @@
           "named": true
         },
         {
+          "type": "atl_pause",
+          "named": true
+        },
+        {
           "type": "atl_repeat",
           "named": true
         },
@@ -52,6 +56,16 @@
         "types": [
           {
             "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "transition": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
             "named": true
           }
         ]
@@ -120,6 +134,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "atl_pause",
+    "named": true,
+    "fields": {
+      "duration": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1144,6 +1174,10 @@
             "named": true
           },
           {
+            "type": "atl_pause",
+            "named": true
+          },
+          {
             "type": "atl_repeat",
             "named": true
           },
@@ -2023,6 +2057,10 @@
             "named": true
           },
           {
+            "type": "atl_pause",
+            "named": true
+          },
+          {
             "type": "atl_repeat",
             "named": true
           },
@@ -2224,6 +2262,10 @@
           },
           {
             "type": "atl_interpolation",
+            "named": true
+          },
+          {
+            "type": "atl_pause",
             "named": true
           },
           {
@@ -2576,6 +2618,10 @@
         },
         {
           "type": "atl_interpolation",
+          "named": true
+        },
+        {
+          "type": "atl_pause",
           "named": true
         },
         {
