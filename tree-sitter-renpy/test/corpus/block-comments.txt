@@ -179,3 +179,158 @@ jump b
     (comment))
   (jump_statement
     target: (identifier)))
+
+==================
+Comment as first line of a label body (rsxn)
+==================
+label start:
+    # intro
+    "Hello"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (comment)
+    (say_statement
+      text: (string))))
+
+==================
+Several comments and a blank line before the first statement of a body (rsxn)
+==================
+label start:
+    # one
+
+    # two
+    "Hello"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (comment)
+    (comment)
+    (say_statement
+      text: (string))))
+
+==================
+First-line comment indented deeper than the body it opens (rsxn)
+==================
+label start:
+        # deep
+    "Hello"
+    return
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (comment)
+    (say_statement
+      text: (string))
+    (return_statement)))
+
+==================
+Comment as first line of an if body (rsxn)
+==================
+if x:
+    # c
+    "hi"
+else:
+    # d
+    return
+
+---
+
+(source_file
+  (if_statement
+    condition: (expression)
+    (comment)
+    (say_statement
+      text: (string))
+    (else_clause
+      (comment)
+      (return_statement))))
+
+==================
+Comment as first line of a menu choice body (rsxn)
+==================
+menu:
+    "A":
+        # c
+        jump a
+    "B":
+        jump b
+
+---
+
+(source_file
+  (menu_statement
+    (menu_choice
+      text: (string)
+      (comment)
+      (jump_statement
+        target: (identifier)))
+    (menu_choice
+      text: (string)
+      (jump_statement
+        target: (identifier)))))
+
+==================
+Comment as first line of an init python body (rsxn)
+==================
+init python:
+    # c
+    x = 1
+
+---
+
+(source_file
+  (init_python_statement
+    body: (comment)
+    body: (expression_statement
+      (identifier)
+      (expression))))
+
+==================
+Comment as first line of a nested block (rsxn)
+==================
+label start:
+    if x:
+        # c
+        return
+    "after"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (if_statement
+      condition: (expression)
+      (comment)
+      (return_statement))
+    (say_statement
+      text: (string))))
+
+==================
+Comment-only line at deeper indentation inside a block (rsxn)
+==================
+label start:
+    "A"
+        # deeper
+    "B"
+
+---
+
+(source_file
+  (label_statement
+    name: (identifier)
+    (say_statement
+      text: (string))
+    (comment)
+    (say_statement
+      text: (string))))

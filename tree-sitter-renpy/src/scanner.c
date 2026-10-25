@@ -50,6 +50,20 @@ void tree_sitter_renpy_external_scanner_deserialize(void *payload, const char *b
 
 static void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
 
+// From the start of a comment-only line, skip it and any following blank or
+// comment-only lines; return the column of the first line with code on it,
+// or 0 if the file ends first (rsxn). Callers must mark_end() beforehand.
+static uint32_t next_code_line_column(TSLexer *lexer) {
+  for (;;) {
+    while (lexer->lookahead != '\n' && !lexer->eof(lexer)) skip(lexer);
+    if (lexer->eof(lexer)) return 0;
+    skip(lexer);
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t' || lexer->lookahead == '\r') skip(lexer);
+    if (lexer->eof(lexer)) return 0;
+    if (lexer->lookahead != '\n' && lexer->lookahead != '#') return lexer->get_column(lexer);
+  }
+}
+
 bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 
@@ -127,13 +141,42 @@ bool tree_sitter_renpy_external_scanner_scan(void *payload, TSLexer *lexer, cons
   // ambiguity here: nothing else can appear after '#' on this line. Mirror
   // Python's tokenizer and treat comment-only (and blank) lines as entirely
   // insignificant for indentation tracking: they must never push/pop the
-  // indent stack, regardless of what column the '#' happens to sit at. They
+  // indent stack, regardless of what column the '#' happens to sit at (the
+  // one exception, a comment opening a block body, is below). They
   // still get an ordinary NEWLINE so the grammar can parse the `comment` as
   // just another statement at the current depth.
   bool is_comment_line = (lexer->lookahead == '#');
 
   uint32_t indent_length = lexer->get_column(lexer);
   uint32_t current_indent = scanner->indent_stack[scanner->indent_stack_len - 1];
+
+  // A comment-only line as the *first* line of a block body (rsxn):
+  // `label start:` / `    # intro` / `    "Hello"`. The grammar wants an
+  // INDENT right after the header's NEWLINE, but the comment line can't
+  // supply one under the rule above. Look past this line (and any further
+  // blank or comment-only lines) to the first real line: if that line is
+  // deeper than the current block, it is the body, so emit a zero-width
+  // INDENT at *its* column, as Python's tokenizer would (comment lines are
+  // invisible to indentation). The comment itself is left for the grammar
+  // to lex as the body's first statement. If the next real line is not
+  // deeper (or the file ends), the header has no body and nothing changes.
+  // Skipped during error recovery (when every external token is valid at
+  // once), so it never changes how an existing error is recovered.
+  // INDENT is otherwise valid only right after a block header's NEWLINE, so
+  // a deeper comment in the middle of a block is unaffected.
+  bool error_recovery = valid_symbols[NEWLINE] && valid_symbols[INDENT] && valid_symbols[DEDENT];
+  if (is_comment_line && valid_symbols[INDENT] && !error_recovery &&
+      indent_length > current_indent && scanner->indent_stack_len < MAX_INDENT_DEPTH) {
+    lexer->mark_end(lexer);
+    uint32_t body_indent = next_code_line_column(lexer);
+    if (body_indent > current_indent) {
+      scanner->indent_stack[scanner->indent_stack_len++] = body_indent;
+      lexer->result_symbol = INDENT;
+      return true;
+    }
+    // No body: fall through. mark_end above pinned any token emitted below
+    // to end at this line's '#', however far the lookahead advanced.
+  }
 
   // Indent/dedent comparisons are intentionally NOT gated on `saw_newline`
   // being true in *this specific call*. DEDENT tokens are zero-width: when
