@@ -30,7 +30,7 @@ ATL inside show
 label a:
     show eileen:
         xalign 0.5
-        linear 0.5 xalign 1.0
+        yalign 1.0
 ---
 
 (source_file
