@@ -204,6 +204,12 @@ describe('buildBlockContribution', () => {
       ]);
     });
 
+    it('does not read the name on a screen `tag` line (nms4.47)', async () => {
+      const c = await build('screen prefs():\n    tag menu\n    text "[volume]"\n');
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([['variable:volume', 'read']]);
+    });
+
     it('walks a screen `python:` block as Python with screen-local names (nms4.34)', async () => {
       const content = [
         'screen s():',

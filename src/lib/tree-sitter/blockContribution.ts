@@ -34,16 +34,18 @@ export function injectionContext(root: SyntaxNode, injection: PythonInjection): 
 }
 
 /**
- * `use item_list(n)` is a screen-language property, so its whole text is
- * Python-injected; the leading name is the screen reference renpyWalk.ts
- * already records, not a variable read. Callers drop the use at (0, 0).
+ * The widget tag of the screen line a screen-expression injection sits on,
+ * or null. Every screen-language property is Python-injected, so callers
+ * use this to skip text that is not a Python expression: `use item_list(n)`
+ * starts with the screen reference renpyWalk.ts already records (callers
+ * drop the use at (0, 0)), and `tag menu` names the screen's tag (nms4.47).
  */
-export function isUseInjection(root: SyntaxNode, injection: PythonInjection): boolean {
-  if (injection.kind !== 'screen-expression') return false;
+export function screenWidgetTag(root: SyntaxNode, injection: PythonInjection): string | null {
+  if (injection.kind !== 'screen-expression') return null;
   for (let node: SyntaxNode | null = root.descendantForIndex(injection.range[0], injection.range[1]); node; node = node.parent) {
-    if (node.type === 'screen_language_statement') return node.childForFieldName('widget_tag')?.text === 'use';
+    if (node.type === 'screen_language_statement') return node.childForFieldName('widget_tag')?.text ?? null;
   }
-  return false;
+  return null;
 }
 
 /**
@@ -131,12 +133,14 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
     const references: SymbolReference[] = [...renpy.references];
 
     for (const injection of outermostInjections(parsed.pythonInjections)) {
+      const widgetTag = screenWidgetTag(root, injection);
+      if (widgetTag === 'tag') continue;
       const injectionStart = injection.range[0];
       const context = injectionContext(root, injection);
       const enclosingLabel = enclosingLabelFor(renpy.labelSpans, injectionStart);
       const toOffset = (p: Point) => mapInjectionPoint(ctx, injectionStart, p.row, p.column);
       const python = walkPythonTree(injection.tree.rootNode, { allowDefinitions: context === 'python-block' });
-      const skipLeadingName = isUseInjection(root, injection);
+      const skipLeadingName = widgetTag === 'use';
       // A def in a screen's `python:` block is local to the screen (nms4.34).
       const screen = context === 'python-block' ? screenScopeFor(renpy.screenScopes, injectionStart) : null;
       // Names bound at the top of a named store's body live in that store
