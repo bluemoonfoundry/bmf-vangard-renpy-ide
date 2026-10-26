@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import type { SyntaxNode } from 'web-tree-sitter';
 import { parseBlock, disposeParsedBlock } from '@/lib/tree-sitter/parseBlock';
 import * as symbolTableModule from '@/lib/tree-sitter/symbolTable';
 
@@ -233,13 +234,26 @@ describe('parseBlock failure cleanup', () => {
   it('frees the Ren\'Py tree and the injection tree when injection processing throws part-way', async () => {
     const { treeProto, nodeProto } = await prototypes();
     const del = vi.spyOn(treeProto, 'delete');
-    // injectionKindForNode walks `parent` after the injection's Python tree is
-    // parsed, so this throws with the Ren'Py tree and one Python tree live.
+    // injectionKindForNode runs before each injection's Python parse, so
+    // failing on the second injection (row 2) leaves the Ren'Py tree and the
+    // first injection's Python tree live.
+    const realParent = Object.getOwnPropertyDescriptor(nodeProto, 'parent')!.get!;
+    vi.spyOn(nodeProto as { parent: unknown }, 'parent', 'get').mockImplementation(function (this: SyntaxNode) {
+      if (this.startPosition.row === 2) throw new Error('walk failed');
+      return realParent.call(this);
+    });
+    await expect(parseBlock(TWO_INJECTIONS)).rejects.toThrow('walk failed');
+    expect(del).toHaveBeenCalledTimes(2);
+  });
+
+  it('frees the Ren\'Py tree when the injection kind lookup throws before any Python parse', async () => {
+    const { treeProto, nodeProto } = await prototypes();
+    const del = vi.spyOn(treeProto, 'delete');
     vi.spyOn(nodeProto as { parent: unknown }, 'parent', 'get').mockImplementation(() => {
       throw new Error('walk failed');
     });
     await expect(parseBlock(TWO_INJECTIONS)).rejects.toThrow('walk failed');
-    expect(del).toHaveBeenCalledTimes(2);
+    expect(del).toHaveBeenCalledTimes(1);
   });
 
   it('frees every tree when symbol table extraction throws', async () => {

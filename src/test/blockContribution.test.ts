@@ -292,6 +292,45 @@ describe('buildBlockContribution', () => {
     ]);
   });
 
+  it('reads parameter default values of screens, labels and transforms (nms4.48)', async () => {
+    const content = [
+      'screen s(n=max_items, *rest, title=f"{who}"):',
+      '    text "[n]"',
+      'label chapter(a, b=start_hp):',
+      '    return',
+      'transform slide(d=base_delay):',
+      '    linear 1.0 xpos 1.0',
+      '',
+    ].join('\n');
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['variable:max_items', 'read', 'screen-expression'],
+      ['variable:who', 'read', 'screen-expression'],
+      ['variable:start_hp', 'read', 'statement'],
+      ['variable:base_delay', 'read', 'statement'],
+    ]);
+    const maxItems = find(c, 'max_items', 'read');
+    expect(maxItems.range.start).toEqual({ line: 1, column: 11, offset: content.indexOf('max_items') });
+    expect(text(content, find(c, 'start_hp', 'read'))).toBe('start_hp');
+    expect(text(content, find(c, 'base_delay', 'read'))).toBe('base_delay');
+  });
+
+  it('reads the arguments of call screen and show screen (nms4.48)', async () => {
+    const content = 'label start:\n    call screen inv(items, title=heading)\n    show screen hud(hp)\n';
+    const c = await build(content);
+    expect(c.hasError).toBe(false);
+    expect(c.references.map((r) => [r.symbolId, r.refKind, r.context])).toEqual([
+      ['screen:inv', 'call-screen', 'statement'],
+      ['variable:items', 'read', 'statement'],
+      ['variable:heading', 'read', 'statement'],
+      ['screen:hud', 'show-screen', 'statement'],
+      ['variable:hp', 'read', 'statement'],
+    ]);
+    expect(text(content, find(c, 'heading', 'read'))).toBe('heading');
+    expect(text(content, find(c, 'hp', 'read'))).toBe('hp');
+  });
+
   it('maps reads inside a screen value continued onto later lines (nms4.35)', async () => {
     const content = 'screen s:\n    textbutton "Go" action [\n        Hide("a"),\n        Return(choice)]\n';
     const c = await build(content);

@@ -26,6 +26,10 @@
  *   expression node, with no dedent needed (column offset is a no-op for a
  *   one-line fragment sliced starting at its own first non-whitespace
  *   character).
+ * - A `parameter_list` blob (label/screen/transform parameters, `show
+ *   screen`/`call screen` arguments, nms4.48) is wrapped before parsing, as
+ *   `def _(...): pass` or `_(...)`, since `n=max_items, *rest` is not Python
+ *   on its own. `prefixLength` is the wrapper's length on the first line.
  */
 import Parser, { type Query, type Tree, type SyntaxNode } from 'web-tree-sitter';
 import treeSitterRuntimeWasmUrl from 'web-tree-sitter/tree-sitter.wasm?url';
@@ -45,7 +49,13 @@ export interface PythonInjection {
    * `ParsedBlock` rather than deleting injection trees individually.
    */
   tree: Tree;
-  kind: 'python-block' | 'dollar-statement' | 'screen-expression';
+  kind: 'python-block' | 'dollar-statement' | 'screen-expression' | 'parameters' | 'arguments';
+  /**
+   * Characters of wrapper text before the span on the parsed first line
+   * (nms4.48), subtracted from row-0 columns when mapping back. 0 unless
+   * `kind` is 'parameters' or 'arguments'.
+   */
+  prefixLength: number;
 }
 
 export interface ParsedBlock {
@@ -240,13 +250,18 @@ export function initParser(): Promise<void> {
 
 /**
  * Determines the `PythonInjection.kind` for a captured node by walking up
- * its ancestor chain. `dollar_statement` and `python_statement` /
- * `init_python_statement` are unambiguous; every other injection point in
- * the query (screen-language `property` expressions, control-flow
- * conditions, ATL property/warper/duration expressions) falls back to
- * 'screen-expression'.
+ * its ancestor chain. A `parameter_list` blob is 'parameters' under a
+ * `parameters` field and 'arguments' otherwise. `dollar_statement` and
+ * `python_statement` / `init_python_statement` are unambiguous; every other
+ * injection point in the query (screen-language `property` expressions,
+ * control-flow conditions, ATL property/warper/duration expressions) falls
+ * back to 'screen-expression'.
  */
 function injectionKindForNode(node: SyntaxNode): PythonInjection['kind'] {
+  const list = node.parent;
+  if (list?.type === 'parameter_list') {
+    return list.parent?.childForFieldName('parameters')?.id === list.id ? 'parameters' : 'arguments';
+  }
   let current: SyntaxNode | null = node;
   while (current) {
     if (current.type === 'dollar_statement') return 'dollar-statement';
@@ -324,6 +339,12 @@ function pythonBodyStart(content: string, start: number, end: number): number {
   return i < end ? i : start;
 }
 
+/** Text around a `parameter_list` blob that makes it parse as Python (nms4.48). */
+const WRAPPERS: Partial<Record<PythonInjection['kind'], [string, string]>> = {
+  parameters: ['def _(', '): pass'],
+  arguments: ['_(', ')'],
+};
+
 /** Parses each injection-query match as Python, appending to `out` as each tree is created. */
 function collectInjections(content: string, tree: Tree, out: PythonInjection[]): void {
   const matches = injectionsQuery!.matches(tree.rootNode);
@@ -343,16 +364,10 @@ function collectInjections(content: string, tree: Tree, out: PythonInjection[]):
     const rawSpan = content.slice(spanStart, node.endIndex);
     const spanText = dedent(rawSpan, column);
 
-    const pythonTree = pythonParser!.parse(spanText);
+    const kind = injectionKindForNode(node);
+    const [prefix, suffix] = WRAPPERS[kind] ?? ['', ''];
+    const pythonTree = pythonParser!.parse(prefix + spanText + suffix);
     if (!pythonTree) continue;
-
-    let kind: PythonInjection['kind'];
-    try {
-      kind = injectionKindForNode(node);
-    } catch (error) {
-      pythonTree.delete(); // not yet in `out`, so the caller's cleanup can't see it
-      throw error;
-    }
-    out.push({ range: [spanStart, node.endIndex], tree: pythonTree, kind });
+    out.push({ range: [spanStart, node.endIndex], tree: pythonTree, kind, prefixLength: prefix.length });
   }
 }

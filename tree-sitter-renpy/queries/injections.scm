@@ -100,3 +100,11 @@
 ; A screen-local `default` value (nms4.32).
 ((screen_default_statement value: (expression) @injection.content)
  (#set! injection.language "python"))
+
+; Label, screen and transform parameter lists, and `show screen` / `call
+; screen` arguments (nms4.48). The blob between the parentheses is not a
+; Python expression by itself (`n=max_items, *rest`), so parseBlock.ts wraps
+; it as `def _(...): pass` or `_(...)` before parsing; default values and
+; arguments are then ordinary reads.
+((parameter_list (expression) @injection.content)
+ (#set! injection.language "python"))

@@ -24,6 +24,12 @@ const CONDITION_PARENTS = new Set(['if_statement', 'elif_clause', 'while_stateme
 export function injectionContext(root: SyntaxNode, injection: PythonInjection): ReferenceContext {
   if (injection.kind === 'python-block') return 'python-block';
   if (injection.kind === 'dollar-statement') return 'dollar';
+  // A screen's parameter defaults are screen code; label and transform
+  // parameters and screen arguments sit on a Ren'Py statement (nms4.48).
+  if (injection.kind === 'parameters' || injection.kind === 'arguments') {
+    const statement = root.descendantForIndex(injection.range[0], injection.range[1]).parent?.parent;
+    return statement?.type === 'screen_statement' ? 'screen-expression' : 'statement';
+  }
   for (let node: SyntaxNode | null = root.descendantForIndex(injection.range[0], injection.range[1]); node; node = node.parent) {
     if (node.type === 'property' || node.type === 'screen_language_statement') return 'screen-expression';
     if (CONDITION_PARENTS.has(node.type)) return 'condition';
@@ -138,7 +144,8 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
       const injectionStart = injection.range[0];
       const context = injectionContext(root, injection);
       const enclosingLabel = enclosingLabelFor(renpy.labelSpans, injectionStart);
-      const toOffset = (p: Point) => mapInjectionPoint(ctx, injectionStart, p.row, p.column);
+      const toOffset = (p: Point) =>
+        mapInjectionPoint(ctx, injectionStart, p.row, p.row === 0 ? p.column - injection.prefixLength : p.column);
       const python = walkPythonTree(injection.tree.rootNode, { allowDefinitions: context === 'python-block' });
       const skipLeadingName = widgetTag === 'use';
       // A def in a screen's `python:` block is local to the screen (nms4.34).
