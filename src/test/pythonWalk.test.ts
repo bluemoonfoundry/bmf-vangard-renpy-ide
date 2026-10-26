@@ -43,6 +43,18 @@ describe('walkPythonTree', () => {
     expect(uses(r)).toEqual(['read:persistent.seen', 'write:gold', 'read:player']);
   });
 
+  it('keeps the first member of a bare-base chain for named-store resolution (nms4.49)', async () => {
+    const r = await walkPython('label a:\n    $ mystore.x = obj.a.b + store.inner.y\n    $ store.thing.attr = 1\n');
+    expect(r.uses.map((u) => [u.refKind, u.name, u.member?.refKind, u.member?.name])).toEqual([
+      ['read', 'obj', 'read', 'obj.a'],
+      ['read', 'inner', 'read', 'inner.y'],
+      ['read', 'mystore', 'write', 'mystore.x'],
+      ['read', 'thing', 'write', 'thing.attr'],
+    ]);
+    expect(r.uses[0].member?.end).toEqual({ row: 0, column: 'mystore.x = obj.a'.length });
+    expect(r.uses.find((u) => u.name === 'persistent.seen')).toBeUndefined();
+  });
+
   it('skips function parameters and locals but records store reads inside functions', async () => {
     const content = [
       'init python:',

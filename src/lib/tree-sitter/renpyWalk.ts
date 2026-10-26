@@ -112,6 +112,17 @@ export function parameterNames(text: string): string[] {
   return names;
 }
 
+/**
+ * The named store of a `python in X:` / `init python in X:` statement
+ * (nms4.34), or null for the default store. `in store` and `in store.X` are
+ * spelled relative to the default store.
+ */
+export function namedStore(statement: SyntaxNode): string | null {
+  const store = statement.childForFieldName('store')?.text ?? null;
+  if (store === null || store === 'store') return null;
+  return store.startsWith('store.') ? store.slice('store.'.length) : store;
+}
+
 /** The screen scope containing `offset` (screens never nest). */
 export function screenScopeFor(scopes: ScreenScope[], offset: number): ScreenScope | null {
   return scopes.find((scope) => scope.start <= offset && offset < scope.end) ?? null;
@@ -150,11 +161,13 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
   const reference = (
     kind: SymbolKind, name: string, refKind: ReferenceKind, start: number, end: number,
     context: ReferenceContext = 'statement', id: SymbolId | null = symbolId(kind, name),
+    storeMember?: SymbolReference['storeMember'],
   ): void => {
     out.references.push({
       symbolId: id, kind, name, refKind, context,
       range: rangeFromOffsets(ctx, start, end),
       enclosingLabel: enclosing(),
+      ...(storeMember ? { storeMember } : {}),
     });
   };
 
@@ -163,10 +176,15 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
     for (const match of text.matchAll(INTERPOLATION_RE)) {
       const index = match.index ?? 0;
       if (index > 0 && text[index - 1] === '[') continue; // `[[` is a literal bracket
-      const { name } = normalizeVariableName(match[1].split('.'));
+      const parts = match[1].split('.');
+      const { name, consumed } = normalizeVariableName(parts);
       if (isPrivateName(name)) continue;
       const start = stringNode.startIndex + index + 1;
-      reference('variable', name, 'read', start, start + match[1].length, 'interpolation');
+      // `[mystore.x]`: kept for the resolver in case `mystore` is a named store (nms4.49).
+      const member = name.includes('.') || consumed >= parts.length ? undefined : `${name}.${parts[consumed]}`;
+      const memberEnd = start + parts.slice(0, consumed + 1).join('.').length;
+      reference('variable', name, 'read', start, start + match[1].length, 'interpolation', undefined,
+        member ? { name: member, refKind: 'read', range: rangeFromOffsets(ctx, start, memberEnd) } : undefined);
     }
   };
 
@@ -364,7 +382,7 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
       // is one opaque `python_block` (nms4.15), so there is nothing Ren'Py
       // inside to visit.
       case 'python_statement':
-        out.pythonBlocks.push({ range: rangeOfNode(ctx, node), kind: 'python', priority: null });
+        out.pythonBlocks.push({ range: rangeOfNode(ctx, node), kind: 'python', priority: null, store: namedStore(node) });
         return;
 
       case 'init_python_statement': {
@@ -373,6 +391,7 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
           range: rangeOfNode(ctx, node),
           kind: 'init-python',
           priority: priority ? Number(priority.text) : null,
+          store: namedStore(node),
         });
         return;
       }

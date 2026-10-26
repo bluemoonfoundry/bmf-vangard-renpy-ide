@@ -188,3 +188,69 @@ describe('resolveProjectIndex (user variables named like builtins)', () => {
     expect(index.unresolved.filter((r) => r.name.startsWith('_'))).toEqual([]);
   });
 });
+
+describe('resolveProjectIndex (named stores, nms4.49)', () => {
+  const STORE = 'init python in mystore:\n    count = 0\n    def bump():\n        pass\n';
+
+  it('resolves mystore.x read or written outside the store to the store variable', async () => {
+    const index = await inlineIndex({
+      'a_store.rpy': STORE,
+      'script.rpy': [
+        'label start:',
+        '    $ mystore.count += 1',
+        '    $ y = mystore.count + obj.attr',
+        '    $ mystore.bump()',
+        '    "Count: [mystore.count]"',
+        '    return',
+        '',
+      ].join('\n'),
+    });
+    expect(refSummary(index, 'variable:mystore.count')).toEqual([
+      'write@game/a_store.rpy:2',
+      'write@game/script.rpy:2',
+      'read@game/script.rpy:3',
+      'read@game/script.rpy:5',
+    ]);
+    expect(refSummary(index, 'python-function:mystore.bump')).toEqual(['read@game/script.rpy:4']);
+    const read = index.symbols.get('variable:mystore.count')!.references[2];
+    expect(read.name).toBe('mystore.count');
+    expect(read.range.end.offset - read.range.start.offset).toBe('mystore.count'.length);
+    expect(index.unresolved.map((r) => r.name)).toEqual(['obj']);
+  });
+
+  it('reports an undefined member of a known store as unresolved, not the store', async () => {
+    const index = await inlineIndex({
+      'a_store.rpy': STORE,
+      'script.rpy': 'label start:\n    $ y = mystore.missing\n    $ z = mystore\n    return\n',
+    });
+    expect(index.unresolved.map((r) => r.name)).toEqual(['mystore.missing']);
+  });
+
+  it('treats a dotted define or default as a named store', async () => {
+    const index = await inlineIndex({
+      'init.rpy': 'default party.size = 3\n',
+      'script.rpy': 'label start:\n    "[party.size]"\n    return\n',
+    });
+    expect(refSummary(index, 'variable:party.size')).toEqual(['read@game/script.rpy:2']);
+    expect(index.unresolved).toEqual([]);
+  });
+
+  it('resolves a bare read in a store body to a name bound in another block of the same store', async () => {
+    const index = await inlineIndex({
+      'a_store.rpy': STORE,
+      'b_store.rpy': 'init python in mystore:\n    def total():\n        return count + bump()\n',
+      'c_other.rpy': 'init python in other:\n    x = count\n',
+    });
+    expect(refSummary(index, 'variable:mystore.count')).toEqual(['write@game/a_store.rpy:2', 'read@game/b_store.rpy:3']);
+    expect(refSummary(index, 'python-function:mystore.bump')).toEqual(['read@game/b_store.rpy:3']);
+    expect(index.unresolved.map((r) => r.name)).toEqual(['count']);
+  });
+
+  it('keeps config/gui attribute reads as ignored API names even when they are defined', async () => {
+    const index = await inlineIndex({
+      'options.rpy': 'define config.name = "Game"\ndefine gui.text_size = 22\n',
+      'script.rpy': 'label start:\n    $ a = config.version\n    $ b = gui.accent_color\n    return\n',
+    });
+    expect(index.unresolved).toEqual([]);
+  });
+});

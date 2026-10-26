@@ -87,6 +87,11 @@ describe('walkRenpyTree definitions', () => {
     expect(r.pythonBlocks.map((p) => [p.kind, p.priority])).toEqual([['init-python', 5], ['python', null]]);
   });
 
+  it('records the named store of a python block (nms4.49)', async () => {
+    const r = await walk('init python in mystore:\n    x = 1\npython in store.inner:\n    y = 2\ninit python in store:\n    z = 3\npython:\n    w = 4\n');
+    expect(r.pythonBlocks.map((p) => p.store)).toEqual(['mystore', 'inner', null, null]);
+  });
+
   it('keeps the full multi-line source of a define value as its detail (nms4.35)', async () => {
     const value = '{\n    "a": (0, 0),\n    "b": (1, 1),  # last\n}';
     const r = await walk(`define bubble.expand_area = ${value}\ndefault inv = [\n    "x",\n]  # done\n`);

@@ -732,6 +732,12 @@ export interface SymbolReference {
   context: ReferenceContext;
   range: SourceRange;
   enclosingLabel: SymbolId | null;
+  /**
+   * For a variable read of the base of a chain `a.b...` (nms4.49): the
+   * two-part name `a.b`, its range, and whether `a.b` itself is written.
+   * resolveProjectIndex uses it when `a` turns out to be a named store.
+   */
+  storeMember?: { name: string; refKind: 'read' | 'write'; range: SourceRange };
 }
 
 export interface MenuChoiceInfo { text: string; condition: string | null; range: SourceRange }
@@ -749,6 +755,8 @@ export interface PythonBlockInfo {
   kind: 'python' | 'init-python';
   /** `init 5 python:` → 5 */
   priority: number | null;
+  /** `init python in mystore:` → 'mystore'; null for the default store (nms4.49). */
+  store: string | null;
 }
 
 export interface BlockContribution {

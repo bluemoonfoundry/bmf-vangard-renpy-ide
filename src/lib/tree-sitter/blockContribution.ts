@@ -12,7 +12,7 @@ import { parseBlock, disposeParsedBlock, type ParsedBlock, type PythonInjection 
 import { djb2 } from '@/lib/contentHash';
 import { createRangeContext, mapInjectionPoint, rangeFromOffsets } from '@/lib/tree-sitter/sourceRange';
 import { symbolId } from '@/lib/tree-sitter/symbolNames';
-import { enclosingLabelFor, screenScopeFor, walkRenpyTree, type ScreenScope } from '@/lib/tree-sitter/renpyWalk';
+import { enclosingLabelFor, namedStore, screenScopeFor, walkRenpyTree, type ScreenScope } from '@/lib/tree-sitter/renpyWalk';
 import { walkPythonTree } from '@/lib/tree-sitter/pythonWalk';
 import { createThrottledWarn } from '@/lib/workerLogger';
 
@@ -70,15 +70,11 @@ export function outermostInjections(injections: PythonInjection[]): PythonInject
 /**
  * The named store of the `python in X:` / `init python in X:` block an
  * injection is the body of (nms4.34), or null for the default store.
- * `in store` and `in store.X` are spelled relative to the default store.
  */
 export function injectionStoreName(root: SyntaxNode, injection: PythonInjection): string | null {
   if (injection.kind !== 'python-block') return null;
   for (let node: SyntaxNode | null = root.descendantForIndex(injection.range[0], injection.range[1]); node; node = node.parent) {
-    if (node.type !== 'python_statement' && node.type !== 'init_python_statement') continue;
-    const store = node.childForFieldName('store')?.text ?? null;
-    if (store === null || store === 'store') return null;
-    return store.startsWith('store.') ? store.slice('store.'.length) : store;
+    if (node.type === 'python_statement' || node.type === 'init_python_statement') return namedStore(node);
   }
   return null;
 }
@@ -166,11 +162,15 @@ export async function buildBlockContribution(block: IndexBlock): Promise<BlockCo
         const start = toOffset(use.start);
         const end = toOffset(use.end);
         const name = qualify(use.name, start, end, use.refKind === 'write');
+        const member = use.member && name === use.name ? use.member : undefined;
         references.push({
           symbolId: symbolId('variable', name), kind: 'variable', name,
           refKind: use.refKind, context,
           range: rangeFromOffsets(ctx, start, end),
           enclosingLabel,
+          ...(member ? {
+            storeMember: { name: member.name, refKind: member.refKind, range: rangeFromOffsets(ctx, start, toOffset(member.end)) },
+          } : {}),
         });
       }
       for (const def of python.defs) {

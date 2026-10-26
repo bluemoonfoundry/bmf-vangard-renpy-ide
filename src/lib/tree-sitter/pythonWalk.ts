@@ -18,7 +18,18 @@
 import type { Point, SyntaxNode } from 'web-tree-sitter';
 import { isPrivateName, normalizeVariableName } from '@/lib/tree-sitter/symbolNames';
 
-export interface PythonUse { name: string; refKind: 'read' | 'write'; start: Point; end: Point }
+/**
+ * `member` is set on the base read of a chain `a.b...` (nms4.49): the
+ * two-part name `a.b`, where it ends, and whether `a.b` itself is written.
+ * The project resolver reads it instead when `a` is a named store.
+ */
+export interface PythonUse {
+  name: string;
+  refKind: 'read' | 'write';
+  start: Point;
+  end: Point;
+  member?: { name: string; refKind: 'read' | 'write'; end: Point };
+}
 
 export interface PythonDef {
   kind: 'python-function' | 'python-class';
@@ -152,9 +163,11 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
     return false;
   };
 
-  const push = (name: string, refKind: 'read' | 'write', first: SyntaxNode, last: SyntaxNode): void => {
+  const push = (
+    name: string, refKind: 'read' | 'write', first: SyntaxNode, last: SyntaxNode, member?: PythonUse['member'],
+  ): void => {
     if (isPrivateName(name) || PYTHON_KEYWORDS.has(name.split('.')[0])) return;
-    result.uses.push({ name, refKind, start: first.startPosition, end: last.endPosition });
+    result.uses.push({ name, refKind, start: first.startPosition, end: last.endPosition, ...(member ? { member } : {}) });
   };
 
   const readIdentifier = (id: SyntaxNode, scope: Scope): void => {
@@ -165,7 +178,11 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
     if (scope.isStore ? !scope.locals.has(id.text) : scope.globals.has(id.text)) push(id.text, 'write', id, id);
   };
 
-  /** `a.b.c` — store./persistent. chains are their own variables; anything else reads its base. */
+  /**
+   * `a.b.c` — store./persistent. chains are their own variables; anything
+   * else reads its base, keeping `a.b` as its `member`. Only a chain that is
+   * exactly the variable (`store.x = 1`, `mystore.x = 1`) is a write.
+   */
   const visitAttributeChain = (attribute: SyntaxNode, refKind: 'read' | 'write', scope: Scope): void => {
     const parts: SyntaxNode[] = [];
     let node: SyntaxNode = attribute;
@@ -182,11 +199,18 @@ export function walkPythonTree(root: SyntaxNode, options: { allowDefinitions: bo
     }
     parts.unshift(node);
     const { name, consumed } = normalizeVariableName(parts.map((p) => p.text));
+    const next = name.includes('.') ? undefined : parts[consumed];
+    const member = next && {
+      name: `${name}.${next.text}`,
+      refKind: refKind === 'write' && consumed + 1 === parts.length ? 'write' as const : 'read' as const,
+      end: next.endPosition,
+    };
     if (consumed === 1) {
-      readIdentifier(node, scope); // obj.attr (read or mutated) reads obj
+      // obj.attr (read or mutated) reads obj
+      if (!isLocal(node.text, scope)) push(node.text, 'read', node, node, member);
       return;
     }
-    push(name, refKind, parts[0], parts[consumed - 1]);
+    push(name, consumed === parts.length ? refKind : 'read', parts[0], parts[consumed - 1], member);
   };
 
   const visitTarget = (target: SyntaxNode, scope: Scope): void => {
