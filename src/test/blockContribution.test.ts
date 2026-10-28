@@ -204,6 +204,25 @@ describe('buildBlockContribution', () => {
       ]);
     });
 
+    it('keeps transform parameters local to the transform (nms4.50)', async () => {
+      const content = [
+        'transform slide(d=base, x=0.5):',
+        '    linear d xpos x',
+        '    alpha level',
+        'transform t:',
+        '    linear d',
+        'label start:',
+        '    $ y = x',
+        '',
+      ].join('\n');
+      const c = await build(content);
+      expect(c.hasError).toBe(false);
+      expect(refs(c)).toEqual([
+        ['variable:base', 'read'], ['variable:level', 'read'], ['variable:d', 'read'],
+        ['variable:y', 'write'], ['variable:x', 'read'],
+      ]);
+    });
+
     it('does not read the name on a screen `tag` line (nms4.47)', async () => {
       const c = await build('screen prefs():\n    tag menu\n    text "[volume]"\n');
       expect(c.hasError).toBe(false);

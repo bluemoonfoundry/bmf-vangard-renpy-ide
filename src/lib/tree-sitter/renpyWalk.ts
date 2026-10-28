@@ -22,7 +22,9 @@ export interface LabelSpan { id: SymbolId; start: number; end: number }
  * A screen body and the names local to it (nms4.31): parameters,
  * screen-language `default` names and `for` targets. blockContribution.ts
  * adds the bare names written by `$` lines in the screen. Ren'Py keeps all of
- * these in the screen's own scope, so they are not store variables.
+ * these in the screen's own scope, so they are not store variables. A
+ * transform with parameters gets one too, holding just its parameters
+ * (nms4.50).
  */
 export interface ScreenScope { start: number; end: number; locals: Set<string> }
 
@@ -276,13 +278,13 @@ export function walkRenpyTree(root: SyntaxNode, ctx: RangeContext): RenpyWalkRes
         const detail = kind === 'screen' ? node.childForFieldName('parameters')?.text
           : kind === 'style' ? node.childForFieldName('parent')?.text : undefined;
         define(kind, nameNode.text, kind, node, nameNode.startIndex, nameNode.endIndex, detail);
+        const parameters = node.childForFieldName('parameters')?.namedChildren.find((c) => c.type === 'expression');
+        const locals = new Set(parameters ? parameterNames(parameters.text) : []);
         if (kind === 'screen') {
-          const parameters = node.childForFieldName('parameters')?.namedChildren.find((c) => c.type === 'expression');
-          currentScreen = {
-            start: node.startIndex, end: node.endIndex,
-            locals: new Set(parameters ? parameterNames(parameters.text) : []),
-          };
+          currentScreen = { start: node.startIndex, end: node.endIndex, locals };
           out.screenScopes.push(currentScreen);
+        } else if (kind === 'transform' && locals.size > 0) {
+          out.screenScopes.push({ start: node.startIndex, end: node.endIndex, locals });
         }
         break;
       }
